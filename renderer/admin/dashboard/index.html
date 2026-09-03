@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inicio - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/header.css" />
+    <link rel="stylesheet" href="./dashboard.css" />
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/header.js"></script>
+    <script src="./dashboard.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <app-sidebar active="dashboard"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <app-header user-name="Ana Morales" user-role="Administradora" user-initials="AM"></app-header>
+
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>¡Bienvenida, Ana!</h1>
+              <p>Resumen general de la institución</p>
+            </div>
+            <div class="dropdown">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M16 2v4" />
+                <path d="M8 2v4" />
+                <path d="M3 10h18" />
+              </svg>
+              <span>Año escolar 2026</span>
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+          </div>
+
+          <section class="stat-grid">
+            <div class="card stat-card">
+              <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+              <div class="stat-body">
+                <span class="stat-label">Estudiantes</span>
+                <span class="stat-value">1,248</span>
+              </div>
+            </div>
+
+            <div class="card stat-card">
+              <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 10L12 5 2 10l10 5 10-5z" />
+                  <path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />
+                </svg>
+              </div>
+              <div class="stat-body">
+                <span class="stat-label">Docentes</span>
+                <span class="stat-value">86</span>
+              </div>
+            </div>
+
+            <div class="card stat-card">
+              <div class="stat-icon purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 4h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 4h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+              </div>
+              <div class="stat-body">
+                <span class="stat-label">Cursos activos</span>
+                <span class="stat-value">48</span>
+              </div>
+            </div>
+
+            <div class="card stat-card">
+              <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <polyline points="17 11 19 13 23 9" />
+                </svg>
+              </div>
+              <div class="stat-body">
+                <span class="stat-label">Asistencia promedio</span>
+                <span class="stat-value">92.4%</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="card chart-card">
+            <div class="chart-header">
+              <div>
+                <h2>Matrícula por grado</h2>
+                <p>Distribución de estudiantes</p>
+              </div>
+              <div class="dropdown">
+                <span>Todos los grados</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+            </div>
+
+            <div class="chart">
+              <div class="chart-y-axis">
+                <span>300</span>
+                <span>200</span>
+                <span>100</span>
+                <span>0</span>
+              </div>
+              <div class="chart-plot">
+                <div class="chart-gridlines">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="chart-bars">
+                  <div class="chart-col"><div class="chart-bar" style="height: 50%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 43%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 48%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 50%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 58%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 73%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 82%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 90%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 94%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 88%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 82%"></div></div>
+                  <div class="chart-col"><div class="chart-bar" style="height: 75%"></div></div>
+                </div>
+                <div class="chart-labels">
+                  <span class="chart-col-label">1°</span>
+                  <span class="chart-col-label">2°</span>
+                  <span class="chart-col-label">3°</span>
+                  <span class="chart-col-label">4°</span>
+                  <span class="chart-col-label">5°</span>
+                  <span class="chart-col-label">6°</span>
+                  <span class="chart-col-label">7°</span>
+                  <span class="chart-col-label">8°</span>
+                  <span class="chart-col-label">9°</span>
+                  <span class="chart-col-label">10°</span>
+                  <span class="chart-col-label">11°</span>
+                  <span class="chart-col-label">12°</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

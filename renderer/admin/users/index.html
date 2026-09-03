@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Usuarios - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/header.css" />
+    <link rel="stylesheet" href="./users.css" />
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/header.js"></script>
+    <script src="./users.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <app-sidebar active="users"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <app-header user-name="Ana Morales" user-role="Administradora" user-initials="AM"></app-header>
+
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Usuarios</h1>
+              <p>Gestiona las cuentas de usuario de la institución</p>
+            </div>
+          </div>
+
+          <section class="card users-card">
+            <div class="filters-row">
+              <div class="field field-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input type="text" placeholder="Buscar por nombre" />
+              </div>
+
+              <div class="field">
+                <input type="text" placeholder="Filtrar por DNI" />
+              </div>
+
+              <div class="field field-select dropdown" data-filter="role">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Rol</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="ADMIN" aria-selected="false">Administrador</li>
+                  <li class="dropdown-option" role="option" data-value="SECRETARY" aria-selected="false">Secretario</li>
+                  <li class="dropdown-option" role="option" data-value="TEACHER" aria-selected="false">Profesor</li>
+                </ul>
+              </div>
+
+              <div class="field field-select dropdown" data-filter="status">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Estado</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activo</li>
+                  <li class="dropdown-option" role="option" data-value="INACTIVE" aria-selected="false">Inactivo</li>
+                </ul>
+              </div>
+
+              <button class="btn btn-primary" type="button" id="openNewUserModalBtn">
+                <span class="plus">+</span> Nuevo usuario
+              </button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Usuario</th>
+                    <th>DNI</th>
+                    <th>Email</th>
+                    <th>Estado</th>
+                    <th>Rol</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-blue">AM</span>
+                        <span>Morales, Ana</span>
+                      </div>
+                    </td>
+                    <td>34.567.890</td>
+                    <td>ana.morales@institucion.edu.ar</td>
+                    <td><span class="badge badge-active">Activo</span></td>
+                    <td>Administrador</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-purple">PL</span>
+                        <span>Pérez, Lucía</span>
+                      </div>
+                    </td>
+                    <td>35.678.901</td>
+                    <td>lucia.perez@institucion.edu.ar</td>
+                    <td><span class="badge badge-active">Activo</span></td>
+                    <td>Secretario</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-green">GM</span>
+                        <span>Gómez, Martín</span>
+                      </div>
+                    </td>
+                    <td>36.789.012</td>
+                    <td>martin.gomez@institucion.edu.ar</td>
+                    <td><span class="badge badge-active">Activo</span></td>
+                    <td>Profesor</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-orange">CF</span>
+                        <span>Fernández, Carla</span>
+                      </div>
+                    </td>
+                    <td>37.890.123</td>
+                    <td>carla.fernandez@institucion.edu.ar</td>
+                    <td><span class="badge badge-inactive">Inactivo</span></td>
+                    <td>Profesor</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-yellow">PR</span>
+                        <span>Rodríguez, Pablo</span>
+                      </div>
+                    </td>
+                    <td>38.901.234</td>
+                    <td>pablo.rodriguez@institucion.edu.ar</td>
+                    <td><span class="badge badge-active">Activo</span></td>
+                    <td>Profesor</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-pink">SV</span>
+                        <span>Suárez, Valentina</span>
+                      </div>
+                    </td>
+                    <td>39.012.345</td>
+                    <td>valentina.suarez@institucion.edu.ar</td>
+                    <td><span class="badge badge-active">Activo</span></td>
+                    <td>Profesor</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-blue">DL</span>
+                        <span>López, Diego</span>
+                      </div>
+                    </td>
+                    <td>40.123.456</td>
+                    <td>diego.lopez@institucion.edu.ar</td>
+                    <td><span class="badge badge-inactive">Inactivo</span></td>
+                    <td>Profesor</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-purple">MA</span>
+                        <span>Acosta, Micaela</span>
+                      </div>
+                    </td>
+                    <td>41.234.567</td>
+                    <td>micaela.acosta@institucion.edu.ar</td>
+                    <td><span class="badge badge-active">Activo</span></td>
+                    <td>Secretario</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-green">TJ</span>
+                        <span>Torres, Juan</span>
+                      </div>
+                    </td>
+                    <td>42.345.678</td>
+                    <td>juan.torres@institucion.edu.ar</td>
+                    <td><span class="badge badge-active">Activo</span></td>
+                    <td>Profesor</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="user-cell">
+                        <span class="avatar-circle c-yellow">SM</span>
+                        <span>Medina, Sofía</span>
+                      </div>
+                    </td>
+                    <td>43.456.789</td>
+                    <td>sofia.medina@institucion.edu.ar</td>
+                    <td><span class="badge badge-inactive">Inactivo</span></td>
+                    <td>Profesor</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <span class="results-count">Mostrando 1-10 de 67</span>
+              <nav class="pagination" aria-label="Paginación de usuarios">
+                <button class="page-btn page-nav" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previo
+                </button>
+                <button class="page-btn active" type="button">1</button>
+                <button class="page-btn" type="button">2</button>
+                <button class="page-btn" type="button">3</button>
+                <span class="page-ellipsis">…</span>
+                <button class="page-btn" type="button">7</button>
+                <button class="page-btn page-nav" type="button">
+                  Siguiente
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Modal: Nuevo usuario -->
+    <div class="modal-overlay" id="newUserOverlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newUserTitle">
+        <div class="modal-header">
+          <h2 id="newUserTitle">Nuevo usuario</h2>
+          <p>Completa los datos para crear una nueva cuenta de usuario.</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="avatar-section">
+            <div class="avatar-preview" id="newUserAvatarPreview">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+              </svg>
+            </div>
+            <div class="avatar-info">
+              <span class="avatar-title">Foto de perfil (opcional)</span>
+              <p>Puedes agregar una foto de perfil para el usuario.</p>
+              <button type="button" class="btn btn-secondary btn-upload" id="uploadAvatarBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 16V4" />
+                  <polyline points="7 9 12 4 17 9" />
+                  <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+                </svg>
+                Subir imagen
+              </button>
+              <input type="file" accept="image/*" id="avatarFileInput" hidden />
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="newUserFirstName">Nombre</label>
+              <div class="field">
+                <input type="text" id="newUserFirstName" placeholder="Ej. Juan" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newUserLastName">Apellido</label>
+              <div class="field">
+                <input type="text" id="newUserLastName" placeholder="Ej. Pérez" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newUserDni">DNI</label>
+              <div class="field">
+                <input type="text" id="newUserDni" placeholder="Ej. 34.567.890" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newUserEmail">Email</label>
+              <div class="field">
+                <input type="email" id="newUserEmail" placeholder="Ej. juan.perez@institucion.edu.ar" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newUserBirthdate">Fecha de nacimiento</label>
+              <div class="field field-date">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="5" width="18" height="16" rx="2" />
+                  <line x1="16" y1="3" x2="16" y2="7" />
+                  <line x1="8" y1="3" x2="8" y2="7" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                <input type="text" id="newUserBirthdate" placeholder="Seleccionar fecha" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Rol</label>
+              <div class="field field-select dropdown" data-filter="new-user-role">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label placeholder">Seleccionar rol</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="ADMIN" aria-selected="false">Administrador</li>
+                  <li class="dropdown-option" role="option" data-value="SECRETARY" aria-selected="false">Secretario</li>
+                  <li class="dropdown-option" role="option" data-value="TEACHER" aria-selected="false">Profesor</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="password-section">
+            <div class="password-heading">
+              <span class="password-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="11" width="14" height="9" rx="2" />
+                  <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                </svg>
+              </span>
+              <div>
+                <span class="password-title">Contraseña</span>
+                <p>Se generará automáticamente una contraseña segura.</p>
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-outline-blue" id="generatePasswordBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-3-6.7" />
+                <polyline points="21 3 21 9 15 9" />
+              </svg>
+              Generar contraseña
+            </button>
+
+            <div class="password-display">
+              <span class="password-value" id="generatedPasswordValue" data-visible="false"></span>
+              <div class="password-actions">
+                <button type="button" class="link-btn" id="togglePasswordBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Mostrar</span>
+                </button>
+                <button type="button" class="link-btn" id="copyPasswordBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelNewUserBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="createUserBtn">Crear usuario</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

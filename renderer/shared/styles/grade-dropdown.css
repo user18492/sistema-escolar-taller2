@@ -1,0 +1,124 @@
+/* Componente reutilizable: dropdown de filtro "Grado" — selección múltiple con checkboxes tri-estado */
+
+.dropdown-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--color-border);
+}
+
+.dropdown-menu-grade {
+  width: 336px;
+  min-width: 336px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-menu-grade .dropdown-divider {
+  margin: 6px 2px;
+}
+
+.grade-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.grade-row:hover {
+  background: #f3f4f6;
+}
+
+.grade-row-label {
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.grade-level-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.grade-checkbox {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1.5px solid #d1d5db;
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.grade-check-icon,
+.grade-dash-icon {
+  width: 13px;
+  height: 13px;
+  color: #ffffff;
+  display: none;
+}
+
+.grade-row.is-checked .grade-checkbox,
+.grade-row.is-indeterminate .grade-checkbox {
+  background: var(--color-accent-blue);
+  border-color: var(--color-accent-blue);
+}
+
+.grade-row.is-checked .grade-check-icon {
+  display: block;
+}
+
+.grade-row.is-indeterminate .grade-dash-icon {
+  display: block;
+}
+
+.grade-level-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 2px;
+}
+
+.grade-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.grade-card {
+  height: 46px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grade-card:hover {
+  border-color: #cbd5e1;
+  background: #f9fafb;
+}
+
+.grade-card.selected {
+  background: var(--color-accent-blue-bg);
+  border-color: var(--color-accent-blue);
+  color: var(--color-accent-blue);
+  font-weight: 600;
+}

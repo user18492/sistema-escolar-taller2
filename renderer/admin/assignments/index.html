@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Docencia - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/header.css" />
+    <link rel="stylesheet" href="../../shared/styles/grade-dropdown.css" />
+    <link rel="stylesheet" href="./assignments.css" />
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/header.js"></script>
+    <script src="../../shared/components/grade-dropdown.js"></script>
+    <script src="./assignments.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <app-sidebar active="assignments"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <app-header user-name="Ana Morales" user-role="Administradora" user-initials="AM"></app-header>
+
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Docencia</h1>
+              <p>Gestiona las asignaciones docentes de la institución</p>
+            </div>
+          </div>
+
+          <section class="card assignments-card">
+            <div class="filters-row">
+              <div class="field">
+                <input type="text" placeholder="Filtrar por profesor" />
+              </div>
+
+              <grade-dropdown></grade-dropdown>
+
+              <div class="field">
+                <input type="text" placeholder="División" />
+              </div>
+
+              <div class="field field-select dropdown" data-filter="shift">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Turno</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="MORNING" aria-selected="false">Mañana</li>
+                  <li class="dropdown-option" role="option" data-value="AFTERNOON" aria-selected="false">Tarde</li>
+                </ul>
+              </div>
+
+              <div class="field field-select dropdown" data-filter="subject">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Materia</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todas</li>
+                  <li class="dropdown-option" role="option" data-value="MATH" aria-selected="false">Matemática</li>
+                  <li class="dropdown-option" role="option" data-value="LANGUAGE" aria-selected="false">Lengua</li>
+                  <li class="dropdown-option" role="option" data-value="NATURAL_SCIENCES" aria-selected="false">Ciencias Naturales</li>
+                  <li class="dropdown-option" role="option" data-value="HISTORY" aria-selected="false">Historia</li>
+                  <li class="dropdown-option" role="option" data-value="GEOGRAPHY" aria-selected="false">Geografía</li>
+                  <li class="dropdown-option" role="option" data-value="ENGLISH" aria-selected="false">Inglés</li>
+                </ul>
+              </div>
+
+              <div class="field field-select dropdown" data-filter="year">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Ciclo lectivo</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="2026" aria-selected="false">2026</li>
+                  <li class="dropdown-option" role="option" data-value="2025" aria-selected="false">2025</li>
+                  <li class="dropdown-option" role="option" data-value="2024" aria-selected="false">2024</li>
+                </ul>
+              </div>
+
+              <button class="btn btn-primary" type="button">
+                <span class="plus">+</span> Nueva asignación
+              </button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Profesor</th>
+                    <th>Curso</th>
+                    <th>Nivel educativo</th>
+                    <th>Materia</th>
+                    <th>Ciclo lectivo</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>María González</td>
+                    <td>1° A · Mañana</td>
+                    <td>Primaria</td>
+                    <td>Matemática</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>Carlos Fernández</td>
+                    <td>2° B · Tarde</td>
+                    <td>Primaria</td>
+                    <td>Lengua</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>Lucía Romero</td>
+                    <td>3° A · Mañana</td>
+                    <td>Primaria</td>
+                    <td>Ciencias Naturales</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>Diego López</td>
+                    <td>1° A · Tarde</td>
+                    <td>Secundaria</td>
+                    <td>Historia</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>Valeria Pérez</td>
+                    <td>4° B · Mañana</td>
+                    <td>Secundaria</td>
+                    <td>Geografía</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>Sofía Acosta</td>
+                    <td>2° A · Mañana</td>
+                    <td>Secundaria</td>
+                    <td>Inglés</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>Julián Ruiz</td>
+                    <td>3° B · Tarde</td>
+                    <td>Secundaria</td>
+                    <td>Matemática</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>Camila Torres</td>
+                    <td>1° B · Mañana</td>
+                    <td>Primaria</td>
+                    <td>Lengua</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>Martín Silva</td>
+                    <td>4° A · Mañana</td>
+                    <td>Secundaria</td>
+                    <td>Ciencias Naturales</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>Paula Medina</td>
+                    <td>2° B · Tarde</td>
+                    <td>Secundaria</td>
+                    <td>Historia</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <span class="results-count">Mostrando 1-10 de 24</span>
+              <nav class="pagination" aria-label="Paginación de asignaciones docentes">
+                <button class="page-btn page-nav" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previo
+                </button>
+                <button class="page-btn active" type="button">1</button>
+                <button class="page-btn" type="button">2</button>
+                <button class="page-btn" type="button">3</button>
+                <span class="page-ellipsis">…</span>
+                <button class="page-btn" type="button">5</button>
+                <button class="page-btn page-nav" type="button">
+                  Siguiente
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

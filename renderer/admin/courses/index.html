@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cursos - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/header.css" />
+    <link rel="stylesheet" href="../../shared/styles/grade-dropdown.css" />
+    <link rel="stylesheet" href="./courses.css" />
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/header.js"></script>
+    <script src="../../shared/components/grade-dropdown.js"></script>
+    <script src="./courses.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <app-sidebar active="courses"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <app-header user-name="Ana Morales" user-role="Administradora" user-initials="AM"></app-header>
+
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Cursos</h1>
+              <p>Gestiona los cursos de la institución</p>
+            </div>
+          </div>
+
+          <section class="card courses-card">
+            <div class="filters-row">
+              <grade-dropdown></grade-dropdown>
+
+              <div class="field">
+                <input type="text" placeholder="Filtrar por división" />
+              </div>
+
+              <div class="field field-select dropdown" data-filter="shift">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Turno</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="MORNING" aria-selected="false">Mañana</li>
+                  <li class="dropdown-option" role="option" data-value="AFTERNOON" aria-selected="false">Tarde</li>
+                </ul>
+              </div>
+
+              <div class="field field-select dropdown" data-filter="year">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Ciclo lectivo</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="2026" aria-selected="false">2026</li>
+                  <li class="dropdown-option" role="option" data-value="2025" aria-selected="false">2025</li>
+                  <li class="dropdown-option" role="option" data-value="2024" aria-selected="false">2024</li>
+                </ul>
+              </div>
+
+              <button class="btn btn-primary" type="button">
+                <span class="plus">+</span> Nuevo curso
+              </button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Grado</th>
+                    <th>División</th>
+                    <th>Turno</th>
+                    <th>Nivel educativo</th>
+                    <th>Ciclo lectivo</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1°</td>
+                    <td>A</td>
+                    <td>Mañana</td>
+                    <td>Primaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>1°</td>
+                    <td>B</td>
+                    <td>Tarde</td>
+                    <td>Primaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>2°</td>
+                    <td>A</td>
+                    <td>Mañana</td>
+                    <td>Primaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>3°</td>
+                    <td>A</td>
+                    <td>Tarde</td>
+                    <td>Primaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>5°</td>
+                    <td>B</td>
+                    <td>Mañana</td>
+                    <td>Primaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>6°</td>
+                    <td>A</td>
+                    <td>Tarde</td>
+                    <td>Primaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>1°</td>
+                    <td>A</td>
+                    <td>Mañana</td>
+                    <td>Secundaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>2°</td>
+                    <td>B</td>
+                    <td>Tarde</td>
+                    <td>Secundaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>4°</td>
+                    <td>A</td>
+                    <td>Mañana</td>
+                    <td>Secundaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                  <tr>
+                    <td>6°</td>
+                    <td>B</td>
+                    <td>Tarde</td>
+                    <td>Secundaria</td>
+                    <td>2026</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <span class="results-count">Mostrando 1-10 de 48</span>
+              <nav class="pagination" aria-label="Paginación de cursos">
+                <button class="page-btn page-nav" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previo
+                </button>
+                <button class="page-btn active" type="button">1</button>
+                <button class="page-btn" type="button">2</button>
+                <button class="page-btn" type="button">3</button>
+                <span class="page-ellipsis">…</span>
+                <button class="page-btn" type="button">5</button>
+                <button class="page-btn page-nav" type="button">
+                  Siguiente
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
