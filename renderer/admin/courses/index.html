@@ -67,7 +67,7 @@
                 </ul>
               </div>
 
-              <button class="btn btn-primary" type="button">
+              <button class="btn btn-primary" type="button" id="openNewCourseModalBtn">
                 <span class="plus">+</span> Nuevo curso
               </button>
             </div>
@@ -193,6 +193,100 @@
             </div>
           </section>
         </main>
+      </div>
+    </div>
+
+    <!-- Modal: Nuevo curso -->
+    <div class="modal-overlay" id="newCourseOverlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newCourseTitle">
+        <div class="modal-header">
+          <h2 id="newCourseTitle">Nuevo curso</h2>
+          <p>Completa los datos para crear un nuevo curso</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-field">
+            <label>Grado</label>
+            <div class="field field-select dropdown" data-filter="new-course-grade">
+              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                <span class="dropdown-label placeholder">Seleccionar grado</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <div class="dropdown-menu dropdown-menu-grade-single" role="listbox" hidden>
+                <div class="grade-grid">
+                  <button type="button" class="grade-card" role="option" data-value="1" aria-selected="false">1°</button>
+                  <button type="button" class="grade-card" role="option" data-value="2" aria-selected="false">2°</button>
+                  <button type="button" class="grade-card" role="option" data-value="3" aria-selected="false">3°</button>
+                  <button type="button" class="grade-card" role="option" data-value="4" aria-selected="false">4°</button>
+                  <button type="button" class="grade-card" role="option" data-value="5" aria-selected="false">5°</button>
+                  <button type="button" class="grade-card" role="option" data-value="6" aria-selected="false">6°</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="newCourseDivision">División</label>
+            <div class="field">
+              <input type="text" id="newCourseDivision" placeholder="Ej. A, B, C..." />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Turno</label>
+            <div class="field field-select dropdown" data-filter="new-course-shift">
+              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                <span class="dropdown-label placeholder">Seleccionar turno</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <ul class="dropdown-menu" role="listbox" hidden>
+                <li class="dropdown-option" role="option" data-value="MORNING" aria-selected="false">Mañana</li>
+                <li class="dropdown-option" role="option" data-value="AFTERNOON" aria-selected="false">Tarde</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Nivel educativo</label>
+            <div class="field field-select dropdown" data-filter="new-course-level">
+              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                <span class="dropdown-label placeholder">Seleccionar nivel educativo</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <ul class="dropdown-menu" role="listbox" hidden>
+                <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
+                <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="info-box">
+            <span class="info-box-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <line x1="16" y1="3" x2="16" y2="7" />
+                <line x1="8" y1="3" x2="8" y2="7" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </span>
+            <div class="info-box-text">
+              <span class="info-box-title">Ciclo lectivo actual</span>
+              <p>El curso se creará para el ciclo lectivo actual.</p>
+            </div>
+            <span class="info-box-badge" id="newCourseYearBadge">2026</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelNewCourseBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="createCourseBtn">Crear curso</button>
+        </div>
       </div>
     </div>
   </body>

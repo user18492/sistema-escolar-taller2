@@ -326,3 +326,172 @@
   font-size: 13px;
   color: var(--color-text-tertiary);
 }
+
+/* ---------- Modal: Nuevo curso ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.18s ease,
+    visibility 0.18s ease;
+}
+
+.modal-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 24px 60px -12px rgba(16, 24, 40, 0.35),
+    0 4px 12px rgba(16, 24, 40, 0.12);
+  transform: translateY(10px) scale(0.98);
+  opacity: 0;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.modal-overlay.is-open .modal {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.modal-header {
+  padding: 28px 28px 4px;
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.modal-header p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 22px 28px 0;
+}
+
+/* Form fields */
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dropdown-label.placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* Grado: grilla 2x3 dentro del dropdown, selección única */
+
+.dropdown-menu-grade-single {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+}
+
+.dropdown-menu-grade-single .grade-grid {
+  padding: 0;
+}
+
+/* Ciclo lectivo actual (informativo, no editable) */
+
+.info-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #f5f8ff;
+  border: 1px solid var(--color-accent-blue-bg);
+  border-radius: var(--radius-md);
+}
+
+.info-box-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-box-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.info-box-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.info-box-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-accent-blue);
+}
+
+.info-box-text p {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.info-box-badge {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px 28px 28px;
+}
+
+.modal-footer .btn {
+  height: 38px;
+  padding: 0 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
