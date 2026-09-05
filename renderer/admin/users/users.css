@@ -319,9 +319,9 @@
   color: #067a55;
 }
 
-.badge-inactive {
-  background: #f3f4f6;
-  color: var(--color-text-secondary);
+.badge-suspended {
+  background: var(--color-accent-red-bg);
+  color: var(--color-accent-red);
 }
 
 /* ---------- Table footer / pagination ---------- */
