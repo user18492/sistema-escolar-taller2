@@ -213,6 +213,13 @@
   background: #2f6fe0;
 }
 
+.btn-primary:disabled,
+.btn-primary:disabled:hover {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--color-accent-blue);
+}
+
 .btn-primary .plus {
   font-size: 15px;
   font-weight: 700;

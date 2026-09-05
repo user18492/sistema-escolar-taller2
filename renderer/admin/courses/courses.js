@@ -94,6 +94,18 @@ document.addEventListener('DOMContentLoaded', () => {
     '[data-filter="new-course-shift"], [data-filter="new-course-level"]'
   );
 
+  function updateCreateButtonState() {
+    const hasGrade = Boolean(gradeDropdown.querySelector('.grade-card.selected'));
+    const hasDivision = divisionInput.value.trim().length > 0;
+    const hasShift = Boolean(
+      courseOverlay.querySelector('[data-filter="new-course-shift"] .dropdown-option.selected')
+    );
+    const hasLevel = Boolean(
+      courseOverlay.querySelector('[data-filter="new-course-level"] .dropdown-option.selected')
+    );
+    createCourseBtn.disabled = !(hasGrade && hasDivision && hasShift && hasLevel);
+  }
+
   gradeCards.forEach((card) => {
     card.addEventListener('click', () => {
       gradeCards.forEach((c) => {
@@ -105,6 +117,15 @@ document.addEventListener('DOMContentLoaded', () => {
       gradeLabel.textContent = `${card.dataset.value}°`;
       gradeLabel.classList.remove('placeholder');
       closeDropdown(gradeDropdown);
+      updateCreateButtonState();
+    });
+  });
+
+  divisionInput.addEventListener('input', updateCreateButtonState);
+
+  courseSelectDropdowns.forEach((dropdown) => {
+    dropdown.querySelectorAll('.dropdown-option').forEach((option) => {
+      option.addEventListener('click', updateCreateButtonState);
     });
   });
 
@@ -128,6 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
       label.textContent = label.dataset.placeholder;
       label.classList.add('placeholder');
     });
+
+    updateCreateButtonState();
   }
 
   function openCourseModal() {
