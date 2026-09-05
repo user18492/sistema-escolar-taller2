@@ -285,6 +285,51 @@
   border-bottom: none;
 }
 
+/* Profesor: avatar + nombre/email (mismo estilo que vista Usuarios) */
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+  background: var(--color-accent-blue-bg);
+  color: #2563eb;
+}
+
+.teacher-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.teacher-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.teacher-name {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.teacher-email {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---------- Table footer / pagination ---------- */
 
 .table-footer {
