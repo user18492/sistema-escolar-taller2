@@ -38,8 +38,34 @@
                 <input type="text" placeholder="Buscar por nombre" />
               </div>
 
-              <div class="field">
-                <input type="text" placeholder="Filtrar por DNI" />
+              <div class="field field-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input type="text" placeholder="Buscar por DNI" />
+              </div>
+
+              <div class="field field-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input type="text" placeholder="Buscar por email" />
+              </div>
+
+              <div class="field field-select dropdown" data-filter="status">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Estado</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activo</li>
+                  <li class="dropdown-option" role="option" data-value="SUSPENDED" aria-selected="false">Suspendido</li>
+                </ul>
               </div>
 
               <div class="field field-select dropdown" data-filter="role">
@@ -54,20 +80,6 @@
                   <li class="dropdown-option" role="option" data-value="ADMIN" aria-selected="false">Administrador</li>
                   <li class="dropdown-option" role="option" data-value="SECRETARY" aria-selected="false">Secretario</li>
                   <li class="dropdown-option" role="option" data-value="TEACHER" aria-selected="false">Profesor</li>
-                </ul>
-              </div>
-
-              <div class="field field-select dropdown" data-filter="status">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Estado</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activo</li>
-                  <li class="dropdown-option" role="option" data-value="SUSPENDED" aria-selected="false">Suspendido</li>
                 </ul>
               </div>
 

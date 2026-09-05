@@ -86,8 +86,8 @@
 }
 
 .field-search {
-  flex: 1.4;
-  min-width: 200px;
+  flex: 1;
+  min-width: 160px;
 }
 
 .field-search svg {
