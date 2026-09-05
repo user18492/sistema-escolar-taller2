@@ -549,6 +549,17 @@
   display: flex;
 }
 
+/* El filtro conserva las dimensiones al alternar entre búsqueda y selección. */
+[data-role="teacher-filter-select"] .searchable-bar {
+  height: 38px;
+  min-width: 0;
+  padding-block: 0;
+}
+
+[data-role="teacher-filter-select"] .searchable-input {
+  height: 100%;
+}
+
 [data-role="teacher-filter-select"] .searchable-value {
   font-size: 14px;
   color: var(--color-text-primary);
