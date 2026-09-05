@@ -187,6 +187,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const roleLabel = roleDropdown.querySelector('.dropdown-label');
   const roleOptions = roleDropdown.querySelectorAll('.dropdown-option');
 
+  const dniInput = document.getElementById('newUserDni');
+
+  function formatDniInput() {
+    const digitsBeforeCursor = dniInput.value.slice(0, dniInput.selectionStart).replace(/\D/g, '').length;
+    const digits = dniInput.value.replace(/\D/g, '').slice(0, 8);
+    const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    let cursor = 0;
+    let digitCount = 0;
+
+    // Mantener el cursor junto al mismo dígito al insertar o quitar los puntos.
+    while (cursor < formatted.length && digitCount < digitsBeforeCursor) {
+      if (formatted[cursor] !== '.') digitCount += 1;
+      cursor += 1;
+    }
+
+    dniInput.value = formatted;
+    dniInput.setSelectionRange(cursor, cursor);
+  }
+
+  dniInput.addEventListener('input', formatDniInput);
+
   const birthdateInput = document.getElementById('newUserBirthdate');
 
   function formatBirthdateInput() {
