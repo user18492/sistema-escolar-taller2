@@ -549,6 +549,18 @@
   display: flex;
 }
 
+[data-role="teacher-filter-select"] .searchable-value {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-role="teacher-filter-select"] .searchable-bar.has-value:not(.is-editing) .searchable-value {
+  display: block;
+}
+
 .searchable-bar.has-value:not(.is-editing) .searchable-input,
 .searchable-bar.has-value:not(.is-editing) .searchable-icon {
   display: none;
