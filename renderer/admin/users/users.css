@@ -195,6 +195,10 @@
   color: var(--color-text-primary);
 }
 
+.dropdown-option[hidden] {
+  display: none;
+}
+
 .dropdown-option:hover {
   background: #f3f4f6;
 }
@@ -203,6 +207,151 @@
   background: var(--color-accent-blue-bg);
   color: var(--color-accent-blue);
   font-weight: 500;
+}
+
+/* Campo con búsqueda integrada (Nombre): un único componente combinando input de búsqueda y lista desplegable */
+
+.dropdown-searchable {
+  position: relative;
+}
+
+.searchable-bar {
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dropdown-searchable.open .searchable-bar,
+.searchable-bar:focus-within {
+  border-color: var(--color-accent-blue);
+}
+
+.searchable-icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.searchable-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Mayor especificidad que .field input: el borde pertenece solo a la barra. */
+.field-searchable .searchable-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  padding: 0;
+}
+
+.searchable-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.searchable-value {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.searchable-bar.has-value:not(.is-editing) .searchable-value {
+  display: flex;
+}
+
+.searchable-bar.has-value:not(.is-editing) .searchable-input,
+.searchable-bar.has-value:not(.is-editing) .searchable-icon {
+  display: none;
+}
+
+.searchable-chevron {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+}
+
+.searchable-chevron .chevron {
+  width: 13px;
+  height: 13px;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.dropdown-searchable.open .searchable-chevron .chevron {
+  transform: rotate(180deg);
+}
+
+/* Opciones con avatar (Nombre) */
+
+.dropdown-menu-user {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.option-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 0;
+}
+
+.dropdown-menu-user .option-user:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.option-user .avatar-circle {
+  flex-shrink: 0;
+}
+
+.option-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.option-name {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-email {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
 }
 
 /* ---------- Buttons ---------- */

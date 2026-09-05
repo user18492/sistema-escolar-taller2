@@ -30,12 +30,95 @@
 
           <section class="card users-card">
             <div class="filters-row">
-              <div class="field field-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input type="text" placeholder="Buscar por nombre" />
+              <div class="field field-searchable dropdown-searchable" data-role="name-select">
+                <div class="searchable-bar">
+                  <span class="searchable-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input type="text" class="searchable-input" placeholder="Buscar por nombre" autocomplete="off" />
+                  <div class="searchable-value"></div>
+                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de usuarios" aria-expanded="false">
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-user" role="listbox" hidden>
+                  <li class="dropdown-option option-user" role="option" data-value="u1" aria-selected="false">
+                    <span class="avatar-circle">AM</span>
+                    <span class="option-text">
+                      <span class="option-name">Morales, Ana</span>
+                      <span class="option-email">ana.morales@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u2" aria-selected="false">
+                    <span class="avatar-circle">PL</span>
+                    <span class="option-text">
+                      <span class="option-name">Pérez, Lucía</span>
+                      <span class="option-email">lucia.perez@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u3" aria-selected="false">
+                    <span class="avatar-circle">GM</span>
+                    <span class="option-text">
+                      <span class="option-name">Gómez, Martín</span>
+                      <span class="option-email">martin.gomez@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u4" aria-selected="false">
+                    <span class="avatar-circle">CF</span>
+                    <span class="option-text">
+                      <span class="option-name">Fernández, Carla</span>
+                      <span class="option-email">carla.fernandez@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u5" aria-selected="false">
+                    <span class="avatar-circle">PR</span>
+                    <span class="option-text">
+                      <span class="option-name">Rodríguez, Pablo</span>
+                      <span class="option-email">pablo.rodriguez@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u6" aria-selected="false">
+                    <span class="avatar-circle">SV</span>
+                    <span class="option-text">
+                      <span class="option-name">Suárez, Valentina</span>
+                      <span class="option-email">valentina.suarez@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u7" aria-selected="false">
+                    <span class="avatar-circle">DL</span>
+                    <span class="option-text">
+                      <span class="option-name">López, Diego</span>
+                      <span class="option-email">diego.lopez@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u8" aria-selected="false">
+                    <span class="avatar-circle">MA</span>
+                    <span class="option-text">
+                      <span class="option-name">Acosta, Micaela</span>
+                      <span class="option-email">micaela.acosta@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u9" aria-selected="false">
+                    <span class="avatar-circle">TJ</span>
+                    <span class="option-text">
+                      <span class="option-name">Torres, Juan</span>
+                      <span class="option-email">juan.torres@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u10" aria-selected="false">
+                    <span class="avatar-circle">SM</span>
+                    <span class="option-text">
+                      <span class="option-name">Medina, Sofía</span>
+                      <span class="option-email">sofia.medina@institucion.edu.ar</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
               </div>
 
               <div class="field field-search">
