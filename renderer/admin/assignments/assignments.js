@@ -237,7 +237,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const teacherSelect = setupSearchableSelect(teacherRoot);
   const courseSelect = setupSearchableSelect(courseRoot);
-  searchableSelects = [teacherSelect, courseSelect];
+
+  // ---------- Filtro: profesor (dropdown con búsqueda integrada) ----------
+
+  const teacherFilterRoot = document.querySelector('[data-role="teacher-filter-select"]');
+  const teacherFilterSelect = setupSearchableSelect(teacherFilterRoot);
+
+  searchableSelects = [teacherSelect, courseSelect, teacherFilterSelect];
 
   function updateCreateButtonState() {
     const hasTeacher = Boolean(teacherSelect.getValue());
