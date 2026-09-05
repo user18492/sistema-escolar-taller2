@@ -1,6 +1,16 @@
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
-// Todavía no hay IPC ni lógica de negocio conectada (ver CLAUDE.md, sección 10):
-// se expone un objeto vacío para dejar contextIsolation activo desde el inicio,
-// siguiendo la arquitectura definida antes de implementar los canales reales.
-contextBridge.exposeInMainWorld('api', {});
+// Se exponen acciones concretas, sin dar acceso directo al IPC desde la UI.
+contextBridge.exposeInMainWorld('api', {
+  windowControls: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
+    close: () => ipcRenderer.invoke('window:close'),
+    isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+    onMaximizedChanged: (callback) => {
+      const listener = (_event, maximized) => callback(maximized);
+      ipcRenderer.on('window:maximized-changed', listener);
+      return () => ipcRenderer.removeListener('window:maximized-changed', listener);
+    },
+  },
+});

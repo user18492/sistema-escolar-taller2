@@ -2,7 +2,9 @@
 
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: calc(100vh - var(--window-titlebar-height));
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 /* ---------- Main ---------- */
@@ -556,7 +558,7 @@
 
 .modal-overlay {
   position: fixed;
-  inset: 0;
+  inset: var(--window-titlebar-height) 0 0;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,5 +1,6 @@
 const path = require('node:path');
 const { BrowserWindow } = require('electron');
+const { registerWindowControls } = require('./ipc/window-controls.controller');
 
 const PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'preload.js');
 const DASHBOARD_PATH = path.join(__dirname, '..', '..', 'renderer', 'admin', 'dashboard', 'index.html');
@@ -10,6 +11,7 @@ function createMainWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 640,
+    frame: false,
     webPreferences: {
       preload: PRELOAD_PATH,
       contextIsolation: true,
@@ -17,6 +19,8 @@ function createMainWindow() {
     },
   });
 
+  window.setMenu(null);
+  registerWindowControls(window);
   window.loadFile(DASHBOARD_PATH);
 
   return window;

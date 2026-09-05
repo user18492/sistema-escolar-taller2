@@ -37,9 +37,6 @@
     },
   ];
 
-  const BRAND_ICON =
-    '<path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />';
-
   class AppSidebar extends HTMLElement {
     connectedCallback() {
       const active = this.getAttribute('active') || '';
@@ -57,13 +54,6 @@
 
       this.innerHTML = `
         <aside class="sidebar" id="sidebar">
-          <div class="sidebar-brand">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-              ${BRAND_ICON}
-            </svg>
-            <span>Gestión Escolar</span>
-          </div>
-
           <nav class="sidebar-nav">
             ${navHtml}
           </nav>
