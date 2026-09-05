@@ -153,7 +153,8 @@ document.addEventListener('DOMContentLoaded', () => {
         option.setAttribute('aria-selected', 'true');
         selectedOption = option;
 
-        valueBox.innerHTML = option.innerHTML;
+        const nameEl = option.querySelector('.option-name');
+        valueBox.textContent = nameEl ? nameEl.textContent.trim() : option.textContent.trim();
         bar.classList.add('has-value');
 
         closeMenu();
@@ -169,10 +170,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  const nameSelectRoot = document.querySelector('[data-role="name-select"]');
-  if (nameSelectRoot) {
-    searchableSelects = [setupSearchableSelect(nameSelectRoot)];
-  }
+  const searchableSelectRoots = document.querySelectorAll(
+    '[data-role="name-select"], [data-role="dni-select"], [data-role="email-select"]'
+  );
+  searchableSelects = Array.from(searchableSelectRoots, setupSearchableSelect);
 
   // ---------- Modal: Nuevo usuario ----------
 

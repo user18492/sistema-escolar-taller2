@@ -272,14 +272,17 @@
 
 .searchable-value {
   display: none;
-  align-items: center;
-  gap: 10px;
   flex: 1;
   min-width: 0;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .searchable-bar.has-value:not(.is-editing) .searchable-value {
-  display: flex;
+  display: block;
 }
 
 .searchable-bar.has-value:not(.is-editing) .searchable-input,

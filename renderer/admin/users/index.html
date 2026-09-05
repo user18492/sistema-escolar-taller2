@@ -125,20 +125,186 @@
                 </ul>
               </div>
 
-              <div class="field field-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input type="text" placeholder="Buscar por DNI" />
+              <div class="field field-searchable dropdown-searchable" data-role="dni-select">
+                <div class="searchable-bar">
+                  <span class="searchable-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input type="text" class="searchable-input" placeholder="Buscar por DNI" autocomplete="off" />
+                  <div class="searchable-value"></div>
+                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de DNI" aria-expanded="false">
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-user" role="listbox" hidden>
+                  <li class="dropdown-option option-user" role="option" data-value="u1" aria-selected="false">
+                    <span class="avatar-circle">AM</span>
+                    <span class="option-text">
+                      <span class="option-name">34.567.890</span>
+                      <span class="option-email">Morales, Ana</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u2" aria-selected="false">
+                    <span class="avatar-circle">PL</span>
+                    <span class="option-text">
+                      <span class="option-name">35.678.901</span>
+                      <span class="option-email">Pérez, Lucía</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u3" aria-selected="false">
+                    <span class="avatar-circle">GM</span>
+                    <span class="option-text">
+                      <span class="option-name">36.789.012</span>
+                      <span class="option-email">Gómez, Martín</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u4" aria-selected="false">
+                    <span class="avatar-circle">CF</span>
+                    <span class="option-text">
+                      <span class="option-name">37.890.123</span>
+                      <span class="option-email">Fernández, Carla</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u5" aria-selected="false">
+                    <span class="avatar-circle">PR</span>
+                    <span class="option-text">
+                      <span class="option-name">38.901.234</span>
+                      <span class="option-email">Rodríguez, Pablo</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u6" aria-selected="false">
+                    <span class="avatar-circle">SV</span>
+                    <span class="option-text">
+                      <span class="option-name">39.012.345</span>
+                      <span class="option-email">Suárez, Valentina</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u7" aria-selected="false">
+                    <span class="avatar-circle">DL</span>
+                    <span class="option-text">
+                      <span class="option-name">40.123.456</span>
+                      <span class="option-email">López, Diego</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u8" aria-selected="false">
+                    <span class="avatar-circle">MA</span>
+                    <span class="option-text">
+                      <span class="option-name">41.234.567</span>
+                      <span class="option-email">Acosta, Micaela</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u9" aria-selected="false">
+                    <span class="avatar-circle">TJ</span>
+                    <span class="option-text">
+                      <span class="option-name">42.345.678</span>
+                      <span class="option-email">Torres, Juan</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u10" aria-selected="false">
+                    <span class="avatar-circle">SM</span>
+                    <span class="option-text">
+                      <span class="option-name">43.456.789</span>
+                      <span class="option-email">Medina, Sofía</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
               </div>
 
-              <div class="field field-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input type="text" placeholder="Buscar por email" />
+              <div class="field field-searchable dropdown-searchable" data-role="email-select">
+                <div class="searchable-bar">
+                  <span class="searchable-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input type="text" class="searchable-input" placeholder="Buscar por email" autocomplete="off" />
+                  <div class="searchable-value"></div>
+                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de email" aria-expanded="false">
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-user" role="listbox" hidden>
+                  <li class="dropdown-option option-user" role="option" data-value="u1" aria-selected="false">
+                    <span class="avatar-circle">AM</span>
+                    <span class="option-text">
+                      <span class="option-name">ana.morales@institucion.edu.ar</span>
+                      <span class="option-email">Morales, Ana</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u2" aria-selected="false">
+                    <span class="avatar-circle">PL</span>
+                    <span class="option-text">
+                      <span class="option-name">lucia.perez@institucion.edu.ar</span>
+                      <span class="option-email">Pérez, Lucía</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u3" aria-selected="false">
+                    <span class="avatar-circle">GM</span>
+                    <span class="option-text">
+                      <span class="option-name">martin.gomez@institucion.edu.ar</span>
+                      <span class="option-email">Gómez, Martín</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u4" aria-selected="false">
+                    <span class="avatar-circle">CF</span>
+                    <span class="option-text">
+                      <span class="option-name">carla.fernandez@institucion.edu.ar</span>
+                      <span class="option-email">Fernández, Carla</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u5" aria-selected="false">
+                    <span class="avatar-circle">PR</span>
+                    <span class="option-text">
+                      <span class="option-name">pablo.rodriguez@institucion.edu.ar</span>
+                      <span class="option-email">Rodríguez, Pablo</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u6" aria-selected="false">
+                    <span class="avatar-circle">SV</span>
+                    <span class="option-text">
+                      <span class="option-name">valentina.suarez@institucion.edu.ar</span>
+                      <span class="option-email">Suárez, Valentina</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u7" aria-selected="false">
+                    <span class="avatar-circle">DL</span>
+                    <span class="option-text">
+                      <span class="option-name">diego.lopez@institucion.edu.ar</span>
+                      <span class="option-email">López, Diego</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u8" aria-selected="false">
+                    <span class="avatar-circle">MA</span>
+                    <span class="option-text">
+                      <span class="option-name">micaela.acosta@institucion.edu.ar</span>
+                      <span class="option-email">Acosta, Micaela</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u9" aria-selected="false">
+                    <span class="avatar-circle">TJ</span>
+                    <span class="option-text">
+                      <span class="option-name">juan.torres@institucion.edu.ar</span>
+                      <span class="option-email">Torres, Juan</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-option option-user" role="option" data-value="u10" aria-selected="false">
+                    <span class="avatar-circle">SM</span>
+                    <span class="option-text">
+                      <span class="option-name">sofia.medina@institucion.edu.ar</span>
+                      <span class="option-email">Medina, Sofía</span>
+                    </span>
+                  </li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
               </div>
 
               <div class="field field-select dropdown" data-filter="status">
