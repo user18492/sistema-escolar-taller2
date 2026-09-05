@@ -187,6 +187,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const roleLabel = roleDropdown.querySelector('.dropdown-label');
   const roleOptions = roleDropdown.querySelectorAll('.dropdown-option');
 
+  const birthdateInput = document.getElementById('newUserBirthdate');
+
+  function formatBirthdateInput() {
+    const digits = birthdateInput.value.replace(/\D/g, '').slice(0, 8);
+    let formatted = digits.slice(0, 2);
+    if (digits.length > 2) formatted += '/' + digits.slice(2, 4);
+    if (digits.length > 4) formatted += '/' + digits.slice(4, 8);
+    birthdateInput.value = formatted;
+  }
+
+  birthdateInput.addEventListener('input', formatBirthdateInput);
+
   const avatarInput = document.getElementById('avatarFileInput');
   const avatarPreview = document.getElementById('newUserAvatarPreview');
   const uploadAvatarBtn = document.getElementById('uploadAvatarBtn');
