@@ -521,11 +521,18 @@
 
         <div class="modal-body">
           <div class="avatar-section">
-            <div class="avatar-preview" id="newUserAvatarPreview">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-              </svg>
+            <div class="avatar-preview-wrapper">
+              <div class="avatar-preview" id="newUserAvatarPreview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+                </svg>
+              </div>
+              <button type="button" class="avatar-edit-btn" id="editAvatarBtn" aria-label="Ajustar encuadre" title="Ajustar encuadre" hidden>
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z" />
+                </svg>
+              </button>
             </div>
             <div class="avatar-info">
               <span class="avatar-title">Foto de perfil (opcional)</span>
@@ -538,7 +545,6 @@
                 Subir imagen
               </button>
               <input type="file" accept="image/*" id="avatarFileInput" hidden />
-              <button type="button" class="link-btn" id="editAvatarBtn" hidden>Ajustar encuadre</button>
               <p id="avatarError" role="alert" hidden></p>
             </div>
           </div>
