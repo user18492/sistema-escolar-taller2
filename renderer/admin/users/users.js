@@ -198,6 +198,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentPassword = '';
 
+  function updateCreateButtonState() {
+    const hasAllTextInputs = Array.from(textInputs).every((input) => input.value.trim().length > 0);
+    const hasRole = Boolean(roleDropdown.querySelector('.dropdown-option.selected'));
+    createBtn.disabled = !(hasAllTextInputs && hasRole);
+  }
+
   function generatePassword(length = 14) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
     const values = new Uint32Array(length);
@@ -227,6 +233,8 @@ document.addEventListener('DOMContentLoaded', () => {
     passwordValueEl.dataset.visible = 'false';
     currentPassword = generatePassword();
     renderPassword();
+
+    updateCreateButtonState();
   }
 
   function openModal() {
@@ -238,6 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.classList.remove('is-open');
     closeAllDropdowns();
   }
+
+  textInputs.forEach((input) => {
+    input.addEventListener('input', updateCreateButtonState);
+  });
 
   openModalBtn.addEventListener('click', openModal);
   cancelBtn.addEventListener('click', closeModal);
@@ -252,6 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
   roleOptions.forEach((option) => {
     option.addEventListener('click', () => {
       roleLabel.classList.remove('placeholder');
+      updateCreateButtonState();
     });
   });
 
