@@ -39,6 +39,20 @@ body {
   height: 100%;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Mantiene el fondo fijo hasta que se cierre el último modal, sin perder su posición. */
+html:has(.modal-overlay.is-open, dialog:modal) {
+  overflow: hidden;
+}
+
+.modal,
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -76,4 +90,11 @@ a {
 
 svg {
   display: block;
+}
+
+/* Evita que la rueda desplace el fondo al alcanzar los límites del dropdown.
+   overflow también contiene los menús cuyo contenido no necesita desplazarse. */
+.dropdown-menu {
+  overflow: auto;
+  overscroll-behavior: contain;
 }
