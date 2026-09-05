@@ -216,7 +216,7 @@
   font-weight: 500;
 }
 
-/* Campo con búsqueda integrada (Nombre): un único componente combinando input de búsqueda y lista desplegable */
+/* Campo con búsqueda integrada (Nombre / DNI / Email): dimensiones estables entre búsqueda y selección. */
 
 .dropdown-searchable {
   position: relative;
@@ -224,8 +224,9 @@
 
 .searchable-bar {
   width: 100%;
-  min-height: 38px;
-  padding: 6px 14px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg);
@@ -254,7 +255,7 @@
 .field-searchable .searchable-input {
   flex: 1;
   min-width: 0;
-  height: 26px;
+  height: 100%;
   border: none;
   border-radius: 0;
   outline: none;
