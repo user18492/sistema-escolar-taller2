@@ -301,36 +301,8 @@
   font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
-}
-
-.avatar-circle.c-blue {
   background: var(--color-accent-blue-bg);
-  color: var(--color-accent-blue);
-}
-
-.avatar-circle.c-green {
-  background: var(--color-accent-green-bg);
-  color: var(--color-accent-green);
-}
-
-.avatar-circle.c-purple {
-  background: var(--color-accent-purple-bg);
-  color: var(--color-accent-purple);
-}
-
-.avatar-circle.c-orange {
-  background: var(--color-accent-orange-bg);
-  color: var(--color-accent-orange);
-}
-
-.avatar-circle.c-pink {
-  background: #fce7f3;
-  color: #db2777;
-}
-
-.avatar-circle.c-yellow {
-  background: #fef3c7;
-  color: #b45309;
+  color: #2563eb;
 }
 
 .badge {
