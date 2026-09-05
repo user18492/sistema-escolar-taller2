@@ -178,6 +178,10 @@
   color: var(--color-text-primary);
 }
 
+.dropdown-option[hidden] {
+  display: none;
+}
+
 .dropdown-option:hover {
   background: #f3f4f6;
 }
@@ -212,6 +216,13 @@
 
 .btn-primary:hover {
   background: #2f6fe0;
+}
+
+.btn-primary:disabled,
+.btn-primary:disabled:hover {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--color-accent-blue);
 }
 
 .btn-primary .plus {
@@ -326,4 +337,381 @@
   padding: 0 4px;
   font-size: 13px;
   color: var(--color-text-tertiary);
+}
+
+/* ---------- Modal: Nueva asignación ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.18s ease,
+    visibility 0.18s ease;
+}
+
+.modal-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 24px 60px -12px rgba(16, 24, 40, 0.35),
+    0 4px 12px rgba(16, 24, 40, 0.12);
+  transform: translateY(10px) scale(0.98);
+  opacity: 0;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.modal-overlay.is-open .modal {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.modal-header {
+  padding: 28px 28px 4px;
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.modal-header p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 22px 28px 0;
+}
+
+.modal-body .dropdown-menu {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Form fields */
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dropdown-label.placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* Campo con búsqueda integrada (Profesor / Curso): un único componente combinando input de búsqueda y lista desplegable */
+
+.dropdown-searchable {
+  position: relative;
+}
+
+.searchable-bar {
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dropdown-searchable.open .searchable-bar,
+.searchable-bar:focus-within {
+  border-color: var(--color-accent-blue);
+}
+
+.searchable-icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.searchable-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Mayor especificidad que .field input: el borde pertenece solo a la barra. */
+.field-searchable .searchable-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  padding: 0;
+}
+
+.searchable-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.searchable-value {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.searchable-bar.has-value:not(.is-editing) .searchable-value {
+  display: flex;
+}
+
+.searchable-bar.has-value:not(.is-editing) .searchable-input,
+.searchable-bar.has-value:not(.is-editing) .searchable-icon {
+  display: none;
+}
+
+.searchable-chevron {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+}
+
+.searchable-chevron .chevron {
+  width: 13px;
+  height: 13px;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.dropdown-searchable.open .searchable-chevron .chevron {
+  transform: rotate(180deg);
+}
+
+/* Campo bloqueado a la espera de completar un paso previo (Curso / Materia) */
+
+.dropdown-searchable.is-locked .searchable-bar,
+.dropdown-searchable.is-locked .searchable-bar:hover,
+.dropdown.is-locked .dropdown-toggle,
+.dropdown.is-locked .dropdown-toggle:hover {
+  background: #f9fafb;
+  cursor: not-allowed;
+}
+
+.dropdown-searchable.is-locked .searchable-icon {
+  display: none;
+}
+
+.dropdown-searchable.is-locked .searchable-chevron,
+.dropdown.is-locked .dropdown-toggle .chevron {
+  opacity: 0.5;
+}
+
+/* Opciones con avatar (Profesor) */
+
+.dropdown-menu-teacher,
+.dropdown-menu-course {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.option-teacher {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 0;
+}
+
+.dropdown-menu-teacher .option-teacher:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.option-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.option-avatar-blue {
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+}
+
+.option-avatar-green {
+  background: var(--color-accent-green-bg);
+  color: var(--color-accent-green);
+}
+
+.option-avatar-purple {
+  background: var(--color-accent-purple-bg);
+  color: var(--color-accent-purple);
+}
+
+.option-avatar-orange {
+  background: var(--color-accent-orange-bg);
+  color: var(--color-accent-orange);
+}
+
+.option-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.option-name {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-email {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+/* Materia: opción deshabilitada (ya asignada) */
+
+.dropdown-option.disabled {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.option-badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg);
+}
+
+/* Ciclo lectivo actual (informativo, no editable) */
+
+.info-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #f5f8ff;
+  border: 1px solid var(--color-accent-blue-bg);
+  border-radius: var(--radius-md);
+}
+
+.info-box-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-box-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.info-box-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.info-box-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-accent-blue);
+}
+
+.info-box-text p {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.info-box-badge {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px 28px 28px;
+}
+
+.modal-footer .btn {
+  height: 38px;
+  padding: 0 20px;
+  font-size: 14px;
+  font-weight: 600;
 }

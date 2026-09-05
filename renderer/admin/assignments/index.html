@@ -89,7 +89,7 @@
                 </ul>
               </div>
 
-              <button class="btn btn-primary" type="button">
+              <button class="btn btn-primary" type="button" id="openNewAssignmentModalBtn">
                 <span class="plus">+</span> Nueva asignación
               </button>
             </div>
@@ -215,6 +215,210 @@
             </div>
           </section>
         </main>
+      </div>
+    </div>
+
+    <!-- Modal: Nueva asignación -->
+    <div class="modal-overlay" id="newAssignmentOverlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newAssignmentTitle">
+        <div class="modal-header">
+          <h2 id="newAssignmentTitle">Nueva asignación</h2>
+          <p>Completa los datos para crear una nueva asignación docente</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-field">
+            <label>Profesor</label>
+            <div class="field field-searchable dropdown-searchable" data-role="teacher-select">
+              <div class="searchable-bar">
+                <span class="searchable-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <input type="text" class="searchable-input" placeholder="Buscar profesor" autocomplete="off" />
+                <div class="searchable-value"></div>
+                <button type="button" class="searchable-chevron" aria-label="Abrir lista de profesores" aria-expanded="false">
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              </div>
+              <ul class="dropdown-menu dropdown-menu-teacher" role="listbox" hidden>
+                <li class="dropdown-option option-teacher" role="option" data-value="t1" aria-selected="false">
+                  <span class="option-avatar option-avatar-blue">MG</span>
+                  <span class="option-text">
+                    <span class="option-name">González, María</span>
+                    <span class="option-email">maria.gonzalez@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-option option-teacher" role="option" data-value="t2" aria-selected="false">
+                  <span class="option-avatar option-avatar-green">CF</span>
+                  <span class="option-text">
+                    <span class="option-name">Fernández, Carlos</span>
+                    <span class="option-email">carlos.fernandez@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-option option-teacher" role="option" data-value="t3" aria-selected="false">
+                  <span class="option-avatar option-avatar-purple">LR</span>
+                  <span class="option-text">
+                    <span class="option-name">Romero, Lucía</span>
+                    <span class="option-email">lucia.romero@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-option option-teacher" role="option" data-value="t4" aria-selected="false">
+                  <span class="option-avatar option-avatar-orange">DL</span>
+                  <span class="option-text">
+                    <span class="option-name">López, Diego</span>
+                    <span class="option-email">diego.lopez@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-option option-teacher" role="option" data-value="t5" aria-selected="false">
+                  <span class="option-avatar option-avatar-blue">VP</span>
+                  <span class="option-text">
+                    <span class="option-name">Pérez, Valeria</span>
+                    <span class="option-email">valeria.perez@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-option option-teacher" role="option" data-value="t6" aria-selected="false">
+                  <span class="option-avatar option-avatar-green">SA</span>
+                  <span class="option-text">
+                    <span class="option-name">Acosta, Sofía</span>
+                    <span class="option-email">sofia.acosta@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-option option-teacher" role="option" data-value="t7" aria-selected="false">
+                  <span class="option-avatar option-avatar-purple">JR</span>
+                  <span class="option-text">
+                    <span class="option-name">Ruiz, Julián</span>
+                    <span class="option-email">julian.ruiz@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-option option-teacher" role="option" data-value="t8" aria-selected="false">
+                  <span class="option-avatar option-avatar-orange">CT</span>
+                  <span class="option-text">
+                    <span class="option-name">Torres, Camila</span>
+                    <span class="option-email">camila.torres@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-option option-teacher" role="option" data-value="t9" aria-selected="false">
+                  <span class="option-avatar option-avatar-blue">MS</span>
+                  <span class="option-text">
+                    <span class="option-name">Silva, Martín</span>
+                    <span class="option-email">martin.silva@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-option option-teacher" role="option" data-value="t10" aria-selected="false">
+                  <span class="option-avatar option-avatar-green">PM</span>
+                  <span class="option-text">
+                    <span class="option-name">Medina, Paula</span>
+                    <span class="option-email">paula.medina@escuela.edu.ar</span>
+                  </span>
+                </li>
+                <li class="dropdown-empty" hidden>Sin resultados</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Nivel educativo</label>
+            <div class="field field-select dropdown" data-filter="new-assignment-level">
+              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                <span class="dropdown-label placeholder">Seleccionar nivel educativo</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <ul class="dropdown-menu" role="listbox" hidden>
+                <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
+                <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Curso</label>
+            <div class="field field-searchable dropdown-searchable is-locked" data-role="course-select">
+              <div class="searchable-bar">
+                <span class="searchable-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <input type="text" class="searchable-input" placeholder="Selecciona primero un nivel educativo" autocomplete="off" disabled />
+                <div class="searchable-value"></div>
+                <button type="button" class="searchable-chevron" aria-label="Abrir lista de cursos" aria-expanded="false" disabled>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              </div>
+              <ul class="dropdown-menu dropdown-menu-course" role="listbox" hidden>
+                <li class="dropdown-option" role="option" data-value="c1" data-level="PRIMARY" aria-selected="false"><span class="option-name">1° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c2" data-level="PRIMARY" aria-selected="false"><span class="option-name">1° B · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c3" data-level="PRIMARY" aria-selected="false"><span class="option-name">2° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c4" data-level="PRIMARY" aria-selected="false"><span class="option-name">3° A · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c5" data-level="PRIMARY" aria-selected="false"><span class="option-name">5° B · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c6" data-level="PRIMARY" aria-selected="false"><span class="option-name">6° A · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c7" data-level="SECONDARY" aria-selected="false"><span class="option-name">1° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c8" data-level="SECONDARY" aria-selected="false"><span class="option-name">2° B · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c9" data-level="SECONDARY" aria-selected="false"><span class="option-name">4° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c10" data-level="SECONDARY" aria-selected="false"><span class="option-name">6° B · Tarde</span></li>
+                <li class="dropdown-empty" hidden>Sin resultados</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Materia</label>
+            <div class="field field-select dropdown is-locked" data-filter="new-assignment-subject">
+              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false" disabled>
+                <span class="dropdown-label placeholder">Selecciona primero un curso</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <ul class="dropdown-menu" role="listbox" hidden>
+                <li class="dropdown-option disabled" role="option" data-value="LANGUAGE" aria-disabled="true">
+                  <span class="option-name">Lengua</span>
+                  <span class="option-badge">Ya asignada</span>
+                </li>
+                <li class="dropdown-option" role="option" data-value="MATH" aria-selected="false">Matemática</li>
+                <li class="dropdown-option" role="option" data-value="NATURAL_SCIENCES" aria-selected="false">Ciencias Naturales</li>
+                <li class="dropdown-option disabled" role="option" data-value="PHYSICS" aria-disabled="true">
+                  <span class="option-name">Física</span>
+                  <span class="option-badge">Ya asignada</span>
+                </li>
+                <li class="dropdown-option" role="option" data-value="HISTORY" aria-selected="false">Historia</li>
+                <li class="dropdown-option" role="option" data-value="GEOGRAPHY" aria-selected="false">Geografía</li>
+                <li class="dropdown-option" role="option" data-value="ENGLISH" aria-selected="false">Inglés</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="info-box">
+            <span class="info-box-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <line x1="16" y1="3" x2="16" y2="7" />
+                <line x1="8" y1="3" x2="8" y2="7" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </span>
+            <div class="info-box-text">
+              <span class="info-box-title">Ciclo lectivo actual</span>
+              <p>La asignación se creará para el ciclo lectivo actual.</p>
+            </div>
+            <span class="info-box-badge" id="newAssignmentYearBadge">2026</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelNewAssignmentBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="createAssignmentBtn" disabled>Crear asignación</button>
+        </div>
       </div>
     </div>
   </body>
