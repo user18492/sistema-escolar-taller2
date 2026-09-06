@@ -11,8 +11,7 @@ app-titlebar {
   height: var(--window-titlebar-height);
   display: flex;
   align-items: center;
-  padding-left: 12px;
-  padding-right: 6px;
+  padding: 0;
   background: #e4efff;
   user-select: none;
   -webkit-app-region: drag;
@@ -33,7 +32,7 @@ body > .app-shell {
 .window-titlebar-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0;
   height: 100%;
   margin-left: auto;
   -webkit-app-region: no-drag;
@@ -42,14 +41,17 @@ body > .app-shell {
 .window-titlebar-button {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 36px;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 100%;
+  margin: 0;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   background: transparent;
   color: #1e3050;
   transition: background-color 120ms ease;
+  -webkit-app-region: no-drag;
 }
 
 .window-titlebar-button:hover {
@@ -95,10 +97,6 @@ body > .app-shell {
   .window-titlebar-button {
     transition: none;
   }
-}
-
-.window-sidebar-toggle {
-  -webkit-app-region: no-drag;
 }
 
 .window-sidebar-toggle svg {
