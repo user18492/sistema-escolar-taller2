@@ -199,7 +199,7 @@
       </div>
     </div>
 
-    <!-- Modal: Nuevo curso -->
+    <!-- Modal compartido: Nuevo curso / Editar curso -->
     <div class="modal-overlay" id="newCourseOverlay">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newCourseTitle">
         <div class="modal-header">
@@ -284,6 +284,19 @@
             </div>
             <span class="info-box-badge" id="newCourseYearBadge">2026</span>
           </div>
+
+          <section class="course-danger-zone" id="courseDangerZone" aria-labelledby="courseDangerTitle" hidden>
+            <span class="info-box-icon course-danger-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+              </svg>
+            </span>
+            <div>
+              <h3 id="courseDangerTitle">Zona de peligro</h3>
+              <p>Eliminar este curso es una acción permanente y no se puede deshacer.</p>
+              <button type="button" class="btn btn-danger" id="deleteCourseBtn">Eliminar curso</button>
+            </div>
+          </section>
         </div>
 
         <div class="modal-footer">

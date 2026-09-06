@@ -497,3 +497,52 @@
   font-size: 14px;
   font-weight: 600;
 }
+
+/* Zona de peligro del formulario de edición */
+.course-danger-zone {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 16px;
+  background: #fff1f2;
+  border: 1px solid #ffb8be;
+  border-radius: var(--radius-md);
+}
+
+.course-danger-zone[hidden] {
+  display: none;
+}
+
+.course-danger-icon {
+  width: 40px;
+  height: 40px;
+  background: #ffdddd;
+  color: #ff3038;
+}
+
+.course-danger-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.course-danger-zone h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.course-danger-zone p {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.btn-danger {
+  margin-top: 10px;
+  background: #ff3038;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #e5252d;
+}
