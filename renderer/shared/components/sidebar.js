@@ -62,8 +62,86 @@
           <nav class="sidebar-nav" aria-label="Navegación principal">
             ${navHtml}
           </nav>
+          <div class="sidebar-profile">
+            <div class="profile-panel" id="profilePanel" role="group" aria-label="Opciones de usuario" hidden>
+              <button class="profile-option" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m9 3-.5 2-2 1-2-.5-2 3 1.5 1.5v3L2.5 15l2 3 2-.5 2 1 .5 2h4l.5-2 2-1 2 .5 2-3-1.5-2v-3l1.5-1.5-2-3-2 .5-2-1-.5-2z" /><circle cx="11" cy="12" r="3" />
+                </svg>
+                Configuración
+              </button>
+              <button class="profile-option" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M9 12h12m-5-5 5 5-5 5" />
+                </svg>
+                Cerrar sesión
+              </button>
+            </div>
+            <button class="profile-button" type="button" aria-expanded="false" aria-controls="profilePanel">
+              <span class="profile-avatar" aria-hidden="true"></span>
+              <span class="profile-info">
+                <span class="profile-name"></span>
+                <span class="profile-role"></span>
+              </span>
+            </button>
+          </div>
         </aside>`;
       this.querySelector('.sidebar-institution').textContent = this.getAttribute('institution-name') || 'Institución San Martín';
+      this.querySelector('.profile-name').textContent = this.getAttribute('user-name') || 'Ana Morales';
+      this.querySelector('.profile-role').textContent = this.getAttribute('user-role') || 'Administradora';
+      const avatar = this.querySelector('.profile-avatar');
+      avatar.textContent = this.getAttribute('user-initials') || 'AM';
+      const imageUrl = this.getAttribute('user-image');
+      if (imageUrl) {
+        const image = document.createElement('img');
+        image.alt = '';
+        image.src = imageUrl;
+        image.addEventListener('error', () => image.remove());
+        avatar.append(image);
+      }
+
+      const profile = this.querySelector('.sidebar-profile');
+      const button = this.querySelector('.profile-button');
+      const panel = this.querySelector('.profile-panel');
+      const options = [...panel.querySelectorAll('button')];
+      const setOpen = (open) => {
+        panel.hidden = !open;
+        button.setAttribute('aria-expanded', String(open));
+      };
+      this.profileListeners?.abort();
+      this.profileListeners = new AbortController();
+      const { signal } = this.profileListeners;
+      button.addEventListener('click', () => setOpen(panel.hidden), { signal });
+      profile.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !panel.hidden) {
+          event.preventDefault();
+          setOpen(false);
+          button.focus();
+        } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          event.preventDefault();
+          setOpen(true);
+          const index = options.indexOf(document.activeElement);
+          const next = index < 0 ? (event.key === 'ArrowUp' ? options.length - 1 : 0)
+            : (index + (event.key === 'ArrowUp' ? -1 : 1) + options.length) % options.length;
+          options[next].focus();
+        }
+      }, { signal });
+      panel.addEventListener('click', (event) => {
+        if (event.target.closest('button')) {
+          setOpen(false);
+          button.focus();
+        }
+      }, { signal });
+      document.addEventListener('click', (event) => {
+        if (!profile.contains(event.target)) setOpen(false);
+      }, { signal });
+      document.addEventListener('focusin', (event) => {
+        if (!profile.contains(event.target)) setOpen(false);
+      }, { signal });
+    }
+
+    disconnectedCallback() {
+      this.profileListeners?.abort();
     }
   }
 
