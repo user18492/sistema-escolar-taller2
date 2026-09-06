@@ -4,6 +4,7 @@
 // Sin shadow DOM a propósito: así los estilos de sidebar.css (selectores .sidebar, .nav-item, etc.) siguen aplicando tal cual.
 
 (() => {
+  const logoUrl = new URL('../../../resources/logotipo_header.png', document.currentScript.src).href;
   const NAV_ITEMS = [
     {
       key: 'dashboard',
@@ -44,7 +45,7 @@
       const navHtml = NAV_ITEMS.map((item) => {
         const activeClass = item.key === active ? ' active' : '';
         return `
-          <a class="nav-item${activeClass}" href="${item.href}">
+          <a class="nav-item${activeClass}" href="${item.href}"${item.key === active ? ' aria-current="page"' : ''}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               ${item.icon}
             </svg>
@@ -54,10 +55,15 @@
 
       this.innerHTML = `
         <aside class="sidebar" id="sidebar">
-          <nav class="sidebar-nav">
+          <div class="sidebar-brand">
+            <div class="sidebar-logo"><img src="${logoUrl}" alt="Gestión educativa" draggable="false" /></div>
+            <p class="sidebar-institution"></p>
+          </div>
+          <nav class="sidebar-nav" aria-label="Navegación principal">
             ${navHtml}
           </nav>
         </aside>`;
+      this.querySelector('.sidebar-institution').textContent = this.getAttribute('institution-name') || 'Institución San Martín';
     }
   }
 

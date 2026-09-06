@@ -1,19 +1,5 @@
 /* Vista Inicio (dashboard) del Administrador — puramente visual, sin lógica */
 
-.app-shell {
-  display: flex;
-  height: calc(100vh - var(--window-titlebar-height));
-  overflow: auto;
-  scrollbar-gutter: stable;
-}
-
-/* ---------- Main ---------- */
-
-.main {
-  flex: 1;
-  min-width: 0;
-}
-
 /* ---------- Content ---------- */
 
 .content {
@@ -21,7 +7,6 @@
   display: flex;
   flex-direction: column;
   gap: 28px;
-  max-width: 1200px;
 }
 
 .page-header {

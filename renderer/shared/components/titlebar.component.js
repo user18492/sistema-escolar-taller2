@@ -1,14 +1,12 @@
 // La barra conserva la región de arrastre y presenta controles propios.
 (() => {
-  const logoUrl = new URL('../../../resources/logotipo_header.png', document.currentScript.src).href;
-
   class AppTitlebar extends HTMLElement {
     connectedCallback() {
       this.innerHTML = `
         <header class="window-titlebar" aria-label="Barra de la ventana">
-          <div class="window-titlebar-brand">
-            <img src="${logoUrl}" alt="Gestión Educativa" draggable="false" />
-          </div>
+          <button class="window-titlebar-button window-sidebar-toggle" type="button" id="sidebarToggle" aria-label="Ocultar menú" title="Ocultar menú" aria-expanded="true" aria-controls="sidebar">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1.5" /><path d="M11 3v18" /></svg>
+          </button>
           <div class="window-titlebar-controls" role="group" aria-label="Controles de la ventana">
             <button class="window-titlebar-button" type="button" data-action="minimize" aria-label="Minimizar" title="Minimizar">
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h12" /></svg>
@@ -21,6 +19,19 @@
             </button>
           </div>
         </header>`;
+
+      this.querySelector('#sidebarToggle').onclick = (event) => {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        const collapsed = sidebar.classList.toggle('collapsed');
+        sidebar.inert = collapsed;
+        sidebar.setAttribute('aria-hidden', String(collapsed));
+        const button = event.currentTarget;
+        const label = collapsed ? 'Mostrar menú' : 'Ocultar menú';
+        button.setAttribute('aria-expanded', String(!collapsed));
+        button.setAttribute('aria-label', label);
+        button.title = label;
+      };
 
       const controls = window.api?.windowControls;
       if (!controls) return;

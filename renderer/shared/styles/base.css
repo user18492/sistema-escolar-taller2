@@ -38,14 +38,39 @@
 html,
 body {
   height: 100%;
-}
-
-html {
   overflow: hidden;
 }
 
+.app-shell {
+  display: flex;
+  height: calc(100vh - var(--window-titlebar-height));
+  overflow: hidden;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Solo el contenido de la vista recibe el desplazamiento de la rueda. */
+.main > .content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.main > .content > * {
+  flex-shrink: 0;
+}
+
 /* Mantiene el fondo fijo hasta que se cierre el último modal, sin perder su posición. */
-html:has(.modal-overlay.is-open, dialog:modal) .app-shell {
+html:has(.modal-overlay.is-open, dialog:modal) .main > .content {
   overflow: hidden;
 }
 

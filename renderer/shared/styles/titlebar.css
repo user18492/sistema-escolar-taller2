@@ -1,20 +1,28 @@
 app-titlebar {
   display: block;
-  height: var(--window-titlebar-height);
-}
-
-.window-titlebar {
   position: fixed;
   inset: 0 0 auto;
   height: var(--window-titlebar-height);
+  z-index: 101;
+}
+
+.window-titlebar {
+  position: relative;
+  height: var(--window-titlebar-height);
   display: flex;
   align-items: center;
-  padding-left: 24px;
+  padding-left: 12px;
   padding-right: 6px;
   background: #e4efff;
   user-select: none;
   -webkit-app-region: drag;
-  z-index: 101;
+}
+
+/* La vista se desplaza dentro de su propia superficie, siempre debajo del titlebar. */
+body > .app-shell {
+  position: fixed;
+  inset: var(--window-titlebar-height) 0 0;
+  height: auto;
 }
 
 .window-titlebar-controls {
@@ -84,21 +92,12 @@ app-titlebar {
   }
 }
 
-.window-titlebar-brand {
-  position: relative;
-  width: 220px;
-  height: 32px;
-  overflow: hidden;
-  flex-shrink: 0;
+.window-sidebar-toggle {
+  -webkit-app-region: no-drag;
 }
 
-/* Encuadra el contenido del PNG original, que incluye márgenes transparentes amplios. */
-.window-titlebar-brand img {
-  position: absolute;
-  width: 400px;
-  max-width: none;
-  height: auto;
-  left: -92px;
-  top: -50px;
-  pointer-events: none;
+.window-sidebar-toggle svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.5;
 }

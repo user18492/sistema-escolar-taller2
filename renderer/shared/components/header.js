@@ -1,8 +1,7 @@
 // Componente reutilizable: header superior (topbar), compartido por todas las vistas de la app.
 // Uso: <app-header user-name="Ana Morales" user-role="Administradora" user-initials="AM"></app-header>
 // Los atributos son opcionales; si se omiten se usan los valores por defecto (usuaria admin actual).
-// Sin shadow DOM a propósito: así los estilos de header.css (selectores .topbar, .user-menu, etc.) siguen aplicando tal cual,
-// y el botón #sidebarToggle sigue siendo accesible por id para el toggle del sidebar en cada vista.
+// Sin shadow DOM a propósito: así los estilos de header.css (selectores .topbar, .user-menu, etc.) siguen aplicando tal cual.
 
 (() => {
   class AppHeader extends HTMLElement {
@@ -13,14 +12,6 @@
 
       this.innerHTML = `
         <header class="topbar">
-          <button class="icon-btn" type="button" id="sidebarToggle" aria-label="Alternar menú" aria-expanded="true" aria-controls="sidebar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
-
           <div class="topbar-right">
             <button class="icon-btn" type="button" aria-label="Configuración">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">

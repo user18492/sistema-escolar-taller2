@@ -1,67 +1,101 @@
-/* Estilos del navbar lateral (componente <app-sidebar>), compartidos por todas las vistas */
-
-/* El custom element no debe generar caja propia: sus hijos deben participar
-   del layout flex de .app-shell como si <app-sidebar> no existiera. */
+/* Sidebar compartido por todas las vistas. */
 app-sidebar {
   display: contents;
 }
 
 .sidebar {
-  width: 260px;
+  width: 288px;
   flex-shrink: 0;
-  background: var(--color-bg-sidebar);
+  background: #fbfdff;
   border-right: 1px solid var(--color-border);
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 28px;
   overflow: hidden;
   white-space: nowrap;
-  transition:
-    width 0.22s ease,
-    padding 0.22s ease,
-    border-color 0.22s ease;
+  transition: width 0.22s ease, padding 0.22s ease;
 }
 
 .sidebar.collapsed {
   width: 0;
   padding-left: 0;
   padding-right: 0;
-  border-right-color: transparent;
+  border-right-width: 0;
+}
+
+.sidebar-brand {
+  padding: 0 12px;
+}
+
+.sidebar-logo {
+  position: relative;
+  width: 232px;
+  height: 30px;
+  overflow: hidden;
+}
+
+/* Encuadra el logotipo respetando los márgenes transparentes del PNG original. */
+.sidebar-logo img {
+  position: absolute;
+  width: 456px;
+  max-width: none;
+  height: auto;
+  left: -112px;
+  top: -63px;
+}
+
+.sidebar-institution {
+  margin-top: 4px;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--color-text-secondary);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 232px;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 22px;
+  padding: 13px 18px;
   border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 400;
   color: var(--color-text-primary);
 }
 
 .nav-item svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
-  color: var(--color-text-primary);
 }
 
 .nav-item:hover {
-  background: #f3f4f6;
+  background: #f0f5fc;
 }
 
 .nav-item.active {
-  background: #f3f4f6;
+  background: #e8f1ff;
+  color: #005bff;
+  font-weight: 500;
 }
 
-.nav-item.active svg {
-  color: var(--color-accent-blue);
+.nav-item:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
 }
