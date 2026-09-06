@@ -62,7 +62,12 @@ body {
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+}
+
+/* Oculta la barra sin desactivar el desplazamiento del contenido. */
+.main > .content::-webkit-scrollbar {
+  display: none;
 }
 
 .main > .content > * {
