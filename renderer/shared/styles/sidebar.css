@@ -201,6 +201,7 @@ app-sidebar {
   width: 100%;
   padding: 14px 6px;
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text-primary);
   font-size: 14px;
