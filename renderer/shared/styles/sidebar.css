@@ -4,7 +4,7 @@ app-sidebar {
 }
 
 .sidebar {
-  width: 288px;
+  width: var(--sidebar-width);
   flex-shrink: 0;
   background: #fbfdff;
   border-right: 1px solid var(--color-border);
@@ -14,7 +14,7 @@ app-sidebar {
   gap: 28px;
   overflow: hidden;
   white-space: nowrap;
-  transition: width 0.22s ease, padding 0.22s ease;
+  transition: width var(--layout-transition), padding var(--layout-transition), border-right-width var(--layout-transition);
 }
 
 .sidebar.collapsed {

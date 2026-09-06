@@ -4,6 +4,8 @@
 
 :root {
   --window-titlebar-height: 44px;
+  --sidebar-width: 288px;
+  --layout-transition: 300ms ease-in-out;
   --color-bg: #ffffff;
   --color-bg-page: #fafafa;
   --color-bg-sidebar: #ffffff;
@@ -65,10 +67,28 @@ body {
 /* Solo el contenido de la vista recibe el desplazamiento de la rueda. */
 .main > .content {
   flex: 1;
+  width: min(calc(100vw - var(--sidebar-width)), 1280px);
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
+  transition: width var(--layout-transition);
+}
+
+/* Recupera solo 64 px del menú para ampliar el contenido sin estirarlo en exceso. */
+.app-shell:has(.sidebar.collapsed) .main > .content {
+  width: min(1344px, calc(100vw - var(--sidebar-width) + 64px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main > .content {
+    transition: none;
+  }
 }
 
 /* Oculta la barra sin desactivar el desplazamiento del contenido. */

@@ -3,11 +3,7 @@
 /* ---------- Content ---------- */
 
 .content {
-  padding: 32px;
-  display: flex;
-  flex-direction: column;
   gap: 24px;
-  max-width: 1280px;
 }
 
 .page-header {
