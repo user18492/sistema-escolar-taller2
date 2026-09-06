@@ -18,6 +18,11 @@ app-titlebar {
   -webkit-app-region: drag;
 }
 
+/* Evita arrastrar la ventana desde el fondo mientras un modal está abierto. */
+html:has(.modal-overlay.is-open, dialog:modal) .window-titlebar {
+  -webkit-app-region: no-drag;
+}
+
 /* La vista se desplaza dentro de su propia superficie, siempre debajo del titlebar. */
 body > .app-shell {
   position: fixed;

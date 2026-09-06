@@ -383,14 +383,16 @@
 
 .modal-overlay {
   position: fixed;
-  inset: var(--window-titlebar-height) 0 0;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 32px;
+  padding-top: calc(32px + var(--window-titlebar-height));
+  -webkit-app-region: no-drag;
   background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(2px);
-  z-index: 100;
+  z-index: 102;
   opacity: 0;
   visibility: hidden;
   transition:

@@ -544,14 +544,16 @@
 
 .modal-overlay {
   position: fixed;
-  inset: var(--window-titlebar-height) 0 0;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 32px;
+  padding-top: calc(32px + var(--window-titlebar-height));
+  -webkit-app-region: no-drag;
   background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(2px);
-  z-index: 100;
+  z-index: 102;
   opacity: 0;
   visibility: hidden;
   transition:
@@ -999,7 +1001,7 @@
 }
 
 @media (max-width: 600px) {
-  .modal-overlay { padding: 16px; }
+  .modal-overlay { padding: calc(16px + var(--window-titlebar-height)) 16px 16px; }
   .modal-header { padding: 24px 20px 20px; }
   .modal-body { padding: 0 20px; }
   .modal-footer { padding: 24px 20px; }
