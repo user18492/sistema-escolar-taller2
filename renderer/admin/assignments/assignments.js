@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     options.forEach((option) => {
       option.addEventListener('click', () => {
+        if (option.getAttribute('aria-disabled') === 'true') return;
         options.forEach((o) => {
           o.classList.remove('selected');
           o.setAttribute('aria-selected', 'false');
@@ -85,6 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const openAssignmentModalBtn = document.getElementById('openNewAssignmentModalBtn');
   const cancelAssignmentBtn = document.getElementById('cancelNewAssignmentBtn');
   const createAssignmentBtn = document.getElementById('createAssignmentBtn');
+  const assignmentTitle = document.getElementById('newAssignmentTitle');
+  const assignmentSubtitle = assignmentOverlay.querySelector('.modal-header p');
+  const cycleDescription = assignmentOverlay.querySelector('.info-box-text p');
+  const dangerZone = document.getElementById('assignmentDangerZone');
+  let modalTrigger = null;
 
   const assignmentYearBadge = document.getElementById('newAssignmentYearBadge');
   assignmentYearBadge.textContent = String(new Date().getFullYear());
@@ -226,7 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const subjectDropdown = assignmentOverlay.querySelector('[data-filter="new-assignment-subject"]');
   const subjectToggle = subjectDropdown.querySelector('.dropdown-toggle');
   const subjectLabel = subjectDropdown.querySelector('.dropdown-label');
-  const subjectOptions = subjectDropdown.querySelectorAll('.dropdown-option:not(.disabled)');
+  const subjectOptions = subjectDropdown.querySelectorAll('.dropdown-option');
+  const unavailableSubjects = Array.from(subjectOptions).filter((option) => option.classList.contains('disabled'));
 
   const COURSE_LOCKED_PLACEHOLDER = 'Selecciona primero un nivel educativo';
   const COURSE_UNLOCKED_PLACEHOLDER = 'Buscar curso';
@@ -293,6 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function resetAssignmentForm() {
+    unavailableSubjects.forEach((option) => {
+      option.classList.add('disabled');
+      option.setAttribute('aria-disabled', 'true');
+      option.querySelector('.option-badge').hidden = false;
+    });
     teacherSelect.reset();
 
     levelOptions.forEach((o) => {
@@ -310,24 +322,66 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCreateButtonState();
   }
 
-  function openAssignmentModal() {
+  function openAssignmentModal(event, row = null) {
     resetAssignmentForm();
+    closeAllDropdowns();
+    closeAllSearchableMenus();
+    modalTrigger = event.currentTarget;
+    const isEditing = Boolean(row);
+    assignmentTitle.textContent = isEditing ? 'Editar asignacion' : 'Nueva asignación';
+    assignmentSubtitle.textContent = isEditing
+      ? 'Modifica los datos de la asignación'
+      : 'Completa los datos para crear una nueva asignación docente';
+    cycleDescription.textContent = isEditing
+      ? 'La asignación pertenece al ciclo lectivo actual.'
+      : 'La asignación se creará para el ciclo lectivo actual.';
+    createAssignmentBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear asignación';
+    dangerZone.hidden = !isEditing;
+    assignmentYearBadge.textContent = String(new Date().getFullYear());
+
+    if (row) {
+      const email = row.querySelector('.teacher-email').textContent.trim();
+      const [, course, level, subject, year] = Array.from(row.cells, (cell) => cell.textContent.trim());
+      Array.from(teacherRoot.querySelectorAll('.dropdown-option'))
+        .find((option) => option.querySelector('.option-email').textContent.trim() === email)?.click();
+      const levelOption = Array.from(levelOptions).find((option) => option.textContent.trim() === level);
+      levelOption?.click();
+      Array.from(courseRoot.querySelectorAll('.dropdown-option'))
+        .find((option) => option.textContent.trim() === course && option.dataset.level === levelOption?.dataset.value)?.click();
+      const subjectOption = Array.from(subjectOptions).find((option) =>
+        (option.querySelector('.option-name') ?? option).textContent.trim() === subject);
+      if (subjectOption) {
+        subjectOption.classList.remove('disabled');
+        subjectOption.setAttribute('aria-disabled', 'false');
+        const badge = subjectOption.querySelector('.option-badge');
+        if (badge) badge.hidden = true;
+        subjectOption.dataset.label = subject;
+        subjectOption.click();
+      }
+      assignmentYearBadge.textContent = year;
+      updateCreateButtonState();
+    }
     assignmentOverlay.classList.add('is-open');
+    teacherRoot.querySelector('.searchable-chevron').focus();
   }
 
   function closeAssignmentModal() {
     assignmentOverlay.classList.remove('is-open');
     closeAllDropdowns();
     closeAllSearchableMenus();
+    modalTrigger?.focus();
   }
 
   openAssignmentModalBtn.addEventListener('click', openAssignmentModal);
   cancelAssignmentBtn.addEventListener('click', closeAssignmentModal);
+  document.querySelectorAll('.data-table tbody .btn').forEach((button) => {
+    button.addEventListener('click', (event) => openAssignmentModal(event, button.closest('tr')));
+  });
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   createAssignmentBtn.addEventListener('click', () => {
-    // Vista puramente visual: el alta real se conecta cuando exista la capa de servicios/IPC.
+    // Vista puramente visual: crear y guardar no modifican datos persistidos.
     closeAssignmentModal();
   });
 });

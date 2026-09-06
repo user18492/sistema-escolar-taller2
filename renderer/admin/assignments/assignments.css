@@ -760,3 +760,52 @@
   font-size: 14px;
   font-weight: 600;
 }
+
+/* Zona de peligro del formulario de edición */
+.assignment-danger-zone {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 16px;
+  background: #fff1f2;
+  border: 1px solid #ffb8be;
+  border-radius: var(--radius-md);
+}
+
+.assignment-danger-zone[hidden] {
+  display: none;
+}
+
+.assignment-danger-icon {
+  width: 40px;
+  height: 40px;
+  background: #ffdddd;
+  color: #ff3038;
+}
+
+.assignment-danger-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.assignment-danger-zone h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.assignment-danger-zone p {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.btn-danger {
+  margin-top: 10px;
+  background: #ff3038;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #e5252d;
+}

@@ -536,6 +536,13 @@
                 <li class="dropdown-option" role="option" data-value="c8" data-level="SECONDARY" aria-selected="false"><span class="option-name">2° B · Tarde</span></li>
                 <li class="dropdown-option" role="option" data-value="c9" data-level="SECONDARY" aria-selected="false"><span class="option-name">4° A · Mañana</span></li>
                 <li class="dropdown-option" role="option" data-value="c10" data-level="SECONDARY" aria-selected="false"><span class="option-name">6° B · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c11" data-level="PRIMARY" aria-selected="false"><span class="option-name">2° B · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c12" data-level="PRIMARY" aria-selected="false"><span class="option-name">3° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c13" data-level="SECONDARY" aria-selected="false"><span class="option-name">1° A · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c14" data-level="SECONDARY" aria-selected="false"><span class="option-name">4° B · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c15" data-level="SECONDARY" aria-selected="false"><span class="option-name">2° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c16" data-level="SECONDARY" aria-selected="false"><span class="option-name">3° B · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c17" data-level="PRIMARY" aria-selected="false"><span class="option-name">1° B · Mañana</span></li>
                 <li class="dropdown-empty" hidden>Sin resultados</li>
               </ul>
             </div>
@@ -583,6 +590,18 @@
             </div>
             <span class="info-box-badge" id="newAssignmentYearBadge">2026</span>
           </div>
+          <section class="assignment-danger-zone" id="assignmentDangerZone" aria-labelledby="assignmentDangerTitle" hidden>
+            <span class="info-box-icon assignment-danger-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+              </svg>
+            </span>
+            <div>
+              <h3 id="assignmentDangerTitle">Zona de peligro</h3>
+              <p>Eliminar esta asignación es una acción permanente y no se puede deshacer.</p>
+              <button type="button" class="btn btn-danger" id="deleteAssignmentBtn">Eliminar asignación</button>
+            </div>
+          </section>
         </div>
 
         <div class="modal-footer">
