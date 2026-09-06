@@ -940,3 +940,68 @@
   font-size: 14px;
   font-weight: 600;
 }
+/* Edición: acciones destructivas separadas del resto del formulario. */
+.danger-zone {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 16px;
+  padding: 16px 20px;
+  background: #fff1f2;
+  border: 1px solid #ff3553;
+  border-radius: var(--radius-md);
+}
+
+.danger-icon {
+  grid-row: 1 / 3;
+  background: #ffe0e5;
+  color: #ef233c;
+}
+
+.danger-zone > .btn,
+.danger-zone > p {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.danger-zone[hidden],
+.password-display[hidden] {
+  display: none;
+}
+
+.danger-zone h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.danger-zone p {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.btn-danger {
+  background: #ef233c;
+  border-color: #ef233c;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #d91c34;
+  border-color: #d91c34;
+}
+
+.modal :focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .modal-overlay { padding: 16px; }
+  .modal-header { padding: 24px 20px 20px; }
+  .modal-body { padding: 0 20px; }
+  .modal-footer { padding: 24px 20px; }
+  .form-grid { grid-template-columns: 1fr; }
+}

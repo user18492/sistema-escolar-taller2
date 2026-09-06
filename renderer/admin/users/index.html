@@ -649,6 +649,21 @@
               </div>
             </div>
           </div>
+          <section class="danger-zone" id="userDangerZone" aria-labelledby="userDangerTitle" hidden>
+            <span class="password-icon danger-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+              </svg>
+            </span>
+            <div>
+              <h3 id="userDangerTitle">Zona de peligro</h3>
+              <p>Eliminar este usuario es una acción permanente y no se puede deshacer.</p>
+            </div>
+            <button type="button" class="btn btn-danger" id="deleteUserBtn">
+              Eliminar usuario
+            </button>
+            <p id="deleteUserNotice" role="status" hidden>Vista de demostración: la eliminación de usuarios todavía no está disponible.</p>
+          </section>
         </div>
 
         <div class="modal-footer">

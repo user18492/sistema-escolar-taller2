@@ -314,9 +314,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const copyPasswordBtn = document.getElementById('copyPasswordBtn');
 
   let currentPassword = '';
+  let isEditing = false;
+  let modalTrigger = openModalBtn;
+  const dangerZone = document.getElementById('userDangerZone');
+  const deleteNotice = document.getElementById('deleteUserNotice');
+  const passwordDisplay = overlay.querySelector('.password-display');
+  const passwordHelp = overlay.querySelector('.password-heading p');
 
   function updateCreateButtonState() {
-    const hasAllTextInputs = Array.from(textInputs).every((input) => input.value.trim().length > 0);
+    const hasAllTextInputs = Array.from(textInputs).every((input) => (isEditing && input === birthdateInput) || input.value.trim().length > 0);
     const hasRole = Boolean(roleDropdown.querySelector('.dropdown-option.selected'));
     createBtn.disabled = !(hasAllTextInputs && hasRole);
   }
@@ -358,15 +364,51 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCreateButtonState();
   }
 
-  function openModal() {
+  function openModal(row = null, trigger = openModalBtn) {
+    isEditing = Boolean(row);
+    modalTrigger = trigger;
     resetForm();
+    document.getElementById('newUserTitle').textContent = isEditing ? 'Editar usuario' : 'Nuevo usuario';
+    overlay.querySelector('.modal-header p').textContent = isEditing
+      ? 'Modifica los datos del usuario.'
+      : 'Completa los datos para crear una nueva cuenta de usuario.';
+    createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear usuario';
+    dangerZone.hidden = !isEditing;
+    deleteNotice.hidden = true;
+    passwordDisplay.hidden = isEditing;
+    passwordHelp.textContent = isEditing
+      ? 'Genera una nueva contraseña solo si necesitas reemplazar la actual.'
+      : 'Se generará automáticamente una contraseña segura.';
+    if (row) {
+      const [lastName, firstName] = row.querySelector('.user-cell > span:last-child').textContent.trim().split(', ');
+      document.getElementById('newUserFirstName').value = firstName;
+      document.getElementById('newUserLastName').value = lastName;
+      dniInput.value = row.cells[1].textContent.trim();
+      document.getElementById('newUserEmail').value = row.cells[2].textContent.trim();
+      // La maqueta de la tabla no contiene fecha de nacimiento ni foto de perfil.
+      roleOptions.forEach((option) => {
+        const selected = option.textContent.trim() === row.cells[4].textContent.trim();
+        option.classList.toggle('selected', selected);
+        option.setAttribute('aria-selected', String(selected));
+        if (selected) roleLabel.textContent = option.textContent.trim();
+      });
+      roleLabel.classList.remove('placeholder');
+      currentPassword = '';
+      renderPassword();
+    }
+    updateCreateButtonState();
+    closeAllDropdowns();
+    closeAllSearchableMenus();
     overlay.classList.add('is-open');
+    overlay.querySelector('.modal').scrollTop = 0;
+    document.getElementById('newUserFirstName').focus();
   }
 
   function closeModal() {
     avatarLoadId += 1;
     if (cropDialog.open) cropDialog.close();
     overlay.classList.remove('is-open');
+    modalTrigger.focus();
     closeAllDropdowns();
   }
 
@@ -374,13 +416,34 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('input', updateCreateButtonState);
   });
 
-  openModalBtn.addEventListener('click', openModal);
+  openModalBtn.addEventListener('click', () => openModal());
+  document.querySelectorAll('.data-table tbody .btn').forEach((button) => {
+    button.addEventListener('click', () => openModal(button.closest('tr'), button));
+  });
+  document.getElementById('deleteUserBtn').addEventListener('click', () => {
+    deleteNotice.hidden = false;
+  });
+  overlay.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !cropDialog.open) closeModal();
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(overlay.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]'))
+      .filter((element) => element.getClientRects().length > 0);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
   cancelBtn.addEventListener('click', closeModal);
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   createBtn.addEventListener('click', () => {
-    // Vista puramente visual: el alta real se conecta cuando exista la capa de servicios/IPC.
+    // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
     closeModal();
   });
 
@@ -417,6 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   generatePasswordBtn.addEventListener('click', () => {
+    passwordDisplay.hidden = false;
     currentPassword = generatePassword();
     passwordValueEl.dataset.visible = 'false';
     renderPassword();
