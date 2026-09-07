@@ -128,7 +128,14 @@
 /* ---------- Chart card ---------- */
 
 .chart-card {
+  position: relative;
   padding: 24px;
+}
+
+/* Transición del alto de la card mientras aparece u oculta la leyenda (ver dashboard.js) */
+.chart-card.is-resizing {
+  overflow: hidden;
+  transition: height 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .chart-header {
@@ -162,10 +169,28 @@
   justify-content: center;
   gap: 16px;
   margin-top: 16px;
+  transition: opacity 0.3s ease;
 }
 
 .chart-legend[hidden] {
   display: none;
+}
+
+/* Estado inicial del desvanecimiento de entrada de la leyenda */
+.chart-legend.is-entering {
+  opacity: 0;
+}
+
+/* Al salir, la leyenda se saca del flujo para que la card pueda contraerse
+   de forma progresiva mientras se desvanece */
+.chart-legend.is-leaving {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
+  margin-top: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .legend-item {
@@ -375,6 +400,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .chart-bar {
+    transition: none;
+  }
+
+  .chart-card.is-resizing,
+  .chart-legend {
     transition: none;
   }
 }

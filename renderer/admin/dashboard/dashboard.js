@@ -68,8 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Filtro de nivel educativo del gráfico "Inscripciones por grado" ----------
 
   const levelDropdown = document.querySelector('[data-filter="chart-level"]');
+  const chartCard = document.querySelector('.chart-card');
   const chartBars = document.querySelector('[data-role="chart-bars"]');
   const chartLegend = document.querySelector('[data-role="chart-legend"]');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   if (levelDropdown && chartBars) {
     const modeByLevel = { ALL: 'mode-all', PRIMARY: 'mode-primary', SECONDARY: 'mode-secondary' };
@@ -80,11 +82,84 @@ document.addEventListener('DOMContentLoaded', () => {
       // Sin cambio real de nivel no se vuelve a animar el gráfico
       if (level === currentLevel) return;
       currentLevel = level;
-      chartBars.classList.remove('mode-all', 'mode-primary', 'mode-secondary');
-      chartBars.classList.add(modeByLevel[level] ?? 'mode-all');
-      if (chartLegend) chartLegend.hidden = level !== 'ALL';
+      animateCardResize(() => {
+        chartBars.classList.remove('mode-all', 'mode-primary', 'mode-secondary');
+        chartBars.classList.add(modeByLevel[level] ?? 'mode-all');
+        setLegendVisible(level === 'ALL');
+      });
       playChartEntrance();
     });
+  }
+
+  // ---------- Transición de alto de la card del gráfico ----------
+
+  // Finaliza la transición de alto en curso, si la hay
+  let endCardResize = null;
+
+  // Aplica `applyChange` y lleva el alto de la card desde su valor actual hasta el
+  // resultante, con la misma curva y duración que usan las barras del gráfico
+  function animateCardResize(applyChange) {
+    if (!chartCard || reducedMotion.matches) {
+      applyChange();
+      return;
+    }
+
+    const startHeight = chartCard.getBoundingClientRect().height;
+    // Cierra una transición previa para medir el alto natural, sin salto visible
+    // porque el alto inicial se restituye antes del siguiente repintado
+    endCardResize?.();
+    applyChange();
+    const endHeight = chartCard.getBoundingClientRect().height;
+    if (Math.abs(endHeight - startHeight) < 1) return;
+
+    chartCard.classList.add('is-resizing');
+    chartCard.style.height = `${startHeight}px`;
+    void chartCard.offsetHeight; // fija el alto inicial antes de animar
+    chartCard.style.height = `${endHeight}px`;
+
+    const finish = () => {
+      window.clearTimeout(fallbackTimer);
+      chartCard.removeEventListener('transitionend', onTransitionEnd);
+      chartCard.classList.remove('is-resizing');
+      chartCard.style.height = '';
+      // La leyenda solo se oculta al terminar de desvanecerse
+      if (chartLegend?.classList.contains('is-leaving')) {
+        chartLegend.classList.remove('is-leaving');
+        chartLegend.hidden = true;
+      }
+      endCardResize = null;
+    };
+
+    const onTransitionEnd = (transitionEvent) => {
+      if (transitionEvent.target === chartCard && transitionEvent.propertyName === 'height') finish();
+    };
+
+    // Respaldo por si la transición no llega a emitir su evento de fin
+    const fallbackTimer = window.setTimeout(finish, 700);
+    chartCard.addEventListener('transitionend', onTransitionEnd);
+    endCardResize = finish;
+  }
+
+  // Muestra u oculta la leyenda del gráfico doble acompañando el cambio de alto
+  function setLegendVisible(visible) {
+    if (!chartLegend) return;
+
+    if (visible) {
+      chartLegend.classList.remove('is-leaving');
+      chartLegend.hidden = false;
+      if (reducedMotion.matches) return;
+      chartLegend.classList.add('is-entering');
+      void chartLegend.offsetWidth; // aplica la opacidad inicial de forma inmediata
+      chartLegend.classList.remove('is-entering');
+      return;
+    }
+
+    if (reducedMotion.matches) {
+      chartLegend.hidden = true;
+      return;
+    }
+
+    chartLegend.classList.add('is-leaving');
   }
 
   // ---------- Animación de entrada de las barras del gráfico ----------
