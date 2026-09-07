@@ -7,6 +7,7 @@
   --sidebar-width: 288px;
   --layout-transition: 300ms ease-in-out;
   --view-transition: 220ms ease-out;
+  --modal-transition: 180ms ease;
   --color-bg: #ffffff;
   --color-bg-page: #fafafa;
   --color-bg-sidebar: #ffffff;
@@ -117,6 +118,11 @@ body {
   flex-shrink: 0;
 }
 
+/* ---------- Modales ---------- */
+/* Sistema compartido por todas las vistas: overlay a pantalla completa, panel
+   centrado y transición de apertura/cierre. Cada vista solo ajusta su ancho y
+   su espaciado interno. */
+
 /* Mantiene el fondo fijo hasta que se cierre el último modal, sin perder su posición. */
 html:has(.modal-overlay.is-open, dialog:modal) .main > .content {
   overflow: hidden;
@@ -125,6 +131,104 @@ html:has(.modal-overlay.is-open, dialog:modal) .main > .content {
 .modal,
 dialog:modal {
   overscroll-behavior: contain;
+}
+
+/* Entrada y salida: el overlay se funde y el panel lo acompaña con un leve
+   desplazamiento. La duración es breve para que no estorbe al uso repetido. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  padding-top: calc(32px + var(--window-titlebar-height));
+  -webkit-app-region: no-drag;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 102;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--modal-transition),
+    visibility var(--modal-transition);
+}
+
+.modal-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 24px 60px -12px rgba(16, 24, 40, 0.35),
+    0 4px 12px rgba(16, 24, 40, 0.12);
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition:
+    opacity var(--modal-transition),
+    transform var(--modal-transition);
+}
+
+.modal-overlay.is-open .modal {
+  opacity: 1;
+  transform: none;
+}
+
+/* Diálogos nativos (<dialog> con showModal): al cerrarse salen del top layer y
+   dejan de renderizarse, así que `allow-discrete` conserva `display` y `overlay`
+   mientras dura la salida y `@starting-style` define el estado de entrada. */
+dialog {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition:
+    opacity var(--modal-transition),
+    transform var(--modal-transition),
+    overlay var(--modal-transition) allow-discrete,
+    display var(--modal-transition) allow-discrete;
+}
+
+dialog[open] {
+  opacity: 1;
+  transform: none;
+}
+
+dialog::backdrop {
+  opacity: 0;
+  transition:
+    opacity var(--modal-transition),
+    overlay var(--modal-transition) allow-discrete,
+    display var(--modal-transition) allow-discrete;
+}
+
+dialog[open]::backdrop {
+  opacity: 1;
+}
+
+@starting-style {
+  dialog[open] {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal,
+  dialog,
+  dialog::backdrop {
+    transition: none;
+  }
 }
 
 body {

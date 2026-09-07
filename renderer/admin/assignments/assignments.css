@@ -377,52 +377,6 @@
 
 /* ---------- Modal: Nueva asignación ---------- */
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px;
-  padding-top: calc(32px + var(--window-titlebar-height));
-  -webkit-app-region: no-drag;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(2px);
-  z-index: 102;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.18s ease,
-    visibility 0.18s ease;
-}
-
-.modal-overlay.is-open {
-  opacity: 1;
-  visibility: visible;
-}
-
-.modal {
-  width: 100%;
-  max-width: 560px;
-  max-height: 90vh;
-  overflow-y: auto;
-  background: var(--color-bg);
-  border-radius: var(--radius-lg);
-  box-shadow:
-    0 24px 60px -12px rgba(16, 24, 40, 0.35),
-    0 4px 12px rgba(16, 24, 40, 0.12);
-  transform: translateY(10px) scale(0.98);
-  opacity: 0;
-  transition:
-    transform 0.18s ease,
-    opacity 0.18s ease;
-}
-
-.modal-overlay.is-open .modal {
-  transform: translateY(0) scale(1);
-  opacity: 1;
-}
-
 .modal-header {
   padding: 28px 28px 4px;
 }
