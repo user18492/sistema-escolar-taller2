@@ -8,6 +8,8 @@
   --layout-transition: 300ms ease-in-out;
   --view-transition: 220ms ease-out;
   --modal-transition: 180ms ease;
+  /* Reajuste progresivo de tamaño: card del gráfico de Inicio y modales */
+  --size-transition: 450ms cubic-bezier(0.22, 1, 0.36, 1);
   --color-bg: #ffffff;
   --color-bg-page: #fafafa;
   --color-bg-sidebar: #ffffff;
@@ -181,6 +183,20 @@ dialog:modal {
   transform: none;
 }
 
+/* Reajuste dinámico del panel: cuando el contenido cambia su alto o su ancho, el
+   contenedor acompaña el cambio en lugar de saltar. La clase y los tamaños en
+   línea los aplica modal-resize.js solo mientras dura la transición; se recogen
+   aquí las transiciones de apertura para no anularlas si el modal se cierra en
+   medio. Misma curva y duración que la card del gráfico de Inicio. */
+.modal.is-resizing {
+  overflow: hidden;
+  transition:
+    opacity var(--modal-transition),
+    transform var(--modal-transition),
+    width var(--size-transition),
+    height var(--size-transition);
+}
+
 /* Diálogos nativos (<dialog> con showModal): al cerrarse salen del top layer y
    dejan de renderizarse, así que `allow-discrete` conserva `display` y `overlay`
    mientras dura la salida y `@starting-style` define el estado de entrada. */
@@ -211,6 +227,17 @@ dialog[open]::backdrop {
   opacity: 1;
 }
 
+dialog.is-resizing {
+  overflow: hidden;
+  transition:
+    opacity var(--modal-transition),
+    transform var(--modal-transition),
+    overlay var(--modal-transition) allow-discrete,
+    display var(--modal-transition) allow-discrete,
+    width var(--size-transition),
+    height var(--size-transition);
+}
+
 @starting-style {
   dialog[open] {
     opacity: 0;
@@ -225,7 +252,9 @@ dialog[open]::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay,
   .modal,
+  .modal.is-resizing,
   dialog,
+  dialog.is-resizing,
   dialog::backdrop {
     transition: none;
   }

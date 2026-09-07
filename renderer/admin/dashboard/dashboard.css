@@ -135,7 +135,7 @@
 /* Transición del alto de la card mientras aparece u oculta la leyenda (ver dashboard.js) */
 .chart-card.is-resizing {
   overflow: hidden;
-  transition: height 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: height var(--size-transition);
 }
 
 .chart-header {
