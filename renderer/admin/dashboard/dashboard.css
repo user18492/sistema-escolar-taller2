@@ -216,9 +216,16 @@
   background: var(--color-accent-blue);
 }
 
+/* El contenedor es solo el ancla del menú: el recuadro visible lo aporta .dropdown-toggle,
+   por eso se anula aquí el pill que define la regla global .dropdown. */
 .chart-header .dropdown {
   position: relative;
   flex-shrink: 0;
+  display: block;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: none;
 }
 
 .chart-header .dropdown-toggle {
