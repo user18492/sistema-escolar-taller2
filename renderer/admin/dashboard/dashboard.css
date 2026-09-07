@@ -139,6 +139,12 @@
   margin-bottom: 24px;
 }
 
+.chart-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+}
+
 .chart-header h2 {
   font-size: 16px;
   font-weight: 700;
@@ -148,6 +154,118 @@
   margin-top: 4px;
   font-size: 13px;
   color: var(--color-text-secondary);
+}
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 2px;
+}
+
+.chart-legend[hidden] {
+  display: none;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-dot-primary {
+  background: #b7cbfa;
+}
+
+.legend-dot-secondary {
+  background: var(--color-accent-blue);
+}
+
+.chart-header .dropdown {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.chart-header .dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.chart-header .dropdown-toggle:hover {
+  background: #f9fafb;
+}
+
+.chart-header .dropdown.open .dropdown-toggle {
+  border-color: var(--color-accent-blue);
+}
+
+.chart-header .dropdown-toggle .chevron {
+  width: 13px;
+  height: 13px;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.chart-header .dropdown.open .dropdown-toggle .chevron {
+  transform: rotate(180deg);
+}
+
+.chart-header .dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 12px 24px -8px rgba(16, 24, 40, 0.18),
+    0 2px 6px rgba(16, 24, 40, 0.08);
+  padding: 6px;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
+}
+
+.chart-header .dropdown-menu[hidden] {
+  display: none;
+}
+
+.chart-header .dropdown-option {
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.chart-header .dropdown-option:hover {
+  background: #f3f4f6;
+}
+
+.chart-header .dropdown-option.selected {
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+  font-weight: 600;
 }
 
 .chart {
@@ -208,11 +326,40 @@
   height: 100%;
 }
 
+.chart-bar-group {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+}
+
 .chart-bar {
   width: 100%;
-  max-width: 32px;
-  background: #b7cbfa;
   border-radius: 4px 4px 0 0;
+}
+
+.chart-bar-primary {
+  background: #b7cbfa;
+}
+
+.chart-bar-secondary {
+  background: var(--color-accent-blue);
+}
+
+.chart-bars.mode-all .chart-bar {
+  max-width: 28px;
+}
+
+.chart-bars.mode-primary .chart-bar-secondary,
+.chart-bars.mode-secondary .chart-bar-primary {
+  display: none;
+}
+
+.chart-bars.mode-primary .chart-bar,
+.chart-bars.mode-secondary .chart-bar {
+  max-width: 64px;
 }
 
 .chart-labels {

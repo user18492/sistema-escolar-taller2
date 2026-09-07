@@ -100,15 +100,28 @@
 
           <section class="card chart-card">
             <div class="chart-header">
-              <div>
-                <h2>Inscripciones por grado</h2>
-                <p>Distribución de estudiantes</p>
+              <div class="chart-header-left">
+                <div>
+                  <h2>Inscripciones por grado</h2>
+                  <p>Distribución de estudiantes</p>
+                </div>
+                <div class="chart-legend" data-role="chart-legend">
+                  <span class="legend-item"><span class="legend-dot legend-dot-primary"></span>Primaria</span>
+                  <span class="legend-item"><span class="legend-dot legend-dot-secondary"></span>Secundaria</span>
+                </div>
               </div>
-              <div class="dropdown">
-                <span>Todos los grados</span>
-                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+              <div class="field field-select dropdown" data-filter="chart-level">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Todos</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option selected" role="option" data-value="ALL" aria-selected="true">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
+                  <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
+                </ul>
               </div>
             </div>
 
@@ -126,19 +139,43 @@
                   <span></span>
                   <span></span>
                 </div>
-                <div class="chart-bars">
-                  <div class="chart-col"><div class="chart-bar" style="height: 50%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 43%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 48%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 50%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 58%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 73%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 82%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 90%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 94%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 88%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 82%"></div></div>
-                  <div class="chart-col"><div class="chart-bar" style="height: 75%"></div></div>
+                <div class="chart-bars mode-all" data-role="chart-bars">
+                  <div class="chart-col">
+                    <div class="chart-bar-group">
+                      <div class="chart-bar chart-bar-primary" style="height: 50%"></div>
+                      <div class="chart-bar chart-bar-secondary" style="height: 33%"></div>
+                    </div>
+                  </div>
+                  <div class="chart-col">
+                    <div class="chart-bar-group">
+                      <div class="chart-bar chart-bar-primary" style="height: 60%"></div>
+                      <div class="chart-bar chart-bar-secondary" style="height: 42%"></div>
+                    </div>
+                  </div>
+                  <div class="chart-col">
+                    <div class="chart-bar-group">
+                      <div class="chart-bar chart-bar-primary" style="height: 68%"></div>
+                      <div class="chart-bar chart-bar-secondary" style="height: 53%"></div>
+                    </div>
+                  </div>
+                  <div class="chart-col">
+                    <div class="chart-bar-group">
+                      <div class="chart-bar chart-bar-primary" style="height: 78%"></div>
+                      <div class="chart-bar chart-bar-secondary" style="height: 60%"></div>
+                    </div>
+                  </div>
+                  <div class="chart-col">
+                    <div class="chart-bar-group">
+                      <div class="chart-bar chart-bar-primary" style="height: 88%"></div>
+                      <div class="chart-bar chart-bar-secondary" style="height: 70%"></div>
+                    </div>
+                  </div>
+                  <div class="chart-col">
+                    <div class="chart-bar-group">
+                      <div class="chart-bar chart-bar-primary" style="height: 80%"></div>
+                      <div class="chart-bar chart-bar-secondary" style="height: 70%"></div>
+                    </div>
+                  </div>
                 </div>
                 <div class="chart-labels">
                   <span class="chart-col-label">1°</span>
@@ -147,12 +184,6 @@
                   <span class="chart-col-label">4°</span>
                   <span class="chart-col-label">5°</span>
                   <span class="chart-col-label">6°</span>
-                  <span class="chart-col-label">7°</span>
-                  <span class="chart-col-label">8°</span>
-                  <span class="chart-col-label">9°</span>
-                  <span class="chart-col-label">10°</span>
-                  <span class="chart-col-label">11°</span>
-                  <span class="chart-col-label">12°</span>
                 </div>
               </div>
             </div>
