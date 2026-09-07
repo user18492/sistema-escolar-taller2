@@ -339,6 +339,39 @@
 .chart-bar {
   width: 100%;
   border-radius: 4px 4px 0 0;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.chart-bars.is-loaded .chart-bar {
+  transform: scaleY(1);
+}
+
+.chart-col:nth-child(2) .chart-bar {
+  transition-delay: 0.03s;
+}
+
+.chart-col:nth-child(3) .chart-bar {
+  transition-delay: 0.06s;
+}
+
+.chart-col:nth-child(4) .chart-bar {
+  transition-delay: 0.09s;
+}
+
+.chart-col:nth-child(5) .chart-bar {
+  transition-delay: 0.12s;
+}
+
+.chart-col:nth-child(6) .chart-bar {
+  transition-delay: 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-bar {
+    transition: none;
+  }
 }
 
 .chart-bar-primary {

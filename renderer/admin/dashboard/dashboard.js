@@ -79,6 +79,20 @@ document.addEventListener('DOMContentLoaded', () => {
       chartBars.classList.remove('mode-all', 'mode-primary', 'mode-secondary');
       chartBars.classList.add(modeByLevel[level] ?? 'mode-all');
       if (chartLegend) chartLegend.hidden = level !== 'ALL';
+      playChartEntrance();
     });
   }
+
+  // ---------- Animación de entrada de las barras del gráfico ----------
+
+  function playChartEntrance() {
+    if (!chartBars) return;
+    chartBars.classList.remove('is-loaded');
+    void chartBars.offsetWidth; // fuerza reflow para poder reiniciar la transición
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => chartBars.classList.add('is-loaded'));
+    });
+  }
+
+  playChartEntrance();
 });
