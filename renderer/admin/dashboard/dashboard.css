@@ -368,6 +368,11 @@
   transition-delay: 0.15s;
 }
 
+/* Reinicio instantáneo de la animación al cambiar de nivel educativo */
+.chart-bars.is-resetting .chart-bar {
+  transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chart-bar {
     transition: none;
