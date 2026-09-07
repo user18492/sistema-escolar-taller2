@@ -6,6 +6,7 @@
   --window-titlebar-height: 44px;
   --sidebar-width: 288px;
   --layout-transition: 300ms ease-in-out;
+  --view-transition: 220ms ease-out;
   --color-bg: #ffffff;
   --color-bg-page: #fafafa;
   --color-bg-sidebar: #ffffff;
@@ -85,9 +86,25 @@ body {
   width: min(1344px, calc(100vw - var(--sidebar-width) + 64px));
 }
 
+/* Entrada de la vista: el contenido principal se desvanece al abrir la aplicación y
+   al navegar desde el menú lateral. La animación se aplica al contenedor, así todos
+   sus componentes aparecen a la vez y las actualizaciones internas del contenido ya
+   cargado (filtros, búsqueda, paginación, tablas) no vuelven a dispararla.
+   El titlebar y el sidebar quedan fuera de la animación. */
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.main > .content {
+  animation: view-fade-in var(--view-transition) backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .main > .content {
     transition: none;
+    animation: none;
   }
 }
 
