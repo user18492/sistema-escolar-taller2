@@ -63,7 +63,7 @@
             ${navHtml}
           </nav>
           <div class="sidebar-profile">
-            <div class="profile-panel" id="profilePanel" role="group" aria-label="Opciones de usuario" hidden>
+            <div class="profile-panel" id="profilePanel" role="group" aria-label="Opciones de usuario">
               <button class="profile-option" type="button">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m9 3-.5 2-2 1-2-.5-2 3 1.5 1.5v3L2.5 15l2 3 2-.5 2 1 .5 2h4l.5-2 2-1 2 .5 2-3-1.5-2v-3l1.5-1.5-2-3-2 .5-2-1-.5-2z" /><circle cx="11" cy="12" r="3" />
@@ -104,16 +104,21 @@
       const button = this.querySelector('.profile-button');
       const panel = this.querySelector('.profile-panel');
       const options = [...panel.querySelectorAll('button')];
+      // El estado abierto vive en la clase `is-open` y no en el atributo `hidden`: así el
+      // panel conserva su `display` mientras dura la transición de salida definida en
+      // sidebar.css y solo se oculta (saliendo del foco y del árbol de accesibilidad)
+      // cuando esa transición termina.
+      const isOpen = () => panel.classList.contains('is-open');
       const setOpen = (open) => {
-        panel.hidden = !open;
+        panel.classList.toggle('is-open', open);
         button.setAttribute('aria-expanded', String(open));
       };
       this.profileListeners?.abort();
       this.profileListeners = new AbortController();
       const { signal } = this.profileListeners;
-      button.addEventListener('click', () => setOpen(panel.hidden), { signal });
+      button.addEventListener('click', () => setOpen(!isOpen()), { signal });
       profile.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !panel.hidden) {
+        if (event.key === 'Escape' && isOpen()) {
           event.preventDefault();
           setOpen(false);
           button.focus();

@@ -168,17 +168,45 @@ app-sidebar {
   color: var(--color-text-secondary);
 }
 
+/* Apertura y cierre: mismo lenguaje de transición que los modales de base.css
+   (fundido + leve desplazamiento y escala), con el panel creciendo desde el
+   botón de perfil. Como el panel se oculta con `display`, se transiciona con
+   `allow-discrete` igual que los <dialog> de base.css: al abrir pasa a `block`
+   de inmediato (así el foco por teclado ya puede entrar en las opciones) y al
+   cerrar lo conserva hasta que la salida termina. `@starting-style` define el
+   estado de entrada, porque el panel llega desde `display: none`. */
 .profile-panel {
   position: absolute;
   bottom: calc(100% + 10px);
   left: 6px;
   right: 6px;
   z-index: 10;
+  display: none;
   padding: 6px 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg);
   box-shadow: 0 4px 18px rgba(16, 24, 40, 0.12);
+  transform-origin: bottom center;
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  transition:
+    opacity var(--modal-transition),
+    transform var(--modal-transition),
+    display var(--modal-transition) allow-discrete;
+}
+
+.profile-panel.is-open {
+  display: block;
+  opacity: 1;
+  transform: none;
+}
+
+@starting-style {
+  .profile-panel.is-open {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
 }
 
 .profile-panel::after {
@@ -229,7 +257,8 @@ app-sidebar {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sidebar {
+  .sidebar,
+  .profile-panel {
     transition: none;
   }
 }
