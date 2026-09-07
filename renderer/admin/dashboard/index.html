@@ -50,21 +50,8 @@
                 </svg>
               </div>
               <div class="stat-body">
-                <span class="stat-label">Estudiantes</span>
+                <span class="stat-label">Inscripciones activas</span>
                 <span class="stat-value">1,248</span>
-              </div>
-            </div>
-
-            <div class="card stat-card">
-              <div class="stat-icon green">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M22 10L12 5 2 10l10 5 10-5z" />
-                  <path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />
-                </svg>
-              </div>
-              <div class="stat-body">
-                <span class="stat-label">Docentes</span>
-                <span class="stat-value">86</span>
               </div>
             </div>
 
@@ -82,16 +69,31 @@
             </div>
 
             <div class="card stat-card">
-              <div class="stat-icon orange">
+              <div class="stat-icon green">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="8.5" cy="7" r="4" />
-                  <polyline points="17 11 19 13 23 9" />
+                  <path d="M22 10L12 5 2 10l10 5 10-5z" />
+                  <path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />
                 </svg>
               </div>
               <div class="stat-body">
-                <span class="stat-label">Asistencia promedio</span>
-                <span class="stat-value">92.4%</span>
+                <span class="stat-label">Docentes asignados</span>
+                <span class="stat-value">86</span>
+              </div>
+            </div>
+
+            <div class="card stat-card">
+              <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <line x1="10" y1="9" x2="8" y2="9" />
+                </svg>
+              </div>
+              <div class="stat-body">
+                <span class="stat-label">Asignaciones</span>
+                <span class="stat-value">124</span>
               </div>
             </div>
           </section>
@@ -99,7 +101,7 @@
           <section class="card chart-card">
             <div class="chart-header">
               <div>
-                <h2>Matrícula por grado</h2>
+                <h2>Inscripciones por grado</h2>
                 <p>Distribución de estudiantes</p>
               </div>
               <div class="dropdown">
@@ -154,6 +156,69 @@
                 </div>
               </div>
             </div>
+          </section>
+
+          <section class="card attention-card">
+            <div class="attention-header">
+              <h2>Requiere atención</h2>
+              <p>Indicadores de gestión que necesitan revisión</p>
+            </div>
+
+            <ul class="attention-list">
+              <li class="attention-item">
+                <span class="attention-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </span>
+                <span class="attention-text">3 cursos poseen materias sin docente asignado</span>
+                <a class="attention-link" href="../assignments/index.html">
+                  Ver docencia
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </a>
+              </li>
+
+              <li class="attention-item">
+                <span class="attention-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </span>
+                <span class="attention-text">4 usuarios se encuentran suspendidos</span>
+                <a class="attention-link" href="../users/index.html">
+                  Ver usuarios
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </a>
+              </li>
+
+              <li class="attention-item">
+                <span class="attention-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </span>
+                <span class="attention-text">2 cursos tienen inscripciones pendientes de revisión</span>
+                <a class="attention-link" href="../courses/index.html">
+                  Ver cursos
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </a>
+              </li>
+            </ul>
           </section>
         </main>
       </div>

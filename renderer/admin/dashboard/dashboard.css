@@ -232,3 +232,76 @@
   font-size: 12px;
   color: var(--color-text-tertiary);
 }
+
+/* ---------- Attention card ---------- */
+
+.attention-card {
+  padding: 24px;
+}
+
+.attention-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.attention-header p {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.attention-list {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.attention-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.attention-item:first-child {
+  border-top: none;
+}
+
+.attention-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-accent-orange-bg);
+  color: var(--color-accent-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attention-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.attention-text {
+  flex: 1;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.attention-link {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent-blue);
+}
+
+.attention-link svg {
+  width: 14px;
+  height: 14px;
+}
