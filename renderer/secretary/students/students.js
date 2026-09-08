@@ -276,8 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
       addressInput.value = row.cells[3].textContent.trim();
       dniInput.value = row.cells[4].textContent.trim();
       birthdateInput.value = row.cells[5].textContent.trim();
-      // La maqueta de la tabla no incluye el estado del alumno: se parte del valor por defecto.
-      selectStatus('Activo');
+      selectStatus(row.cells[6].textContent.trim());
     }
 
     updateCreateButtonState();

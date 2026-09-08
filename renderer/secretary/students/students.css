@@ -411,6 +411,30 @@
   font-weight: 500;
 }
 
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-active {
+  background: var(--color-accent-green-bg);
+  color: #067a55;
+}
+
+.badge-suspended {
+  background: var(--color-accent-red-bg);
+  color: var(--color-accent-red);
+}
+
+.badge-graduated {
+  background: var(--color-accent-blue-bg);
+  color: #2563eb;
+}
+
 /* ---------- Table footer / pagination ---------- */
 
 .table-footer {
