@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="./students.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/modal-resize.js"></script>
     <script src="./students.js" defer></script>
   </head>
   <body>
@@ -31,6 +32,10 @@
               <h1>Alumnos</h1>
               <p>Gestiona los alumnos de la institución</p>
             </div>
+
+            <button class="btn btn-primary" type="button" id="openNewStudentModalBtn">
+              <span class="plus">+</span> Nuevo alumno
+            </button>
           </div>
 
           <section class="card students-card">
@@ -305,6 +310,7 @@
                     <th>Dirección</th>
                     <th>DNI</th>
                     <th>Fecha de nacimiento</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -315,6 +321,7 @@
                     <td>Av. Belgrano 1245</td>
                     <td>48.123.456</td>
                     <td>12/03/2010</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                   <tr>
                     <td class="student-name">Benítez, Tomás</td>
@@ -323,6 +330,7 @@
                     <td>Junín 830</td>
                     <td>47.982.310</td>
                     <td>25/07/2009</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                   <tr>
                     <td class="student-name">Cabrera, Julieta</td>
@@ -331,6 +339,7 @@
                     <td>Rivadavia 2570</td>
                     <td>49.204.775</td>
                     <td>08/11/2011</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                   <tr>
                     <td class="student-name">Duarte, Facundo</td>
@@ -339,6 +348,7 @@
                     <td>San Martín 415</td>
                     <td>46.870.223</td>
                     <td>30/01/2008</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                   <tr>
                     <td class="student-name">Escobar, Martina</td>
@@ -347,6 +357,7 @@
                     <td>Córdoba 1880</td>
                     <td>48.556.941</td>
                     <td>17/05/2010</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                   <tr>
                     <td class="student-name">Ferreyra, Lautaro</td>
@@ -355,6 +366,7 @@
                     <td>Mendoza 640</td>
                     <td>47.331.408</td>
                     <td>02/09/2009</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                   <tr>
                     <td class="student-name">Gauna, Valentina</td>
@@ -363,6 +375,7 @@
                     <td>La Rioja 1120</td>
                     <td>49.617.882</td>
                     <td>21/12/2011</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                   <tr>
                     <td class="student-name">Herrera, Bautista</td>
@@ -371,6 +384,7 @@
                     <td>Entre Ríos 2035</td>
                     <td>46.204.559</td>
                     <td>14/06/2008</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                   <tr>
                     <td class="student-name">Ibarra, Delfina</td>
@@ -379,6 +393,7 @@
                     <td>Salta 755</td>
                     <td>48.998.127</td>
                     <td>09/02/2010</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                   <tr>
                     <td class="student-name">Juárez, Thiago</td>
@@ -387,6 +402,7 @@
                     <td>Catamarca 1460</td>
                     <td>47.145.690</td>
                     <td>26/10/2009</td>
+                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
                   </tr>
                 </tbody>
               </table>
@@ -416,6 +432,105 @@
             </div>
           </section>
         </main>
+      </div>
+    </div>
+    <!-- Modal compartido: Nuevo alumno / Editar alumno -->
+    <div class="modal-overlay" id="newStudentOverlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newStudentTitle">
+        <div class="modal-header">
+          <h2 id="newStudentTitle">Nuevo alumno</h2>
+          <p>Completa los datos para registrar un nuevo alumno.</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="newStudentFirstName">Nombre</label>
+              <div class="field">
+                <input type="text" id="newStudentFirstName" placeholder="Camila" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newStudentLastName">Apellido</label>
+              <div class="field">
+                <input type="text" id="newStudentLastName" placeholder="Álvarez" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newStudentDni">DNI</label>
+              <div class="field">
+                <input type="text" id="newStudentDni" placeholder="48.123.456" inputmode="numeric" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newStudentBirthdate">Fecha de nacimiento</label>
+              <div class="field field-date">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="5" width="18" height="16" rx="2" />
+                  <line x1="16" y1="3" x2="16" y2="7" />
+                  <line x1="8" y1="3" x2="8" y2="7" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                <input type="text" id="newStudentBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" maxlength="10" autocomplete="off" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newStudentEmail">Email</label>
+              <div class="field">
+                <input type="email" id="newStudentEmail" placeholder="camila.alvarez@institucion.edu.ar" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newStudentPhone">Teléfono</label>
+              <div class="field">
+                <input type="tel" id="newStudentPhone" placeholder="379 412-3456" inputmode="tel" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="newStudentAddress">Dirección</label>
+              <div class="field">
+                <input type="text" id="newStudentAddress" placeholder="Av. Belgrano 1245" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="field field-select dropdown" data-filter="new-student-status">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label placeholder">Seleccionar estado</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activo</li>
+                  <li class="dropdown-option" role="option" data-value="SUSPENDED" aria-selected="false">Suspendido</li>
+                  <li class="dropdown-option" role="option" data-value="GRADUATED" aria-selected="false">Egresado</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <section class="danger-zone" id="studentDangerZone" aria-labelledby="studentDangerTitle" hidden>
+            <span class="danger-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+              </svg>
+            </span>
+            <div>
+              <h3 id="studentDangerTitle">Zona de peligro</h3>
+              <p>Eliminar este alumno es una acción permanente y no se puede deshacer.</p>
+            </div>
+            <button type="button" class="btn btn-danger" id="deleteStudentBtn">
+              Eliminar alumno
+            </button>
+            <p id="deleteStudentNotice" role="status" hidden>Vista de demostración: la eliminación de alumnos todavía no está disponible.</p>
+          </section>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelNewStudentBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="createStudentBtn" disabled>Crear alumno</button>
+        </div>
       </div>
     </div>
   </body>
