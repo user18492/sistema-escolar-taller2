@@ -1,48 +1,68 @@
 // Componente reutilizable: navbar lateral (sidebar), compartido por todas las vistas de la app.
-// Uso: <app-sidebar active="dashboard"></app-sidebar>
-// El atributo "active" marca qué item del menú se resalta como actual.
+// Uso: <app-sidebar nav-role="admin" active="dashboard"></app-sidebar>
+// El atributo "nav-role" elige el menú del rol (por defecto "admin") y "active" marca
+// qué item de ese menú se resalta como actual.
 // Sin shadow DOM a propósito: así los estilos de sidebar.css (selectores .sidebar, .nav-item, etc.) siguen aplicando tal cual.
 
 (() => {
   const logoUrl = new URL('../../../resources/logotipo_header.png', document.currentScript.src).href;
-  const NAV_ITEMS = [
-    {
-      key: 'dashboard',
-      href: '../dashboard/index.html',
-      label: 'Inicio',
-      icon: '<path d="M3 11.5L12 4l9 7.5" /><path d="M5 10v10h5v-6h4v6h5V10" />',
-    },
-    {
-      key: 'users',
-      href: '../users/index.html',
-      label: 'Usuarios',
-      icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />',
-    },
-    {
-      key: 'courses',
-      href: '../courses/index.html',
-      label: 'Cursos',
-      icon: '<path d="M2 4h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 4h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />',
-    },
-    {
-      key: 'assignments',
-      href: '../assignments/index.html',
-      label: 'Docencia',
-      icon: '<path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />',
-    },
-    {
-      key: 'reports',
-      href: '../reports/index.html',
-      label: 'Reportes',
-      icon: '<path d="M3 3v18h18" /><rect x="7" y="12" width="3" height="6" /><rect x="12" y="8" width="3" height="10" /><rect x="17" y="5" width="3" height="13" />',
-    },
-  ];
+  // Cada rol tiene su propio menú: las vistas viven en renderer/<rol>/<vista>, así que
+  // los enlaces son relativos a la carpeta hermana dentro del mismo rol.
+  const NAV_ITEMS_BY_ROLE = {
+    admin: [
+      {
+        key: 'dashboard',
+        href: '../dashboard/index.html',
+        label: 'Inicio',
+        icon: '<path d="M3 11.5L12 4l9 7.5" /><path d="M5 10v10h5v-6h4v6h5V10" />',
+      },
+      {
+        key: 'users',
+        href: '../users/index.html',
+        label: 'Usuarios',
+        icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />',
+      },
+      {
+        key: 'courses',
+        href: '../courses/index.html',
+        label: 'Cursos',
+        icon: '<path d="M2 4h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 4h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />',
+      },
+      {
+        key: 'assignments',
+        href: '../assignments/index.html',
+        label: 'Docencia',
+        icon: '<path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />',
+      },
+      {
+        key: 'reports',
+        href: '../reports/index.html',
+        label: 'Reportes',
+        icon: '<path d="M3 3v18h18" /><rect x="7" y="12" width="3" height="6" /><rect x="12" y="8" width="3" height="10" /><rect x="17" y="5" width="3" height="13" />',
+      },
+    ],
+    secretary: [
+      {
+        key: 'students',
+        href: '../students/index.html',
+        label: 'Alumnos',
+        icon: '<path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />',
+      },
+      {
+        key: 'enrollments',
+        href: '../enrollments/index.html',
+        label: 'Inscripciones',
+        icon: '<path d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" /><rect x="9" y="2" width="6" height="4" rx="1" /><path d="m9 14 2 2 4-4" />',
+      },
+    ],
+  };
 
   class AppSidebar extends HTMLElement {
     connectedCallback() {
       const active = this.getAttribute('active') || '';
+      const navItems = NAV_ITEMS_BY_ROLE[this.getAttribute('nav-role') || 'admin'] || NAV_ITEMS_BY_ROLE.admin;
 
-      const navHtml = NAV_ITEMS.map((item) => {
+      const navHtml = navItems.map((item) => {
         const activeClass = item.key === active ? ' active' : '';
         return `
           <a class="nav-item${activeClass}" href="${item.href}"${item.key === active ? ' aria-current="page"' : ''}>

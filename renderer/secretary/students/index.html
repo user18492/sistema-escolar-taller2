@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alumnos - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="./students.css" />
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="./students.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <app-sidebar
+        nav-role="secretary"
+        active="students"
+        user-name="Lucía Pérez"
+        user-role="Secretaria"
+        user-initials="PL"
+      ></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Alumnos</h1>
+              <p>Gestiona los alumnos de la institución</p>
+            </div>
+          </div>
+
+          <section class="card students-card">
+            <div class="filters-row">
+              <div class="field field-searchable dropdown-searchable" data-role="name-select">
+                <div class="searchable-bar">
+                  <span class="searchable-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input type="text" class="searchable-input" placeholder="Buscar por nombre" autocomplete="off" />
+                  <div class="searchable-value"></div>
+                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de alumnos" aria-expanded="false">
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-student" role="listbox" hidden>
+                  <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                    <span class="option-name">Álvarez, Camila</span>
+                    <span class="option-detail">camila.alvarez@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                    <span class="option-name">Benítez, Tomás</span>
+                    <span class="option-detail">tomas.benitez@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                    <span class="option-name">Cabrera, Julieta</span>
+                    <span class="option-detail">julieta.cabrera@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                    <span class="option-name">Duarte, Facundo</span>
+                    <span class="option-detail">facundo.duarte@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                    <span class="option-name">Escobar, Martina</span>
+                    <span class="option-detail">martina.escobar@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                    <span class="option-name">Ferreyra, Lautaro</span>
+                    <span class="option-detail">lautaro.ferreyra@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                    <span class="option-name">Gauna, Valentina</span>
+                    <span class="option-detail">valentina.gauna@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                    <span class="option-name">Herrera, Bautista</span>
+                    <span class="option-detail">bautista.herrera@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                    <span class="option-name">Ibarra, Delfina</span>
+                    <span class="option-detail">delfina.ibarra@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                    <span class="option-name">Juárez, Thiago</span>
+                    <span class="option-detail">thiago.juarez@institucion.edu.ar</span>
+                  </li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
+              </div>
+
+              <div class="field field-searchable dropdown-searchable" data-role="email-select">
+                <div class="searchable-bar">
+                  <span class="searchable-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input type="text" class="searchable-input" placeholder="Buscar por email" autocomplete="off" />
+                  <div class="searchable-value"></div>
+                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de email" aria-expanded="false">
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-student" role="listbox" hidden>
+                  <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                    <span class="option-name">camila.alvarez@institucion.edu.ar</span>
+                    <span class="option-detail">Álvarez, Camila</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                    <span class="option-name">tomas.benitez@institucion.edu.ar</span>
+                    <span class="option-detail">Benítez, Tomás</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                    <span class="option-name">julieta.cabrera@institucion.edu.ar</span>
+                    <span class="option-detail">Cabrera, Julieta</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                    <span class="option-name">facundo.duarte@institucion.edu.ar</span>
+                    <span class="option-detail">Duarte, Facundo</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                    <span class="option-name">martina.escobar@institucion.edu.ar</span>
+                    <span class="option-detail">Escobar, Martina</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                    <span class="option-name">lautaro.ferreyra@institucion.edu.ar</span>
+                    <span class="option-detail">Ferreyra, Lautaro</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                    <span class="option-name">valentina.gauna@institucion.edu.ar</span>
+                    <span class="option-detail">Gauna, Valentina</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                    <span class="option-name">bautista.herrera@institucion.edu.ar</span>
+                    <span class="option-detail">Herrera, Bautista</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                    <span class="option-name">delfina.ibarra@institucion.edu.ar</span>
+                    <span class="option-detail">Ibarra, Delfina</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                    <span class="option-name">thiago.juarez@institucion.edu.ar</span>
+                    <span class="option-detail">Juárez, Thiago</span>
+                  </li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
+              </div>
+
+              <div class="field field-searchable dropdown-searchable" data-role="phone-select">
+                <div class="searchable-bar">
+                  <span class="searchable-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input type="text" class="searchable-input" placeholder="Buscar por teléfono" autocomplete="off" />
+                  <div class="searchable-value"></div>
+                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de teléfonos" aria-expanded="false">
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-student" role="listbox" hidden>
+                  <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                    <span class="option-name">379 412-3456</span>
+                    <span class="option-detail">Álvarez, Camila</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                    <span class="option-name">379 415-7821</span>
+                    <span class="option-detail">Benítez, Tomás</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                    <span class="option-name">379 421-9034</span>
+                    <span class="option-detail">Cabrera, Julieta</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                    <span class="option-name">379 433-1120</span>
+                    <span class="option-detail">Duarte, Facundo</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                    <span class="option-name">379 445-6602</span>
+                    <span class="option-detail">Escobar, Martina</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                    <span class="option-name">379 452-3388</span>
+                    <span class="option-detail">Ferreyra, Lautaro</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                    <span class="option-name">379 460-7715</span>
+                    <span class="option-detail">Gauna, Valentina</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                    <span class="option-name">379 471-2049</span>
+                    <span class="option-detail">Herrera, Bautista</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                    <span class="option-name">379 480-5563</span>
+                    <span class="option-detail">Ibarra, Delfina</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                    <span class="option-name">379 494-8871</span>
+                    <span class="option-detail">Juárez, Thiago</span>
+                  </li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
+              </div>
+
+              <div class="field field-searchable dropdown-searchable" data-role="dni-select">
+                <div class="searchable-bar">
+                  <span class="searchable-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input type="text" class="searchable-input" placeholder="Buscar por DNI" autocomplete="off" />
+                  <div class="searchable-value"></div>
+                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de DNI" aria-expanded="false">
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-student" role="listbox" hidden>
+                  <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                    <span class="option-name">48.123.456</span>
+                    <span class="option-detail">Álvarez, Camila</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                    <span class="option-name">47.982.310</span>
+                    <span class="option-detail">Benítez, Tomás</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                    <span class="option-name">49.204.775</span>
+                    <span class="option-detail">Cabrera, Julieta</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                    <span class="option-name">46.870.223</span>
+                    <span class="option-detail">Duarte, Facundo</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                    <span class="option-name">48.556.941</span>
+                    <span class="option-detail">Escobar, Martina</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                    <span class="option-name">47.331.408</span>
+                    <span class="option-detail">Ferreyra, Lautaro</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                    <span class="option-name">49.617.882</span>
+                    <span class="option-detail">Gauna, Valentina</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                    <span class="option-name">46.204.559</span>
+                    <span class="option-detail">Herrera, Bautista</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                    <span class="option-name">48.998.127</span>
+                    <span class="option-detail">Ibarra, Delfina</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                    <span class="option-name">47.145.690</span>
+                    <span class="option-detail">Juárez, Thiago</span>
+                  </li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
+              </div>
+
+              <div class="field field-select dropdown" data-filter="status">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Estado</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activo</li>
+                  <li class="dropdown-option" role="option" data-value="SUSPENDED" aria-selected="false">Suspendido</li>
+                  <li class="dropdown-option" role="option" data-value="GRADUATED" aria-selected="false">Egresado</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Teléfono</th>
+                    <th>Dirección</th>
+                    <th>DNI</th>
+                    <th>Fecha de nacimiento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="student-name">Álvarez, Camila</td>
+                    <td>camila.alvarez@institucion.edu.ar</td>
+                    <td>379 412-3456</td>
+                    <td>Av. Belgrano 1245</td>
+                    <td>48.123.456</td>
+                    <td>12/03/2010</td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Benítez, Tomás</td>
+                    <td>tomas.benitez@institucion.edu.ar</td>
+                    <td>379 415-7821</td>
+                    <td>Junín 830</td>
+                    <td>47.982.310</td>
+                    <td>25/07/2009</td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Cabrera, Julieta</td>
+                    <td>julieta.cabrera@institucion.edu.ar</td>
+                    <td>379 421-9034</td>
+                    <td>Rivadavia 2570</td>
+                    <td>49.204.775</td>
+                    <td>08/11/2011</td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Duarte, Facundo</td>
+                    <td>facundo.duarte@institucion.edu.ar</td>
+                    <td>379 433-1120</td>
+                    <td>San Martín 415</td>
+                    <td>46.870.223</td>
+                    <td>30/01/2008</td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Escobar, Martina</td>
+                    <td>martina.escobar@institucion.edu.ar</td>
+                    <td>379 445-6602</td>
+                    <td>Córdoba 1880</td>
+                    <td>48.556.941</td>
+                    <td>17/05/2010</td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Ferreyra, Lautaro</td>
+                    <td>lautaro.ferreyra@institucion.edu.ar</td>
+                    <td>379 452-3388</td>
+                    <td>Mendoza 640</td>
+                    <td>47.331.408</td>
+                    <td>02/09/2009</td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Gauna, Valentina</td>
+                    <td>valentina.gauna@institucion.edu.ar</td>
+                    <td>379 460-7715</td>
+                    <td>La Rioja 1120</td>
+                    <td>49.617.882</td>
+                    <td>21/12/2011</td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Herrera, Bautista</td>
+                    <td>bautista.herrera@institucion.edu.ar</td>
+                    <td>379 471-2049</td>
+                    <td>Entre Ríos 2035</td>
+                    <td>46.204.559</td>
+                    <td>14/06/2008</td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Ibarra, Delfina</td>
+                    <td>delfina.ibarra@institucion.edu.ar</td>
+                    <td>379 480-5563</td>
+                    <td>Salta 755</td>
+                    <td>48.998.127</td>
+                    <td>09/02/2010</td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Juárez, Thiago</td>
+                    <td>thiago.juarez@institucion.edu.ar</td>
+                    <td>379 494-8871</td>
+                    <td>Catamarca 1460</td>
+                    <td>47.145.690</td>
+                    <td>26/10/2009</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <span class="results-count">Mostrando 1-10 de 248</span>
+              <nav class="pagination" aria-label="Paginación de alumnos">
+                <button class="page-btn page-nav" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previo
+                </button>
+                <button class="page-btn active" type="button">1</button>
+                <button class="page-btn" type="button">2</button>
+                <button class="page-btn" type="button">3</button>
+                <span class="page-ellipsis">…</span>
+                <button class="page-btn" type="button">25</button>
+                <button class="page-btn page-nav" type="button">
+                  Siguiente
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
