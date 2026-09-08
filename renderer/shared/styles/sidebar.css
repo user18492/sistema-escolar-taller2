@@ -87,10 +87,13 @@ app-sidebar {
   background: #f0f5fc;
 }
 
+/* Volver a pulsar la vista activa no navega (ver sidebar.js): por eso no muestra el
+   cursor de enlace del resto de los items. */
 .nav-item.active {
   background: #e8f1ff;
   color: #005bff;
   font-weight: 500;
+  cursor: default;
 }
 
 .nav-item:focus-visible {

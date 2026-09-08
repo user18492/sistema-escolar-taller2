@@ -100,6 +100,13 @@
         avatar.append(image);
       }
 
+      // Volver a pulsar la vista activa no debe recargar la página: sin navegación no se
+      // vuelve a renderizar el contenido ni se repite el fade-in de entrada de la vista.
+      this.querySelector('.sidebar-nav').addEventListener('click', (event) => {
+        const item = event.target.closest('.nav-item');
+        if (item?.classList.contains('active')) event.preventDefault();
+      });
+
       const profile = this.querySelector('.sidebar-profile');
       const button = this.querySelector('.profile-button');
       const panel = this.querySelector('.profile-panel');

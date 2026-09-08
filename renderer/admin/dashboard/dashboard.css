@@ -25,32 +25,6 @@
   color: var(--color-text-secondary);
 }
 
-.dropdown {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  white-space: nowrap;
-}
-
-.dropdown svg {
-  width: 15px;
-  height: 15px;
-  color: var(--color-text-secondary);
-}
-
-.dropdown svg.chevron {
-  width: 13px;
-  height: 13px;
-  margin-left: 2px;
-}
-
 /* ---------- Stat cards ---------- */
 
 .stat-grid {
@@ -216,16 +190,10 @@
   background: var(--color-accent-blue);
 }
 
-/* El contenedor es solo el ancla del menú: el recuadro visible lo aporta .dropdown-toggle,
-   por eso se anula aquí el pill que define la regla global .dropdown. */
+/* El contenedor es solo el ancla del menú: el recuadro visible lo aporta .dropdown-toggle. */
 .chart-header .dropdown {
   position: relative;
   flex-shrink: 0;
-  display: block;
-  gap: 0;
-  padding: 0;
-  border: 0;
-  background: none;
 }
 
 .chart-header .dropdown-toggle {
@@ -254,6 +222,7 @@
 .chart-header .dropdown-toggle .chevron {
   width: 13px;
   height: 13px;
+  margin-left: 2px;
   color: var(--color-text-secondary);
   transition: transform 0.15s ease;
 }
