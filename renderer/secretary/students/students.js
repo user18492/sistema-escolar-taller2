@@ -192,7 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const addressInput = document.getElementById('newStudentAddress');
 
   const dangerZone = document.getElementById('studentDangerZone');
-  const deleteNotice = document.getElementById('deleteStudentNotice');
 
   let modalTrigger = openModalBtn;
 
@@ -265,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
       : 'Completa los datos para registrar un nuevo alumno.';
     createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear alumno';
     dangerZone.hidden = !isEditing;
-    deleteNotice.hidden = true;
 
     if (row) {
       const [lastName, firstName] = row.querySelector('.student-name').textContent.trim().split(', ');
@@ -307,10 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
   openModalBtn.addEventListener('click', () => openModal());
   document.querySelectorAll('.data-table tbody .btn').forEach((button) => {
     button.addEventListener('click', () => openModal(button.closest('tr'), button));
-  });
-
-  document.getElementById('deleteStudentBtn').addEventListener('click', () => {
-    deleteNotice.hidden = false;
   });
 
   overlay.addEventListener('keydown', (event) => {

@@ -915,8 +915,7 @@
   color: #ef233c;
 }
 
-.danger-zone > .btn,
-.danger-zone > p {
+.danger-zone > .btn {
   grid-column: 2;
   justify-self: start;
 }

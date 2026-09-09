@@ -317,7 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let isEditing = false;
   let modalTrigger = openModalBtn;
   const dangerZone = document.getElementById('userDangerZone');
-  const deleteNotice = document.getElementById('deleteUserNotice');
   const passwordDisplay = overlay.querySelector('.password-display');
   const passwordHelp = overlay.querySelector('.password-heading p');
 
@@ -374,7 +373,6 @@ document.addEventListener('DOMContentLoaded', () => {
       : 'Completa los datos para crear una nueva cuenta de usuario.';
     createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear usuario';
     dangerZone.hidden = !isEditing;
-    deleteNotice.hidden = true;
     passwordDisplay.hidden = isEditing;
     passwordHelp.textContent = isEditing
       ? 'Genera una nueva contraseña solo si necesitas reemplazar la actual.'
@@ -419,9 +417,6 @@ document.addEventListener('DOMContentLoaded', () => {
   openModalBtn.addEventListener('click', () => openModal());
   document.querySelectorAll('.data-table tbody .btn').forEach((button) => {
     button.addEventListener('click', () => openModal(button.closest('tr'), button));
-  });
-  document.getElementById('deleteUserBtn').addEventListener('click', () => {
-    deleteNotice.hidden = false;
   });
   overlay.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !cropDialog.open) closeModal();

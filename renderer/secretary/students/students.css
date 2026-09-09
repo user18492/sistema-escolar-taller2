@@ -613,8 +613,7 @@
   height: 16px;
 }
 
-.danger-zone > .btn,
-.danger-zone > p {
+.danger-zone > .btn {
   grid-column: 2;
   justify-self: start;
 }
