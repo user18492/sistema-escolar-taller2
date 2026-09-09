@@ -550,6 +550,17 @@
   padding-left: 14px;
 }
 
+/* Dirección: calle y altura comparten el ancho de un campo del grid. */
+.field-pair {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+}
+
+.field-pair .field {
+  min-width: 0;
+}
+
 .field-date svg {
   position: absolute;
   left: 12px;

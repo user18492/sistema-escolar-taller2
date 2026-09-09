@@ -189,7 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const birthdateInput = document.getElementById('newStudentBirthdate');
   const emailInput = document.getElementById('newStudentEmail');
   const phoneInput = document.getElementById('newStudentPhone');
-  const addressInput = document.getElementById('newStudentAddress');
+  const streetInput = document.getElementById('newStudentStreet');
+  const streetNumberInput = document.getElementById('newStudentStreetNumber');
 
   const dangerZone = document.getElementById('studentDangerZone');
 
@@ -271,7 +272,11 @@ document.addEventListener('DOMContentLoaded', () => {
       lastNameInput.value = lastName;
       emailInput.value = row.cells[1].textContent.trim();
       phoneInput.value = row.cells[2].textContent.trim();
-      addressInput.value = row.cells[3].textContent.trim();
+      // La tabla muestra la dirección completa: se separa la altura final de la calle.
+      const address = row.cells[3].textContent.trim();
+      const addressParts = address.match(/^(.*\S)\s+(\d+\S*)$/);
+      streetInput.value = addressParts ? addressParts[1] : address;
+      streetNumberInput.value = addressParts ? addressParts[2] : '';
       dniInput.value = row.cells[4].textContent.trim();
       birthdateInput.value = row.cells[5].textContent.trim();
       selectStatus(row.cells[6].textContent.trim());
