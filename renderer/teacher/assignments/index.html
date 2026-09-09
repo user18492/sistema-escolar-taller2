@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Asignaciones - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="./assignments.css" />
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="./assignments.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <app-sidebar
+        nav-role="teacher"
+        active="assignments"
+        user-name="María González"
+        user-role="Profesora"
+        user-initials="GM"
+      ></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Asignaciones</h1>
+              <p>Consulta tus asignaciones a cursos y materias</p>
+            </div>
+          </div>
+
+          <section class="card assignments-card">
+            <div class="filters-row">
+              <div class="field field-select dropdown" data-filter="level">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Nivel educativo</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
+                  <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
+                </ul>
+              </div>
+
+              <!-- Curso depende del nivel educativo: arranca bloqueado y solo lista los cursos de ese nivel. -->
+              <div class="field field-searchable dropdown-searchable is-locked" data-role="course-select">
+                <div class="searchable-bar">
+                  <span class="searchable-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input type="text" class="searchable-input" placeholder="Selecciona un nivel" autocomplete="off" disabled />
+                  <div class="searchable-value"></div>
+                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de cursos" aria-expanded="false" disabled>
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+                <!-- Solo los cursos en los que el profesor tiene asignaciones. -->
+                <ul class="dropdown-menu dropdown-menu-course" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="c1" data-level="PRIMARY" aria-selected="false"><span class="option-name">1° A · Mañana</span></li>
+                  <li class="dropdown-option" role="option" data-value="c2" data-level="PRIMARY" aria-selected="false"><span class="option-name">1° B · Tarde</span></li>
+                  <li class="dropdown-option" role="option" data-value="c3" data-level="PRIMARY" aria-selected="false"><span class="option-name">2° A · Mañana</span></li>
+                  <li class="dropdown-option" role="option" data-value="c4" data-level="PRIMARY" aria-selected="false"><span class="option-name">3° A · Tarde</span></li>
+                  <li class="dropdown-option" role="option" data-value="c5" data-level="PRIMARY" aria-selected="false"><span class="option-name">5° B · Mañana</span></li>
+                  <li class="dropdown-option" role="option" data-value="c6" data-level="PRIMARY" aria-selected="false"><span class="option-name">6° A · Tarde</span></li>
+                  <li class="dropdown-option" role="option" data-value="c7" data-level="SECONDARY" aria-selected="false"><span class="option-name">2° A · Mañana</span></li>
+                  <li class="dropdown-option" role="option" data-value="c8" data-level="SECONDARY" aria-selected="false"><span class="option-name">2° B · Tarde</span></li>
+                  <li class="dropdown-option" role="option" data-value="c9" data-level="SECONDARY" aria-selected="false"><span class="option-name">3° B · Tarde</span></li>
+                  <li class="dropdown-option" role="option" data-value="c10" data-level="SECONDARY" aria-selected="false"><span class="option-name">4° A · Mañana</span></li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
+              </div>
+
+              <!-- Solo las materias que el profesor tiene asignadas. -->
+              <div class="field field-select dropdown" data-filter="subject">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Materia</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todas</li>
+                  <li class="dropdown-option" role="option" data-value="MATH" aria-selected="false">Matemática</li>
+                  <li class="dropdown-option" role="option" data-value="NATURAL_SCIENCES" aria-selected="false">Ciencias Naturales</li>
+                </ul>
+              </div>
+
+              <div class="field field-select dropdown" data-filter="year">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label">Ciclo lectivo</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="2026" aria-selected="false">2026</li>
+                  <li class="dropdown-option" role="option" data-value="2025" aria-selected="false">2025</li>
+                  <li class="dropdown-option" role="option" data-value="2024" aria-selected="false">2024</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Curso</th>
+                    <th>Nivel educativo</th>
+                    <th>Materia</th>
+                    <th>Ciclo lectivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="course-name">1° A · Mañana</td>
+                    <td>Primaria</td>
+                    <td>Matemática</td>
+                    <td>2026</td>
+                  </tr>
+                  <tr>
+                    <td class="course-name">1° B · Tarde</td>
+                    <td>Primaria</td>
+                    <td>Matemática</td>
+                    <td>2026</td>
+                  </tr>
+                  <tr>
+                    <td class="course-name">2° A · Mañana</td>
+                    <td>Primaria</td>
+                    <td>Ciencias Naturales</td>
+                    <td>2026</td>
+                  </tr>
+                  <tr>
+                    <td class="course-name">3° A · Tarde</td>
+                    <td>Primaria</td>
+                    <td>Matemática</td>
+                    <td>2026</td>
+                  </tr>
+                  <tr>
+                    <td class="course-name">2° A · Mañana</td>
+                    <td>Secundaria</td>
+                    <td>Matemática</td>
+                    <td>2026</td>
+                  </tr>
+                  <tr>
+                    <td class="course-name">2° B · Tarde</td>
+                    <td>Secundaria</td>
+                    <td>Matemática</td>
+                    <td>2026</td>
+                  </tr>
+                  <tr>
+                    <td class="course-name">4° A · Mañana</td>
+                    <td>Secundaria</td>
+                    <td>Ciencias Naturales</td>
+                    <td>2026</td>
+                  </tr>
+                  <tr>
+                    <td class="course-name">5° B · Mañana</td>
+                    <td>Primaria</td>
+                    <td>Matemática</td>
+                    <td>2025</td>
+                  </tr>
+                  <tr>
+                    <td class="course-name">3° B · Tarde</td>
+                    <td>Secundaria</td>
+                    <td>Matemática</td>
+                    <td>2025</td>
+                  </tr>
+                  <tr>
+                    <td class="course-name">6° A · Tarde</td>
+                    <td>Primaria</td>
+                    <td>Ciencias Naturales</td>
+                    <td>2025</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <span class="results-count">Mostrando 1-10 de 16</span>
+              <nav class="pagination" aria-label="Paginación de asignaciones">
+                <button class="page-btn page-nav" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previo
+                </button>
+                <button class="page-btn active" type="button">1</button>
+                <button class="page-btn" type="button">2</button>
+                <button class="page-btn page-nav" type="button">
+                  Siguiente
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

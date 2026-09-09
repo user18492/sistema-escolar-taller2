@@ -41,6 +41,20 @@
         icon: '<path d="M3 3v18h18" /><rect x="7" y="12" width="3" height="6" /><rect x="12" y="8" width="3" height="10" /><rect x="17" y="5" width="3" height="13" />',
       },
     ],
+    teacher: [
+      {
+        key: 'assignments',
+        href: '../assignments/index.html',
+        label: 'Asignaciones',
+        icon: '<path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />',
+      },
+      {
+        key: 'evaluations',
+        href: '../evaluations/index.html',
+        label: 'Evaluaciones',
+        icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="9" y1="14" x2="15" y2="14" /><line x1="9" y1="18" x2="13" y2="18" />',
+      },
+    ],
     secretary: [
       {
         key: 'students',
