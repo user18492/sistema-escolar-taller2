@@ -332,4 +332,87 @@ document.addEventListener('DOMContentLoaded', () => {
     // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
     closeEnrollmentModal();
   });
+
+  // ---------- Modal: Editar inscripción ----------
+
+  const editOverlay = document.getElementById('editEnrollmentOverlay');
+  const cancelEditEnrollmentBtn = document.getElementById('cancelEditEnrollmentBtn');
+  const saveEnrollmentBtn = document.getElementById('saveEnrollmentBtn');
+  const deleteEnrollmentBtn = document.getElementById('deleteEnrollmentBtn');
+
+  const statusDropdown = editOverlay.querySelector('[data-filter="edit-enrollment-status"]');
+  const statusLabel = statusDropdown.querySelector('.dropdown-label');
+  const statusOptions = statusDropdown.querySelectorAll('.dropdown-option');
+
+  // Botón "Editar" que abrió el modal: recupera el foco al cerrarlo.
+  let editTrigger = null;
+
+  // Marca la opción de estado cuyo texto coincide con el de la fila, replicando lo
+  // que hace el listener del dropdown al elegirla con el ratón.
+  function selectStatus(optionLabel) {
+    statusOptions.forEach((option) => {
+      const selected = option.textContent.trim() === optionLabel;
+      option.classList.toggle('selected', selected);
+      option.setAttribute('aria-selected', String(selected));
+      if (selected) statusLabel.textContent = option.textContent.trim();
+    });
+    statusLabel.classList.remove('placeholder');
+  }
+
+  statusOptions.forEach((option) => {
+    option.addEventListener('click', () => {
+      statusLabel.classList.remove('placeholder');
+    });
+  });
+
+  function openEditModal(row, trigger) {
+    editTrigger = trigger;
+    selectStatus(row.cells[5].textContent.trim());
+
+    closeAllDropdowns();
+    closeAllSearchableMenus();
+    editOverlay.classList.add('is-open');
+    editOverlay.querySelector('.modal').scrollTop = 0;
+    statusDropdown.querySelector('.dropdown-toggle').focus();
+  }
+
+  function closeEditModal() {
+    editOverlay.classList.remove('is-open');
+    closeAllDropdowns();
+    editTrigger.focus();
+  }
+
+  document.querySelectorAll('.data-table tbody .btn').forEach((button) => {
+    button.addEventListener('click', () => openEditModal(button.closest('tr'), button));
+  });
+
+  cancelEditEnrollmentBtn.addEventListener('click', closeEditModal);
+
+  // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
+
+  editOverlay.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeEditModal();
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(editOverlay.querySelectorAll('button:not(:disabled), input:not(:disabled)'))
+      .filter((element) => element.getClientRects().length > 0);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  saveEnrollmentBtn.addEventListener('click', () => {
+    // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
+    closeEditModal();
+  });
+
+  deleteEnrollmentBtn.addEventListener('click', () => {
+    // Vista puramente visual: el borrado real se conecta cuando exista la capa de servicios/IPC.
+    closeEditModal();
+  });
 });

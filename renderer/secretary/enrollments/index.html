@@ -499,6 +499,55 @@
         </div>
       </div>
     </div>
+    <!-- Modal: Editar inscripción -->
+    <div class="modal-overlay" id="editEnrollmentOverlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editEnrollmentTitle">
+        <div class="modal-header">
+          <h2 id="editEnrollmentTitle">Editar inscripción</h2>
+          <p>Modifica los datos de la inscripción</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-field">
+            <label>Estado</label>
+            <div class="field field-select dropdown" data-filter="edit-enrollment-status">
+              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                <span class="dropdown-label placeholder">Seleccionar estado</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <ul class="dropdown-menu" role="listbox" hidden>
+                <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activa</li>
+                <li class="dropdown-option" role="option" data-value="COMPLETED" aria-selected="false">Finalizada</li>
+                <li class="dropdown-option" role="option" data-value="CANCELLED" aria-selected="false">Cancelada</li>
+                <li class="dropdown-option" role="option" data-value="TRANSFERRED" aria-selected="false">Trasladada</li>
+              </ul>
+            </div>
+          </div>
+
+          <section class="danger-zone" aria-labelledby="enrollmentDangerTitle">
+            <span class="danger-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+              </svg>
+            </span>
+            <div>
+              <h3 id="enrollmentDangerTitle">Zona de peligro</h3>
+              <p>Eliminar esta inscripción es una acción permanente y no se puede deshacer.</p>
+            </div>
+            <button type="button" class="btn btn-danger" id="deleteEnrollmentBtn">
+              Eliminar inscripción
+            </button>
+          </section>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelEditEnrollmentBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="saveEnrollmentBtn">Guardar cambios</button>
+        </div>
+      </div>
+    </div>
 
   </body>
 </html>
