@@ -4,7 +4,7 @@ const { registerWindowControls } = require('./ipc/window-controls.controller');
 
 const PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'preload.js');
 const ICON_PATH = path.join(__dirname, '..', '..', 'resources', 'icon_app.png');
-const DASHBOARD_PATH = path.join(__dirname, '..', '..', 'renderer', 'admin', 'dashboard', 'index.html');
+const DASHBOARD_PATH = path.join(__dirname, '..', '..', 'renderer', 'secretary', 'students', 'index.html');
 
 function createMainWindow() {
   const window = new BrowserWindow({

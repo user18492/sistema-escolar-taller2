@@ -1,0 +1,16 @@
+/* Componente reutilizable: capa flotante de los menús desplegables dentro de los modales */
+
+/* modal-dropdown.js promueve estos menús al top layer del navegador (popover), así que
+   dejan de estar recortados por el desplazamiento y el alto máximo del panel, y abrirlos
+   ya no altera el tamaño del modal. La posición, el ancho y el alto máximo se calculan
+   sobre el campo: la capa se abre siempre hacia abajo y, cuando la lista no entra en el
+   espacio libre, desplaza su contenido (overflow ya definido en base.css). */
+.modal .dropdown-menu.is-floating,
+dialog .dropdown-menu.is-floating {
+  position: fixed;
+  /* Anula el `inset: 0` que la hoja del navegador aplica a [popover]: la posición la fijan
+     `top` y `left` en línea, calculados a partir del campo. */
+  inset: auto;
+  /* El ancho lo marca el campo; el mínimo compartido con los filtros no aplica aquí. */
+  min-width: 0;
+}
