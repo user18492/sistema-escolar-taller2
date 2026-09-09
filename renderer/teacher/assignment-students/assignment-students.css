@@ -115,45 +115,8 @@
   position: relative;
   display: flex;
   align-items: center;
-}
-
-.field:not(.field-select) {
   flex: 0 1 480px;
   min-width: 160px;
-}
-
-.field-select {
-  flex: 0 0 auto;
-  min-width: 180px;
-}
-
-/* Estado fijo: mismo aspecto que un desplegable, sin interacción, alineado a la derecha. */
-.field-static {
-  margin-left: auto;
-  cursor: default;
-}
-
-.static-value {
-  width: 100%;
-  height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: #f9fafb;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 14px;
-  color: var(--color-text-secondary);
-}
-
-.static-value .chevron {
-  width: 13px;
-  height: 13px;
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-  opacity: 0.5;
 }
 
 /* Campo con búsqueda integrada (Alumno): mismo patrón usado en Asignaciones e Inscripciones. */
@@ -371,20 +334,6 @@
 /* El número encabeza la inscripción: mismo destaque que en Inscripciones. */
 .enrollment-number {
   font-weight: 500;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.badge-active {
-  background: var(--color-accent-green-bg);
-  color: #067a55;
 }
 
 /* ---------- Table footer / pagination ---------- */
