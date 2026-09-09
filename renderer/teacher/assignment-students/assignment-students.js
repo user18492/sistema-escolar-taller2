@@ -12,6 +12,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (value) valueEl.textContent = value;
   });
 
+  // El enlace de vuelta a Gestión conserva esos mismos datos.
+  const query = params.toString();
+  if (query) {
+    const managementLink = document.querySelector('.breadcrumb a[href*="assignment-management"]');
+    if (managementLink) managementLink.href = `${managementLink.getAttribute('href')}?${query}`;
+  }
+
   // ---------- Filtro: Alumno ----------
 
   // Campo con búsqueda integrada: un único componente que combina un input de filtro

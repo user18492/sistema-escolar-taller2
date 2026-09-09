@@ -1,0 +1,185 @@
+/* Vista Gestión de una asignación (Profesor) — puramente visual, sin lógica */
+
+/* ---------- Content ---------- */
+
+.content {
+  gap: 24px;
+}
+
+/* ---------- Breadcrumb ---------- */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.breadcrumb a:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  color: var(--color-text-tertiary);
+}
+
+.breadcrumb-current {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.page-header p {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---------- Datos de la asignación ---------- */
+
+.assignment-summary {
+  display: flex;
+  align-items: stretch;
+  padding: 18px 24px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding-inline: 24px;
+  border-left: 1px solid var(--color-border);
+}
+
+.summary-item:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.summary-value {
+  font-size: 15px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Opciones de gestión ---------- */
+
+/* Sin relleno propio: cada opción aporta el suyo para que el resalte al pasar el
+   cursor llegue a los bordes de la card. */
+.options-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.option-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  cursor: pointer;
+}
+
+/* El separador acompaña al contenido, no al borde de la card. */
+.option-item + .option-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* Mismo resalte que las filas navegables de las tablas. */
+.option-item:hover {
+  background: #f9fafb;
+}
+
+.option-item:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: -2px;
+}
+
+.option-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Tinte azul más suave que el de los íconos de Inicio: aquí el trazo va en color de texto. */
+  background: #eff6ff;
+  color: var(--color-text-primary);
+}
+
+.option-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.option-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.option-description {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-chevron {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.option-chevron svg {
+  width: 16px;
+  height: 16px;
+}

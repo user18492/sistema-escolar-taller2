@@ -329,7 +329,7 @@
   font-weight: 500;
 }
 
-/* Cada fila abre la consulta de alumnos del curso asignado. */
+/* Cada fila abre la vista de gestión de la asignación. */
 .row-link {
   cursor: pointer;
 }

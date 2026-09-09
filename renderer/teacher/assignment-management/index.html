@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestión - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="./assignment-management.css" />
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="./assignment-management.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <!-- Vista intermedia abierta desde Asignaciones: el menú sigue marcando esa sección. -->
+      <app-sidebar
+        nav-role="teacher"
+        active="assignments"
+        user-name="María González"
+        user-role="Profesora"
+        user-initials="GM"
+      ></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a href="../assignments/index.html">Asignaciones</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Gestión</span>
+            </nav>
+
+            <div class="page-header">
+              <div>
+                <h1>Gestión</h1>
+                <p>Selecciona una opción para gestionar esta asignación</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Datos de la asignación seleccionada: assignment-management.js los completa
+               con los valores de la fila elegida en Asignaciones. -->
+          <section class="card assignment-summary">
+            <div class="summary-item">
+              <span class="summary-label">Curso</span>
+              <span class="summary-value" data-field="course">1° A · Mañana</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Nivel educativo</span>
+              <span class="summary-value" data-field="level">Primaria</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Materia</span>
+              <span class="summary-value" data-field="subject">Matemática</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Ciclo lectivo</span>
+              <span class="summary-value" data-field="year">2026</span>
+            </div>
+          </section>
+
+          <!-- Opciones de gestión de la asignación. -->
+          <section class="card options-card">
+            <a class="option-item" href="../assignment-students/index.html">
+              <span class="option-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </span>
+              <span class="option-body">
+                <span class="option-title">Alumnos</span>
+                <span class="option-description">Consulta los alumnos con inscripción activa en este curso</span>
+              </span>
+              <span class="option-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </span>
+            </a>
+
+            <!-- La vista de Evaluaciones todavía no está desarrollada: la opción queda sin destino. -->
+            <a class="option-item" tabindex="0">
+              <span class="option-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <line x1="10" y1="9" x2="8" y2="9" />
+                </svg>
+              </span>
+              <span class="option-body">
+                <span class="option-title">Evaluaciones</span>
+                <span class="option-description">Gestiona las evaluaciones correspondientes a esta asignación</span>
+              </span>
+              <span class="option-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </span>
+            </a>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
