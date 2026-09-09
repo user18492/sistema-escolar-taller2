@@ -337,6 +337,36 @@
   color: var(--color-text-tertiary);
 }
 
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.btn-secondary {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.btn-secondary:hover {
+  background: #f9fafb;
+}
+
 /* ---------- Table ---------- */
 
 .table-wrap {
@@ -374,6 +404,35 @@
 /* El número identifica la inscripción: se destaca igual que el nombre en Alumnos. */
 .enrollment-number {
   font-weight: 500;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-active {
+  background: var(--color-accent-green-bg);
+  color: #067a55;
+}
+
+.badge-completed {
+  background: var(--color-accent-blue-bg);
+  color: #2563eb;
+}
+
+.badge-cancelled {
+  background: var(--color-accent-red-bg);
+  color: var(--color-accent-red);
+}
+
+.badge-transferred {
+  background: var(--color-accent-orange-bg);
+  color: #c2410c;
 }
 
 /* Las inscripciones vigentes todavía no tienen fecha de baja. */
