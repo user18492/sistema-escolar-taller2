@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calificaciones - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="./evaluation-scores.css" />
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="./evaluation-scores.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <!-- Vista abierta desde Evaluaciones: el menú sigue marcando Asignaciones. -->
+      <app-sidebar
+        nav-role="teacher"
+        active="assignments"
+        user-name="María González"
+        user-role="Profesora"
+        user-initials="GM"
+      ></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a href="../assignments/index.html">Asignaciones</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <a href="../assignment-management/index.html">Gestión</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <a href="../assignment-evaluations/index.html">Evaluaciones</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <!-- La evaluación no tiene vista propia: queda como paso del recorrido. -->
+              <span class="breadcrumb-item" data-field="evaluation">Evaluación escrita 1</span>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Calificaciones</span>
+            </nav>
+
+            <div class="page-header">
+              <div>
+                <h1>Calificaciones</h1>
+                <p>Registra y consulta las calificaciones de la evaluación seleccionada</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contexto completo en una sola card: arriba los datos de la asignación y
+               abajo los de la evaluación elegida. evaluation-scores.js completa ambos
+               bloques con los valores que llegan desde Evaluaciones. -->
+          <section class="card context-summary">
+            <div class="summary-row">
+              <div class="summary-item">
+                <span class="summary-label">Curso</span>
+                <span class="summary-value" data-field="course">1° A · Mañana</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Nivel educativo</span>
+                <span class="summary-value" data-field="level">Primaria</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Materia</span>
+                <span class="summary-value" data-field="subject">Matemática</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Ciclo lectivo</span>
+                <span class="summary-value" data-field="year">2026</span>
+              </div>
+            </div>
+            <div class="summary-row">
+              <div class="summary-item">
+                <span class="summary-label">Evaluación</span>
+                <span class="summary-value" data-field="evaluation">Evaluación escrita 1</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Tipo</span>
+                <span class="summary-value" data-field="type">Escrito</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Fecha</span>
+                <span class="summary-value" data-field="date">15/04/2026</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Ponderación</span>
+                <span class="summary-value" data-field="weight">20%</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="card scores-card">
+            <div class="filters-row">
+              <div class="field field-search">
+                <span class="search-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <input type="text" placeholder="Filtrar por alumno" autocomplete="off" />
+              </div>
+
+              <!-- La carga es directa en la tabla: no hay botón de guardar. -->
+              <span class="autosave-note">Los cambios se guardan automáticamente</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="col-student">Alumno</th>
+                    <th class="col-dni">DNI</th>
+                    <th class="col-score">Calificación</th>
+                  </tr>
+                </thead>
+                <!-- Alumnos con inscripción activa en el curso de la asignación. La
+                     calificación se carga y edita en la propia celda; el campo vacío
+                     indica que todavía no fue registrada. -->
+                <tbody>
+                  <tr>
+                    <td class="student-name">Acosta, Valentina</td>
+                    <td>47.123.456</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" value="8" aria-label="Calificación de Acosta, Valentina" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Bianchi, Mateo</td>
+                    <td>46.987.321</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" value="7" aria-label="Calificación de Bianchi, Mateo" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Cáceres, Lucas</td>
+                    <td>45.678.912</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" value="9" aria-label="Calificación de Cáceres, Lucas" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Díaz, Martina</td>
+                    <td>48.234.567</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" value="6" aria-label="Calificación de Díaz, Martina" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Fernández, Tomás</td>
+                    <td>46.345.678</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de Fernández, Tomás" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">García, Emilia</td>
+                    <td>47.890.123</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de García, Emilia" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">López, Benjamín</td>
+                    <td>45.212.334</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de López, Benjamín" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Martínez, Sofía</td>
+                    <td>46.765.901</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de Martínez, Sofía" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Pereyra, Santiago</td>
+                    <td>47.321.098</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de Pereyra, Santiago" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="student-name">Romero, Julia</td>
+                    <td>45.987.654</td>
+                    <td class="col-score">
+                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de Romero, Julia" />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <span class="results-count">Mostrando 1-10 de 10</span>
+              <nav class="pagination" aria-label="Paginación de calificaciones">
+                <button class="page-btn page-nav" type="button" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previo
+                </button>
+                <button class="page-btn active" type="button">1</button>
+                <button class="page-btn page-nav" type="button" disabled>
+                  Siguiente
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

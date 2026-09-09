@@ -1,0 +1,347 @@
+/* Vista Calificaciones de una evaluación (Profesor) — puramente visual, sin lógica */
+
+/* ---------- Content ---------- */
+
+.content {
+  gap: 24px;
+}
+
+/* ---------- Breadcrumb ---------- */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.breadcrumb a:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  color: var(--color-text-tertiary);
+}
+
+/* Paso del recorrido sin vista propia (título de la evaluación): se recorta si el
+   título es largo para no empujar al resto de la ruta. */
+.breadcrumb-item {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breadcrumb-current {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.page-header p {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---------- Contexto: asignación y evaluación ---------- */
+
+/* Misma card de datos que el resto del recorrido, con una segunda fila para la
+   evaluación: las columnas se separan entre sí y las filas con una línea que
+   recorre la card completa. */
+
+.context-summary {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 24px;
+}
+
+.summary-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.summary-row + .summary-row {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding-inline: 24px;
+  border-left: 1px solid var(--color-border);
+}
+
+.summary-item:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.summary-value {
+  font-size: 15px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Card de calificaciones ---------- */
+
+.scores-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---------- Filters row ---------- */
+
+.filters-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Buscador por alumno: misma barra que los campos con búsqueda integrada del resto
+   del sistema, sin lista desplegable porque el filtro es solo por texto. */
+
+.field-search {
+  flex: 0 1 360px;
+  min-width: 160px;
+  height: 38px;
+  padding: 0 14px;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.field-search:focus-within {
+  border-color: var(--color-accent-blue);
+}
+
+.search-icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.search-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.field-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.field-search input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* Aviso de guardado: la carga no tiene botón, así que la fila de filtros lo aclara. */
+.autosave-note {
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* ---------- Table ---------- */
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 0 16px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: none;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+/* Con el campo de carga en la fila, el espaciado vertical se reparte alrededor del
+   input para conservar el alto de fila del resto de las tablas. */
+.data-table td {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Reparto de la tabla: el alumno encabeza la fila y la calificación queda alineada
+   con el resto de las columnas de datos. */
+.col-student {
+  width: 42%;
+}
+
+.col-dni {
+  width: 29%;
+}
+
+.col-score {
+  width: 29%;
+}
+
+/* El alumno encabeza la fila: mismo destaque que el título en Evaluaciones. */
+.student-name {
+  font-weight: 500;
+}
+
+/* ---------- Calificación editable ---------- */
+
+/* Escala 0 a 10; el campo vacío indica que la calificación todavía no fue cargada. */
+
+.score-input {
+  width: 100px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  appearance: none;
+}
+
+.score-input:hover {
+  border-color: var(--color-text-tertiary);
+}
+
+.score-input:focus {
+  outline: none;
+  border-color: var(--color-accent-blue);
+}
+
+/* Las flechas del campo numérico competirían con la lectura de la columna. */
+.score-input::-webkit-outer-spin-button,
+.score-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* ---------- Table footer / pagination ---------- */
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.results-count {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  justify-content: center;
+}
+
+.page-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.page-btn:hover {
+  background: #f9fafb;
+}
+
+.page-btn.active {
+  border-color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+/* Con una sola página, Previo y Siguiente quedan sin destino. */
+.page-btn:disabled {
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.page-btn:disabled:hover {
+  background: var(--color-bg);
+}
+
+.page-nav {
+  padding: 0 12px;
+}

@@ -81,4 +81,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ---------- Navegación a las calificaciones de la evaluación ----------
+
+  // Cada fila abre las calificaciones de esa evaluación y le pasa los datos de la
+  // asignación junto con los de la evaluación elegida, así esa vista puede
+  // encabezar ambos bloques de contexto.
+  const SCORES_VIEW_URL = '../evaluation-scores/index.html';
+  const EVALUATION_FIELDS = ['evaluation', 'type', 'date', 'weight'];
+
+  document.querySelectorAll('.data-table tbody tr').forEach((row) => {
+    const openScores = () => {
+      const scoresParams = new URLSearchParams(params);
+      EVALUATION_FIELDS.forEach((field, index) => {
+        const cell = row.cells[index];
+        if (cell) scoresParams.set(field, cell.textContent.trim());
+      });
+      window.location.href = `${SCORES_VIEW_URL}?${scoresParams.toString()}`;
+    };
+
+    row.addEventListener('click', (event) => {
+      // Editar abre el alta de la evaluación, no sus calificaciones.
+      if (event.target.closest('.btn')) return;
+      openScores();
+    });
+
+    row.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openScores();
+      }
+    });
+  });
+
 });
