@@ -1,4 +1,4 @@
-/* Vista Asignaciones del Profesor — puramente visual, sin lógica */
+/* Vista Alumnos de una asignación (Profesor) — puramente visual, sin lógica */
 
 /* ---------- Content ---------- */
 
@@ -6,11 +6,36 @@
   gap: 24px;
 }
 
+/* ---------- Breadcrumb ---------- */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.breadcrumb a:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  color: var(--color-text-tertiary);
+}
+
+.breadcrumb-current {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  margin-top: 10px;
 }
 
 .page-header h1 {
@@ -32,7 +57,46 @@
   box-shadow: var(--shadow-card);
 }
 
-.assignments-card {
+/* ---------- Datos de la asignación ---------- */
+
+.assignment-summary {
+  display: flex;
+  align-items: stretch;
+  padding: 18px 24px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding-inline: 24px;
+  border-left: 1px solid var(--color-border);
+}
+
+.summary-item:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.summary-value {
+  font-size: 15px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Card de alumnos ---------- */
+
+.students-card {
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -54,112 +118,45 @@
 }
 
 .field:not(.field-select) {
-  flex: 1;
+  flex: 0 1 480px;
   min-width: 160px;
 }
 
 .field-select {
-  flex: 0.9;
-  min-width: 140px;
+  flex: 0 0 auto;
+  min-width: 180px;
 }
 
-/* ---------- Dropdown custom (Nivel educativo / Materia / Ciclo lectivo) ---------- */
-
-.dropdown {
-  position: relative;
-  display: block;
+/* Estado fijo: mismo aspecto que un desplegable, sin interacción, alineado a la derecha. */
+.field-static {
+  margin-left: auto;
+  cursor: default;
 }
 
-.dropdown-toggle {
+.static-value {
   width: 100%;
   height: 38px;
   padding: 0 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: var(--color-bg);
+  background: #f9fafb;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   font-size: 14px;
-  font-family: inherit;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
 }
 
-.dropdown-toggle:hover {
-  background: #f9fafb;
-}
-
-.dropdown-toggle:focus-visible {
-  outline: none;
-  border-color: var(--color-accent-blue);
-}
-
-.dropdown.open .dropdown-toggle {
-  border-color: var(--color-accent-blue);
-}
-
-.dropdown-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dropdown-toggle .chevron {
+.static-value .chevron {
   width: 13px;
   height: 13px;
-  color: var(--color-text-secondary);
+  color: var(--color-text-tertiary);
   flex-shrink: 0;
-  transition: transform 0.15s ease;
+  opacity: 0.5;
 }
 
-.dropdown.open .dropdown-toggle .chevron {
-  transform: rotate(180deg);
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  min-width: 200px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow:
-    0 12px 24px -8px rgba(16, 24, 40, 0.18),
-    0 2px 6px rgba(16, 24, 40, 0.08);
-  padding: 6px;
-  z-index: 20;
-  list-style: none;
-  margin: 0;
-}
-
-.dropdown-menu[hidden] {
-  display: none;
-}
-
-.dropdown-option {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  color: var(--color-text-primary);
-}
-
-.dropdown-option[hidden] {
-  display: none;
-}
-
-.dropdown-option:hover {
-  background: #f3f4f6;
-}
-
-.dropdown-option.selected {
-  background: var(--color-accent-blue-bg);
-  color: var(--color-accent-blue);
-  font-weight: 500;
-}
-
-/* Campo con búsqueda integrada (Curso): dimensiones estables entre búsqueda y selección. */
+/* Campo con búsqueda integrada (Alumno): mismo patrón usado en Asignaciones e Inscripciones. */
 
 .dropdown-searchable {
   position: relative;
@@ -254,30 +251,77 @@
   transform: rotate(180deg);
 }
 
-/* Curso bloqueado hasta elegir el nivel educativo: mismo tratamiento que en Inscripciones. */
-
-.dropdown-searchable.is-locked .searchable-bar,
-.dropdown-searchable.is-locked .searchable-bar:hover {
-  background: #f9fafb;
-  cursor: not-allowed;
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 240px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 12px 24px -8px rgba(16, 24, 40, 0.18),
+    0 2px 6px rgba(16, 24, 40, 0.08);
+  padding: 6px;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
 }
 
-.dropdown-searchable.is-locked .searchable-icon {
+.dropdown-menu[hidden] {
   display: none;
 }
 
-.dropdown-searchable.is-locked .searchable-chevron {
-  opacity: 0.5;
-}
-
-.dropdown-menu-course {
+.dropdown-menu-student {
   max-height: 260px;
   overflow-y: auto;
+}
+
+.dropdown-option {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.dropdown-option[hidden] {
+  display: none;
+}
+
+.dropdown-option:hover {
+  background: #f3f4f6;
+}
+
+.dropdown-option.selected {
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+  font-weight: 500;
+}
+
+.option-student {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 0;
+}
+
+.dropdown-menu-student .option-student:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
 }
 
 .option-name {
   font-size: 14px;
   color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-detail {
+  font-size: 13px;
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -324,23 +368,23 @@
   border-bottom: none;
 }
 
-/* El curso encabeza la asignación: se destaca igual que el número en Inscripciones. */
-.course-name {
+/* El número encabeza la inscripción: mismo destaque que en Inscripciones. */
+.enrollment-number {
   font-weight: 500;
 }
 
-/* Cada fila abre la consulta de alumnos del curso asignado. */
-.row-link {
-  cursor: pointer;
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.row-link:hover td {
-  background: #f9fafb;
-}
-
-.row-link:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: -2px;
+.badge-active {
+  background: var(--color-accent-green-bg);
+  color: #067a55;
 }
 
 /* ---------- Table footer / pagination ---------- */
@@ -392,6 +436,16 @@
 .page-btn.active {
   border-color: var(--color-text-primary);
   font-weight: 700;
+}
+
+/* Con una sola página, Previo y Siguiente quedan sin destino. */
+.page-btn:disabled {
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.page-btn:disabled:hover {
+  background: var(--color-bg);
 }
 
 .page-nav {

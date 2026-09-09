@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alumnos - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="./assignment-students.css" />
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="./assignment-students.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <!-- Vista de consulta abierta desde Asignaciones: el menú sigue marcando esa sección. -->
+      <app-sidebar
+        nav-role="teacher"
+        active="assignments"
+        user-name="María González"
+        user-role="Profesora"
+        user-initials="GM"
+      ></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a href="../assignments/index.html">Asignaciones</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Alumnos</span>
+            </nav>
+
+            <div class="page-header">
+              <div>
+                <h1>Alumnos</h1>
+                <p>Consulta los alumnos inscriptos actualmente en el curso asociado a esta asignación</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Datos de la asignación seleccionada: assignment-students.js los completa
+               con los valores de la fila elegida en Asignaciones. -->
+          <section class="card assignment-summary">
+            <div class="summary-item">
+              <span class="summary-label">Curso</span>
+              <span class="summary-value" data-field="course">3° A · Mañana</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Nivel educativo</span>
+              <span class="summary-value" data-field="level">Secundaria</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Materia</span>
+              <span class="summary-value" data-field="subject">Matemática</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Ciclo lectivo</span>
+              <span class="summary-value" data-field="year">2026</span>
+            </div>
+          </section>
+
+          <section class="card students-card">
+            <div class="filters-row">
+              <div class="field field-searchable dropdown-searchable" data-role="student-select">
+                <div class="searchable-bar">
+                  <span class="searchable-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input type="text" class="searchable-input" placeholder="Filtrar por alumno" autocomplete="off" />
+                  <div class="searchable-value"></div>
+                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de alumnos" aria-expanded="false">
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-student" role="listbox" hidden>
+                  <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                    <span class="option-name">Acosta, Valentina</span>
+                    <span class="option-detail">INS-2026-0001</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                    <span class="option-name">Bianchi, Mateo</span>
+                    <span class="option-detail">INS-2026-0002</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                    <span class="option-name">Cáceres, Lucas</span>
+                    <span class="option-detail">INS-2026-0003</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                    <span class="option-name">Díaz, Martina</span>
+                    <span class="option-detail">INS-2026-0004</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                    <span class="option-name">Fernández, Tomás</span>
+                    <span class="option-detail">INS-2026-0005</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                    <span class="option-name">García, Emilia</span>
+                    <span class="option-detail">INS-2026-0006</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                    <span class="option-name">López, Benjamín</span>
+                    <span class="option-detail">INS-2026-0007</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                    <span class="option-name">Martínez, Sofía</span>
+                    <span class="option-detail">INS-2026-0008</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                    <span class="option-name">Pereyra, Santiago</span>
+                    <span class="option-detail">INS-2026-0009</span>
+                  </li>
+                  <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                    <span class="option-name">Romero, Julia</span>
+                    <span class="option-detail">INS-2026-0010</span>
+                  </li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
+              </div>
+
+              <!-- La vista lista solo inscripciones activas: el estado se muestra fijo, no es un filtro editable. -->
+              <div class="field field-select field-static" data-filter="status">
+                <div class="static-value">
+                  <span>Estado: Activa</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nro inscripción</th>
+                    <th>Alumno</th>
+                    <th>DNI</th>
+                    <th>Fecha inscripción</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0001</td>
+                    <td>Acosta, Valentina</td>
+                    <td>47.123.456</td>
+                    <td>10/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0002</td>
+                    <td>Bianchi, Mateo</td>
+                    <td>46.987.321</td>
+                    <td>10/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0003</td>
+                    <td>Cáceres, Lucas</td>
+                    <td>45.678.912</td>
+                    <td>11/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0004</td>
+                    <td>Díaz, Martina</td>
+                    <td>48.234.567</td>
+                    <td>11/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0005</td>
+                    <td>Fernández, Tomás</td>
+                    <td>46.345.678</td>
+                    <td>12/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0006</td>
+                    <td>García, Emilia</td>
+                    <td>47.890.123</td>
+                    <td>12/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0007</td>
+                    <td>López, Benjamín</td>
+                    <td>45.212.334</td>
+                    <td>13/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0008</td>
+                    <td>Martínez, Sofía</td>
+                    <td>46.765.901</td>
+                    <td>13/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0009</td>
+                    <td>Pereyra, Santiago</td>
+                    <td>47.321.098</td>
+                    <td>16/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                  <tr>
+                    <td class="enrollment-number">INS-2026-0010</td>
+                    <td>Romero, Julia</td>
+                    <td>45.987.654</td>
+                    <td>16/02/2026</td>
+                    <td><span class="badge badge-active">Activa</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <span class="results-count">Mostrando 1-10 de 10</span>
+              <nav class="pagination" aria-label="Paginación de alumnos">
+                <button class="page-btn page-nav" type="button" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previo
+                </button>
+                <button class="page-btn active" type="button">1</button>
+                <button class="page-btn page-nav" type="button" disabled>
+                  Siguiente
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
