@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let selectedOption = null;
     let groupFilter = '';
+    let onSelectCallback = null;
 
     const applyFilter = () => {
       const query = input.value.trim().toLowerCase();
@@ -158,12 +159,16 @@ document.addEventListener('DOMContentLoaded', () => {
         bar.classList.add('has-value');
 
         closeMenu();
+        if (typeof onSelectCallback === 'function') onSelectCallback(option);
       });
     });
 
     return {
       root,
       close: closeMenu,
+      onSelect(callback) {
+        onSelectCallback = callback;
+      },
       reset() {
         selectedOption = null;
         options.forEach((o) => {
@@ -222,5 +227,109 @@ document.addEventListener('DOMContentLoaded', () => {
         courseSelect.lock(COURSE_LOCKED_PLACEHOLDER);
       }
     });
+  });
+
+  // ---------- Modal: Nueva inscripción ----------
+
+  const enrollmentOverlay = document.getElementById('newEnrollmentOverlay');
+  const openEnrollmentModalBtn = document.getElementById('openNewEnrollmentModalBtn');
+  const cancelEnrollmentBtn = document.getElementById('cancelNewEnrollmentBtn');
+  const createEnrollmentBtn = document.getElementById('createEnrollmentBtn');
+
+  const MODAL_LEVEL_PLACEHOLDER = 'Seleccionar nivel educativo';
+  const MODAL_COURSE_LOCKED_PLACEHOLDER = 'Selecciona primero un nivel educativo';
+
+  const modalStudentSelect = setupSearchableSelect(
+    enrollmentOverlay.querySelector('[data-role="new-enrollment-student-select"]')
+  );
+  const modalCourseSelect = setupSearchableSelect(
+    enrollmentOverlay.querySelector('[data-role="new-enrollment-course-select"]')
+  );
+  searchableSelects.push(modalStudentSelect, modalCourseSelect);
+
+  const modalLevelDropdown = enrollmentOverlay.querySelector('[data-filter="new-enrollment-level"]');
+  const modalLevelLabel = modalLevelDropdown.querySelector('.dropdown-label');
+  const modalLevelOptions = modalLevelDropdown.querySelectorAll('.dropdown-option');
+
+  function updateCreateButtonState() {
+    const hasStudent = Boolean(modalStudentSelect.getValue());
+    const hasLevel = Boolean(modalLevelDropdown.querySelector('.dropdown-option.selected'));
+    const hasCourse = Boolean(modalCourseSelect.getValue());
+    createEnrollmentBtn.disabled = !(hasStudent && hasLevel && hasCourse);
+  }
+
+  modalStudentSelect.onSelect(updateCreateButtonState);
+  modalCourseSelect.onSelect(updateCreateButtonState);
+
+  modalCourseSelect.lock(MODAL_COURSE_LOCKED_PLACEHOLDER);
+
+  // Curso depende del nivel: cambiar de nivel descarta el curso ya elegido.
+  modalLevelOptions.forEach((option) => {
+    option.addEventListener('click', () => {
+      modalLevelLabel.classList.remove('placeholder');
+      modalCourseSelect.reset();
+      modalCourseSelect.setGroupFilter(option.dataset.value);
+      modalCourseSelect.unlock(COURSE_UNLOCKED_PLACEHOLDER);
+      updateCreateButtonState();
+    });
+  });
+
+  function resetEnrollmentForm() {
+    modalStudentSelect.reset();
+
+    modalLevelOptions.forEach((option) => {
+      option.classList.remove('selected');
+      option.setAttribute('aria-selected', 'false');
+    });
+    modalLevelLabel.textContent = MODAL_LEVEL_PLACEHOLDER;
+    modalLevelLabel.classList.add('placeholder');
+
+    modalCourseSelect.reset();
+    modalCourseSelect.setGroupFilter('');
+    modalCourseSelect.lock(MODAL_COURSE_LOCKED_PLACEHOLDER);
+
+    updateCreateButtonState();
+  }
+
+  function openEnrollmentModal() {
+    resetEnrollmentForm();
+    closeAllDropdowns();
+    closeAllSearchableMenus();
+    enrollmentOverlay.classList.add('is-open');
+    enrollmentOverlay.querySelector('.modal').scrollTop = 0;
+    modalStudentSelect.root.querySelector('.searchable-chevron').focus();
+  }
+
+  function closeEnrollmentModal() {
+    enrollmentOverlay.classList.remove('is-open');
+    closeAllDropdowns();
+    closeAllSearchableMenus();
+    openEnrollmentModalBtn.focus();
+  }
+
+  openEnrollmentModalBtn.addEventListener('click', openEnrollmentModal);
+  cancelEnrollmentBtn.addEventListener('click', closeEnrollmentModal);
+
+  // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
+
+  enrollmentOverlay.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeEnrollmentModal();
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(enrollmentOverlay.querySelectorAll('button:not(:disabled), input:not(:disabled)'))
+      .filter((element) => element.getClientRects().length > 0);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  createEnrollmentBtn.addEventListener('click', () => {
+    // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
+    closeEnrollmentModal();
   });
 });

@@ -7,9 +7,12 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
     <link rel="stylesheet" href="./enrollments.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/modal-resize.js"></script>
+    <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="./enrollments.js" defer></script>
   </head>
   <body>
@@ -31,6 +34,10 @@
               <h1>Inscripciones</h1>
               <p>Gestiona las inscripciones de la institución</p>
             </div>
+
+            <button class="btn btn-primary" type="button" id="openNewEnrollmentModalBtn">
+              <span class="plus">+</span> Nueva inscripción
+            </button>
           </div>
 
           <section class="card enrollments-card">
@@ -357,5 +364,141 @@
         </main>
       </div>
     </div>
+    <!-- Modal: Nueva inscripción -->
+    <div class="modal-overlay" id="newEnrollmentOverlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newEnrollmentTitle">
+        <div class="modal-header">
+          <h2 id="newEnrollmentTitle">Nueva inscripción</h2>
+          <p>Completa los campos para registrar una nueva inscripción</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-field">
+            <label>Alumno</label>
+            <div class="field field-searchable dropdown-searchable" data-role="new-enrollment-student-select">
+              <div class="searchable-bar">
+                <span class="searchable-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <input type="text" class="searchable-input" placeholder="Buscar alumno" autocomplete="off" />
+                <div class="searchable-value"></div>
+                <button type="button" class="searchable-chevron" aria-label="Abrir lista de alumnos" aria-expanded="false">
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              </div>
+              <!-- El alumno se identifica por "Apellido, Nombre" y, como dato secundario, por su DNI. -->
+              <ul class="dropdown-menu dropdown-menu-enrollment" role="listbox" hidden>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s1" aria-selected="false">
+                  <span class="option-name">Álvarez, Camila</span>
+                  <span class="option-detail">48.123.456</span>
+                </li>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s2" aria-selected="false">
+                  <span class="option-name">Benítez, Tomás</span>
+                  <span class="option-detail">47.982.310</span>
+                </li>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s3" aria-selected="false">
+                  <span class="option-name">Cabrera, Julieta</span>
+                  <span class="option-detail">49.204.775</span>
+                </li>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s4" aria-selected="false">
+                  <span class="option-name">Duarte, Facundo</span>
+                  <span class="option-detail">46.870.223</span>
+                </li>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s5" aria-selected="false">
+                  <span class="option-name">Escobar, Martina</span>
+                  <span class="option-detail">48.556.941</span>
+                </li>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s6" aria-selected="false">
+                  <span class="option-name">Ferreyra, Lautaro</span>
+                  <span class="option-detail">47.331.408</span>
+                </li>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s7" aria-selected="false">
+                  <span class="option-name">Gauna, Valentina</span>
+                  <span class="option-detail">49.617.882</span>
+                </li>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s8" aria-selected="false">
+                  <span class="option-name">Herrera, Bautista</span>
+                  <span class="option-detail">46.204.559</span>
+                </li>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s9" aria-selected="false">
+                  <span class="option-name">Ibarra, Delfina</span>
+                  <span class="option-detail">48.998.127</span>
+                </li>
+                <li class="dropdown-option option-enrollment" role="option" data-value="s10" aria-selected="false">
+                  <span class="option-name">Juárez, Thiago</span>
+                  <span class="option-detail">47.145.690</span>
+                </li>
+                <li class="dropdown-empty" hidden>Sin resultados</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Nivel educativo</label>
+            <div class="field field-select dropdown" data-filter="new-enrollment-level">
+              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                <span class="dropdown-label placeholder">Seleccionar nivel educativo</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <ul class="dropdown-menu" role="listbox" hidden>
+                <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
+                <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Curso depende del nivel educativo: arranca bloqueado y solo lista los cursos de ese nivel. -->
+          <div class="form-field">
+            <label>Curso</label>
+            <div class="field field-searchable dropdown-searchable is-locked" data-role="new-enrollment-course-select">
+              <div class="searchable-bar">
+                <span class="searchable-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <input type="text" class="searchable-input" placeholder="Selecciona primero un nivel educativo" autocomplete="off" disabled />
+                <div class="searchable-value"></div>
+                <button type="button" class="searchable-chevron" aria-label="Abrir lista de cursos" aria-expanded="false" disabled>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              </div>
+              <ul class="dropdown-menu dropdown-menu-course" role="listbox" hidden>
+                <li class="dropdown-option" role="option" data-value="c1" data-level="PRIMARY" aria-selected="false"><span class="option-name">1° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c2" data-level="PRIMARY" aria-selected="false"><span class="option-name">1° B · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c3" data-level="PRIMARY" aria-selected="false"><span class="option-name">2° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c4" data-level="PRIMARY" aria-selected="false"><span class="option-name">3° A · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c5" data-level="PRIMARY" aria-selected="false"><span class="option-name">5° B · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c6" data-level="PRIMARY" aria-selected="false"><span class="option-name">6° A · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c7" data-level="SECONDARY" aria-selected="false"><span class="option-name">1° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c8" data-level="SECONDARY" aria-selected="false"><span class="option-name">1° A · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c9" data-level="SECONDARY" aria-selected="false"><span class="option-name">2° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c10" data-level="SECONDARY" aria-selected="false"><span class="option-name">2° B · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c11" data-level="SECONDARY" aria-selected="false"><span class="option-name">3° B · Tarde</span></li>
+                <li class="dropdown-option" role="option" data-value="c12" data-level="SECONDARY" aria-selected="false"><span class="option-name">4° A · Mañana</span></li>
+                <li class="dropdown-option" role="option" data-value="c13" data-level="SECONDARY" aria-selected="false"><span class="option-name">6° B · Tarde</span></li>
+                <li class="dropdown-empty" hidden>Sin resultados</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelNewEnrollmentBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="createEnrollmentBtn" disabled>Crear inscripción</button>
+        </div>
+      </div>
+    </div>
+
   </body>
 </html>
