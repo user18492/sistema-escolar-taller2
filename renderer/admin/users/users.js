@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   openModalBtn.addEventListener('click', () => openModal());
-  document.querySelectorAll('.data-table tbody .btn').forEach((button) => {
+  document.querySelectorAll('.data-table tbody [data-action="edit"]').forEach((button) => {
     button.addEventListener('click', () => openModal(button.closest('tr'), button));
   });
   overlay.addEventListener('keydown', (event) => {
