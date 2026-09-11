@@ -39,13 +39,7 @@
   gap: 20px;
 }
 
-/* ---------- Filters row ---------- */
-
-.filters-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+/* ---------- Form fields ---------- */
 
 .field {
   position: relative;
@@ -74,34 +68,6 @@
 .field select:focus {
   outline: none;
   border-color: var(--color-accent-blue);
-}
-
-.field-search {
-  flex: 1;
-  min-width: 160px;
-}
-
-.field-search svg {
-  position: absolute;
-  left: 12px;
-  width: 15px;
-  height: 15px;
-  color: var(--color-text-tertiary);
-  pointer-events: none;
-}
-
-.field-search input {
-  padding-left: 36px;
-}
-
-.field:not(.field-search):not(.field-select) {
-  flex: 1;
-  min-width: 160px;
-}
-
-.field-select {
-  flex: 0.9;
-  min-width: 140px;
 }
 
 /* ---------- Dropdown custom (Rol / Estado) ---------- */
@@ -200,33 +166,94 @@
   font-weight: 500;
 }
 
-/* Campo con búsqueda integrada (Nombre / DNI / Email): dimensiones estables entre búsqueda y selección. */
+/* ---------- Filtros en los encabezados ---------- */
 
-.dropdown-searchable {
-  position: relative;
+.column-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.column-filter-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  object-fit: contain;
+  opacity: 0.7;
+}
+
+.column-filter-toggle.has-selection .column-filter-icon {
+  opacity: 1;
+  filter: invert(45%) sepia(96%) saturate(2475%) hue-rotate(202deg) brightness(100%) contrast(94%);
+}
+
+.column-filter-toggle:focus-visible,
+.column-filter-panel :focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 3px;
+}
+
+/* Popover mantiene las listas fuera del recorte del scroll de la tabla. */
+.column-filter-panel {
+  position: fixed;
+  inset: auto;
+  width: 220px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  box-shadow: 0 12px 24px -8px rgba(16, 24, 40, 0.18), 0 2px 6px rgba(16, 24, 40, 0.08);
+  font-size: 14px;
+  font-weight: 400;
+  white-space: normal;
+}
+
+.column-filter-searchable {
+  width: 360px;
+}
+
+.column-filter-panel .dropdown-menu {
+  position: static;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.column-filter-panel .dropdown-option {
+  cursor: pointer;
 }
 
 .searchable-bar {
-  width: 100%;
-  min-width: 0;
-  height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
   display: flex;
   align-items: center;
   gap: 10px;
+  height: 38px;
+  margin-bottom: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
 }
 
-.dropdown-searchable.open .searchable-bar,
 .searchable-bar:focus-within {
   border-color: var(--color-accent-blue);
 }
 
 .searchable-icon {
   display: flex;
-  flex-shrink: 0;
   color: var(--color-text-tertiary);
 }
 
@@ -235,65 +262,39 @@
   height: 15px;
 }
 
-/* Mayor especificidad que .field input: el borde pertenece solo a la barra. */
-.field-searchable .searchable-input {
-  flex: 1;
+.searchable-input {
+  width: 100%;
   min-width: 0;
-  height: 100%;
-  border: none;
-  border-radius: 0;
-  outline: none;
-  box-shadow: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--color-text-primary);
   padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.column-filter-panel .searchable-input:focus-visible {
+  outline: none;
 }
 
 .searchable-input::placeholder {
   color: var(--color-text-tertiary);
 }
 
-.searchable-value {
-  display: none;
-  flex: 1;
-  min-width: 0;
-  font-size: 14px;
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.searchable-bar.has-value:not(.is-editing) .searchable-value {
-  display: block;
-}
-
-.searchable-bar.has-value:not(.is-editing) .searchable-input,
-.searchable-bar.has-value:not(.is-editing) .searchable-icon {
-  display: none;
-}
-
-.searchable-chevron {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  background: none;
+.column-filter-clear {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-accent-blue);
   font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.searchable-chevron .chevron {
-  width: 13px;
-  height: 13px;
-  color: var(--color-text-secondary);
-  transition: transform 0.15s ease;
-}
-
-.dropdown-searchable.open .searchable-chevron .chevron {
-  transform: rotate(180deg);
+.column-filter-clear:hover {
+  background: var(--color-accent-blue-bg);
 }
 
 /* Opciones con avatar (Nombre) */

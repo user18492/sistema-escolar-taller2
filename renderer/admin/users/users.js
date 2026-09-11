@@ -4,13 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const dropdowns = document.querySelectorAll('.dropdown');
 
-  let searchableSelects = [];
-  const closeAllSearchableMenus = (except) => {
-    searchableSelects.forEach((select) => {
-      if (select.root !== except) select.close();
-    });
-  };
-
   const closeDropdown = (dropdown) => {
     dropdown.classList.remove('open');
     dropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
@@ -32,7 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
     toggle.addEventListener('click', () => {
       const isOpen = dropdown.classList.contains('open');
       closeAllDropdowns(dropdown);
-      closeAllSearchableMenus();
 
       if (isOpen) {
         closeDropdown(dropdown);
@@ -62,111 +54,111 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!event.target.closest('.dropdown')) {
       closeAllDropdowns();
     }
-    if (!event.target.closest('.dropdown-searchable')) {
-      closeAllSearchableMenus();
-    }
   });
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       closeAllDropdowns();
-      closeAllSearchableMenus();
     }
   });
 
-  // ---------- Filtro: Buscar por nombre (dropdown con búsqueda integrada) ----------
+  // Los encabezados conservan las listas y la selección visual de los filtros.
+  document.querySelectorAll('.column-filter').forEach((root) => {
+    const toggle = root.querySelector('.column-filter-toggle');
+    const panel = root.querySelector('.column-filter-panel');
+    const input = panel.querySelector('.searchable-input');
+    const options = Array.from(panel.querySelectorAll('.dropdown-option'));
+    const emptyState = panel.querySelector('.dropdown-empty');
+    const clearButton = panel.querySelector('.column-filter-clear');
+    const filterLabel = toggle.getAttribute('aria-label');
 
-  // Campo con búsqueda integrada: un único componente que combina un input de filtro
-  // y una lista desplegable (mismo patrón usado en Docencia > Nueva asignación > Profesor).
-  function setupSearchableSelect(root) {
-    const bar = root.querySelector('.searchable-bar');
-    const input = bar.querySelector('.searchable-input');
-    const valueBox = bar.querySelector('.searchable-value');
-    const chevronBtn = bar.querySelector('.searchable-chevron');
-    const menu = root.querySelector('.dropdown-menu');
-    const options = Array.from(menu.querySelectorAll('.dropdown-option'));
-    const emptyState = menu.querySelector('.dropdown-empty');
-
-    let selectedOption = null;
-
-    const applyFilter = () => {
-      const query = input.value.trim().toLowerCase();
-      let visibleCount = 0;
+    const filterOptions = () => {
+      const query = input ? input.value.trim().toLocaleLowerCase('es') : '';
       options.forEach((option) => {
-        const visible = !query || option.textContent.toLowerCase().includes(query);
-        option.hidden = !visible;
-        if (visible) visibleCount += 1;
+        option.hidden = !option.textContent.toLocaleLowerCase('es').includes(query);
       });
-      if (emptyState) emptyState.hidden = visibleCount > 0;
+      if (emptyState) emptyState.hidden = options.some((option) => !option.hidden);
     };
 
-    const openMenu = () => {
-      closeAllDropdowns();
-      closeAllSearchableMenus(root);
-      root.classList.add('open');
-      chevronBtn.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
-      bar.classList.add('is-editing');
-      input.value = '';
-      applyFilter();
-      input.focus();
+    const positionPanel = () => {
+      const anchor = toggle.getBoundingClientRect();
+      const margin = 12;
+      const gap = 8;
+      const availableBelow = window.innerHeight - anchor.bottom - gap - margin;
+      const availableAbove = anchor.top - gap - margin;
+      const openAbove = availableBelow < panel.scrollHeight && availableAbove > availableBelow;
+      panel.style.maxHeight = `${Math.max(0, openAbove ? availableAbove : availableBelow)}px`;
+      panel.style.left = `${Math.max(margin, Math.min(anchor.left, window.innerWidth - panel.offsetWidth - margin))}px`;
+      panel.style.top = `${openAbove ? anchor.top - panel.offsetHeight - gap : anchor.bottom + gap}px`;
     };
 
-    const closeMenu = () => {
-      root.classList.remove('open');
-      chevronBtn.setAttribute('aria-expanded', 'false');
-      menu.hidden = true;
-      bar.classList.remove('is-editing');
-      input.value = '';
+    const closePanel = () => {
+      panel.hidePopover();
+      toggle.focus({ preventScroll: true });
     };
 
-    chevronBtn.addEventListener('click', () => {
-      if (root.classList.contains('open')) {
-        closeMenu();
-      } else {
-        openMenu();
+    const selectOption = (selectedOption) => {
+      const hasSelection = Boolean(selectedOption && selectedOption.dataset.value);
+      options.forEach((option) => {
+        const selected = option === selectedOption;
+        option.classList.toggle('selected', selected);
+        option.setAttribute('aria-selected', String(selected));
+      });
+      toggle.classList.toggle('has-selection', hasSelection);
+      toggle.setAttribute('aria-label', hasSelection
+        ? `${filterLabel}: ${(selectedOption.querySelector('.option-name') || selectedOption).textContent.trim()}`
+        : filterLabel);
+      closePanel();
+    };
+
+    panel.addEventListener('beforetoggle', (event) => {
+      const isOpen = event.newState === 'open';
+      toggle.setAttribute('aria-expanded', String(isOpen));
+      if (isOpen) {
+        closeAllDropdowns();
+        if (input) input.value = '';
+        filterOptions();
       }
     });
 
-    input.addEventListener('focus', () => {
-      if (!root.classList.contains('open')) openMenu();
+    panel.addEventListener('toggle', () => {
+      if (!panel.matches(':popover-open')) return;
+      positionPanel();
+      (input || options.find((option) => option.classList.contains('selected')) || options[0]).focus({ preventScroll: true });
     });
 
-    input.addEventListener('input', applyFilter);
-
-    valueBox.addEventListener('click', openMenu);
-
     options.forEach((option) => {
-      option.addEventListener('click', () => {
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-        });
-        option.classList.add('selected');
-        option.setAttribute('aria-selected', 'true');
-        selectedOption = option;
-
-        const nameEl = option.querySelector('.option-name');
-        valueBox.textContent = nameEl ? nameEl.textContent.trim() : option.textContent.trim();
-        bar.classList.add('has-value');
-
-        closeMenu();
+      option.tabIndex = 0;
+      option.addEventListener('click', () => selectOption(option));
+      option.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectOption(option);
+        }
       });
     });
 
-    return {
-      root,
-      close: closeMenu,
-      getValue() {
-        return selectedOption ? selectedOption.dataset.value : '';
-      },
-    };
-  }
+    panel.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      event.preventDefault();
+      const visibleOptions = options.filter((option) => !option.hidden);
+      if (!visibleOptions.length) return;
+      const current = visibleOptions.indexOf(document.activeElement);
+      const next = current < 0
+        ? (event.key === 'ArrowDown' ? 0 : visibleOptions.length - 1)
+        : (current + (event.key === 'ArrowDown' ? 1 : -1) + visibleOptions.length) % visibleOptions.length;
+      visibleOptions[next].focus();
+    });
 
-  const searchableSelectRoots = document.querySelectorAll(
-    '[data-role="name-select"], [data-role="dni-select"], [data-role="email-select"]'
-  );
-  searchableSelects = Array.from(searchableSelectRoots, setupSearchableSelect);
+    if (input) input.addEventListener('input', filterOptions);
+    clearButton.addEventListener('click', () => selectOption(null));
+    window.addEventListener('resize', () => {
+      if (panel.matches(':popover-open')) positionPanel();
+    });
+    document.addEventListener('scroll', (event) => {
+      if (panel.matches(':popover-open') && !panel.contains(event.target)) panel.hidePopover();
+    }, true);
+  });
 
   // ---------- Modal: Nuevo usuario ----------
 
@@ -396,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     updateCreateButtonState();
     closeAllDropdowns();
-    closeAllSearchableMenus();
+    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     overlay.classList.add('is-open');
     overlay.querySelector('.modal').scrollTop = 0;
     document.getElementById('newUserFirstName').focus();
