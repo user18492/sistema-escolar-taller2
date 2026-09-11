@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   openAssignmentModalBtn.addEventListener('click', openAssignmentModal);
   cancelAssignmentBtn.addEventListener('click', closeAssignmentModal);
-  document.querySelectorAll('.data-table tbody .btn').forEach((button) => {
+  document.querySelectorAll('.data-table tbody [data-action=edit]').forEach((button) => {
     button.addEventListener('click', (event) => openAssignmentModal(event, button.closest('tr')));
   });
 

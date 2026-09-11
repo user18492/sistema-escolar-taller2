@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   openCourseModalBtn.addEventListener('click', openCourseModal);
   cancelCourseBtn.addEventListener('click', closeCourseModal);
-  document.querySelectorAll('.data-table tbody .btn').forEach((button) => {
+  document.querySelectorAll('.data-table tbody [data-action=edit]').forEach((button) => {
     button.addEventListener('click', (event) => openCourseModal(event, button.closest('tr')));
   });
 

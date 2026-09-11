@@ -436,39 +436,6 @@
   border-bottom: none;
 }
 
-/* Acciones de la tabla: solo iconos, sin fondo ni borde de boton. */
-.user-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.user-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-primary);
-}
-
-.user-action svg {
-  width: 20px;
-  height: 20px;
-}
-
-.user-action:hover {
-  color: var(--color-accent-blue);
-}
-
-.user-action:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
-}
-
 .user-cell {
   display: flex;
   align-items: center;

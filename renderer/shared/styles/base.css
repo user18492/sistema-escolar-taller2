@@ -299,6 +299,44 @@ svg {
   display: block;
 }
 
+/* Acciones de tablas: iconos sin fondo ni borde. */
+.user-actions,
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-action,
+.table-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+}
+
+.user-action svg,
+.table-action svg {
+  width: 20px;
+  height: 20px;
+}
+
+.user-action:hover,
+.table-action:hover {
+  color: var(--color-accent-blue);
+}
+
+.user-action:focus-visible,
+.table-action:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 2px;
+}
+
 /* Evita que la rueda desplace el fondo al alcanzar los límites del dropdown.
    overflow también contiene los menús cuyo contenido no necesita desplazarse. */
 .dropdown-menu {
