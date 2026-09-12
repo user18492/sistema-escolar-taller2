@@ -1,0 +1,138 @@
+/* Componente reutilizable: filtros desplegables en los encabezados de las tablas.
+   Marcado: <th class="column-filter"> con un botón .column-filter-toggle (título + embudo)
+   y un panel .column-filter-panel[popover] que contiene el filtro. El comportamiento lo
+   aporta column-filter.js. */
+
+.column-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.column-filter-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  /* Tono discreto para no competir con el título de la columna. */
+  color: var(--color-text-tertiary);
+}
+
+.column-filter-toggle:hover .column-filter-icon,
+.column-filter-toggle.has-selection .column-filter-icon {
+  color: var(--color-accent-blue);
+}
+
+/* Filtro activo: el embudo se rellena para distinguirlo de un filtro vacío. */
+.column-filter-toggle.has-selection .column-filter-icon {
+  fill: currentColor;
+}
+
+.column-filter-toggle:focus-visible,
+.column-filter-panel :focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 3px;
+}
+
+/* Popover mantiene las listas fuera del recorte del scroll de la tabla. */
+.column-filter-panel {
+  position: fixed;
+  inset: auto;
+  width: 220px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  box-shadow: 0 12px 24px -8px rgba(16, 24, 40, 0.18), 0 2px 6px rgba(16, 24, 40, 0.08);
+  font-size: 14px;
+  font-weight: 400;
+  white-space: normal;
+}
+
+.column-filter-searchable {
+  width: 360px;
+}
+
+.column-filter-panel .dropdown-menu {
+  position: static;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.column-filter-panel .dropdown-option {
+  cursor: pointer;
+}
+
+.searchable-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  margin-bottom: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.searchable-bar:focus-within {
+  border-color: var(--color-accent-blue);
+}
+
+.searchable-icon {
+  display: flex;
+  color: var(--color-text-tertiary);
+}
+
+.searchable-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.searchable-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.column-filter-panel .searchable-input:focus-visible {
+  outline: none;
+}
+
+.searchable-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.column-filter-clear {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-accent-blue);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.column-filter-clear:hover {
+  background: var(--color-accent-blue-bg);
+}

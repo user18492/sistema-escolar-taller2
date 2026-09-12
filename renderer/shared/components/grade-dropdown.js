@@ -1,6 +1,9 @@
 // Componente reutilizable: dropdown de filtro "Grado", compartido por las vistas Cursos y Docencia.
-// Uso: <grade-dropdown></grade-dropdown>
+// Uso: <grade-dropdown></grade-dropdown> para el campo completo (botón + menú desplegable),
+// o <grade-dropdown variant="panel"></grade-dropdown> para incrustar solo el menú en un
+// contenedor que ya se encarga de desplegarlo (el filtro del encabezado de la tabla).
 // Selección múltiple con checkboxes tri-estado (Todos / por nivel educativo / por grado individual).
+// API para el contenedor: `hasSelection` indica si hay grados elegidos y `clear()` los restablece.
 // Sin shadow DOM a propósito: así los estilos de grade-dropdown.css (selectores .dropdown-menu-grade, .grade-card, etc.) siguen aplicando tal cual,
 // y el botón .dropdown-toggle sigue siendo detectado por la lógica genérica de apertura/cierre de dropdowns de cada vista.
 
@@ -63,16 +66,12 @@
   class GradeDropdown extends HTMLElement {
     connectedCallback() {
       const levelBlocksHtml = GRADE_LEVELS.map(renderLevelBlock).join('');
+      // La variante "panel" ya vive dentro de un contenedor desplegable (el filtro del
+      // encabezado de la tabla): aporta solo el menú, siempre visible y sin su propio botón.
+      const isPanel = this.getAttribute('variant') === 'panel';
 
-      this.innerHTML = `
-        <div class="field field-select dropdown" data-filter="grade">
-          <button type="button" class="dropdown-toggle" aria-haspopup="true" aria-expanded="false">
-            <span class="dropdown-label">Grado</span>
-            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-          <div class="dropdown-menu dropdown-menu-grade" role="menu" hidden>
+      const menuHtml = `
+          <div class="dropdown-menu dropdown-menu-grade" role="menu"${isPanel ? '' : ' hidden'}>
             <div class="grade-row grade-row-all" role="menuitemcheckbox" aria-checked="false" tabindex="0" data-grade-all>
               <span class="grade-checkbox" aria-hidden="true">
                 ${CHECK_ICON}
@@ -81,10 +80,27 @@
               <span class="grade-row-label">Todos</span>
             </div>
             ${levelBlocksHtml}
-          </div>
+          </div>`;
+
+      this.innerHTML = isPanel
+        ? menuHtml
+        : `
+        <div class="field field-select dropdown" data-filter="grade">
+          <button type="button" class="dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+            <span class="dropdown-label">Grado</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          ${menuHtml}
         </div>`;
 
       this.setupGradeDropdown();
+    }
+
+    // Grados seleccionados: lo consulta el contenedor para marcar el filtro como activo
+    get hasSelection() {
+      return this.querySelector('.grade-card.selected') !== null;
     }
 
     setupGradeDropdown() {
@@ -132,6 +148,12 @@
           }
         });
       });
+
+      // Restablece el filtro desde el contenedor (botón "Limpiar filtro" del encabezado)
+      this.clear = () => {
+        allCards.forEach((card) => setCardSelected(card, false));
+        refreshStates();
+      };
 
       if (allRow) {
         const toggleAll = () => {

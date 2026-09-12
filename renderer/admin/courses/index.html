@@ -8,11 +8,13 @@
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
     <link rel="stylesheet" href="../../shared/styles/grade-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
     <link rel="stylesheet" href="./courses.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/grade-dropdown.js"></script>
+    <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="./courses.js" defer></script>
@@ -37,52 +39,70 @@
           </div>
 
           <section class="card courses-card">
-            <div class="filters-row">
-              <grade-dropdown></grade-dropdown>
-
-              <div class="field">
-                <input type="text" placeholder="Filtrar por división" />
-              </div>
-
-              <div class="field field-select dropdown" data-filter="shift">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Turno</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="MORNING" aria-selected="false">Mañana</li>
-                  <li class="dropdown-option" role="option" data-value="AFTERNOON" aria-selected="false">Tarde</li>
-                </ul>
-              </div>
-
-              <div class="field field-select dropdown" data-filter="year">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Ciclo lectivo</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="2026" aria-selected="false">2026</li>
-                  <li class="dropdown-option" role="option" data-value="2025" aria-selected="false">2025</li>
-                  <li class="dropdown-option" role="option" data-value="2024" aria-selected="false">2024</li>
-                </ul>
-              </div>
-            </div>
-
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Grado</th>
-                    <th>División</th>
-                    <th>Turno</th>
+                    <th scope="col" class="column-filter" data-filter="grade">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por grado" aria-expanded="false" aria-controls="gradeFilter" popovertarget="gradeFilter">
+                        <span>Grado</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="gradeFilter" class="column-filter-panel column-filter-grade" popover="auto" role="group" aria-label="Filtrar por grado">
+                        <grade-dropdown variant="panel"></grade-dropdown>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
+                    <th scope="col" class="column-filter" data-filter="division">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por división" aria-expanded="false" aria-controls="divisionFilter" popovertarget="divisionFilter">
+                        <span>División</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="divisionFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por división">
+                        <div class="field">
+                          <input type="text" class="column-filter-input" placeholder="Filtrar por división" aria-label="Filtrar por división" autocomplete="off" />
+                        </div>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
+                    <th scope="col" class="column-filter" data-filter="shift">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por turno" aria-expanded="false" aria-controls="shiftFilter" popovertarget="shiftFilter">
+                        <span>Turno</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="shiftFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por turno">
+                        <ul class="dropdown-menu" role="listbox" aria-label="Turno">
+                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                          <li class="dropdown-option" role="option" data-value="MORNING" aria-selected="false">Mañana</li>
+                          <li class="dropdown-option" role="option" data-value="AFTERNOON" aria-selected="false">Tarde</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th>Nivel educativo</th>
-                    <th>Ciclo lectivo</th>
+                    <th scope="col" class="column-filter" data-filter="year">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por ciclo lectivo" aria-expanded="false" aria-controls="yearFilter" popovertarget="yearFilter">
+                        <span>Ciclo lectivo</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="yearFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por ciclo lectivo">
+                        <ul class="dropdown-menu" role="listbox" aria-label="Ciclo lectivo">
+                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                          <li class="dropdown-option" role="option" data-value="2026" aria-selected="false">2026</li>
+                          <li class="dropdown-option" role="option" data-value="2025" aria-selected="false">2025</li>
+                          <li class="dropdown-option" role="option" data-value="2024" aria-selected="false">2024</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -96,13 +116,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -117,13 +137,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -138,13 +158,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -159,13 +179,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -180,13 +200,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -201,13 +221,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -222,13 +242,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -243,13 +263,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -264,13 +284,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -285,13 +305,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>

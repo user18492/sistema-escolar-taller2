@@ -39,13 +39,7 @@
   gap: 20px;
 }
 
-/* ---------- Filters row ---------- */
-
-.filters-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+/* ---------- Fields ---------- */
 
 .field {
   position: relative;
@@ -86,7 +80,7 @@
   min-width: 140px;
 }
 
-/* ---------- Dropdown custom (Grado / Turno / Ciclo lectivo) ---------- */
+/* ---------- Dropdown custom (campos del modal Nuevo curso / Editar curso) ---------- */
 
 .dropdown {
   position: relative;
@@ -262,6 +256,25 @@
 
 .data-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+/* Filtros en los encabezados (column-filter.css): el filtro Grado conserva el ancho
+   de la grilla del componente compartido, que no cabe en el panel estándar. */
+.column-filter-grade {
+  width: 348px;
+}
+
+.column-filter-grade .dropdown-menu-grade {
+  padding: 4px;
+}
+
+/* Acciones de fila en tono discreto, igual que en Usuarios; el azul queda reservado al hover. */
+.courses-card .table-action {
+  color: var(--color-text-tertiary);
+}
+
+.courses-card .table-action:hover {
+  color: var(--color-accent-blue);
 }
 
 /* ---------- Table footer / pagination ---------- */

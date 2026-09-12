@@ -154,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function openCourseModal(event, row = null) {
     resetCourseForm();
     closeAllDropdowns();
+    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     modalTrigger = event.currentTarget;
     const isEditing = Boolean(row);
     courseTitle.textContent = isEditing ? 'Editar curso' : 'Nuevo curso';
