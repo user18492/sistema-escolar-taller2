@@ -78,15 +78,39 @@
 }
 
 /* Paneles que incrustan la grilla de grados (<grade-dropdown variant="panel">, también dentro
-   de <course-filter>): conservan el ancho del componente compartido, que no cabe en el panel
-   estándar. 350px = 336px del menú + relleno y borde del panel, sin desbordar a la derecha.
+   de <course-filter>): versión compacta, más ancha que el panel estándar pero más angosta que
+   el menú desplegable del componente (336px), así que el menú ocupa el ancho del panel y la
+   grilla reparte ese espacio entre sus tres columnas (tarjetas de 84px).
    Van después de la regla anterior, que anula el relleno del menú. */
 .column-filter-grade {
-  width: 350px;
+  width: 290px;
 }
 
 .column-filter-grade .dropdown-menu-grade {
+  width: auto;
   padding: 4px;
+}
+
+.column-filter-grade .grade-row {
+  padding: 6px 8px;
+}
+
+.column-filter-grade .dropdown-menu-grade .dropdown-divider {
+  margin: 4px 2px;
+}
+
+.column-filter-grade .grade-level-block {
+  gap: 6px;
+  padding: 2px 0 0;
+}
+
+.column-filter-grade .grade-grid {
+  gap: 6px;
+}
+
+/* También alcanza a los botones de Turno de <course-filter>, que reutilizan .grade-card */
+.column-filter-grade .grade-card {
+  height: 36px;
 }
 
 .searchable-bar {
