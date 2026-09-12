@@ -8,37 +8,54 @@
   const logoUrl = new URL('../../../resources/logotipo_header.png', document.currentScript.src).href;
   // Cada rol tiene su propio menú: las vistas viven en renderer/<rol>/<vista>, así que
   // los enlaces son relativos a la carpeta hermana dentro del mismo rol.
+  // Atributos del <svg> según el estilo del ícono: "outline" (trazo 1.75) es el
+  // predeterminado; "resource" replica los atributos de los íconos outline de resources/
+  // (viewBox 24, trazo 1.5). Los trazos se copian en línea para que hereden currentColor.
+  const ICON_SVG_ATTRS = {
+    outline: 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"',
+    resource: 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"',
+  };
   const NAV_ITEMS_BY_ROLE = {
     admin: [
       {
         key: 'dashboard',
         href: '../dashboard/index.html',
         label: 'Inicio',
-        icon: '<path d="M3 11.5L12 4l9 7.5" /><path d="M5 10v10h5v-6h4v6h5V10" />',
+        // resources/Home.svg
+        iconStyle: 'resource',
+        icon: '<path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />',
       },
       {
         key: 'users',
         href: '../users/index.html',
         label: 'Usuarios',
-        icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />',
+        // resources/Users.svg
+        iconStyle: 'resource',
+        icon: '<path d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />',
       },
       {
         key: 'courses',
         href: '../courses/index.html',
         label: 'Cursos',
-        icon: '<path d="M2 4h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 4h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />',
+        // resources/RectangleStack.svg
+        iconStyle: 'resource',
+        icon: '<path d="M6 6.878V6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 0 0 4.5 9v.878m13.5-3A2.25 2.25 0 0 1 19.5 9v.878m0 0a2.246 2.246 0 0 0-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0 1 21 12v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6c0-.98.626-1.813 1.5-2.122" />',
       },
       {
         key: 'assignments',
         href: '../assignments/index.html',
         label: 'Docencia',
-        icon: '<path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />',
+        // resources/ClipboardDocumentList.svg
+        iconStyle: 'resource',
+        icon: '<path d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />',
       },
       {
         key: 'reports',
         href: '../reports/index.html',
         label: 'Reportes',
-        icon: '<path d="M3 3v18h18" /><rect x="7" y="12" width="3" height="6" /><rect x="12" y="8" width="3" height="10" /><rect x="17" y="5" width="3" height="13" />',
+        // resources/ChartBar.svg
+        iconStyle: 'resource',
+        icon: '<path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />',
       },
     ],
     teacher: [
@@ -68,13 +85,15 @@
   class AppSidebar extends HTMLElement {
     connectedCallback() {
       const active = this.getAttribute('active') || '';
-      const navItems = NAV_ITEMS_BY_ROLE[this.getAttribute('nav-role') || 'admin'] || NAV_ITEMS_BY_ROLE.admin;
+      const requestedRole = this.getAttribute('nav-role') || 'admin';
+      const navRole = Object.hasOwn(NAV_ITEMS_BY_ROLE, requestedRole) ? requestedRole : 'admin';
+      const navItems = NAV_ITEMS_BY_ROLE[navRole];
 
       const navHtml = navItems.map((item) => {
         const activeClass = item.key === active ? ' active' : '';
         return `
           <a class="nav-item${activeClass}" href="${item.href}"${item.key === active ? ' aria-current="page"' : ''}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <svg ${ICON_SVG_ATTRS[item.iconStyle] || ICON_SVG_ATTRS.outline}>
               ${item.icon}
             </svg>
             ${item.label}
@@ -82,7 +101,7 @@
       }).join('');
 
       this.innerHTML = `
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar" id="sidebar" data-nav-role="${navRole}">
           <div class="sidebar-brand">
             <div class="sidebar-logo"><img src="${logoUrl}" alt="Gestión educativa" draggable="false" /></div>
             <p class="sidebar-institution"></p>

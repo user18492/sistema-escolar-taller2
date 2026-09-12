@@ -83,6 +83,12 @@ app-sidebar {
   flex-shrink: 0;
 }
 
+/* Menú del Administrador: los íconos usan un gris muy oscuro, más discreto que el texto
+   de la opción. El item activo conserva el azul heredado de su texto. */
+.sidebar[data-nav-role="admin"] .nav-item:not(.active) svg {
+  color: #4b5563;
+}
+
 .nav-item:hover {
   background: #f0f5fc;
 }
