@@ -7,11 +7,15 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/grade-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/course-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
     <link rel="stylesheet" href="./assignments.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/grade-dropdown.js"></script>
+    <script src="../../shared/components/course-filter.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
@@ -138,9 +142,9 @@
                           <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
                         </svg>
                       </button>
-                      <!-- El componente propio de Curso se implementará más adelante; el panel queda preparado en el encabezado. -->
-                      <div id="courseFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por curso">
-                        <p class="dropdown-empty">Filtro de curso en desarrollo</p>
+                      <div id="courseFilter" class="column-filter-panel column-filter-grade" popover="auto" role="group" aria-label="Filtrar por curso">
+                        <course-filter></course-filter>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
                     <th>Nivel educativo</th>

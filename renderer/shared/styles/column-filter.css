@@ -77,6 +77,18 @@
   cursor: pointer;
 }
 
+/* Paneles que incrustan la grilla de grados (<grade-dropdown variant="panel">, también dentro
+   de <course-filter>): conservan el ancho del componente compartido, que no cabe en el panel
+   estándar. 350px = 336px del menú + relleno y borde del panel, sin desbordar a la derecha.
+   Van después de la regla anterior, que anula el relleno del menú. */
+.column-filter-grade {
+  width: 350px;
+}
+
+.column-filter-grade .dropdown-menu-grade {
+  padding: 4px;
+}
+
 .searchable-bar {
   display: flex;
   align-items: center;

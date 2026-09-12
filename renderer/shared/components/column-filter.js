@@ -9,7 +9,7 @@
 //   - lista de .dropdown-option (selección única: elegir una cierra el panel)
 //   - buscador .searchable-input, que oculta las opciones que no coinciden
 //   - campo de texto .column-filter-input (Enter cierra el panel)
-//   - componentes con estado propio (p. ej. <grade-dropdown variant="panel">)
+//   - componentes con estado propio (p. ej. <grade-dropdown variant="panel"> o <course-filter>)
 // El embudo del encabezado se rellena (.has-selection) mientras el filtro tenga algo activo.
 
 (() => {
@@ -153,8 +153,11 @@
       });
     }
 
-    // Los componentes mantienen su propio estado al hacer clic; aquí solo se refresca el embudo
-    if (components.length) panel.addEventListener('click', refreshState);
+    // Los componentes mantienen su propio estado al hacer clic o escribir; aquí solo se refresca el embudo
+    if (components.length) {
+      panel.addEventListener('click', refreshState);
+      panel.addEventListener('input', refreshState);
+    }
 
     clearButton?.addEventListener('click', clearFilter);
 

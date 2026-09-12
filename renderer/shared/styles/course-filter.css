@@ -1,0 +1,39 @@
+/* Componente reutilizable: filtro compuesto "Curso" — Grado / División / Turno.
+   Reutiliza la grilla y los divisores de grade-dropdown.css y el campo .field de la vista;
+   aquí solo se define la organización en categorías. */
+
+course-filter {
+  display: block;
+}
+
+.course-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+/* Negro suave: identifica la categoría sin competir con sus opciones.
+   Alineado con los checkboxes de Grado y con "Limpiar filtro". */
+.course-filter-title {
+  padding: 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Divisores entre categorías, a la misma distancia del borde que los de la grilla de grados */
+course-filter > .dropdown-divider {
+  margin: 6px;
+}
+
+/* Campo de División y botones de Turno, alineados con las tarjetas de grado */
+.course-filter-body {
+  padding: 0 6px;
+}
+
+.course-filter-shifts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
