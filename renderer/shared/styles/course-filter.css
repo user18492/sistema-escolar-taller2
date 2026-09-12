@@ -37,3 +37,39 @@ course-filter > .dropdown-divider {
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
+
+/* ---------- Versión compacta ----------
+   Acotada a <course-filter>: la grilla de grados y el ancho de .column-filter-grade se comparten
+   con el filtro Grado de la vista Cursos, que conserva sus medidas. */
+
+/* Las columnas de la grilla y los botones de Turno se reparten el ancho disponible, así que el
+   ancho de las tarjetas se reduce achicando el panel: 290px deja tarjetas de 84px y turnos de 128px. */
+.column-filter-panel:has(> course-filter) {
+  width: 290px;
+}
+
+course-filter .dropdown-menu-grade {
+  width: auto;
+  min-width: 0;
+}
+
+course-filter .grade-row {
+  padding: 6px 8px;
+}
+
+course-filter .dropdown-menu-grade .dropdown-divider {
+  margin: 4px 2px;
+}
+
+course-filter .grade-level-block {
+  gap: 6px;
+  padding: 2px 0 0;
+}
+
+course-filter .grade-grid {
+  gap: 6px;
+}
+
+course-filter .grade-card {
+  height: 36px;
+}
