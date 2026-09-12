@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Campo con búsqueda integrada: un único componente que combina un input de filtro
   // y una lista desplegable (usado por Profesor y Curso).
-  function setupSearchableSelect(root, { nameOnly = false } = {}) {
+  function setupSearchableSelect(root) {
     const bar = root.querySelector('.searchable-bar');
     const input = bar.querySelector('.searchable-input');
     const valueBox = bar.querySelector('.searchable-value');
@@ -171,12 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         option.setAttribute('aria-selected', 'true');
         selectedOption = option;
 
-        if (nameOnly) {
-          const nameEl = option.querySelector('.option-name');
-          valueBox.textContent = nameEl ? nameEl.textContent.trim() : option.textContent.trim();
-        } else {
-          valueBox.innerHTML = option.innerHTML;
-        }
+        valueBox.innerHTML = option.innerHTML;
         bar.classList.add('has-value');
 
         closeMenu();
@@ -243,12 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const teacherSelect = setupSearchableSelect(teacherRoot);
   const courseSelect = setupSearchableSelect(courseRoot);
 
-  // ---------- Filtro: profesor (dropdown con búsqueda integrada) ----------
-
-  const teacherFilterRoot = document.querySelector('[data-role="teacher-filter-select"]');
-  const teacherFilterSelect = setupSearchableSelect(teacherFilterRoot, { nameOnly: true });
-
-  searchableSelects = [teacherSelect, courseSelect, teacherFilterSelect];
+  searchableSelects = [teacherSelect, courseSelect];
 
   function updateCreateButtonState() {
     const hasTeacher = Boolean(teacherSelect.getValue());

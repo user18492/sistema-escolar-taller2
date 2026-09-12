@@ -7,12 +7,12 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
-    <link rel="stylesheet" href="../../shared/styles/grade-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
     <link rel="stylesheet" href="./assignments.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
-    <script src="../../shared/components/grade-dropdown.js"></script>
+    <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="./assignments.js" defer></script>
@@ -37,161 +37,150 @@
           </div>
 
           <section class="card assignments-card">
-            <div class="filters-row">
-              <div class="field field-searchable dropdown-searchable" data-role="teacher-filter-select">
-                <div class="searchable-bar">
-                  <span class="searchable-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="11" cy="11" r="7" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </span>
-                  <input type="text" class="searchable-input" placeholder="Filtrar por profesor" autocomplete="off" />
-                  <div class="searchable-value"></div>
-                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de profesores" aria-expanded="false">
-                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                </div>
-                <ul class="dropdown-menu dropdown-menu-teacher" role="listbox" hidden>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t1" aria-selected="false">
-                    <span class="option-avatar">MG</span>
-                    <span class="option-text">
-                      <span class="option-name">González, María</span>
-                      <span class="option-email">maria.gonzalez@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t2" aria-selected="false">
-                    <span class="option-avatar">CF</span>
-                    <span class="option-text">
-                      <span class="option-name">Fernández, Carlos</span>
-                      <span class="option-email">carlos.fernandez@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t3" aria-selected="false">
-                    <span class="option-avatar">LR</span>
-                    <span class="option-text">
-                      <span class="option-name">Romero, Lucía</span>
-                      <span class="option-email">lucia.romero@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t4" aria-selected="false">
-                    <span class="option-avatar">DL</span>
-                    <span class="option-text">
-                      <span class="option-name">López, Diego</span>
-                      <span class="option-email">diego.lopez@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t5" aria-selected="false">
-                    <span class="option-avatar">VP</span>
-                    <span class="option-text">
-                      <span class="option-name">Pérez, Valeria</span>
-                      <span class="option-email">valeria.perez@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t6" aria-selected="false">
-                    <span class="option-avatar">SA</span>
-                    <span class="option-text">
-                      <span class="option-name">Acosta, Sofía</span>
-                      <span class="option-email">sofia.acosta@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t7" aria-selected="false">
-                    <span class="option-avatar">JR</span>
-                    <span class="option-text">
-                      <span class="option-name">Ruiz, Julián</span>
-                      <span class="option-email">julian.ruiz@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t8" aria-selected="false">
-                    <span class="option-avatar">CT</span>
-                    <span class="option-text">
-                      <span class="option-name">Torres, Camila</span>
-                      <span class="option-email">camila.torres@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t9" aria-selected="false">
-                    <span class="option-avatar">MS</span>
-                    <span class="option-text">
-                      <span class="option-name">Silva, Martín</span>
-                      <span class="option-email">martin.silva@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-option option-teacher" role="option" data-value="t10" aria-selected="false">
-                    <span class="option-avatar">PM</span>
-                    <span class="option-text">
-                      <span class="option-name">Medina, Paula</span>
-                      <span class="option-email">paula.medina@escuela.edu.ar</span>
-                    </span>
-                  </li>
-                  <li class="dropdown-empty" hidden>Sin resultados</li>
-                </ul>
-              </div>
-
-              <grade-dropdown></grade-dropdown>
-
-              <div class="field">
-                <input type="text" placeholder="División" />
-              </div>
-
-              <div class="field field-select dropdown" data-filter="shift">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Turno</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="MORNING" aria-selected="false">Mañana</li>
-                  <li class="dropdown-option" role="option" data-value="AFTERNOON" aria-selected="false">Tarde</li>
-                </ul>
-              </div>
-
-              <div class="field field-select dropdown" data-filter="subject">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Materia</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todas</li>
-                  <li class="dropdown-option" role="option" data-value="MATH" aria-selected="false">Matemática</li>
-                  <li class="dropdown-option" role="option" data-value="LANGUAGE" aria-selected="false">Lengua</li>
-                  <li class="dropdown-option" role="option" data-value="NATURAL_SCIENCES" aria-selected="false">Ciencias Naturales</li>
-                  <li class="dropdown-option" role="option" data-value="HISTORY" aria-selected="false">Historia</li>
-                  <li class="dropdown-option" role="option" data-value="GEOGRAPHY" aria-selected="false">Geografía</li>
-                  <li class="dropdown-option" role="option" data-value="ENGLISH" aria-selected="false">Inglés</li>
-                </ul>
-              </div>
-
-              <div class="field field-select dropdown" data-filter="year">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Ciclo lectivo</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="2026" aria-selected="false">2026</li>
-                  <li class="dropdown-option" role="option" data-value="2025" aria-selected="false">2025</li>
-                  <li class="dropdown-option" role="option" data-value="2024" aria-selected="false">2024</li>
-                </ul>
-              </div>
-            </div>
-
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Profesor</th>
-                    <th>Curso</th>
+                    <th scope="col" class="column-filter" data-filter="teacher">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por profesor" aria-expanded="false" aria-controls="teacherFilter" popovertarget="teacherFilter">
+                        <span>Profesor</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="teacherFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por profesor">
+                        <div class="searchable-bar">
+                          <span class="searchable-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.35-4.35" /></svg>
+                          </span>
+                          <input type="text" class="searchable-input" placeholder="Buscar por profesor" aria-label="Buscar por profesor" autocomplete="off" />
+                        </div>
+                        <ul class="dropdown-menu dropdown-menu-teacher" role="listbox" aria-label="Profesor">
+                          <li class="dropdown-option option-teacher" role="option" data-value="t1" aria-selected="false">
+                            <span class="option-avatar">MG</span>
+                            <span class="option-text">
+                              <span class="option-name">González, María</span>
+                              <span class="option-email">maria.gonzalez@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-option option-teacher" role="option" data-value="t2" aria-selected="false">
+                            <span class="option-avatar">CF</span>
+                            <span class="option-text">
+                              <span class="option-name">Fernández, Carlos</span>
+                              <span class="option-email">carlos.fernandez@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-option option-teacher" role="option" data-value="t3" aria-selected="false">
+                            <span class="option-avatar">LR</span>
+                            <span class="option-text">
+                              <span class="option-name">Romero, Lucía</span>
+                              <span class="option-email">lucia.romero@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-option option-teacher" role="option" data-value="t4" aria-selected="false">
+                            <span class="option-avatar">DL</span>
+                            <span class="option-text">
+                              <span class="option-name">López, Diego</span>
+                              <span class="option-email">diego.lopez@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-option option-teacher" role="option" data-value="t5" aria-selected="false">
+                            <span class="option-avatar">VP</span>
+                            <span class="option-text">
+                              <span class="option-name">Pérez, Valeria</span>
+                              <span class="option-email">valeria.perez@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-option option-teacher" role="option" data-value="t6" aria-selected="false">
+                            <span class="option-avatar">SA</span>
+                            <span class="option-text">
+                              <span class="option-name">Acosta, Sofía</span>
+                              <span class="option-email">sofia.acosta@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-option option-teacher" role="option" data-value="t7" aria-selected="false">
+                            <span class="option-avatar">JR</span>
+                            <span class="option-text">
+                              <span class="option-name">Ruiz, Julián</span>
+                              <span class="option-email">julian.ruiz@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-option option-teacher" role="option" data-value="t8" aria-selected="false">
+                            <span class="option-avatar">CT</span>
+                            <span class="option-text">
+                              <span class="option-name">Torres, Camila</span>
+                              <span class="option-email">camila.torres@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-option option-teacher" role="option" data-value="t9" aria-selected="false">
+                            <span class="option-avatar">MS</span>
+                            <span class="option-text">
+                              <span class="option-name">Silva, Martín</span>
+                              <span class="option-email">martin.silva@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-option option-teacher" role="option" data-value="t10" aria-selected="false">
+                            <span class="option-avatar">PM</span>
+                            <span class="option-text">
+                              <span class="option-name">Medina, Paula</span>
+                              <span class="option-email">paula.medina@escuela.edu.ar</span>
+                            </span>
+                          </li>
+                          <li class="dropdown-empty" hidden>Sin resultados</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
+                    <th scope="col" class="column-filter" data-filter="course">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por curso" aria-expanded="false" aria-controls="courseFilter" popovertarget="courseFilter">
+                        <span>Curso</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <!-- El componente propio de Curso se implementará más adelante; el panel queda preparado en el encabezado. -->
+                      <div id="courseFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por curso">
+                        <p class="dropdown-empty">Filtro de curso en desarrollo</p>
+                      </div>
+                    </th>
                     <th>Nivel educativo</th>
-                    <th>Materia</th>
-                    <th>Ciclo lectivo</th>
+                    <th scope="col" class="column-filter" data-filter="subject">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por materia" aria-expanded="false" aria-controls="subjectFilter" popovertarget="subjectFilter">
+                        <span>Materia</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="subjectFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por materia">
+                        <ul class="dropdown-menu" role="listbox" aria-label="Materia">
+                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todas</li>
+                          <li class="dropdown-option" role="option" data-value="MATH" aria-selected="false">Matemática</li>
+                          <li class="dropdown-option" role="option" data-value="LANGUAGE" aria-selected="false">Lengua</li>
+                          <li class="dropdown-option" role="option" data-value="NATURAL_SCIENCES" aria-selected="false">Ciencias Naturales</li>
+                          <li class="dropdown-option" role="option" data-value="HISTORY" aria-selected="false">Historia</li>
+                          <li class="dropdown-option" role="option" data-value="GEOGRAPHY" aria-selected="false">Geografía</li>
+                          <li class="dropdown-option" role="option" data-value="ENGLISH" aria-selected="false">Inglés</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
+                    <th scope="col" class="column-filter" data-filter="year">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por ciclo lectivo" aria-expanded="false" aria-controls="yearFilter" popovertarget="yearFilter">
+                        <span>Ciclo lectivo</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="yearFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por ciclo lectivo">
+                        <ul class="dropdown-menu" role="listbox" aria-label="Ciclo lectivo">
+                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                          <li class="dropdown-option" role="option" data-value="2026" aria-selected="false">2026</li>
+                          <li class="dropdown-option" role="option" data-value="2025" aria-selected="false">2025</li>
+                          <li class="dropdown-option" role="option" data-value="2024" aria-selected="false">2024</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -213,13 +202,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -242,13 +231,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -271,13 +260,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -300,13 +289,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -329,13 +318,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -358,13 +347,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -387,13 +376,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -416,13 +405,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -445,13 +434,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -474,13 +463,13 @@
                     <td>
                       <div class="table-actions">
                         <button class="table-action" type="button" data-action="edit" aria-label="Editar asignación" title="Editar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16 3 5 5L8 21H3v-5L16 3Z M13 6l5 5" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
                         <button class="table-action" type="button" aria-label="Borrar asignación" title="Borrar asignación">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>

@@ -39,14 +39,7 @@
   gap: 20px;
 }
 
-/* ---------- Filters row ---------- */
-
-.filters-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
+/* ---------- Fields ---------- */
 
 .field {
   position: relative;
@@ -269,6 +262,15 @@
   border-bottom: none;
 }
 
+/* Acciones de fila en tono discreto, igual que en Usuarios; el azul queda reservado al hover. */
+.assignments-card .table-action {
+  color: var(--color-text-tertiary);
+}
+
+.assignments-card .table-action:hover {
+  color: var(--color-accent-blue);
+}
+
 /* Profesor: avatar + nombre/email (mismo estilo que vista Usuarios) */
 
 .avatar-circle {
@@ -429,7 +431,8 @@
   position: relative;
 }
 
-.searchable-bar {
+/* Acotado al campo del modal: la barra del filtro de columna la dimensiona column-filter.css. */
+.field-searchable .searchable-bar {
   width: 100%;
   min-height: 38px;
   padding: 6px 14px;
@@ -452,7 +455,7 @@
   color: var(--color-text-tertiary);
 }
 
-.searchable-icon svg {
+.field-searchable .searchable-icon svg {
   width: 16px;
   height: 16px;
 }
@@ -487,29 +490,6 @@
 
 .searchable-bar.has-value:not(.is-editing) .searchable-value {
   display: flex;
-}
-
-/* El filtro conserva las dimensiones al alternar entre búsqueda y selección. */
-[data-role="teacher-filter-select"] .searchable-bar {
-  height: 38px;
-  min-width: 0;
-  padding-block: 0;
-}
-
-[data-role="teacher-filter-select"] .searchable-input {
-  height: 100%;
-}
-
-[data-role="teacher-filter-select"] .searchable-value {
-  font-size: 14px;
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-[data-role="teacher-filter-select"] .searchable-bar.has-value:not(.is-editing) .searchable-value {
-  display: block;
 }
 
 .searchable-bar.has-value:not(.is-editing) .searchable-input,
