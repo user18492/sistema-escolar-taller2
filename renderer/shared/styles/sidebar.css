@@ -68,7 +68,7 @@ app-sidebar {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 16px;
   padding: 13px 18px;
   border-radius: var(--radius-sm);
   font-size: 16px;
@@ -78,8 +78,8 @@ app-sidebar {
 }
 
 .nav-item svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
 }
 
