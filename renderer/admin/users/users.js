@@ -306,20 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('input', updateCreateButtonState);
   });
 
-  // Mantiene el foco dentro del modal abierto al recorrerlo con Tab.
-  function trapFocus(container, event) {
-    const controls = Array.from(container.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]'))
-      .filter((element) => element.getClientRects().length > 0);
-    const first = controls[0];
-    const last = controls[controls.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  }
+  // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
 
   openModalBtn.addEventListener('click', () => openModal());
   document.querySelectorAll('.data-table tbody [data-action="edit"]').forEach((button) => {
@@ -327,7 +314,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   overlay.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !cropDialog.open) closeModal();
-    if (event.key === 'Tab') trapFocus(overlay, event);
   });
   cancelBtn.addEventListener('click', closeModal);
 
@@ -363,7 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   deleteOverlay.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeDeleteModal();
-    if (event.key === 'Tab') trapFocus(deleteOverlay, event);
   });
   cancelDeleteBtn.addEventListener('click', closeDeleteModal);
   document.getElementById('confirmDeleteUserBtn').addEventListener('click', () => {

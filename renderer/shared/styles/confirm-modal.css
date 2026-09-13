@@ -1,0 +1,85 @@
+/* Componente reutilizable: modal de confirmación para acciones destructivas (Eliminar) */
+
+/* Confirmación compacta: más angosta que los formularios y con el contenido centrado.
+   Se combina con .modal para no depender del orden de carga frente al ancho que cada
+   vista le da a sus modales de formulario. */
+.modal.modal-confirm {
+  max-width: 440px;
+  padding: 32px;
+}
+
+.confirm-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.confirm-icon {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  background: var(--color-accent-red-bg);
+  color: var(--color-accent-red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.confirm-content h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.confirm-content p {
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+}
+
+/* Ambas acciones comparten el ancho disponible, como en la maqueta. */
+.confirm-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.confirm-actions .btn {
+  flex: 1;
+  height: 44px;
+  font-size: 15px;
+}
+
+.modal-confirm :focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 2px;
+}
+
+.btn-neutral {
+  background: #f3f4f6;
+  color: var(--color-text-primary);
+}
+
+.btn-neutral:hover {
+  background: var(--color-border);
+}
+
+.btn-danger {
+  background: var(--color-accent-red);
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+@media (max-width: 600px) {
+  .modal.modal-confirm { padding: 24px 20px; }
+}

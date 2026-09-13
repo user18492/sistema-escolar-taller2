@@ -200,4 +200,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // Vista puramente visual: crear y guardar no modifican datos persistidos.
     closeCourseModal();
   });
+
+  // ---------- Modal: Eliminar curso ----------
+
+  const deleteOverlay = document.getElementById('deleteCourseOverlay');
+  const cancelDeleteBtn = document.getElementById('cancelDeleteCourseBtn');
+  let deleteTrigger = null;
+
+  function openDeleteModal(trigger) {
+    deleteTrigger = trigger;
+    closeAllDropdowns();
+    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
+    deleteOverlay.classList.add('is-open');
+    // "Cancelar" recibe el foco para evitar eliminaciones accidentales con Enter.
+    cancelDeleteBtn.focus();
+  }
+
+  function closeDeleteModal() {
+    deleteOverlay.classList.remove('is-open');
+    deleteTrigger?.focus();
+  }
+
+  document.querySelectorAll('.data-table tbody [data-action="delete"]').forEach((button) => {
+    button.addEventListener('click', () => openDeleteModal(button));
+  });
+  deleteOverlay.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeDeleteModal();
+  });
+  cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+  document.getElementById('confirmDeleteCourseBtn').addEventListener('click', () => {
+    // Vista puramente visual: la eliminación real se conecta cuando exista la capa de servicios/IPC.
+    closeDeleteModal();
+  });
 });

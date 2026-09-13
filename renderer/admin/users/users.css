@@ -786,80 +786,7 @@
   outline-offset: 2px;
 }
 
-/* ---------- Modal: Eliminar usuario ---------- */
-
-/* Confirmación compacta: más angosta que el formulario y con el contenido centrado. */
-.modal-confirm {
-  max-width: 440px;
-  padding: 32px;
-}
-
-.confirm-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.confirm-icon {
-  width: 56px;
-  height: 56px;
-  margin-bottom: 16px;
-  border-radius: 50%;
-  background: var(--color-accent-red-bg);
-  color: var(--color-accent-red);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.confirm-icon svg {
-  width: 32px;
-  height: 32px;
-}
-
-.confirm-content h2 {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.confirm-content p {
-  margin-top: 8px;
-  font-size: 15px;
-  color: var(--color-text-secondary);
-}
-
-/* Ambas acciones comparten el ancho disponible, como en la maqueta. */
-.confirm-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 28px;
-}
-
-.confirm-actions .btn {
-  flex: 1;
-  height: 44px;
-  font-size: 15px;
-}
-
-.btn-neutral {
-  background: #f3f4f6;
-  color: var(--color-text-primary);
-}
-
-.btn-neutral:hover {
-  background: var(--color-border);
-}
-
-.btn-danger {
-  background: var(--color-accent-red);
-  color: #ffffff;
-}
-
-.btn-danger:hover {
-  background: #b91c1c;
-}
+/* El modal "Eliminar usuario" usa el componente compartido confirm-modal.css. */
 
 @media (max-width: 600px) {
   .modal-overlay { padding: calc(16px + var(--window-titlebar-height)) 16px 16px; }
@@ -867,5 +794,4 @@
   .modal-body { padding: 0 20px; }
   .modal-footer { padding: 24px 20px; }
   .form-grid { grid-template-columns: 1fr; }
-  .modal-confirm { padding: 24px 20px; }
 }
