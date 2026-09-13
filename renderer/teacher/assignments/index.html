@@ -7,9 +7,15 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/grade-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/course-filter.css" />
+    <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="./assignments.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/grade-dropdown.js"></script>
+    <script src="../../shared/components/course-filter.js"></script>
+    <script src="../../shared/components/column-filter.js"></script>
     <script src="./assignments.js" defer></script>
   </head>
   <body>
@@ -34,93 +40,58 @@
           </div>
 
           <section class="card assignments-card">
-            <div class="filters-row">
-              <div class="field field-select dropdown" data-filter="level">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Nivel educativo</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
-                  <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
-                </ul>
-              </div>
-
-              <!-- Curso depende del nivel educativo: arranca bloqueado y solo lista los cursos de ese nivel. -->
-              <div class="field field-searchable dropdown-searchable is-locked" data-role="course-select">
-                <div class="searchable-bar">
-                  <span class="searchable-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="11" cy="11" r="7" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </span>
-                  <input type="text" class="searchable-input" placeholder="Selecciona un nivel" autocomplete="off" disabled />
-                  <div class="searchable-value"></div>
-                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de cursos" aria-expanded="false" disabled>
-                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                </div>
-                <!-- Solo los cursos en los que el profesor tiene asignaciones. -->
-                <ul class="dropdown-menu dropdown-menu-course" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="c1" data-level="PRIMARY" aria-selected="false"><span class="option-name">1° A · Mañana</span></li>
-                  <li class="dropdown-option" role="option" data-value="c2" data-level="PRIMARY" aria-selected="false"><span class="option-name">1° B · Tarde</span></li>
-                  <li class="dropdown-option" role="option" data-value="c3" data-level="PRIMARY" aria-selected="false"><span class="option-name">2° A · Mañana</span></li>
-                  <li class="dropdown-option" role="option" data-value="c4" data-level="PRIMARY" aria-selected="false"><span class="option-name">3° A · Tarde</span></li>
-                  <li class="dropdown-option" role="option" data-value="c5" data-level="PRIMARY" aria-selected="false"><span class="option-name">5° B · Mañana</span></li>
-                  <li class="dropdown-option" role="option" data-value="c6" data-level="PRIMARY" aria-selected="false"><span class="option-name">6° A · Tarde</span></li>
-                  <li class="dropdown-option" role="option" data-value="c7" data-level="SECONDARY" aria-selected="false"><span class="option-name">2° A · Mañana</span></li>
-                  <li class="dropdown-option" role="option" data-value="c8" data-level="SECONDARY" aria-selected="false"><span class="option-name">2° B · Tarde</span></li>
-                  <li class="dropdown-option" role="option" data-value="c9" data-level="SECONDARY" aria-selected="false"><span class="option-name">3° B · Tarde</span></li>
-                  <li class="dropdown-option" role="option" data-value="c10" data-level="SECONDARY" aria-selected="false"><span class="option-name">4° A · Mañana</span></li>
-                  <li class="dropdown-empty" hidden>Sin resultados</li>
-                </ul>
-              </div>
-
-              <!-- Solo las materias que el profesor tiene asignadas. -->
-              <div class="field field-select dropdown" data-filter="subject">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Materia</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todas</li>
-                  <li class="dropdown-option" role="option" data-value="MATH" aria-selected="false">Matemática</li>
-                  <li class="dropdown-option" role="option" data-value="NATURAL_SCIENCES" aria-selected="false">Ciencias Naturales</li>
-                </ul>
-              </div>
-
-              <div class="field field-select dropdown" data-filter="year">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Ciclo lectivo</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="2026" aria-selected="false">2026</li>
-                  <li class="dropdown-option" role="option" data-value="2025" aria-selected="false">2025</li>
-                  <li class="dropdown-option" role="option" data-value="2024" aria-selected="false">2024</li>
-                </ul>
-              </div>
-            </div>
-
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Curso</th>
+                    <th scope="col" class="column-filter" data-filter="course">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por curso" aria-expanded="false" aria-controls="courseFilter" popovertarget="courseFilter">
+                        <span>Curso</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="courseFilter" class="column-filter-panel column-filter-grade" popover="auto" role="group" aria-label="Filtrar por curso">
+                        <course-filter></course-filter>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
+                    <!-- Columna informativa: el nivel educativo se filtra desde Curso. -->
                     <th>Nivel educativo</th>
-                    <th>Materia</th>
-                    <th>Ciclo lectivo</th>
+                    <th scope="col" class="column-filter" data-filter="subject">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por materia" aria-expanded="false" aria-controls="subjectFilter" popovertarget="subjectFilter">
+                        <span>Materia</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <!-- Solo las materias que el profesor tiene asignadas. -->
+                      <div id="subjectFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por materia">
+                        <ul class="dropdown-menu" role="listbox" aria-label="Materia">
+                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todas</li>
+                          <li class="dropdown-option" role="option" data-value="MATH" aria-selected="false">Matemática</li>
+                          <li class="dropdown-option" role="option" data-value="NATURAL_SCIENCES" aria-selected="false">Ciencias Naturales</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
+                    <th scope="col" class="column-filter" data-filter="year">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por ciclo lectivo" aria-expanded="false" aria-controls="yearFilter" popovertarget="yearFilter">
+                        <span>Ciclo lectivo</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="yearFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por ciclo lectivo">
+                        <ul class="dropdown-menu" role="listbox" aria-label="Ciclo lectivo">
+                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                          <li class="dropdown-option" role="option" data-value="2026" aria-selected="false">2026</li>
+                          <li class="dropdown-option" role="option" data-value="2025" aria-selected="false">2025</li>
+                          <li class="dropdown-option" role="option" data-value="2024" aria-selected="false">2024</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
