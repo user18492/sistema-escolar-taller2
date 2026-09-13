@@ -7,10 +7,12 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
     <link rel="stylesheet" href="./students.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="./students.js" defer></script>
@@ -41,278 +43,281 @@
           </div>
 
           <section class="card students-card">
-            <div class="filters-row">
-              <div class="field field-searchable dropdown-searchable" data-role="name-select">
-                <div class="searchable-bar">
-                  <span class="searchable-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="11" cy="11" r="7" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </span>
-                  <input type="text" class="searchable-input" placeholder="Buscar por nombre" autocomplete="off" />
-                  <div class="searchable-value"></div>
-                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de alumnos" aria-expanded="false">
-                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                </div>
-                <ul class="dropdown-menu dropdown-menu-student" role="listbox" hidden>
-                  <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
-                    <span class="option-name">Álvarez, Camila</span>
-                    <span class="option-detail">camila.alvarez@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
-                    <span class="option-name">Benítez, Tomás</span>
-                    <span class="option-detail">tomas.benitez@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
-                    <span class="option-name">Cabrera, Julieta</span>
-                    <span class="option-detail">julieta.cabrera@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
-                    <span class="option-name">Duarte, Facundo</span>
-                    <span class="option-detail">facundo.duarte@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
-                    <span class="option-name">Escobar, Martina</span>
-                    <span class="option-detail">martina.escobar@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
-                    <span class="option-name">Ferreyra, Lautaro</span>
-                    <span class="option-detail">lautaro.ferreyra@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
-                    <span class="option-name">Gauna, Valentina</span>
-                    <span class="option-detail">valentina.gauna@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
-                    <span class="option-name">Herrera, Bautista</span>
-                    <span class="option-detail">bautista.herrera@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
-                    <span class="option-name">Ibarra, Delfina</span>
-                    <span class="option-detail">delfina.ibarra@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
-                    <span class="option-name">Juárez, Thiago</span>
-                    <span class="option-detail">thiago.juarez@institucion.edu.ar</span>
-                  </li>
-                  <li class="dropdown-empty" hidden>Sin resultados</li>
-                </ul>
-              </div>
-
-              <div class="field field-searchable dropdown-searchable" data-role="email-select">
-                <div class="searchable-bar">
-                  <span class="searchable-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="11" cy="11" r="7" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </span>
-                  <input type="text" class="searchable-input" placeholder="Buscar por email" autocomplete="off" />
-                  <div class="searchable-value"></div>
-                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de email" aria-expanded="false">
-                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                </div>
-                <ul class="dropdown-menu dropdown-menu-student" role="listbox" hidden>
-                  <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
-                    <span class="option-name">camila.alvarez@institucion.edu.ar</span>
-                    <span class="option-detail">Álvarez, Camila</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
-                    <span class="option-name">tomas.benitez@institucion.edu.ar</span>
-                    <span class="option-detail">Benítez, Tomás</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
-                    <span class="option-name">julieta.cabrera@institucion.edu.ar</span>
-                    <span class="option-detail">Cabrera, Julieta</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
-                    <span class="option-name">facundo.duarte@institucion.edu.ar</span>
-                    <span class="option-detail">Duarte, Facundo</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
-                    <span class="option-name">martina.escobar@institucion.edu.ar</span>
-                    <span class="option-detail">Escobar, Martina</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
-                    <span class="option-name">lautaro.ferreyra@institucion.edu.ar</span>
-                    <span class="option-detail">Ferreyra, Lautaro</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
-                    <span class="option-name">valentina.gauna@institucion.edu.ar</span>
-                    <span class="option-detail">Gauna, Valentina</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
-                    <span class="option-name">bautista.herrera@institucion.edu.ar</span>
-                    <span class="option-detail">Herrera, Bautista</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
-                    <span class="option-name">delfina.ibarra@institucion.edu.ar</span>
-                    <span class="option-detail">Ibarra, Delfina</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
-                    <span class="option-name">thiago.juarez@institucion.edu.ar</span>
-                    <span class="option-detail">Juárez, Thiago</span>
-                  </li>
-                  <li class="dropdown-empty" hidden>Sin resultados</li>
-                </ul>
-              </div>
-
-              <div class="field field-searchable dropdown-searchable" data-role="phone-select">
-                <div class="searchable-bar">
-                  <span class="searchable-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="11" cy="11" r="7" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </span>
-                  <input type="text" class="searchable-input" placeholder="Buscar por teléfono" autocomplete="off" />
-                  <div class="searchable-value"></div>
-                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de teléfonos" aria-expanded="false">
-                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                </div>
-                <ul class="dropdown-menu dropdown-menu-student" role="listbox" hidden>
-                  <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
-                    <span class="option-name">379 412-3456</span>
-                    <span class="option-detail">Álvarez, Camila</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
-                    <span class="option-name">379 415-7821</span>
-                    <span class="option-detail">Benítez, Tomás</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
-                    <span class="option-name">379 421-9034</span>
-                    <span class="option-detail">Cabrera, Julieta</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
-                    <span class="option-name">379 433-1120</span>
-                    <span class="option-detail">Duarte, Facundo</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
-                    <span class="option-name">379 445-6602</span>
-                    <span class="option-detail">Escobar, Martina</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
-                    <span class="option-name">379 452-3388</span>
-                    <span class="option-detail">Ferreyra, Lautaro</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
-                    <span class="option-name">379 460-7715</span>
-                    <span class="option-detail">Gauna, Valentina</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
-                    <span class="option-name">379 471-2049</span>
-                    <span class="option-detail">Herrera, Bautista</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
-                    <span class="option-name">379 480-5563</span>
-                    <span class="option-detail">Ibarra, Delfina</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
-                    <span class="option-name">379 494-8871</span>
-                    <span class="option-detail">Juárez, Thiago</span>
-                  </li>
-                  <li class="dropdown-empty" hidden>Sin resultados</li>
-                </ul>
-              </div>
-
-              <div class="field field-searchable dropdown-searchable" data-role="dni-select">
-                <div class="searchable-bar">
-                  <span class="searchable-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="11" cy="11" r="7" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </span>
-                  <input type="text" class="searchable-input" placeholder="Buscar por DNI" autocomplete="off" />
-                  <div class="searchable-value"></div>
-                  <button type="button" class="searchable-chevron" aria-label="Abrir lista de DNI" aria-expanded="false">
-                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                </div>
-                <ul class="dropdown-menu dropdown-menu-student" role="listbox" hidden>
-                  <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
-                    <span class="option-name">48.123.456</span>
-                    <span class="option-detail">Álvarez, Camila</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
-                    <span class="option-name">47.982.310</span>
-                    <span class="option-detail">Benítez, Tomás</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
-                    <span class="option-name">49.204.775</span>
-                    <span class="option-detail">Cabrera, Julieta</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
-                    <span class="option-name">46.870.223</span>
-                    <span class="option-detail">Duarte, Facundo</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
-                    <span class="option-name">48.556.941</span>
-                    <span class="option-detail">Escobar, Martina</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
-                    <span class="option-name">47.331.408</span>
-                    <span class="option-detail">Ferreyra, Lautaro</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
-                    <span class="option-name">49.617.882</span>
-                    <span class="option-detail">Gauna, Valentina</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
-                    <span class="option-name">46.204.559</span>
-                    <span class="option-detail">Herrera, Bautista</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
-                    <span class="option-name">48.998.127</span>
-                    <span class="option-detail">Ibarra, Delfina</span>
-                  </li>
-                  <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
-                    <span class="option-name">47.145.690</span>
-                    <span class="option-detail">Juárez, Thiago</span>
-                  </li>
-                  <li class="dropdown-empty" hidden>Sin resultados</li>
-                </ul>
-              </div>
-
-              <div class="field field-select dropdown" data-filter="status">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Estado</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activo</li>
-                  <li class="dropdown-option" role="option" data-value="SUSPENDED" aria-selected="false">Suspendido</li>
-                  <li class="dropdown-option" role="option" data-value="GRADUATED" aria-selected="false">Egresado</li>
-                </ul>
-              </div>
-            </div>
-
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Nombre</th>
-                    <th>Email</th>
-                    <th>Teléfono</th>
+                    <th scope="col" class="column-filter" data-filter="name">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por nombre" aria-expanded="false" aria-controls="nameFilter" popovertarget="nameFilter">
+                        <span>Nombre</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="nameFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por nombre">
+                        <div class="searchable-bar">
+                          <span class="searchable-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="11" cy="11" r="7" />
+                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                          </span>
+                          <input type="text" class="searchable-input" placeholder="Buscar por nombre" aria-label="Buscar por nombre" autocomplete="off" />
+                        </div>
+                        <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="Nombre">
+                          <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                            <span class="option-name">Álvarez, Camila</span>
+                            <span class="option-detail">camila.alvarez@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                            <span class="option-name">Benítez, Tomás</span>
+                            <span class="option-detail">tomas.benitez@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                            <span class="option-name">Cabrera, Julieta</span>
+                            <span class="option-detail">julieta.cabrera@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                            <span class="option-name">Duarte, Facundo</span>
+                            <span class="option-detail">facundo.duarte@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                            <span class="option-name">Escobar, Martina</span>
+                            <span class="option-detail">martina.escobar@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                            <span class="option-name">Ferreyra, Lautaro</span>
+                            <span class="option-detail">lautaro.ferreyra@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                            <span class="option-name">Gauna, Valentina</span>
+                            <span class="option-detail">valentina.gauna@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                            <span class="option-name">Herrera, Bautista</span>
+                            <span class="option-detail">bautista.herrera@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                            <span class="option-name">Ibarra, Delfina</span>
+                            <span class="option-detail">delfina.ibarra@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                            <span class="option-name">Juárez, Thiago</span>
+                            <span class="option-detail">thiago.juarez@institucion.edu.ar</span>
+                          </li>
+                          <li class="dropdown-empty" hidden>Sin resultados</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
+                    <th scope="col" class="column-filter" data-filter="email">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por email" aria-expanded="false" aria-controls="emailFilter" popovertarget="emailFilter">
+                        <span>Email</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="emailFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por email">
+                        <div class="searchable-bar">
+                          <span class="searchable-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="11" cy="11" r="7" />
+                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                          </span>
+                          <input type="text" class="searchable-input" placeholder="Buscar por email" aria-label="Buscar por email" autocomplete="off" />
+                        </div>
+                        <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="Email">
+                          <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                            <span class="option-name">camila.alvarez@institucion.edu.ar</span>
+                            <span class="option-detail">Álvarez, Camila</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                            <span class="option-name">tomas.benitez@institucion.edu.ar</span>
+                            <span class="option-detail">Benítez, Tomás</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                            <span class="option-name">julieta.cabrera@institucion.edu.ar</span>
+                            <span class="option-detail">Cabrera, Julieta</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                            <span class="option-name">facundo.duarte@institucion.edu.ar</span>
+                            <span class="option-detail">Duarte, Facundo</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                            <span class="option-name">martina.escobar@institucion.edu.ar</span>
+                            <span class="option-detail">Escobar, Martina</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                            <span class="option-name">lautaro.ferreyra@institucion.edu.ar</span>
+                            <span class="option-detail">Ferreyra, Lautaro</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                            <span class="option-name">valentina.gauna@institucion.edu.ar</span>
+                            <span class="option-detail">Gauna, Valentina</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                            <span class="option-name">bautista.herrera@institucion.edu.ar</span>
+                            <span class="option-detail">Herrera, Bautista</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                            <span class="option-name">delfina.ibarra@institucion.edu.ar</span>
+                            <span class="option-detail">Ibarra, Delfina</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                            <span class="option-name">thiago.juarez@institucion.edu.ar</span>
+                            <span class="option-detail">Juárez, Thiago</span>
+                          </li>
+                          <li class="dropdown-empty" hidden>Sin resultados</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
+                    <th scope="col" class="column-filter" data-filter="phone">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por teléfono" aria-expanded="false" aria-controls="phoneFilter" popovertarget="phoneFilter">
+                        <span>Teléfono</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="phoneFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por teléfono">
+                        <div class="searchable-bar">
+                          <span class="searchable-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="11" cy="11" r="7" />
+                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                          </span>
+                          <input type="text" class="searchable-input" placeholder="Buscar por teléfono" aria-label="Buscar por teléfono" autocomplete="off" />
+                        </div>
+                        <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="Teléfono">
+                          <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                            <span class="option-name">379 412-3456</span>
+                            <span class="option-detail">Álvarez, Camila</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                            <span class="option-name">379 415-7821</span>
+                            <span class="option-detail">Benítez, Tomás</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                            <span class="option-name">379 421-9034</span>
+                            <span class="option-detail">Cabrera, Julieta</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                            <span class="option-name">379 433-1120</span>
+                            <span class="option-detail">Duarte, Facundo</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                            <span class="option-name">379 445-6602</span>
+                            <span class="option-detail">Escobar, Martina</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                            <span class="option-name">379 452-3388</span>
+                            <span class="option-detail">Ferreyra, Lautaro</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                            <span class="option-name">379 460-7715</span>
+                            <span class="option-detail">Gauna, Valentina</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                            <span class="option-name">379 471-2049</span>
+                            <span class="option-detail">Herrera, Bautista</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                            <span class="option-name">379 480-5563</span>
+                            <span class="option-detail">Ibarra, Delfina</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                            <span class="option-name">379 494-8871</span>
+                            <span class="option-detail">Juárez, Thiago</span>
+                          </li>
+                          <li class="dropdown-empty" hidden>Sin resultados</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th>Dirección</th>
-                    <th>DNI</th>
+                    <th scope="col" class="column-filter" data-filter="dni">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por DNI" aria-expanded="false" aria-controls="dniFilter" popovertarget="dniFilter">
+                        <span>DNI</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="dniFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por DNI">
+                        <div class="searchable-bar">
+                          <span class="searchable-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="11" cy="11" r="7" />
+                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                          </span>
+                          <input type="text" class="searchable-input" placeholder="Buscar por DNI" aria-label="Buscar por DNI" autocomplete="off" />
+                        </div>
+                        <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="DNI">
+                          <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                            <span class="option-name">48.123.456</span>
+                            <span class="option-detail">Álvarez, Camila</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                            <span class="option-name">47.982.310</span>
+                            <span class="option-detail">Benítez, Tomás</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                            <span class="option-name">49.204.775</span>
+                            <span class="option-detail">Cabrera, Julieta</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                            <span class="option-name">46.870.223</span>
+                            <span class="option-detail">Duarte, Facundo</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                            <span class="option-name">48.556.941</span>
+                            <span class="option-detail">Escobar, Martina</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                            <span class="option-name">47.331.408</span>
+                            <span class="option-detail">Ferreyra, Lautaro</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                            <span class="option-name">49.617.882</span>
+                            <span class="option-detail">Gauna, Valentina</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                            <span class="option-name">46.204.559</span>
+                            <span class="option-detail">Herrera, Bautista</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                            <span class="option-name">48.998.127</span>
+                            <span class="option-detail">Ibarra, Delfina</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                            <span class="option-name">47.145.690</span>
+                            <span class="option-detail">Juárez, Thiago</span>
+                          </li>
+                          <li class="dropdown-empty" hidden>Sin resultados</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th>Fecha de nacimiento</th>
-                    <th>Estado</th>
+                    <th scope="col" class="column-filter" data-filter="status">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por estado" aria-expanded="false" aria-controls="statusFilter" popovertarget="statusFilter">
+                        <span>Estado</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="statusFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por estado">
+                        <ul class="dropdown-menu" role="listbox" aria-label="Estado">
+                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                          <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activo</li>
+                          <li class="dropdown-option" role="option" data-value="SUSPENDED" aria-selected="false">Suspendido</li>
+                          <li class="dropdown-option" role="option" data-value="GRADUATED" aria-selected="false">Egresado</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -325,7 +330,20 @@
                     <td>48.123.456</td>
                     <td>12/03/2010</td>
                     <td><span class="badge badge-active">Activo</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="student-name">Benítez, Tomás</td>
@@ -335,7 +353,20 @@
                     <td>47.982.310</td>
                     <td>25/07/2009</td>
                     <td><span class="badge badge-active">Activo</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="student-name">Cabrera, Julieta</td>
@@ -345,7 +376,20 @@
                     <td>49.204.775</td>
                     <td>08/11/2011</td>
                     <td><span class="badge badge-active">Activo</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="student-name">Duarte, Facundo</td>
@@ -355,7 +399,20 @@
                     <td>46.870.223</td>
                     <td>30/01/2008</td>
                     <td><span class="badge badge-graduated">Egresado</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="student-name">Escobar, Martina</td>
@@ -365,7 +422,20 @@
                     <td>48.556.941</td>
                     <td>17/05/2010</td>
                     <td><span class="badge badge-active">Activo</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="student-name">Ferreyra, Lautaro</td>
@@ -375,7 +445,20 @@
                     <td>47.331.408</td>
                     <td>02/09/2009</td>
                     <td><span class="badge badge-suspended">Suspendido</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="student-name">Gauna, Valentina</td>
@@ -385,7 +468,20 @@
                     <td>49.617.882</td>
                     <td>21/12/2011</td>
                     <td><span class="badge badge-active">Activo</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="student-name">Herrera, Bautista</td>
@@ -395,7 +491,20 @@
                     <td>46.204.559</td>
                     <td>14/06/2008</td>
                     <td><span class="badge badge-graduated">Egresado</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="student-name">Ibarra, Delfina</td>
@@ -405,7 +514,20 @@
                     <td>48.998.127</td>
                     <td>09/02/2010</td>
                     <td><span class="badge badge-active">Activo</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   <tr>
                     <td class="student-name">Juárez, Thiago</td>
@@ -415,7 +537,20 @@
                     <td>47.145.690</td>
                     <td>26/10/2009</td>
                     <td><span class="badge badge-suspended">Suspendido</span></td>
-                    <td><button class="btn btn-secondary" type="button">Editar</button></td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" aria-label="Eliminar alumno" title="Eliminar alumno">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 </tbody>
               </table>

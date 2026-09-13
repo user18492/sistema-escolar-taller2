@@ -457,6 +457,15 @@
   color: #c2410c;
 }
 
+/* Acciones de fila en tono discreto, igual que en Administrador; el azul queda reservado al hover. */
+.enrollments-card .table-action {
+  color: var(--color-text-tertiary);
+}
+
+.enrollments-card .table-action:hover {
+  color: var(--color-accent-blue);
+}
+
 /* Las inscripciones vigentes todavía no tienen fecha de baja. */
 .date-empty {
   color: var(--color-text-tertiary);

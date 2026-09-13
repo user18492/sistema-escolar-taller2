@@ -39,13 +39,7 @@
   gap: 20px;
 }
 
-/* ---------- Filters row ---------- */
-
-.filters-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+/* ---------- Form fields ---------- */
 
 .field {
   position: relative;
@@ -72,16 +66,6 @@
 .field input:focus {
   outline: none;
   border-color: var(--color-accent-blue);
-}
-
-.field:not(.field-select) {
-  flex: 1;
-  min-width: 160px;
-}
-
-.field-select {
-  flex: 0.9;
-  min-width: 140px;
 }
 
 /* ---------- Dropdown custom (Estado) ---------- */
@@ -180,104 +164,8 @@
   font-weight: 500;
 }
 
-/* Campo con búsqueda integrada (Nombre / Email / Teléfono / DNI): dimensiones
-   estables entre búsqueda y selección. */
-
-.dropdown-searchable {
-  position: relative;
-}
-
-.searchable-bar {
-  width: 100%;
-  min-width: 0;
-  height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.dropdown-searchable.open .searchable-bar,
-.searchable-bar:focus-within {
-  border-color: var(--color-accent-blue);
-}
-
-.searchable-icon {
-  display: flex;
-  flex-shrink: 0;
-  color: var(--color-text-tertiary);
-}
-
-.searchable-icon svg {
-  width: 15px;
-  height: 15px;
-}
-
-/* Mayor especificidad que .field input: el borde pertenece solo a la barra. */
-.field-searchable .searchable-input {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  border: none;
-  border-radius: 0;
-  outline: none;
-  box-shadow: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--color-text-primary);
-  padding: 0;
-}
-
-.searchable-input::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.searchable-value {
-  display: none;
-  flex: 1;
-  min-width: 0;
-  font-size: 14px;
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.searchable-bar.has-value:not(.is-editing) .searchable-value {
-  display: block;
-}
-
-.searchable-bar.has-value:not(.is-editing) .searchable-input,
-.searchable-bar.has-value:not(.is-editing) .searchable-icon {
-  display: none;
-}
-
-.searchable-chevron {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-}
-
-.searchable-chevron .chevron {
-  width: 13px;
-  height: 13px;
-  color: var(--color-text-secondary);
-  transition: transform 0.15s ease;
-}
-
-.dropdown-searchable.open .searchable-chevron .chevron {
-  transform: rotate(180deg);
-}
-
-/* Opciones de alumno: sin avatar, solo el dato buscado y su referencia. */
+/* Opciones de alumno en los filtros de columna (Nombre / Email / Teléfono / DNI):
+   sin avatar, solo el dato buscado y su referencia. */
 
 .dropdown-menu-student {
   max-height: 260px;
@@ -433,6 +321,15 @@
 .badge-graduated {
   background: var(--color-accent-blue-bg);
   color: #2563eb;
+}
+
+/* Acciones de fila en tono discreto, igual que en Administrador; el azul queda reservado al hover. */
+.students-card .table-action {
+  color: var(--color-text-tertiary);
+}
+
+.students-card .table-action:hover {
+  color: var(--color-accent-blue);
 }
 
 /* ---------- Table footer / pagination ---------- */

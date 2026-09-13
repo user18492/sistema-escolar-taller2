@@ -344,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusLabel = statusDropdown.querySelector('.dropdown-label');
   const statusOptions = statusDropdown.querySelectorAll('.dropdown-option');
 
-  // Botón "Editar" que abrió el modal: recupera el foco al cerrarlo.
+  // Ícono "Editar" que abrió el modal: recupera el foco al cerrarlo.
   let editTrigger = null;
 
   // Marca la opción de estado cuyo texto coincide con el de la fila, replicando lo
@@ -382,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
     editTrigger.focus();
   }
 
-  document.querySelectorAll('.data-table tbody .btn').forEach((button) => {
+  document.querySelectorAll('.data-table tbody [data-action=edit]').forEach((button) => {
     button.addEventListener('click', () => openEditModal(button.closest('tr'), button));
   });
 
