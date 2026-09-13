@@ -110,9 +110,9 @@ app-sidebar {
   flex-shrink: 0;
 }
 
-/* Menú del Administrador: los íconos usan un gris muy oscuro, más discreto que el texto
-   de la opción. El item activo conserva el azul heredado de su texto. */
-.sidebar[data-nav-role="admin"] .nav-item:not(.active) svg {
+/* Menús del Administrador y del Secretario: los íconos usan un gris muy oscuro, más
+   discreto que el texto de la opción. El item activo conserva el azul heredado de su texto. */
+.sidebar:is([data-nav-role="admin"], [data-nav-role="secretary"]) .nav-item:not(.active) svg {
   color: #4b5563;
 }
 
