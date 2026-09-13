@@ -59,10 +59,36 @@ app-sidebar {
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+/* Categoría del menú (ver sidebar.js). El título y la línea divisoria no tienen sangría:
+   quedan alineados con el borde izquierdo del área de los items, que es donde empieza el
+   fondo de hover y del item activo. */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Sumado al gap del grupo deja 14px entre el título y su primera opción. */
+.nav-group-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* Divisor entre categorías, con el mismo espacio por encima y por debajo. */
+.nav-group + .nav-group {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
 }
 
 .nav-item {
