@@ -39,13 +39,7 @@
   gap: 20px;
 }
 
-/* ---------- Filters row ---------- */
-
-.filters-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+/* ---------- Form fields ---------- */
 
 .field {
   position: relative;
@@ -72,16 +66,6 @@
 .field input:focus {
   outline: none;
   border-color: var(--color-accent-blue);
-}
-
-.field:not(.field-select) {
-  flex: 1;
-  min-width: 160px;
-}
-
-.field-select {
-  flex: 0.9;
-  min-width: 140px;
 }
 
 /* ---------- Dropdown custom (Nivel educativo / Estado) ---------- */
@@ -180,17 +164,20 @@
   font-weight: 500;
 }
 
-/* Campo con búsqueda integrada (Número de inscripción / Alumno / Curso):
+/* Campo con búsqueda integrada del modal (Alumno / Curso):
    dimensiones estables entre búsqueda y selección. */
 
 .dropdown-searchable {
   position: relative;
 }
 
-.searchable-bar {
+/* Acotado al campo del modal: la barra del filtro de columna la dimensiona column-filter.css.
+   Sin margen inferior: el que column-filter.css da a su barra de búsqueda no aplica al campo. */
+.field-searchable .searchable-bar {
   width: 100%;
   min-width: 0;
   height: 38px;
+  margin-bottom: 0;
   padding: 0 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);

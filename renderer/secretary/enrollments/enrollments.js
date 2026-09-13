@@ -74,7 +74,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ---------- Filtros: Número de inscripción / Alumno / Curso ----------
+  // Los filtros de Número de inscripción / Alumno / Curso / Estado viven en los encabezados
+  // de la tabla y los gestiona el componente compartido column-filter.js; Curso incrusta
+  // <course-filter>, el mismo filtro compuesto de Docencia.
+
+  // ---------- Campos con búsqueda del modal: Alumno / Curso ----------
 
   // Campo con búsqueda integrada: un único componente que combina un input de filtro
   // y una lista desplegable (mismo patrón usado en Alumnos y en Docencia).
@@ -202,33 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  const numberSelect = setupSearchableSelect(document.querySelector('[data-role="number-select"]'));
-  const studentSelect = setupSearchableSelect(document.querySelector('[data-role="student-select"]'));
-  const courseSelect = setupSearchableSelect(document.querySelector('[data-role="course-select"]'));
-  searchableSelects = [numberSelect, studentSelect, courseSelect];
-
-  // ---------- Filtro Curso dependiente del Nivel educativo ----------
-
-  const COURSE_LOCKED_PLACEHOLDER = 'Selecciona un nivel';
-  const COURSE_UNLOCKED_PLACEHOLDER = 'Buscar curso';
-
-  courseSelect.lock(COURSE_LOCKED_PLACEHOLDER);
-
-  const levelDropdown = document.querySelector('[data-filter="level"]');
-  levelDropdown.querySelectorAll('.dropdown-option').forEach((option) => {
-    option.addEventListener('click', () => {
-      const level = option.dataset.value;
-      courseSelect.reset();
-      courseSelect.setGroupFilter(level);
-      // "Todos" no acota ningún nivel: el curso vuelve a quedar bloqueado.
-      if (level) {
-        courseSelect.unlock(COURSE_UNLOCKED_PLACEHOLDER);
-      } else {
-        courseSelect.lock(COURSE_LOCKED_PLACEHOLDER);
-      }
-    });
-  });
-
   // ---------- Modal: Nueva inscripción ----------
 
   const enrollmentOverlay = document.getElementById('newEnrollmentOverlay');
@@ -238,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const MODAL_LEVEL_PLACEHOLDER = 'Seleccionar nivel educativo';
   const MODAL_COURSE_LOCKED_PLACEHOLDER = 'Selecciona primero un nivel educativo';
+  const MODAL_COURSE_UNLOCKED_PLACEHOLDER = 'Buscar curso';
 
   const modalStudentSelect = setupSearchableSelect(
     enrollmentOverlay.querySelector('[data-role="new-enrollment-student-select"]')
@@ -245,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalCourseSelect = setupSearchableSelect(
     enrollmentOverlay.querySelector('[data-role="new-enrollment-course-select"]')
   );
-  searchableSelects.push(modalStudentSelect, modalCourseSelect);
+  searchableSelects = [modalStudentSelect, modalCourseSelect];
 
   const modalLevelDropdown = enrollmentOverlay.querySelector('[data-filter="new-enrollment-level"]');
   const modalLevelLabel = modalLevelDropdown.querySelector('.dropdown-label');
@@ -269,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
       modalLevelLabel.classList.remove('placeholder');
       modalCourseSelect.reset();
       modalCourseSelect.setGroupFilter(option.dataset.value);
-      modalCourseSelect.unlock(COURSE_UNLOCKED_PLACEHOLDER);
+      modalCourseSelect.unlock(MODAL_COURSE_UNLOCKED_PLACEHOLDER);
       updateCreateButtonState();
     });
   });
@@ -295,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resetEnrollmentForm();
     closeAllDropdowns();
     closeAllSearchableMenus();
+    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     enrollmentOverlay.classList.add('is-open');
     enrollmentOverlay.querySelector('.modal').scrollTop = 0;
     modalStudentSelect.root.querySelector('.searchable-chevron').focus();
@@ -371,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     closeAllDropdowns();
     closeAllSearchableMenus();
+    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     editOverlay.classList.add('is-open');
     editOverlay.querySelector('.modal').scrollTop = 0;
     statusDropdown.querySelector('.dropdown-toggle').focus();
