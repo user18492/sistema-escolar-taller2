@@ -24,9 +24,11 @@ app-sidebar {
   border-right-width: 0;
 }
 
+/* Sin sangría: el logotipo y la institución quedan alineados con el borde izquierdo de
+   las opciones de navegación y de los títulos de categoría. */
 .sidebar-brand {
   flex-shrink: 0;
-  padding: 0 12px;
+  padding: 0;
 }
 
 .sidebar-logo {
