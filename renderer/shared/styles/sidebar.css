@@ -84,10 +84,11 @@ app-sidebar {
   color: var(--color-text-tertiary);
 }
 
-/* Divisor entre categorías, con el mismo espacio por encima y por debajo. */
+/* Divisor entre categorías. Debajo lleva algo más de espacio que encima para que el
+   título de la categoría siguiente no quede pegado a la línea. */
 .nav-group + .nav-group {
   margin-top: 16px;
-  padding-top: 16px;
+  padding-top: 18px;
   border-top: 1px solid var(--color-border);
 }
 
