@@ -104,3 +104,13 @@ body > .app-shell {
   height: 24px;
   stroke-width: 1.5;
 }
+
+/* El ícono indica la acción disponible: ocultar el menú visible o mostrar el oculto. */
+.window-sidebar-show-icon,
+.is-sidebar-collapsed .window-sidebar-hide-icon {
+  display: none;
+}
+
+.is-sidebar-collapsed .window-sidebar-show-icon {
+  display: block;
+}
