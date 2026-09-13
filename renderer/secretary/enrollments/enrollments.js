@@ -317,7 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const editOverlay = document.getElementById('editEnrollmentOverlay');
   const cancelEditEnrollmentBtn = document.getElementById('cancelEditEnrollmentBtn');
   const saveEnrollmentBtn = document.getElementById('saveEnrollmentBtn');
-  const deleteEnrollmentBtn = document.getElementById('deleteEnrollmentBtn');
 
   const statusDropdown = editOverlay.querySelector('[data-filter="edit-enrollment-status"]');
   const statusLabel = statusDropdown.querySelector('.dropdown-label');
@@ -388,11 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   saveEnrollmentBtn.addEventListener('click', () => {
     // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
-    closeEditModal();
-  });
-
-  deleteEnrollmentBtn.addEventListener('click', () => {
-    // Vista puramente visual: el borrado real se conecta cuando exista la capa de servicios/IPC.
     closeEditModal();
   });
 });

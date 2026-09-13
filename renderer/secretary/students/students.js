@@ -90,8 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const streetInput = document.getElementById('newStudentStreet');
   const streetNumberInput = document.getElementById('newStudentStreetNumber');
 
-  const dangerZone = document.getElementById('studentDangerZone');
-
   let modalTrigger = openModalBtn;
 
   function formatDniInput() {
@@ -162,7 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Modifica los datos del alumno.'
       : 'Completa los datos para registrar un nuevo alumno.';
     createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear alumno';
-    dangerZone.hidden = !isEditing;
 
     if (row) {
       const [lastName, firstName] = row.querySelector('.student-name').textContent.trim().split(', ');
