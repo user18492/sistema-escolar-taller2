@@ -306,14 +306,9 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('input', updateCreateButtonState);
   });
 
-  openModalBtn.addEventListener('click', () => openModal());
-  document.querySelectorAll('.data-table tbody [data-action="edit"]').forEach((button) => {
-    button.addEventListener('click', () => openModal(button.closest('tr'), button));
-  });
-  overlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !cropDialog.open) closeModal();
-    if (event.key !== 'Tab') return;
-    const controls = Array.from(overlay.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]'))
+  // Mantiene el foco dentro del modal abierto al recorrerlo con Tab.
+  function trapFocus(container, event) {
+    const controls = Array.from(container.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]'))
       .filter((element) => element.getClientRects().length > 0);
     const first = controls[0];
     const last = controls[controls.length - 1];
@@ -324,6 +319,15 @@ document.addEventListener('DOMContentLoaded', () => {
       event.preventDefault();
       first.focus();
     }
+  }
+
+  openModalBtn.addEventListener('click', () => openModal());
+  document.querySelectorAll('.data-table tbody [data-action="edit"]').forEach((button) => {
+    button.addEventListener('click', () => openModal(button.closest('tr'), button));
+  });
+  overlay.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !cropDialog.open) closeModal();
+    if (event.key === 'Tab') trapFocus(overlay, event);
   });
   cancelBtn.addEventListener('click', closeModal);
 
@@ -332,6 +336,39 @@ document.addEventListener('DOMContentLoaded', () => {
   createBtn.addEventListener('click', () => {
     // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
     closeModal();
+  });
+
+  // ---------- Modal: Eliminar usuario ----------
+
+  const deleteOverlay = document.getElementById('deleteUserOverlay');
+  const cancelDeleteBtn = document.getElementById('cancelDeleteUserBtn');
+  let deleteTrigger = null;
+
+  function openDeleteModal(trigger) {
+    deleteTrigger = trigger;
+    closeAllDropdowns();
+    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
+    deleteOverlay.classList.add('is-open');
+    // "Cancelar" recibe el foco para evitar eliminaciones accidentales con Enter.
+    cancelDeleteBtn.focus();
+  }
+
+  function closeDeleteModal() {
+    deleteOverlay.classList.remove('is-open');
+    deleteTrigger?.focus();
+  }
+
+  document.querySelectorAll('.data-table tbody [data-action="delete"]').forEach((button) => {
+    button.addEventListener('click', () => openDeleteModal(button));
+  });
+  deleteOverlay.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeDeleteModal();
+    if (event.key === 'Tab') trapFocus(deleteOverlay, event);
+  });
+  cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+  document.getElementById('confirmDeleteUserBtn').addEventListener('click', () => {
+    // Vista puramente visual: la eliminación real se conecta cuando exista la capa de servicios/IPC.
+    closeDeleteModal();
   });
 
   roleOptions.forEach((option) => {

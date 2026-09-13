@@ -151,14 +151,17 @@ dialog:modal {
   z-index: 102;
   opacity: 0;
   visibility: hidden;
+  /* Al cerrar, visibility espera a que termine el fundido; al abrir cambia al
+     instante para que el foco pueda entrar en el modal desde el primer momento. */
   transition:
     opacity var(--modal-transition),
-    visibility var(--modal-transition);
+    visibility 0s var(--modal-transition);
 }
 
 .modal-overlay.is-open {
   opacity: 1;
   visibility: visible;
+  transition-delay: 0s;
 }
 
 .modal {
