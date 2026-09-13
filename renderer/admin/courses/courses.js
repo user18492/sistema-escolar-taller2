@@ -76,7 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const courseTitle = document.getElementById('newCourseTitle');
   const courseSubtitle = courseOverlay.querySelector('.modal-header p');
   const cycleDescription = courseOverlay.querySelector('.info-box-text p');
-  const dangerZone = document.getElementById('courseDangerZone');
   let modalTrigger = null;
 
   const divisionInput = document.getElementById('newCourseDivision');
@@ -165,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'El curso pertenece al ciclo lectivo actual.'
       : 'El curso se creará para el ciclo lectivo actual.';
     createCourseBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear curso';
-    dangerZone.hidden = !isEditing;
     yearBadge.textContent = String(new Date().getFullYear());
 
     if (row) {

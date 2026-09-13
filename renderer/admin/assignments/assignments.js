@@ -89,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const assignmentTitle = document.getElementById('newAssignmentTitle');
   const assignmentSubtitle = assignmentOverlay.querySelector('.modal-header p');
   const cycleDescription = assignmentOverlay.querySelector('.info-box-text p');
-  const dangerZone = document.getElementById('assignmentDangerZone');
   let modalTrigger = null;
 
   const assignmentYearBadge = document.getElementById('newAssignmentYearBadge');
@@ -326,7 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'La asignación pertenece al ciclo lectivo actual.'
       : 'La asignación se creará para el ciclo lectivo actual.';
     createAssignmentBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear asignación';
-    dangerZone.hidden = !isEditing;
     assignmentYearBadge.textContent = String(new Date().getFullYear());
 
     if (row) {

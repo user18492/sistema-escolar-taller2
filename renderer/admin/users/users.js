@@ -210,7 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentPassword = '';
   let isEditing = false;
   let modalTrigger = openModalBtn;
-  const dangerZone = document.getElementById('userDangerZone');
   const passwordDisplay = overlay.querySelector('.password-display');
   const passwordHelp = overlay.querySelector('.password-heading p');
 
@@ -266,7 +265,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Modifica los datos del usuario.'
       : 'Completa los datos para crear una nueva cuenta de usuario.';
     createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear usuario';
-    dangerZone.hidden = !isEditing;
     passwordDisplay.hidden = isEditing;
     passwordHelp.textContent = isEditing
       ? 'Genera una nueva contraseña solo si necesitas reemplazar la actual.'
