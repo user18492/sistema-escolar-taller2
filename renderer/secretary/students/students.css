@@ -6,6 +6,18 @@
   gap: 24px;
 }
 
+/* La tabla de alumnos no entra en el límite general de base.css (1280px) y recorta la
+   columna Acciones: se amplía el tope para reducir los márgenes laterales, con la misma
+   fórmula de base.css, sin llegar a los bordes de la ventana. */
+.main > .content {
+  width: min(calc(100vw - var(--sidebar-width)), 1536px);
+}
+
+/* Con el menú cerrado recupera solo 64 px más, para no alargar las filas en exceso. */
+.app-shell:has(.sidebar.collapsed) .main > .content {
+  width: min(1600px, calc(100vw - var(--sidebar-width) + 64px));
+}
+
 .page-header {
   display: flex;
   align-items: center;
