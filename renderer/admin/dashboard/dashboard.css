@@ -47,39 +47,12 @@
   gap: 14px;
 }
 
+/* Ícono outline sin contenedor de fondo, en el azul de acento sobre la card blanca */
 .stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
-}
-
-.stat-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-.stat-icon.blue {
-  background: var(--color-accent-blue-bg);
   color: var(--color-accent-blue);
-}
-
-.stat-icon.green {
-  background: var(--color-accent-green-bg);
-  color: var(--color-accent-green);
-}
-
-.stat-icon.purple {
-  background: var(--color-accent-purple-bg);
-  color: var(--color-accent-purple);
-}
-
-.stat-icon.orange {
-  background: var(--color-accent-orange-bg);
-  color: var(--color-accent-orange);
 }
 
 .stat-body {
