@@ -389,4 +389,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
     closeEditModal();
   });
+
+  // ---------- Modal: Eliminar inscripción ----------
+
+  const deleteOverlay = document.getElementById('deleteEnrollmentOverlay');
+  const cancelDeleteBtn = document.getElementById('cancelDeleteEnrollmentBtn');
+  let deleteTrigger = null;
+
+  function openDeleteModal(trigger) {
+    deleteTrigger = trigger;
+    closeAllDropdowns();
+    closeAllSearchableMenus();
+    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
+    deleteOverlay.classList.add('is-open');
+    // "Cancelar" recibe el foco para evitar eliminaciones accidentales con Enter.
+    cancelDeleteBtn.focus();
+  }
+
+  function closeDeleteModal() {
+    deleteOverlay.classList.remove('is-open');
+    deleteTrigger?.focus();
+  }
+
+  document.querySelectorAll('.data-table tbody [data-action="delete"]').forEach((button) => {
+    button.addEventListener('click', () => openDeleteModal(button));
+  });
+  deleteOverlay.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeDeleteModal();
+  });
+  cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+  document.getElementById('confirmDeleteEnrollmentBtn').addEventListener('click', () => {
+    // Vista puramente visual: la eliminación real se conecta cuando exista la capa de servicios/IPC.
+    closeDeleteModal();
+  });
 });
