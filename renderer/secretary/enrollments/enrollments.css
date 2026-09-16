@@ -6,6 +6,13 @@
   gap: 24px;
 }
 
+/* Reduce los márgenes laterales de base.css (32px) para ampliar un poco la tabla hacia
+   ambos lados. Solo cambia el padding: el ancho y la expansión con el menú cerrado
+   siguen siendo los de base.css. */
+.main > .content {
+  padding-inline: 20px;
+}
+
 .page-header {
   display: flex;
   align-items: center;
