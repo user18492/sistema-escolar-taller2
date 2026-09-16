@@ -299,28 +299,38 @@
   font-weight: 500;
 }
 
+/* Chip de estado, igual que en Administrador: borde gris sutil y texto oscuro; el color queda solo en el ícono outline. */
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  gap: 8px;
+  /* Izquierda menor: compensa el margen interno del viewBox del ícono */
+  padding: 4px 12px 4px 10px;
+  border: 1px solid var(--color-border);
   border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 18px;
 }
 
-.badge-active {
-  background: var(--color-accent-green-bg);
-  color: #067a55;
+.badge-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
-.badge-suspended {
-  background: var(--color-accent-red-bg);
-  color: var(--color-accent-red);
+.badge-active .badge-icon {
+  color: #059669;
 }
 
-.badge-graduated {
-  background: var(--color-accent-blue-bg);
-  color: #2563eb;
+.badge-suspended .badge-icon {
+  color: #ef4444;
+}
+
+.badge-graduated .badge-icon {
+  color: var(--color-accent-blue);
 }
 
 /* Acciones de fila en tono discreto, igual que en Administrador; el azul queda reservado al hover. */
