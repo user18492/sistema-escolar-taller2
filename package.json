@@ -20,5 +20,8 @@
   },
   "devDependencies": {
     "electron": "^44.0.0"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
   }
 }
