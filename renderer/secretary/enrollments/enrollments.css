@@ -407,6 +407,17 @@
   font-weight: 500;
 }
 
+/* Alumno toma un ancho proporcional de la tabla y trunca su texto (.col-truncate de
+   base.css); el resto de las columnas conserva su ancho natural. min-width la mantiene
+   legible en ventanas angostas. */
+.data-table .col-student {
+  width: 24%;
+}
+
+.data-table td.col-student {
+  min-width: 160px;
+}
+
 /* Chip de estado, igual que en Administrador: borde gris sutil y texto oscuro; el color queda solo en el ícono outline. */
 .badge {
   display: inline-flex;
