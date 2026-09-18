@@ -188,20 +188,6 @@
   font-weight: 700;
 }
 
-.btn-secondary {
-  height: 32px;
-  padding: 0 14px;
-  background: var(--color-bg);
-  border-color: var(--color-border);
-  color: var(--color-text-primary);
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.btn-secondary:hover {
-  background: #f9fafb;
-}
-
 /* ---------- Table ---------- */
 
 .table-wrap {
@@ -252,18 +238,13 @@
   min-width: 160px;
 }
 
-/* Cada fila abre las calificaciones de la evaluación. */
-.row-link {
-  cursor: pointer;
+/* Acciones de fila en tono discreto, igual que Gestionar; el azul queda reservado al hover. */
+.evaluations-card .table-action {
+  color: var(--color-text-tertiary);
 }
 
-.row-link:hover td {
-  background: #f9fafb;
-}
-
-.row-link:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: -2px;
+.evaluations-card .table-action:hover {
+  color: var(--color-accent-blue);
 }
 
 /* ---------- Table footer / pagination ---------- */
