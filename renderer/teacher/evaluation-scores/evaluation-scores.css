@@ -203,17 +203,6 @@
   color: var(--color-text-tertiary);
 }
 
-/* ---------- Aviso de guardado ---------- */
-
-/* La carga no tiene botón, así que sobre la tabla se aclara que es automática. Sin
-   filtros sobre la tabla, el aviso queda solo y alineado a la derecha. */
-.autosave-note {
-  align-self: flex-end;
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
 /* ---------- Table ---------- */
 
 .table-wrap {
