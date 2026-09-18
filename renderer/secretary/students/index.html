@@ -49,7 +49,7 @@
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th scope="col" class="column-filter" data-filter="name">
+                    <th scope="col" class="column-filter col-name" data-filter="name">
                       <button type="button" class="column-filter-toggle" aria-label="Filtrar por nombre" aria-expanded="false" aria-controls="nameFilter" popovertarget="nameFilter">
                         <span>Nombre</span>
                         <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -112,7 +112,7 @@
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
-                    <th scope="col" class="column-filter" data-filter="email">
+                    <th scope="col" class="column-filter col-email" data-filter="email">
                       <button type="button" class="column-filter-toggle" aria-label="Filtrar por email" aria-expanded="false" aria-controls="emailFilter" popovertarget="emailFilter">
                         <span>Email</span>
                         <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -238,7 +238,7 @@
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
-                    <th>Dirección</th>
+                    <th class="col-address">Dirección</th>
                     <th scope="col" class="column-filter" data-filter="dni">
                       <button type="button" class="column-filter-toggle" aria-label="Filtrar por DNI" aria-expanded="false" aria-controls="dniFilter" popovertarget="dniFilter">
                         <span>DNI</span>
@@ -325,10 +325,10 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td class="student-name">Álvarez, Camila</td>
-                    <td>camila.alvarez@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Álvarez, Camila</span></td>
+                    <td class="col-email"><span class="cell-truncate">camila.alvarez@institucion.edu.ar</span></td>
                     <td>379 412-3456</td>
-                    <td>Av. Belgrano 1245</td>
+                    <td class="col-address"><span class="cell-truncate">Av. Belgrano 1245</span></td>
                     <td>48.123.456</td>
                     <td>12/03/2010</td>
                     <td>
@@ -355,10 +355,10 @@
                     </td>
                   </tr>
                   <tr>
-                    <td class="student-name">Benítez, Tomás</td>
-                    <td>tomas.benitez@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Benítez, Tomás</span></td>
+                    <td class="col-email"><span class="cell-truncate">tomas.benitez@institucion.edu.ar</span></td>
                     <td>379 415-7821</td>
-                    <td>Junín 830</td>
+                    <td class="col-address"><span class="cell-truncate">Junín 830</span></td>
                     <td>47.982.310</td>
                     <td>25/07/2009</td>
                     <td>
@@ -385,10 +385,10 @@
                     </td>
                   </tr>
                   <tr>
-                    <td class="student-name">Cabrera, Julieta</td>
-                    <td>julieta.cabrera@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Cabrera, Julieta</span></td>
+                    <td class="col-email"><span class="cell-truncate">julieta.cabrera@institucion.edu.ar</span></td>
                     <td>379 421-9034</td>
-                    <td>Rivadavia 2570</td>
+                    <td class="col-address"><span class="cell-truncate">Rivadavia 2570</span></td>
                     <td>49.204.775</td>
                     <td>08/11/2011</td>
                     <td>
@@ -415,10 +415,10 @@
                     </td>
                   </tr>
                   <tr>
-                    <td class="student-name">Duarte, Facundo</td>
-                    <td>facundo.duarte@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Duarte, Facundo</span></td>
+                    <td class="col-email"><span class="cell-truncate">facundo.duarte@institucion.edu.ar</span></td>
                     <td>379 433-1120</td>
-                    <td>San Martín 415</td>
+                    <td class="col-address"><span class="cell-truncate">San Martín 415</span></td>
                     <td>46.870.223</td>
                     <td>30/01/2008</td>
                     <td>
@@ -445,10 +445,10 @@
                     </td>
                   </tr>
                   <tr>
-                    <td class="student-name">Escobar, Martina</td>
-                    <td>martina.escobar@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Escobar, Martina</span></td>
+                    <td class="col-email"><span class="cell-truncate">martina.escobar@institucion.edu.ar</span></td>
                     <td>379 445-6602</td>
-                    <td>Córdoba 1880</td>
+                    <td class="col-address"><span class="cell-truncate">Córdoba 1880</span></td>
                     <td>48.556.941</td>
                     <td>17/05/2010</td>
                     <td>
@@ -475,10 +475,10 @@
                     </td>
                   </tr>
                   <tr>
-                    <td class="student-name">Ferreyra, Lautaro</td>
-                    <td>lautaro.ferreyra@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Ferreyra, Lautaro</span></td>
+                    <td class="col-email"><span class="cell-truncate">lautaro.ferreyra@institucion.edu.ar</span></td>
                     <td>379 452-3388</td>
-                    <td>Mendoza 640</td>
+                    <td class="col-address"><span class="cell-truncate">Mendoza 640</span></td>
                     <td>47.331.408</td>
                     <td>02/09/2009</td>
                     <td>
@@ -505,10 +505,10 @@
                     </td>
                   </tr>
                   <tr>
-                    <td class="student-name">Gauna, Valentina</td>
-                    <td>valentina.gauna@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Gauna, Valentina</span></td>
+                    <td class="col-email"><span class="cell-truncate">valentina.gauna@institucion.edu.ar</span></td>
                     <td>379 460-7715</td>
-                    <td>La Rioja 1120</td>
+                    <td class="col-address"><span class="cell-truncate">La Rioja 1120</span></td>
                     <td>49.617.882</td>
                     <td>21/12/2011</td>
                     <td>
@@ -535,10 +535,10 @@
                     </td>
                   </tr>
                   <tr>
-                    <td class="student-name">Herrera, Bautista</td>
-                    <td>bautista.herrera@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Herrera, Bautista</span></td>
+                    <td class="col-email"><span class="cell-truncate">bautista.herrera@institucion.edu.ar</span></td>
                     <td>379 471-2049</td>
-                    <td>Entre Ríos 2035</td>
+                    <td class="col-address"><span class="cell-truncate">Entre Ríos 2035</span></td>
                     <td>46.204.559</td>
                     <td>14/06/2008</td>
                     <td>
@@ -565,10 +565,10 @@
                     </td>
                   </tr>
                   <tr>
-                    <td class="student-name">Ibarra, Delfina</td>
-                    <td>delfina.ibarra@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Ibarra, Delfina</span></td>
+                    <td class="col-email"><span class="cell-truncate">delfina.ibarra@institucion.edu.ar</span></td>
                     <td>379 480-5563</td>
-                    <td>Salta 755</td>
+                    <td class="col-address"><span class="cell-truncate">Salta 755</span></td>
                     <td>48.998.127</td>
                     <td>09/02/2010</td>
                     <td>
@@ -595,10 +595,10 @@
                     </td>
                   </tr>
                   <tr>
-                    <td class="student-name">Juárez, Thiago</td>
-                    <td>thiago.juarez@institucion.edu.ar</td>
+                    <td class="student-name col-name"><span class="cell-truncate">Juárez, Thiago</span></td>
+                    <td class="col-email"><span class="cell-truncate">thiago.juarez@institucion.edu.ar</span></td>
                     <td>379 494-8871</td>
-                    <td>Catamarca 1460</td>
+                    <td class="col-address"><span class="cell-truncate">Catamarca 1460</span></td>
                     <td>47.145.690</td>
                     <td>26/10/2009</td>
                     <td>
