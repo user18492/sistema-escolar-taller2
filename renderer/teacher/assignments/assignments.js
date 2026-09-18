@@ -8,27 +8,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Navegación a la gestión de la asignación ----------
 
-  // Cada fila abre la vista intermedia de gestión de la asignación y le pasa sus
-  // datos para encabezar esa vista y las que se abran desde ella.
-  const MANAGEMENT_VIEW_URL = '../assignment-management/index.html';
+  // La acción "Gestionar" de cada fila abre la vista intermedia de gestión de la asignación
+  // y le pasa los datos de la fila para encabezar esa vista y las que se abran desde ella.
   const SUMMARY_FIELDS = ['course', 'level', 'subject', 'year'];
 
   document.querySelectorAll('.data-table tbody tr').forEach((row) => {
-    const openManagement = () => {
-      const params = new URLSearchParams();
-      SUMMARY_FIELDS.forEach((field, index) => {
-        const cell = row.cells[index];
-        if (cell) params.set(field, cell.textContent.trim());
-      });
-      window.location.href = `${MANAGEMENT_VIEW_URL}?${params.toString()}`;
-    };
+    const manageLink = row.querySelector('.manage-link');
+    if (!manageLink) return;
 
-    row.addEventListener('click', openManagement);
-    row.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        openManagement();
-      }
+    const params = new URLSearchParams();
+    SUMMARY_FIELDS.forEach((field, index) => {
+      const cell = row.cells[index];
+      if (cell) params.set(field, cell.textContent.trim());
     });
+    manageLink.href = `${manageLink.getAttribute('href')}?${params.toString()}`;
   });
 });

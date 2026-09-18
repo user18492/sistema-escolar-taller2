@@ -153,18 +153,31 @@
   font-weight: 500;
 }
 
-/* Cada fila abre la vista de gestión de la asignación. */
-.row-link {
-  cursor: pointer;
+/* Acción "Gestionar": abre la vista de gestión de la asignación. Gris claro para no
+   competir con los datos de la fila; se resalta en azul al pasar el puntero. */
+.manage-link {
+  display: inline-flex;
+  align-items: center;
+  /* El chevron ya trae ~5px de aire propio a la izquierda dentro de su viewBox. */
+  gap: 1px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
 }
 
-.row-link:hover td {
-  background: #f9fafb;
+.manage-link svg {
+  width: 14px;
+  height: 14px;
 }
 
-.row-link:focus-visible {
+.manage-link:hover {
+  color: var(--color-accent-blue);
+}
+
+.manage-link:focus-visible {
   outline: 2px solid var(--color-accent-blue);
-  outline-offset: -2px;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* ---------- Table footer / pagination ---------- */
