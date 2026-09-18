@@ -59,36 +59,29 @@
 
 /* ---------- Datos de la asignación ---------- */
 
+/* Un dato por fila: etiqueta en una columna de ancho fijo y valor alineado en la segunda. */
 .assignment-summary {
   display: flex;
-  align-items: stretch;
-  padding: 18px 24px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
 }
 
 .summary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-  padding-inline: 24px;
-  border-left: 1px solid var(--color-border);
-}
-
-.summary-item:first-child {
-  padding-left: 0;
-  border-left: none;
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  align-items: baseline;
 }
 
 .summary-label {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 14px;
   color: var(--color-text-secondary);
 }
 
 /* Truncado con .text-truncate de base.css. */
 .summary-value {
-  font-size: 15px;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--color-text-primary);
 }
 
