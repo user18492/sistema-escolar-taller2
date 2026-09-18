@@ -7,10 +7,12 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="./assignment-evaluations.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/column-filter.js"></script>
     <script src="./assignment-evaluations.js" defer></script>
   </head>
   <body>
@@ -67,52 +69,88 @@
           </section>
 
           <section class="card evaluations-card">
-            <div class="filters-row">
-              <div class="field field-search">
-                <span class="search-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="7" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </span>
-                <input type="text" placeholder="Filtrar por título" autocomplete="off" />
-              </div>
+            <!-- La ponderación asignada encabeza el alta: muestra cuánto queda por
+                 repartir antes de crear una evaluación nueva. -->
+            <div class="evaluations-actions">
+              <span class="weight-total">Ponderación total asignada: <strong>85% / 100%</strong></span>
 
-              <div class="field field-select dropdown" data-filter="type">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label text-truncate">Tipo</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="ACTIVITY" aria-selected="false">Actividad</li>
-                  <li class="dropdown-option" role="option" data-value="PRACTICAL_WORK" aria-selected="false">Trabajo práctico</li>
-                  <li class="dropdown-option" role="option" data-value="WRITTEN" aria-selected="false">Escrito</li>
-                  <li class="dropdown-option" role="option" data-value="PRESENTATION" aria-selected="false">Exposición</li>
-                  <li class="dropdown-option" role="option" data-value="PROJECT" aria-selected="false">Proyecto</li>
-                  <li class="dropdown-option" role="option" data-value="ORAL" aria-selected="false">Oral</li>
-                </ul>
-              </div>
-
-              <!-- La ponderación asignada encabeza el alta: muestra cuánto queda por
-                   repartir antes de crear una evaluación nueva. -->
-              <div class="filters-actions">
-                <span class="weight-total">Ponderación total asignada: <strong>85% / 100%</strong></span>
-
-                <button class="btn btn-primary" type="button">
-                  <span class="plus">+</span> Nueva evaluación
-                </button>
-              </div>
+              <button class="btn btn-primary" type="button">
+                <span class="plus">+</span> Nueva evaluación
+              </button>
             </div>
 
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th class="col-title">Título</th>
-                    <th>Tipo</th>
+                    <th scope="col" class="column-filter col-title" data-filter="title">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por título" aria-expanded="false" aria-controls="titleFilter" popovertarget="titleFilter">
+                        <span>Título</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="titleFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por título">
+                        <div class="searchable-bar">
+                          <span class="searchable-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="11" cy="11" r="7" />
+                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                          </span>
+                          <input type="text" class="searchable-input" placeholder="Filtrar por título" aria-label="Filtrar por título" autocomplete="off" />
+                        </div>
+                        <!-- Evaluaciones creadas por el docente en esta asignación, con su fecha como dato secundario. -->
+                        <ul class="dropdown-menu dropdown-menu-evaluation" role="listbox" aria-label="Título">
+                          <li class="dropdown-option option-evaluation" role="option" data-value="e1" aria-selected="false">
+                            <span class="option-name text-truncate">Actividad - Números del 1 al 100</span>
+                            <span class="option-detail text-truncate">12/03/2026</span>
+                          </li>
+                          <li class="dropdown-option option-evaluation" role="option" data-value="e2" aria-selected="false">
+                            <span class="option-name text-truncate">Trabajo práctico - Sumas y restas</span>
+                            <span class="option-detail text-truncate">26/03/2026</span>
+                          </li>
+                          <li class="dropdown-option option-evaluation" role="option" data-value="e3" aria-selected="false">
+                            <span class="option-name text-truncate">Evaluación escrita 1</span>
+                            <span class="option-detail text-truncate">15/04/2026</span>
+                          </li>
+                          <li class="dropdown-option option-evaluation" role="option" data-value="e4" aria-selected="false">
+                            <span class="option-name text-truncate">Exposición - Figuras geométricas</span>
+                            <span class="option-detail text-truncate">05/05/2026</span>
+                          </li>
+                          <li class="dropdown-option option-evaluation" role="option" data-value="e5" aria-selected="false">
+                            <span class="option-name text-truncate">Proyecto - Medición en el aula</span>
+                            <span class="option-detail text-truncate">27/05/2026</span>
+                          </li>
+                          <li class="dropdown-option option-evaluation" role="option" data-value="e6" aria-selected="false">
+                            <span class="option-name text-truncate">Evaluación oral - Tablas</span>
+                            <span class="option-detail text-truncate">18/06/2026</span>
+                          </li>
+                          <li class="dropdown-empty" hidden>Sin resultados</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
+                    <th scope="col" class="column-filter" data-filter="type">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por tipo" aria-expanded="false" aria-controls="typeFilter" popovertarget="typeFilter">
+                        <span>Tipo</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="typeFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por tipo">
+                        <ul class="dropdown-menu" role="listbox" aria-label="Tipo">
+                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                          <li class="dropdown-option" role="option" data-value="ACTIVITY" aria-selected="false">Actividad</li>
+                          <li class="dropdown-option" role="option" data-value="PRACTICAL_WORK" aria-selected="false">Trabajo práctico</li>
+                          <li class="dropdown-option" role="option" data-value="WRITTEN" aria-selected="false">Escrito</li>
+                          <li class="dropdown-option" role="option" data-value="PRESENTATION" aria-selected="false">Exposición</li>
+                          <li class="dropdown-option" role="option" data-value="PROJECT" aria-selected="false">Proyecto</li>
+                          <li class="dropdown-option" role="option" data-value="ORAL" aria-selected="false">Oral</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th>Fecha</th>
                     <th>Ponderación</th>
                     <th>Acciones</th>

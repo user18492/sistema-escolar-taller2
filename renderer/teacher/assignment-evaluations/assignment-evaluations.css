@@ -101,117 +101,9 @@
   gap: 20px;
 }
 
-/* ---------- Filters row ---------- */
+/* ---------- Opciones de los filtros de columna (Título y Tipo) ---------- */
 
-.filters-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.field {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-/* Buscador por título: misma barra que los campos con búsqueda integrada del resto
-   del sistema, sin lista desplegable porque el filtro es solo por texto. */
-
-.field-search {
-  flex: 0 1 300px;
-  min-width: 160px;
-  height: 38px;
-  padding: 0 14px;
-  gap: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-}
-
-.field-search:focus-within {
-  border-color: var(--color-accent-blue);
-}
-
-.search-icon {
-  display: flex;
-  flex-shrink: 0;
-  color: var(--color-text-tertiary);
-}
-
-.search-icon svg {
-  width: 15px;
-  height: 15px;
-}
-
-.field-search input {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 14px;
-  color: var(--color-text-primary);
-}
-
-.field-search input::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.field-select {
-  flex: 0 1 208px;
-  min-width: 140px;
-}
-
-/* ---------- Dropdown custom (Tipo) ---------- */
-
-.dropdown {
-  position: relative;
-  display: block;
-}
-
-.dropdown-toggle {
-  width: 100%;
-  height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 14px;
-  font-family: inherit;
-  color: var(--color-text-primary);
-}
-
-.dropdown-toggle:hover {
-  background: #f9fafb;
-}
-
-.dropdown-toggle:focus-visible {
-  outline: none;
-  border-color: var(--color-accent-blue);
-}
-
-.dropdown.open .dropdown-toggle {
-  border-color: var(--color-accent-blue);
-}
-
-.dropdown-toggle .chevron {
-  width: 13px;
-  height: 13px;
-  color: var(--color-text-secondary);
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-}
-
-.dropdown.open .dropdown-toggle .chevron {
-  transform: rotate(180deg);
-}
+/* El panel, su buscador y el embudo del encabezado los aporta column-filter.css. */
 
 .dropdown-menu {
   position: absolute;
@@ -241,6 +133,10 @@
   color: var(--color-text-primary);
 }
 
+.dropdown-option[hidden] {
+  display: none;
+}
+
 .dropdown-option:hover {
   background: #f3f4f6;
 }
@@ -251,13 +147,49 @@
   font-weight: 500;
 }
 
+.dropdown-menu-evaluation {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.option-evaluation {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 0;
+}
+
+.dropdown-menu-evaluation .option-evaluation:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.option-name {
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.option-detail {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.dropdown-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
 /* ---------- Ponderación total y alta ---------- */
 
-.filters-actions {
+/* Sin filtros sobre la tabla, la fila solo aloja la ponderación y el alta, alineadas a la derecha. */
+.evaluations-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 16px;
-  margin-left: auto;
 }
 
 .weight-total {
