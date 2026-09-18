@@ -182,25 +182,13 @@
   color: var(--color-text-tertiary);
 }
 
-/* ---------- Ponderación total y alta ---------- */
+/* ---------- Alta ---------- */
 
-/* Sin filtros sobre la tabla, la fila solo aloja la ponderación y el alta, alineadas a la derecha. */
+/* Sin filtros sobre la tabla, la fila solo aloja el alta, alineada a la derecha. */
 .evaluations-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
-}
-
-.weight-total {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.weight-total strong {
-  font-weight: 600;
-  color: var(--color-text-primary);
 }
 
 /* ---------- Buttons ---------- */

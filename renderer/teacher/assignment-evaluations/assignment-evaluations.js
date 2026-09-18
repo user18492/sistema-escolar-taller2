@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // asignación junto con los de la evaluación elegida, así esa vista puede
   // encabezar ambos bloques de contexto.
   const SCORES_VIEW_URL = '../evaluation-scores/index.html';
-  const EVALUATION_FIELDS = ['evaluation', 'type', 'date', 'weight'];
+  const EVALUATION_FIELDS = ['evaluation', 'type', 'date'];
 
   document.querySelectorAll('.data-table tbody tr').forEach((row) => {
     const openScores = () => {
