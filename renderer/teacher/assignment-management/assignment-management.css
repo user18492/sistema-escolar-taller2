@@ -57,34 +57,6 @@
   box-shadow: var(--shadow-card);
 }
 
-/* ---------- Datos de la asignación ---------- */
-
-/* Un dato por fila: etiqueta en una columna de ancho fijo y valor alineado en la segunda. */
-.assignment-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-}
-
-.summary-item {
-  display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
-  align-items: baseline;
-}
-
-.summary-label {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-}
-
-/* Truncado con .text-truncate de base.css. */
-.summary-value {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
 /* ---------- Opciones de gestión ---------- */
 
 /* Sin relleno propio: cada opción aporta el suyo para que el resalte al pasar el

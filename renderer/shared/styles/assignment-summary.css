@@ -1,0 +1,38 @@
+/* Componente reutilizable: card de contexto con los datos de la asignación seleccionada
+   (Curso, Nivel educativo, Materia, Ciclo lectivo) en las vistas del Profesor que se abren
+   desde Asignaciones. El aspecto de la card (fondo, borde, radio, sombra) lo aporta el
+   .card de la vista; aquí solo se define la organización de los datos.
+   Uso:
+   <section class="card assignment-summary">
+     <div class="summary-item">
+       <span class="summary-label">Curso</span>
+       <span class="summary-value text-truncate" data-field="course">1° A · Mañana</span>
+     </div>
+     …
+   </section> */
+
+/* Un dato por fila: etiqueta en una columna de ancho fijo y valor alineado en la segunda. */
+.assignment-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+
+.summary-item {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  align-items: baseline;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+/* Truncado con .text-truncate de base.css. */
+.summary-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
