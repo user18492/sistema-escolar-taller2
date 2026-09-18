@@ -251,9 +251,14 @@
 }
 
 /* Reparto de la tabla: el alumno encabeza la fila y la calificación queda alineada
-   con el resto de las columnas de datos. */
+   con el resto de las columnas de datos. Alumno trunca su texto (.col-truncate de
+   base.css); min-width la mantiene legible en ventanas angostas. */
 .col-student {
   width: 42%;
+}
+
+td.col-student {
+  min-width: 160px;
 }
 
 .col-dni {
