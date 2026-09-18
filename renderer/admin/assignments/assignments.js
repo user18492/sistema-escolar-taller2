@@ -80,6 +80,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ---------- Textos truncados (nombre / email del profesor) ----------
+
+  // El tooltip con el valor completo aparece solo si el texto está recortado. Se
+  // evalúa al pasar el cursor para reflejar el ancho actual de la columna.
+  document.querySelector('.data-table tbody').addEventListener('mouseover', (event) => {
+    const text = event.target.closest('.teacher-name, .teacher-email');
+    if (!text) return;
+    if (text.scrollWidth > text.clientWidth) {
+      text.title = text.textContent.trim();
+    } else {
+      text.removeAttribute('title');
+    }
+  });
+
   // ---------- Modal: Nueva asignación ----------
 
   const assignmentOverlay = document.getElementById('newAssignmentOverlay');

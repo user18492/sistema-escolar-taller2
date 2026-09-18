@@ -273,6 +273,18 @@
 
 /* Profesor: avatar + nombre/email (mismo estilo que vista Usuarios) */
 
+/* La columna toma un ancho proporcional de la tabla. max-width: 0 impide que un
+   nombre o email largo la ensanche y min-width la mantiene legible en ventanas
+   angostas. */
+.data-table .col-teacher {
+  width: 30%;
+}
+
+.data-table td.col-teacher {
+  max-width: 0;
+  min-width: 220px;
+}
+
 .avatar-circle {
   width: 32px;
   height: 32px;
@@ -293,6 +305,7 @@
   gap: 12px;
 }
 
+/* Solo este bloque se contrae; el avatar conserva su tamaño (flex-shrink: 0). */
 .teacher-info {
   display: flex;
   flex-direction: column;
@@ -300,6 +313,8 @@
   line-height: 1.4;
 }
 
+/* Nombre y email se truncan por separado en una sola línea con "...";
+   assignments.js agrega el tooltip. */
 .teacher-name {
   font-weight: 700;
   color: var(--color-text-primary);
