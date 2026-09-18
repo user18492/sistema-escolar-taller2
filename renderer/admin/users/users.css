@@ -305,6 +305,39 @@
   border-bottom: none;
 }
 
+/* Usuario y Email reparten el espacio libre de la tabla; el resto de las columnas
+   conserva su ancho natural. max-width: 0 impide que un texto largo ensanche la
+   columna y min-width lo mantiene legible en ventanas angostas. */
+.data-table .col-user {
+  width: 26%;
+}
+
+.data-table .col-email {
+  width: 34%;
+}
+
+.data-table td.col-user,
+.data-table td.col-email {
+  max-width: 0;
+}
+
+.data-table td.col-user {
+  min-width: 180px;
+}
+
+.data-table td.col-email {
+  min-width: 200px;
+}
+
+/* Una sola línea con "..." cuando no entra; users.js agrega el tooltip. */
+.cell-truncate {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .user-cell {
   display: flex;
   align-items: center;

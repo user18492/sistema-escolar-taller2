@@ -43,7 +43,7 @@
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th scope="col" class="column-filter" data-filter="name">
+                    <th scope="col" class="column-filter col-user" data-filter="name">
                       <button type="button" class="column-filter-toggle" aria-label="Filtrar por usuario" aria-expanded="false" aria-controls="nameFilter" popovertarget="nameFilter">
                         <span>Usuario</span>
                         <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -223,7 +223,7 @@
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
-                    <th scope="col" class="column-filter" data-filter="email">
+                    <th scope="col" class="column-filter col-email" data-filter="email">
                       <button type="button" class="column-filter-toggle" aria-label="Filtrar por email" aria-expanded="false" aria-controls="emailFilter" popovertarget="emailFilter">
                         <span>Email</span>
                         <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -351,14 +351,14 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">AM</span>
-                        <span>Morales, Ana</span>
+                        <span class="cell-truncate">Morales, Ana</span>
                       </div>
                     </td>
                     <td>34.567.890</td>
-                    <td>ana.morales@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">ana.morales@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-active">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -384,14 +384,14 @@
                     </td>
                   </tr>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">PL</span>
-                        <span>Pérez, Lucía</span>
+                        <span class="cell-truncate">Pérez, Lucía</span>
                       </div>
                     </td>
                     <td>35.678.901</td>
-                    <td>lucia.perez@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">lucia.perez@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-active">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -417,14 +417,14 @@
                     </td>
                   </tr>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">GM</span>
-                        <span>Gómez, Martín</span>
+                        <span class="cell-truncate">Gómez, Martín</span>
                       </div>
                     </td>
                     <td>36.789.012</td>
-                    <td>martin.gomez@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">martin.gomez@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-active">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -450,14 +450,14 @@
                     </td>
                   </tr>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">CF</span>
-                        <span>Fernández, Carla</span>
+                        <span class="cell-truncate">Fernández, Carla</span>
                       </div>
                     </td>
                     <td>37.890.123</td>
-                    <td>carla.fernandez@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">carla.fernandez@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-suspended">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -483,14 +483,14 @@
                     </td>
                   </tr>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">PR</span>
-                        <span>Rodríguez, Pablo</span>
+                        <span class="cell-truncate">Rodríguez, Pablo</span>
                       </div>
                     </td>
                     <td>38.901.234</td>
-                    <td>pablo.rodriguez@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">pablo.rodriguez@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-active">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -516,14 +516,14 @@
                     </td>
                   </tr>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">SV</span>
-                        <span>Suárez, Valentina</span>
+                        <span class="cell-truncate">Suárez, Valentina</span>
                       </div>
                     </td>
                     <td>39.012.345</td>
-                    <td>valentina.suarez@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">valentina.suarez@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-active">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -549,14 +549,14 @@
                     </td>
                   </tr>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">DL</span>
-                        <span>López, Diego</span>
+                        <span class="cell-truncate">López, Diego</span>
                       </div>
                     </td>
                     <td>40.123.456</td>
-                    <td>diego.lopez@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">diego.lopez@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-suspended">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -582,14 +582,14 @@
                     </td>
                   </tr>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">MA</span>
-                        <span>Acosta, Micaela</span>
+                        <span class="cell-truncate">Acosta, Micaela</span>
                       </div>
                     </td>
                     <td>41.234.567</td>
-                    <td>micaela.acosta@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">micaela.acosta@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-active">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -615,14 +615,14 @@
                     </td>
                   </tr>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">TJ</span>
-                        <span>Torres, Juan</span>
+                        <span class="cell-truncate">Torres, Juan</span>
                       </div>
                     </td>
                     <td>42.345.678</td>
-                    <td>juan.torres@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">juan.torres@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-active">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -648,14 +648,14 @@
                     </td>
                   </tr>
                   <tr>
-                    <td>
+                    <td class="col-user">
                       <div class="user-cell">
                         <span class="avatar-circle">SM</span>
-                        <span>Medina, Sofía</span>
+                        <span class="cell-truncate">Medina, Sofía</span>
                       </div>
                     </td>
                     <td>43.456.789</td>
-                    <td>sofia.medina@institucion.edu.ar</td>
+                    <td class="col-email"><span class="cell-truncate">sofia.medina@institucion.edu.ar</span></td>
                     <td>
                       <span class="badge badge-suspended">
                         <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

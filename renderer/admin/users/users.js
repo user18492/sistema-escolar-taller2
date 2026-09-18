@@ -62,6 +62,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ---------- Textos truncados (Usuario / Email) ----------
+
+  // El tooltip con el valor completo aparece solo si el texto está recortado. Se
+  // evalúa al pasar el cursor para reflejar el ancho actual de la columna.
+  document.querySelector('.data-table tbody').addEventListener('mouseover', (event) => {
+    const text = event.target.closest('.cell-truncate');
+    if (!text) return;
+    if (text.scrollWidth > text.clientWidth) {
+      text.title = text.textContent.trim();
+    } else {
+      text.removeAttribute('title');
+    }
+  });
+
   // ---------- Modal: Nuevo usuario ----------
 
   const overlay = document.getElementById('newUserOverlay');
