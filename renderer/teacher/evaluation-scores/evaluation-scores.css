@@ -122,68 +122,93 @@
   gap: 20px;
 }
 
-/* ---------- Filters row ---------- */
+/* ---------- Opciones del filtro de columna (Alumno) ---------- */
 
-.filters-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+/* El panel, su buscador y el embudo del encabezado los aporta column-filter.css. */
 
-.field {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-/* Buscador por alumno: misma barra que los campos con búsqueda integrada del resto
-   del sistema, sin lista desplegable porque el filtro es solo por texto. */
-
-.field-search {
-  flex: 0 1 360px;
-  min-width: 160px;
-  height: 38px;
-  padding: 0 14px;
-  gap: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 240px;
   background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 12px 24px -8px rgba(16, 24, 40, 0.18),
+    0 2px 6px rgba(16, 24, 40, 0.08);
+  padding: 6px;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
 }
 
-.field-search:focus-within {
-  border-color: var(--color-accent-blue);
+.dropdown-menu[hidden] {
+  display: none;
 }
 
-.search-icon {
-  display: flex;
-  flex-shrink: 0;
-  color: var(--color-text-tertiary);
+.dropdown-menu-student {
+  max-height: 260px;
+  overflow-y: auto;
 }
 
-.search-icon svg {
-  width: 15px;
-  height: 15px;
-}
-
-.field-search input {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
-  border: none;
-  outline: none;
-  background: transparent;
+.dropdown-option {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   color: var(--color-text-primary);
 }
 
-.field-search input::placeholder {
+.dropdown-option[hidden] {
+  display: none;
+}
+
+.dropdown-option:hover {
+  background: #f3f4f6;
+}
+
+.dropdown-option.selected {
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+  font-weight: 500;
+}
+
+.option-student {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 0;
+}
+
+.dropdown-menu-student .option-student:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.option-name {
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.option-detail {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.dropdown-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 13px;
   color: var(--color-text-tertiary);
 }
 
-/* Aviso de guardado: la carga no tiene botón, así que la fila de filtros lo aclara. */
+/* ---------- Aviso de guardado ---------- */
+
+/* La carga no tiene botón, así que sobre la tabla se aclara que es automática. Sin
+   filtros sobre la tabla, el aviso queda solo y alineado a la derecha. */
 .autosave-note {
-  margin-left: auto;
+  align-self: flex-end;
   font-size: 14px;
   color: var(--color-text-secondary);
   white-space: nowrap;

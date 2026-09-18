@@ -37,4 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
         link.href = `${link.getAttribute('href')}?${query}`;
       });
   }
+
+  // ---------- Filtro: Alumno ----------
+
+  // El filtro de Alumno vive en el encabezado de la tabla y lo gestiona el componente
+  // compartido column-filter.js (mismo patrón usado en Alumnos de la asignación).
 });

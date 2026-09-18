@@ -7,10 +7,12 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="./evaluation-scores.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/column-filter.js"></script>
     <script src="./evaluation-scores.js" defer></script>
   </head>
   <body>
@@ -89,26 +91,78 @@
           </section>
 
           <section class="card scores-card">
-            <div class="filters-row">
-              <div class="field field-search">
-                <span class="search-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="7" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </span>
-                <input type="text" placeholder="Filtrar por alumno" autocomplete="off" />
-              </div>
-
-              <!-- La carga es directa en la tabla: no hay botón de guardar. -->
-              <span class="autosave-note">Los cambios se guardan automáticamente</span>
-            </div>
+            <!-- La carga es directa en la tabla: no hay botón de guardar. -->
+            <span class="autosave-note">Los cambios se guardan automáticamente</span>
 
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th class="col-student">Alumno</th>
+                    <th scope="col" class="column-filter col-student" data-filter="student">
+                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por alumno" aria-expanded="false" aria-controls="studentFilter" popovertarget="studentFilter">
+                        <span>Alumno</span>
+                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                        </svg>
+                      </button>
+                      <div id="studentFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por alumno">
+                        <div class="searchable-bar">
+                          <span class="searchable-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="11" cy="11" r="7" />
+                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                          </span>
+                          <input type="text" class="searchable-input" placeholder="Filtrar por alumno" aria-label="Filtrar por alumno" autocomplete="off" />
+                        </div>
+                        <!-- Mismo filtro que Alumnos de la asignación; el dato secundario es el
+                             DNI, que es lo que esta tabla muestra junto al alumno. -->
+                        <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="Alumno">
+                          <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
+                            <span class="option-name text-truncate">Acosta, Valentina</span>
+                            <span class="option-detail text-truncate">47.123.456</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
+                            <span class="option-name text-truncate">Bianchi, Mateo</span>
+                            <span class="option-detail text-truncate">46.987.321</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
+                            <span class="option-name text-truncate">Cáceres, Lucas</span>
+                            <span class="option-detail text-truncate">45.678.912</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
+                            <span class="option-name text-truncate">Díaz, Martina</span>
+                            <span class="option-detail text-truncate">48.234.567</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
+                            <span class="option-name text-truncate">Fernández, Tomás</span>
+                            <span class="option-detail text-truncate">46.345.678</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
+                            <span class="option-name text-truncate">García, Emilia</span>
+                            <span class="option-detail text-truncate">47.890.123</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
+                            <span class="option-name text-truncate">López, Benjamín</span>
+                            <span class="option-detail text-truncate">45.212.334</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
+                            <span class="option-name text-truncate">Martínez, Sofía</span>
+                            <span class="option-detail text-truncate">46.765.901</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
+                            <span class="option-name text-truncate">Pereyra, Santiago</span>
+                            <span class="option-detail text-truncate">47.321.098</span>
+                          </li>
+                          <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
+                            <span class="option-name text-truncate">Romero, Julia</span>
+                            <span class="option-detail text-truncate">45.987.654</span>
+                          </li>
+                          <li class="dropdown-empty" hidden>Sin resultados</li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th class="col-dni">DNI</th>
                     <th class="col-score">Calificación</th>
                   </tr>
