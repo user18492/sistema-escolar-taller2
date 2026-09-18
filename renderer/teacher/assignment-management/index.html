@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="./assignment-management.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="./assignment-management.js" defer></script>
   </head>
   <body>
@@ -47,19 +48,19 @@
           <section class="card assignment-summary">
             <div class="summary-item">
               <span class="summary-label">Curso</span>
-              <span class="summary-value" data-field="course">1° A · Mañana</span>
+              <span class="summary-value text-truncate" data-field="course">1° A · Mañana</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Nivel educativo</span>
-              <span class="summary-value" data-field="level">Primaria</span>
+              <span class="summary-value text-truncate" data-field="level">Primaria</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Materia</span>
-              <span class="summary-value" data-field="subject">Matemática</span>
+              <span class="summary-value text-truncate" data-field="subject">Matemática</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Ciclo lectivo</span>
-              <span class="summary-value" data-field="year">2026</span>
+              <span class="summary-value text-truncate" data-field="year">2026</span>
             </div>
           </section>
 
@@ -76,7 +77,7 @@
               </span>
               <span class="option-body">
                 <span class="option-title">Alumnos</span>
-                <span class="option-description">Consulta los alumnos con inscripción activa en este curso</span>
+                <span class="option-description text-truncate">Consulta los alumnos con inscripción activa en este curso</span>
               </span>
               <span class="option-chevron" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
@@ -97,7 +98,7 @@
               </span>
               <span class="option-body">
                 <span class="option-title">Evaluaciones</span>
-                <span class="option-description">Gestiona las evaluaciones correspondientes a esta asignación</span>
+                <span class="option-description text-truncate">Gestiona las evaluaciones correspondientes a esta asignación</span>
               </span>
               <span class="option-chevron" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">

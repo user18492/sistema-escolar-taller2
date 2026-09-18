@@ -142,10 +142,8 @@ app-sidebar {
   flex-shrink: 0;
 }
 
+/* Avatar + nombre/rol con el patrón .avatar-item de base.css. */
 .profile-button {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   width: 100%;
   padding: 10px 12px;
   border: 0;
@@ -183,17 +181,7 @@ app-sidebar {
 }
 
 .profile-info {
-  display: flex;
-  flex-direction: column;
   gap: 4px;
-  min-width: 0;
-  line-height: 1.4;
-}
-
-.profile-name,
-.profile-role {
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .profile-name {

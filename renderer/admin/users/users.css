@@ -106,12 +106,6 @@
   border-color: var(--color-accent-blue);
 }
 
-.dropdown-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .dropdown-toggle .chevron {
   width: 13px;
   height: 13px;
@@ -166,7 +160,7 @@
   font-weight: 500;
 }
 
-/* Opciones con avatar (Nombre) */
+/* Opciones con avatar (Nombre / DNI): patrón .avatar-item de base.css */
 
 .dropdown-menu-user {
   max-height: 260px;
@@ -174,9 +168,6 @@
 }
 
 .option-user {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 10px 12px;
   border-radius: 0;
 }
@@ -185,31 +176,14 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.option-user .avatar-circle {
-  flex-shrink: 0;
-}
-
-.option-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.4;
-}
-
 .option-name {
   font-size: 14px;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .option-email {
   font-size: 13px;
   color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dropdown-empty {
@@ -305,20 +279,15 @@
   border-bottom: none;
 }
 
-/* Usuario y Email reparten el espacio libre de la tabla; el resto de las columnas
-   conserva su ancho natural. max-width: 0 impide que un texto largo ensanche la
-   columna y min-width lo mantiene legible en ventanas angostas. */
+/* Usuario y Email reparten el espacio libre de la tabla y truncan su texto (.col-truncate
+   de base.css); el resto de las columnas conserva su ancho natural. min-width las
+   mantiene legibles en ventanas angostas. */
 .data-table .col-user {
   width: 26%;
 }
 
 .data-table .col-email {
   width: 34%;
-}
-
-.data-table td.col-user,
-.data-table td.col-email {
-  max-width: 0;
 }
 
 .data-table td.col-user {
@@ -329,34 +298,10 @@
   min-width: 200px;
 }
 
-/* Una sola línea con "..." cuando no entra; users.js agrega el tooltip. */
-.cell-truncate {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+/* Avatar + nombre: patrón .avatar-item de base.css */
 .user-cell {
-  display: flex;
-  align-items: center;
   gap: 10px;
   font-weight: 500;
-}
-
-.avatar-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  flex-shrink: 0;
-  background: var(--color-accent-blue-bg);
-  color: #2563eb;
 }
 
 /* Chip de estado: borde gris sutil y texto oscuro; el color queda solo en el ícono outline. */

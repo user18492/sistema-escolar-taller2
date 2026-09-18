@@ -174,11 +174,11 @@
                 Cerrar sesión
               </button>
             </div>
-            <button class="profile-button" type="button" aria-expanded="false" aria-controls="profilePanel">
+            <button class="profile-button avatar-item" type="button" aria-expanded="false" aria-controls="profilePanel">
               <span class="profile-avatar" aria-hidden="true"></span>
-              <span class="profile-info">
-                <span class="profile-name"></span>
-                <span class="profile-role"></span>
+              <span class="profile-info avatar-item-text">
+                <span class="profile-name text-truncate"></span>
+                <span class="profile-role text-truncate"></span>
               </span>
             </button>
           </div>

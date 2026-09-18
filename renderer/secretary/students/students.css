@@ -116,12 +116,6 @@
   border-color: var(--color-accent-blue);
 }
 
-.dropdown-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .dropdown-toggle .chevron {
   width: 13px;
   height: 13px;
@@ -200,17 +194,11 @@
 .option-name {
   font-size: 14px;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .option-detail {
   font-size: 13px;
   color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dropdown-empty {
@@ -306,9 +294,9 @@
   border-bottom: none;
 }
 
-/* Nombre, Email y Dirección reparten el espacio libre de la tabla; el resto de las
-   columnas conserva su ancho natural. max-width: 0 impide que un texto largo ensanche
-   la columna y min-width lo mantiene legible en ventanas angostas. */
+/* Nombre, Email y Dirección reparten el espacio libre de la tabla y truncan su texto
+   (.col-truncate de base.css); el resto de las columnas conserva su ancho natural.
+   min-width las mantiene legibles en ventanas angostas. */
 .data-table .col-name {
   width: 18%;
 }
@@ -322,12 +310,6 @@
 }
 
 .data-table td.col-name,
-.data-table td.col-email,
-.data-table td.col-address {
-  max-width: 0;
-}
-
-.data-table td.col-name,
 .data-table td.col-address {
   min-width: 160px;
 }
@@ -335,14 +317,6 @@
 /* Admite un email institucional típico (nombre.apellido@institucion.edu.ar) sin recortar. */
 .data-table td.col-email {
   min-width: 272px;
-}
-
-/* Una sola línea con "..." cuando no entra; students.js agrega el tooltip. */
-.cell-truncate {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Los alumnos no tienen foto de perfil: el nombre se destaca solo por su peso. */

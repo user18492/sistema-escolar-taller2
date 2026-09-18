@@ -346,3 +346,87 @@ svg {
   overflow: auto;
   overscroll-behavior: contain;
 }
+
+/* ---------- Textos truncados ---------- */
+/* Utilidad compartida para textos simples que pueden ser largos (nombre, email, dirección,
+   valor elegido en un desplegable...). El texto queda en una sola línea, no ensancha su
+   contenedor y se recorta con "..." cuando no entra. El valor completo aparece como
+   tooltip solo si el texto está recortado: lo agrega text-truncate.component.js.
+   Uso: <span class="text-truncate">…</span> dentro de un contenedor de ancho acotado
+   (celda, opción, botón, campo, bloque de texto de .avatar-item). */
+.text-truncate {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* En una tabla la columna crece con su contenido: .col-truncate en sus celdas (td) la
+   limita al ancho que le asigna la vista, y así el texto se recorta en lugar de
+   ensancharla. La vista define el reparto con width en % sobre la columna (th y td) y,
+   si hace falta, un min-width en las celdas para que siga legible en ventanas angostas.
+   Uso: <td class="col-email col-truncate"><span class="text-truncate">…</span></td> */
+td.col-truncate {
+  max-width: 0;
+}
+
+/* ---------- Avatar + información ---------- */
+/* Avatar con uno o más datos al lado (nombre, email, rol...), para celdas de tabla,
+   opciones de desplegables, valores elegidos en buscadores o el perfil del menú. El avatar
+   conserva su tamaño y solo el texto se contrae. Con varias líneas, se agrupan en
+   .avatar-item-text y cada una lleva .text-truncate para recortarse por separado:
+   <div class="avatar-item">
+     <span class="avatar-circle">MG</span>
+     <div class="avatar-item-text">
+       <span class="text-truncate">González, María</span>
+       <span class="text-truncate">maria.gonzalez@escuela.edu.ar</span>
+     </div>
+   </div>
+   Con una sola línea alcanza el .text-truncate directo, sin bloque:
+   <div class="avatar-item">
+     <span class="avatar-circle">MG</span>
+     <span class="text-truncate">González, María</span>
+   </div> */
+.avatar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Todo lo que no es texto (avatar, íconos, chips) mantiene su tamaño. */
+.avatar-item > :not(.avatar-item-text, .text-truncate) {
+  flex-shrink: 0;
+}
+
+.avatar-item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+/* El display de estas utilidades no debe anular el atributo hidden. */
+.text-truncate[hidden],
+.avatar-item[hidden],
+.avatar-item-text[hidden] {
+  display: none;
+}
+
+/* Avatar con iniciales de tablas y desplegables. */
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+  background: var(--color-accent-blue-bg);
+  color: #2563eb;
+}

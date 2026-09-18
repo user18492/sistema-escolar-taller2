@@ -116,12 +116,6 @@
   border-color: var(--color-accent-blue);
 }
 
-.dropdown-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .dropdown-toggle .chevron {
   width: 13px;
   height: 13px;
@@ -271,64 +265,27 @@
   color: var(--color-accent-blue);
 }
 
-/* Profesor: avatar + nombre/email (mismo estilo que vista Usuarios) */
+/* Profesor: avatar + nombre/email con el patrón .avatar-item de base.css (mismo
+   estilo que vista Usuarios). */
 
-/* La columna toma un ancho proporcional de la tabla. max-width: 0 impide que un
-   nombre o email largo la ensanche y min-width la mantiene legible en ventanas
-   angostas. */
+/* La columna toma un ancho proporcional de la tabla y trunca su texto (.col-truncate
+   de base.css); min-width la mantiene legible en ventanas angostas. */
 .data-table .col-teacher {
   width: 30%;
 }
 
 .data-table td.col-teacher {
-  max-width: 0;
   min-width: 220px;
 }
 
-.avatar-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  flex-shrink: 0;
-  background: var(--color-accent-blue-bg);
-  color: #2563eb;
-}
-
-.teacher-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* Solo este bloque se contrae; el avatar conserva su tamaño (flex-shrink: 0). */
-.teacher-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.4;
-}
-
-/* Nombre y email se truncan por separado en una sola línea con "...";
-   assignments.js agrega el tooltip. */
 .teacher-name {
   font-weight: 700;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .teacher-email {
   font-size: 13px;
   color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ---------- Table footer / pagination ---------- */
@@ -552,7 +509,7 @@
   opacity: 0.5;
 }
 
-/* Opciones con avatar (Profesor) */
+/* Opciones con avatar (Profesor): patrón .avatar-item de base.css */
 
 .dropdown-menu-teacher,
 .dropdown-menu-course {
@@ -561,9 +518,6 @@
 }
 
 .option-teacher {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 10px 12px;
   border-radius: 0;
 }
@@ -586,27 +540,14 @@
   color: #2563eb;
 }
 
-.option-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.4;
-}
-
 .option-name {
   font-size: 14px;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .option-email {
   font-size: 13px;
   color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dropdown-empty {

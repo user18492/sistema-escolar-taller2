@@ -65,19 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Los filtros de Nombre / Email / Teléfono / DNI / Estado viven en los encabezados
   // de la tabla y los gestiona el componente compartido column-filter.js.
 
-  // ---------- Textos truncados (Nombre / Email / Dirección) ----------
-
-  // El tooltip con el valor completo aparece solo si el texto está recortado. Se
-  // evalúa al pasar el cursor para reflejar el ancho actual de la columna.
-  document.querySelector('.data-table tbody').addEventListener('mouseover', (event) => {
-    const text = event.target.closest('.cell-truncate');
-    if (!text) return;
-    if (text.scrollWidth > text.clientWidth) {
-      text.title = text.textContent.trim();
-    } else {
-      text.removeAttribute('title');
-    }
-  });
+  // Los textos truncados (Nombre / Email / Dirección) muestran su tooltip con el
+  // componente compartido text-truncate.component.js.
 
   // ---------- Modal: Nuevo alumno / Editar alumno ----------
 

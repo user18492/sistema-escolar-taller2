@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="./assignment-evaluations.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="./assignment-evaluations.js" defer></script>
   </head>
   <body>
@@ -49,19 +50,19 @@
           <section class="card assignment-summary">
             <div class="summary-item">
               <span class="summary-label">Curso</span>
-              <span class="summary-value" data-field="course">1° A · Mañana</span>
+              <span class="summary-value text-truncate" data-field="course">1° A · Mañana</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Nivel educativo</span>
-              <span class="summary-value" data-field="level">Primaria</span>
+              <span class="summary-value text-truncate" data-field="level">Primaria</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Materia</span>
-              <span class="summary-value" data-field="subject">Matemática</span>
+              <span class="summary-value text-truncate" data-field="subject">Matemática</span>
             </div>
             <div class="summary-item">
               <span class="summary-label">Ciclo lectivo</span>
-              <span class="summary-value" data-field="year">2026</span>
+              <span class="summary-value text-truncate" data-field="year">2026</span>
             </div>
           </section>
 
@@ -79,7 +80,7 @@
 
               <div class="field field-select dropdown" data-filter="type">
                 <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label">Tipo</span>
+                  <span class="dropdown-label text-truncate">Tipo</span>
                   <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>

@@ -116,12 +116,6 @@
   border-color: var(--color-accent-blue);
 }
 
-.dropdown-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .dropdown-toggle .chevron {
   width: 13px;
   height: 13px;

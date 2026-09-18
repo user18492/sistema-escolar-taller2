@@ -86,12 +86,10 @@
   color: var(--color-text-secondary);
 }
 
+/* Truncado con .text-truncate de base.css. */
 .summary-value {
   font-size: 15px;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ---------- Card de alumnos ---------- */
@@ -173,15 +171,12 @@
   color: var(--color-text-tertiary);
 }
 
+/* Valor elegido, truncado con .text-truncate de base.css. */
 .searchable-value {
   display: none;
   flex: 1;
-  min-width: 0;
   font-size: 14px;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .searchable-bar.has-value:not(.is-editing) .searchable-value {
@@ -277,17 +272,11 @@
 .option-name {
   font-size: 14px;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .option-detail {
   font-size: 13px;
   color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dropdown-empty {
