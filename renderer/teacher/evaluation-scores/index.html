@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
+    <link rel="stylesheet" href="../../shared/styles/assignment-summary.css" />
     <link rel="stylesheet" href="./evaluation-scores.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
@@ -52,11 +53,11 @@
             </div>
           </div>
 
-          <!-- Contexto completo en una sola card: arriba los datos de la asignación y
-               abajo los de la evaluación elegida. evaluation-scores.js completa ambos
-               bloques con los valores que llegan desde Evaluaciones. -->
-          <section class="card context-summary">
-            <div class="summary-row">
+          <!-- Contexto completo en una sola card: a la izquierda los datos de la asignación
+               y a la derecha los de la evaluación elegida. evaluation-scores.js completa
+               ambos bloques con los valores que llegan desde Evaluaciones. -->
+          <section class="card assignment-summary assignment-summary-split">
+            <div class="summary-group">
               <div class="summary-item">
                 <span class="summary-label">Curso</span>
                 <span class="summary-value text-truncate" data-field="course">1° A · Mañana</span>
@@ -74,7 +75,7 @@
                 <span class="summary-value text-truncate" data-field="year">2026</span>
               </div>
             </div>
-            <div class="summary-row">
+            <div class="summary-group">
               <div class="summary-item">
                 <span class="summary-label">Evaluación</span>
                 <span class="summary-value text-truncate" data-field="evaluation">Evaluación escrita 1</span>

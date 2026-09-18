@@ -63,55 +63,7 @@
   box-shadow: var(--shadow-card);
 }
 
-/* ---------- Contexto: asignación y evaluación ---------- */
-
-/* Misma card de datos que el resto del recorrido, con una segunda fila para la
-   evaluación: las columnas se separan entre sí y las filas con una línea que
-   recorre la card completa. */
-
-.context-summary {
-  display: flex;
-  flex-direction: column;
-  padding: 18px 24px;
-}
-
-.summary-row {
-  display: flex;
-  align-items: stretch;
-}
-
-.summary-row + .summary-row {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
-}
-
-.summary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-  padding-inline: 24px;
-  border-left: 1px solid var(--color-border);
-}
-
-.summary-item:first-child {
-  padding-left: 0;
-  border-left: none;
-}
-
-.summary-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-/* Truncado con .text-truncate de base.css. */
-.summary-value {
-  font-size: 15px;
-  color: var(--color-text-primary);
-}
+/* La card de contexto (asignación | evaluación) la aporta assignment-summary.css. */
 
 /* ---------- Card de calificaciones ---------- */
 

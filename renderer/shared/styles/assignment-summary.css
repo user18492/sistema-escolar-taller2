@@ -9,14 +9,45 @@
        <span class="summary-value text-truncate" data-field="course">1° A · Mañana</span>
      </div>
      …
-   </section> */
+   </section>
+   Variante en dos bloques (por ejemplo, asignación | evaluación): agregar
+   .assignment-summary-split a la card y agrupar los datos de cada bloque en un
+   .summary-group. */
 
 /* Un dato por fila: etiqueta en una columna de ancho fijo y valor alineado en la segunda. */
-.assignment-summary {
+.assignment-summary,
+.summary-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.assignment-summary {
   padding: 16px;
+}
+
+/* Dos bloques separados por una línea vertical que recorre el alto del contenido; cada
+   bloque conserva la alineación tabular de etiquetas y valores. El primero toma el ancho
+   de sus datos (etiqueta 168px + valor 224px + separación 24px), sin superar la mitad de
+   la card, para que el segundo quede cerca de la lectura; el segundo ocupa el resto y
+   deja espacio a valores largos, como el título de la evaluación. */
+.assignment-summary-split {
+  display: grid;
+  grid-template-columns: min(416px, 50%) minmax(0, 1fr);
+  gap: 0;
+}
+
+.summary-group {
+  min-width: 0;
+}
+
+.summary-group:first-child {
+  padding-right: 24px;
+}
+
+.summary-group + .summary-group {
+  padding-left: 24px;
+  border-left: 1px solid var(--color-border);
 }
 
 .summary-item {
