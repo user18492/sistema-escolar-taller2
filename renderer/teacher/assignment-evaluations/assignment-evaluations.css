@@ -149,7 +149,8 @@
 
 /* ---------- Alta ---------- */
 
-/* Sin filtros sobre la tabla, la fila solo aloja el alta, alineada a la derecha. */
+/* Fila propia entre la tarjeta contextual y la de la tabla; solo aloja el alta,
+   alineada a la derecha. */
 .evaluations-actions {
   display: flex;
   align-items: center;
