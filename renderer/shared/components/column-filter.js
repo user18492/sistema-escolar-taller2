@@ -7,6 +7,9 @@
 // se calculan sobre el botón del encabezado, y se abre hacia arriba si abajo no cabe.
 // Contenidos admitidos dentro del panel, todos opcionales:
 //   - lista de .dropdown-option (selección única: elegir una cierra el panel)
+//   - lista de selección múltiple (listbox con aria-multiselectable="true"): cada opción se
+//     marca o desmarca sin cerrar el panel y el filtro abarca todas las marcadas; "Todos"
+//     (valor vacío) desmarca las demás y cierra el panel, como en la selección única
 //   - buscador .searchable-input, que oculta las opciones que no coinciden
 //   - campo de texto .column-filter-input (Enter cierra el panel)
 //   - campo de año .column-filter-input[data-format="year"]: solo admite hasta 4 dígitos y
@@ -71,12 +74,14 @@
     const textInput = panel.querySelector('.column-filter-input');
     const isYearInput = textInput?.dataset.format === 'year';
     const options = Array.from(panel.querySelectorAll('.dropdown-option'));
+    const isMultiple = panel.querySelector('[role="listbox"]')?.getAttribute('aria-multiselectable') === 'true';
     const emptyState = panel.querySelector('.dropdown-empty');
     const clearButton = panel.querySelector('.column-filter-clear');
     const components = Array.from(panel.children).filter(isFilterComponent);
     const filterLabel = toggle.getAttribute('aria-label');
 
-    const selectedOption = () => options.find((option) => option.classList.contains('selected'));
+    const selectedOptions = () => options.filter((option) => option.classList.contains('selected'));
+    const optionLabel = (option) => (option.querySelector('.option-name') ?? option).textContent.trim();
 
     // Un año incompleto (menos de 4 dígitos) todavía no filtra
     const textValue = () => {
@@ -87,8 +92,8 @@
 
     // "Todos" (valor vacío) equivale a no filtrar: el embudo sigue vacío
     const activeValue = () => {
-      const option = selectedOption();
-      if (option?.dataset.value) return (option.querySelector('.option-name') ?? option).textContent.trim();
+      const labels = selectedOptions().filter((option) => option.dataset.value).map(optionLabel);
+      if (labels.length) return labels.join(', ');
       return textValue();
     };
 
@@ -122,15 +127,30 @@
       toggle.focus({ preventScroll: true });
     };
 
+    const setSelected = (option, selected) => {
+      option.classList.toggle('selected', selected);
+      option.setAttribute('aria-selected', String(selected));
+    };
+
     const selectOption = (option) => {
-      options.forEach((candidate) => {
-        const selected = candidate === option;
-        candidate.classList.toggle('selected', selected);
-        candidate.setAttribute('aria-selected', String(selected));
-      });
+      options.forEach((candidate) => setSelected(candidate, candidate === option));
       refreshState();
       closePanel();
     };
+
+    // Selección múltiple: el panel sigue abierto para marcar más opciones, y "Todos" deja de
+    // estar marcado en cuanto se elige una opción concreta
+    const toggleOption = (option) => {
+      if (!option.dataset.value) {
+        selectOption(option);
+        return;
+      }
+      setSelected(option, !option.classList.contains('selected'));
+      options.filter((candidate) => !candidate.dataset.value).forEach((candidate) => setSelected(candidate, false));
+      refreshState();
+    };
+
+    const chooseOption = isMultiple ? toggleOption : selectOption;
 
     const clearFilter = () => {
       if (textInput) textInput.value = '';
@@ -156,7 +176,7 @@
       positionPanel();
       const focusTarget = search
         ?? textInput
-        ?? selectedOption()
+        ?? selectedOptions()[0]
         ?? options[0]
         ?? panel.querySelector('button, [tabindex="0"]')
         ?? panel;
@@ -165,11 +185,11 @@
 
     options.forEach((option) => {
       option.tabIndex = 0;
-      option.addEventListener('click', () => selectOption(option));
+      option.addEventListener('click', () => chooseOption(option));
       option.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          selectOption(option);
+          chooseOption(option);
         }
       });
     });
