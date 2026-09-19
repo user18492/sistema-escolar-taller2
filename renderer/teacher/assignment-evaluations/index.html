@@ -9,11 +9,16 @@
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/assignment-summary.css" />
+    <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/confirm-modal.css" />
     <link rel="stylesheet" href="./assignment-evaluations.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
+    <script src="../../shared/components/modal-resize.js"></script>
+    <script src="../../shared/components/modal-dropdown.js"></script>
+    <script src="../../shared/components/modal-focus-trap.component.js"></script>
     <script src="./assignment-evaluations.js" defer></script>
   </head>
   <body>
@@ -70,7 +75,7 @@
           </section>
 
           <div class="evaluations-actions">
-            <button class="btn btn-primary" type="button">
+            <button class="btn btn-primary" type="button" id="openNewEvaluationModalBtn">
               <span class="plus">+</span> Nueva evaluación
             </button>
           </div>
@@ -173,6 +178,12 @@
                             <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
+                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar evaluación" title="Eliminar evaluación">
+                          <!-- resources/Trash.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -193,6 +204,12 @@
                           <!-- resources/PencilSquare.svg -->
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar evaluación" title="Eliminar evaluación">
+                          <!-- resources/Trash.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -217,6 +234,12 @@
                             <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
+                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar evaluación" title="Eliminar evaluación">
+                          <!-- resources/Trash.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -237,6 +260,12 @@
                           <!-- resources/PencilSquare.svg -->
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar evaluación" title="Eliminar evaluación">
+                          <!-- resources/Trash.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -261,6 +290,12 @@
                             <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </button>
+                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar evaluación" title="Eliminar evaluación">
+                          <!-- resources/Trash.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -281,6 +316,12 @@
                           <!-- resources/PencilSquare.svg -->
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar evaluación" title="Eliminar evaluación">
+                          <!-- resources/Trash.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                           </svg>
                         </button>
                       </div>
@@ -310,6 +351,97 @@
             </div>
           </section>
         </main>
+      </div>
+    </div>
+    <!-- Modal compartido: Nueva evaluación / Editar evaluación -->
+    <div class="modal-overlay" id="evaluationOverlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="evaluationModalTitle">
+        <div class="modal-header">
+          <h2 id="evaluationModalTitle">Nueva evaluación</h2>
+          <p>Completa los datos para crear una nueva evaluación</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-field">
+            <label for="evaluationTitleInput">Título</label>
+            <div class="field">
+              <input type="text" id="evaluationTitleInput" placeholder="Ej. Evaluación escrita 2" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label id="evaluationTypeLabel">Tipo</label>
+            <div class="field field-select dropdown" data-filter="evaluation-type">
+              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="evaluationTypeLabel">
+                <span class="dropdown-label text-truncate placeholder">Seleccionar tipo</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <ul class="dropdown-menu" role="listbox" aria-labelledby="evaluationTypeLabel" hidden>
+                <li class="dropdown-option" role="option" data-value="ACTIVITY" aria-selected="false">Actividad</li>
+                <li class="dropdown-option" role="option" data-value="PRACTICAL_WORK" aria-selected="false">Trabajo práctico</li>
+                <li class="dropdown-option" role="option" data-value="WRITTEN" aria-selected="false">Escrito</li>
+                <li class="dropdown-option" role="option" data-value="PRESENTATION" aria-selected="false">Exposición</li>
+                <li class="dropdown-option" role="option" data-value="PROJECT" aria-selected="false">Proyecto</li>
+                <li class="dropdown-option" role="option" data-value="ORAL" aria-selected="false">Oral</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="evaluationDateInput">Fecha de evaluación</label>
+            <div class="field field-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <line x1="16" y1="3" x2="16" y2="7" />
+                <line x1="8" y1="3" x2="8" y2="7" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <input type="text" id="evaluationDateInput" placeholder="DD/MM" inputmode="numeric" maxlength="5" autocomplete="off" aria-describedby="evaluationCycleDescription" />
+            </div>
+          </div>
+
+          <!-- El año de la fecha no se ingresa: se toma del ciclo lectivo actual. -->
+          <div class="info-box">
+            <span class="info-box-icon">
+              <!-- resources/CalendarDays.svg -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
+              </svg>
+            </span>
+            <div class="info-box-text">
+              <span class="info-box-title">Ciclo lectivo actual</span>
+              <p id="evaluationCycleDescription">La fecha tomará el año del ciclo lectivo actual.</p>
+            </div>
+            <span class="info-box-badge" id="evaluationYearBadge">2026</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelEvaluationBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="saveEvaluationBtn" disabled>Crear evaluación</button>
+        </div>
+      </div>
+    </div>
+    <!-- Modal: Eliminar evaluación -->
+    <div class="modal-overlay" id="deleteEvaluationOverlay">
+      <div class="modal modal-confirm" role="alertdialog" aria-modal="true" aria-labelledby="deleteEvaluationTitle" aria-describedby="deleteEvaluationDescription">
+        <div class="confirm-content">
+          <span class="confirm-icon" aria-hidden="true">
+            <!-- resources/ExclamationTriangle.svg -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+          </span>
+          <h2 id="deleteEvaluationTitle">Eliminar evaluación</h2>
+          <p id="deleteEvaluationDescription">¿Quieres eliminar esta evaluación?</p>
+        </div>
+
+        <div class="confirm-actions">
+          <button type="button" class="btn btn-neutral" id="cancelDeleteEvaluationBtn">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteEvaluationBtn">Sí, eliminar</button>
+        </div>
       </div>
     </div>
   </body>
