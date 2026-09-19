@@ -59,28 +59,28 @@ body {
   overflow: hidden;
 }
 
+/* Toda el área principal recibe el desplazamiento de la rueda, incluidos los márgenes
+   a los lados del contenido; el titlebar y el sidebar quedan fijos. */
 .main {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
 }
 
-/* Solo el contenido de la vista recibe el desplazamiento de la rueda. */
+/* Ocupa al menos el alto del área principal y crece con su contenido. */
 .main > .content {
-  flex: 1;
+  flex: 1 0 auto;
   width: min(calc(100vw - var(--sidebar-width)), 1280px);
   max-width: 100%;
   margin-inline: auto;
   padding: 32px;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: none;
   transition: width var(--layout-transition);
 }
 
@@ -111,8 +111,8 @@ body {
   }
 }
 
-/* Oculta la barra sin desactivar el desplazamiento del contenido. */
-.main > .content::-webkit-scrollbar {
+/* Oculta la barra sin desactivar el desplazamiento del área principal. */
+.main::-webkit-scrollbar {
   display: none;
 }
 
@@ -126,7 +126,7 @@ body {
    su espaciado interno. */
 
 /* Mantiene el fondo fijo hasta que se cierre el último modal, sin perder su posición. */
-html:has(.modal-overlay.is-open, dialog:modal) .main > .content {
+html:has(.modal-overlay.is-open, dialog:modal) .main {
   overflow: hidden;
 }
 
