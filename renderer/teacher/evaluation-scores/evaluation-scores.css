@@ -217,34 +217,75 @@ td.col-student {
 
 /* ---------- Calificación editable ---------- */
 
-/* Escala 0 a 10; el campo vacío indica que la calificación todavía no fue cargada. */
+/* Numeric stepper: un único control segmentado con el valor a la izquierda y los
+   botones − y + a la derecha, separados por divisores verticales. Escala 0 a 10; el
+   campo vacío indica que la calificación todavía no fue cargada. El alto de 32 px
+   conserva el de las filas del resto de las tablas. */
 
-.score-input {
-  width: 100px;
+.numeric-stepper {
+  display: inline-flex;
   height: 32px;
-  padding: 0 12px;
+  vertical-align: middle;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg);
-  font-size: 14px;
-  color: var(--color-text-primary);
-  appearance: none;
+  /* Recorta el fondo de los botones a las esquinas redondeadas del control. */
+  overflow: hidden;
 }
 
-.score-input:hover {
+.numeric-stepper:hover {
   border-color: var(--color-text-tertiary);
 }
 
-.score-input:focus {
-  outline: none;
+/* El borde azul marca la calificación en edición, al escribir y al usar − y +. */
+.numeric-stepper:focus-within {
   border-color: var(--color-accent-blue);
 }
 
-/* Las flechas del campo numérico competirían con la lectura de la columna. */
-.score-input::-webkit-outer-spin-button,
-.score-input::-webkit-inner-spin-button {
-  appearance: none;
-  margin: 0;
+.numeric-stepper-input {
+  width: 72px;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.numeric-stepper-input:focus {
+  outline: none;
+}
+
+.numeric-stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.numeric-stepper-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.numeric-stepper-btn:hover {
+  background: #f9fafb;
+}
+
+.numeric-stepper-btn:active {
+  background: #f3f4f6;
+}
+
+/* En el límite de la escala el botón queda sin efecto: − en 0 o sin calificación,
+   + en 10. */
+.numeric-stepper-btn:disabled {
+  background: var(--color-bg);
+  color: var(--color-text-tertiary);
+  cursor: default;
 }
 
 /* ---------- Table footer / pagination ---------- */

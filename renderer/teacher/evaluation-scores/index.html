@@ -166,77 +166,218 @@
                   </tr>
                 </thead>
                 <!-- Alumnos con inscripción activa en el curso de la asignación. La
-                     calificación se carga y edita en la propia celda; el campo vacío
-                     indica que todavía no fue registrada. -->
+                     calificación se carga y edita en la propia celda con el numeric
+                     stepper (escritura manual o botones − y +); el campo vacío indica
+                     que todavía no fue registrada. -->
                 <tbody>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">Acosta, Valentina</span></td>
                     <td>47.123.456</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" value="8" aria-label="Calificación de Acosta, Valentina" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" value="8" aria-label="Calificación de Acosta, Valentina" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Acosta, Valentina">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Acosta, Valentina">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">Bianchi, Mateo</span></td>
                     <td>46.987.321</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" value="7" aria-label="Calificación de Bianchi, Mateo" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" value="7" aria-label="Calificación de Bianchi, Mateo" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Bianchi, Mateo">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Bianchi, Mateo">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">Cáceres, Lucas</span></td>
                     <td>45.678.912</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" value="9" aria-label="Calificación de Cáceres, Lucas" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" value="9" aria-label="Calificación de Cáceres, Lucas" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Cáceres, Lucas">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Cáceres, Lucas">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">Díaz, Martina</span></td>
                     <td>48.234.567</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" value="6" aria-label="Calificación de Díaz, Martina" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" value="6" aria-label="Calificación de Díaz, Martina" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Díaz, Martina">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Díaz, Martina">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">Fernández, Tomás</span></td>
                     <td>46.345.678</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de Fernández, Tomás" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de Fernández, Tomás" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Fernández, Tomás">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Fernández, Tomás">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">García, Emilia</span></td>
                     <td>47.890.123</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de García, Emilia" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de García, Emilia" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de García, Emilia">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de García, Emilia">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">López, Benjamín</span></td>
                     <td>45.212.334</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de López, Benjamín" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de López, Benjamín" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de López, Benjamín">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de López, Benjamín">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">Martínez, Sofía</span></td>
                     <td>46.765.901</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de Martínez, Sofía" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de Martínez, Sofía" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Martínez, Sofía">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Martínez, Sofía">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">Pereyra, Santiago</span></td>
                     <td>47.321.098</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de Pereyra, Santiago" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de Pereyra, Santiago" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Pereyra, Santiago">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Pereyra, Santiago">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr>
                     <td class="student-name col-student col-truncate"><span class="text-truncate">Romero, Julia</span></td>
                     <td>45.987.654</td>
                     <td class="col-score">
-                      <input class="score-input" type="number" min="0" max="10" step="1" inputmode="numeric" aria-label="Calificación de Romero, Julia" />
+                      <div class="numeric-stepper">
+                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de Romero, Julia" />
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Romero, Julia">
+                          <!-- resources/Minus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14" />
+                          </svg>
+                        </button>
+                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Romero, Julia">
+                          <!-- resources/Plus.svg -->
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
