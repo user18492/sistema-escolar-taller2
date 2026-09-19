@@ -70,7 +70,7 @@
   border-color: var(--color-accent-blue);
 }
 
-/* ---------- Opciones de los filtros de columna (Materia / Ciclo lectivo) ---------- */
+/* ---------- Opciones de los filtros de columna (Materia) ---------- */
 
 .dropdown-menu {
   position: absolute;

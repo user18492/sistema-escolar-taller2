@@ -9,6 +9,8 @@
 //   - lista de .dropdown-option (selección única: elegir una cierra el panel)
 //   - buscador .searchable-input, que oculta las opciones que no coinciden
 //   - campo de texto .column-filter-input (Enter cierra el panel)
+//   - campo de año .column-filter-input[data-format="year"]: solo admite hasta 4 dígitos y
+//     filtra únicamente con el año completo (AAAA); vacío equivale a todos los años
 //   - componentes con estado propio (p. ej. <grade-dropdown variant="panel"> o <course-filter>)
 // El embudo del encabezado se rellena (.has-selection) mientras el filtro tenga algo activo.
 
@@ -16,6 +18,36 @@
   // Aire mínimo entre el panel y los bordes de la ventana, y separación respecto al encabezado
   const VIEWPORT_MARGIN = 12;
   const HEADER_GAP = 8;
+
+  const YEAR_LENGTH = 4;
+
+  // Campo de año: se descartan los caracteres que no son dígitos (letras, espacios, signos,
+  // separadores) y se rechaza la edición completa si dejaría más de 4 dígitos, en lugar de
+  // recortarla y alterar el año ya escrito.
+  const setupYearInput = (input) => {
+    let previousValue = input.value;
+
+    // También antes de cada edición, por si el valor cambió por código (p. ej. "Limpiar filtro")
+    input.addEventListener('beforeinput', () => {
+      previousValue = input.value;
+    });
+
+    input.addEventListener('input', () => {
+      const { value, selectionStart } = input;
+      const digits = value.replace(/\D/g, '');
+      const accepted = digits.length <= YEAR_LENGTH;
+
+      if (!accepted || digits !== value) {
+        // El cursor queda junto al mismo dígito, o donde empezaba la edición rechazada
+        const cursor = accepted
+          ? value.slice(0, selectionStart).replace(/\D/g, '').length
+          : Math.max(0, selectionStart - (value.length - previousValue.length));
+        input.value = accepted ? digits : previousValue;
+        input.setSelectionRange(cursor, cursor);
+      }
+      previousValue = input.value;
+    });
+  };
 
   // Un componente del panel gestiona su propio estado si expone la API hasSelection/clear
   const isFilterComponent = (element) => typeof element.clear === 'function';
@@ -37,6 +69,7 @@
 
     const search = panel.querySelector('.searchable-input');
     const textInput = panel.querySelector('.column-filter-input');
+    const isYearInput = textInput?.dataset.format === 'year';
     const options = Array.from(panel.querySelectorAll('.dropdown-option'));
     const emptyState = panel.querySelector('.dropdown-empty');
     const clearButton = panel.querySelector('.column-filter-clear');
@@ -45,12 +78,18 @@
 
     const selectedOption = () => options.find((option) => option.classList.contains('selected'));
 
+    // Un año incompleto (menos de 4 dígitos) todavía no filtra
+    const textValue = () => {
+      const value = textInput?.value.trim() ?? '';
+      if (isYearInput && value.length < YEAR_LENGTH) return '';
+      return value;
+    };
+
     // "Todos" (valor vacío) equivale a no filtrar: el embudo sigue vacío
     const activeValue = () => {
       const option = selectedOption();
       if (option?.dataset.value) return (option.querySelector('.option-name') ?? option).textContent.trim();
-      if (textInput?.value.trim()) return textInput.value.trim();
-      return '';
+      return textValue();
     };
 
     const refreshState = () => {
@@ -106,6 +145,9 @@
         closeOpenDropdowns();
         if (search) search.value = '';
         filterOptions();
+      } else if (isYearInput && !textValue()) {
+        // Al cerrar, un año incompleto se descarta: el campo vuelve a representar todos los años
+        textInput.value = '';
       }
     });
 
@@ -147,6 +189,8 @@
     if (search) search.addEventListener('input', filterOptions);
 
     if (textInput) {
+      // Antes que refreshState, para que el embudo evalúe el valor ya depurado
+      if (isYearInput) setupYearInput(textInput);
       textInput.addEventListener('input', refreshState);
       textInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') closePanel();
