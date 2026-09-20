@@ -2,10 +2,11 @@
 
 /* ---------- Content ---------- */
 
-/* Única vista sin menú lateral: fondo blanco y la tarjeta centrada en el área
-   que queda debajo del titlebar (.app-shell, ver base.css y titlebar.css). */
+/* Única vista sin menú lateral: el fondo gris azulado muy claro separa la tarjeta,
+   que se mantiene blanca, del área que queda debajo del titlebar (.app-shell, ver
+   base.css y titlebar.css). */
 body {
-  background: var(--color-bg);
+  background: #f8fafc;
 }
 
 .login-view {
