@@ -99,6 +99,11 @@ body > .app-shell {
   }
 }
 
+/* Las vistas sin menú lateral (Login) no muestran el botón que lo oculta. */
+body:not(:has(app-sidebar)) .window-sidebar-toggle {
+  display: none;
+}
+
 .window-sidebar-toggle svg {
   width: 20px;
   height: 20px;
