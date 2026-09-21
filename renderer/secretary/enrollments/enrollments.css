@@ -2,41 +2,11 @@
 
 /* ---------- Content ---------- */
 
-.content {
-  gap: 24px;
-}
-
 /* Reduce los márgenes laterales de base.css (32px) para ampliar un poco la tabla hacia
    ambos lados. Solo cambia el padding: el ancho y la expansión con el menú cerrado
    siguen siendo los de base.css. */
 .main > .content {
   padding-inline: 20px;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.page-header h1 {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.page-header p {
-  margin-top: 6px;
-  font-size: 14px;
-  color: var(--color-text-secondary);
-}
-
-.card {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
 }
 
 .enrollments-card {
@@ -46,131 +16,10 @@
   gap: 20px;
 }
 
-/* ---------- Form fields ---------- */
-
-.field {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.field input {
-  width: 100%;
-  height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  color: var(--color-text-primary);
-  background: var(--color-bg);
-  appearance: none;
-}
-
-.field input::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.field input:focus {
-  outline: none;
-  border-color: var(--color-accent-blue);
-}
-
 /* ---------- Dropdown custom (Nivel educativo / Estado) ---------- */
-
-.dropdown {
-  position: relative;
-  display: block;
-}
-
-.dropdown-toggle {
-  width: 100%;
-  height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 14px;
-  font-family: inherit;
-  color: var(--color-text-primary);
-}
-
-.dropdown-toggle:hover {
-  background: #f9fafb;
-}
-
-.dropdown-toggle:focus-visible {
-  outline: none;
-  border-color: var(--color-accent-blue);
-}
-
-.dropdown.open .dropdown-toggle {
-  border-color: var(--color-accent-blue);
-}
-
-.dropdown-toggle .chevron {
-  width: 13px;
-  height: 13px;
-  color: var(--color-text-secondary);
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-}
-
-.dropdown.open .dropdown-toggle .chevron {
-  transform: rotate(180deg);
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  min-width: 200px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow:
-    0 12px 24px -8px rgba(16, 24, 40, 0.18),
-    0 2px 6px rgba(16, 24, 40, 0.08);
-  padding: 6px;
-  z-index: 20;
-  list-style: none;
-  margin: 0;
-}
-
-.dropdown-menu[hidden] {
-  display: none;
-}
-
-.dropdown-option {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  color: var(--color-text-primary);
-}
-
-.dropdown-option[hidden] {
-  display: none;
-}
-
-.dropdown-option:hover {
-  background: #f3f4f6;
-}
-
-.dropdown-option.selected {
-  background: var(--color-accent-blue-bg);
-  color: var(--color-accent-blue);
-  font-weight: 500;
-}
 
 /* Campo con búsqueda integrada del modal (Alumno / Curso):
    dimensiones estables entre búsqueda y selección. */
-
-.dropdown-searchable {
-  position: relative;
-}
 
 /* Acotado al campo del modal: la barra del filtro de columna la dimensiona column-filter.css.
    Sin margen inferior: el que column-filter.css da a su barra de búsqueda no aplica al campo. */
@@ -191,12 +40,6 @@
 .dropdown-searchable.open .searchable-bar,
 .searchable-bar:focus-within {
   border-color: var(--color-accent-blue);
-}
-
-.searchable-icon {
-  display: flex;
-  flex-shrink: 0;
-  color: var(--color-text-tertiary);
 }
 
 .searchable-icon svg {
@@ -220,10 +63,6 @@
   padding: 0;
 }
 
-.searchable-input::placeholder {
-  color: var(--color-text-tertiary);
-}
-
 /* Valor elegido, truncado con .text-truncate de base.css. */
 .searchable-value {
   display: none;
@@ -234,32 +73,6 @@
 
 .searchable-bar.has-value:not(.is-editing) .searchable-value {
   display: block;
-}
-
-.searchable-bar.has-value:not(.is-editing) .searchable-input,
-.searchable-bar.has-value:not(.is-editing) .searchable-icon {
-  display: none;
-}
-
-.searchable-chevron {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-}
-
-.searchable-chevron .chevron {
-  width: 13px;
-  height: 13px;
-  color: var(--color-text-secondary);
-  transition: transform 0.15s ease;
-}
-
-.dropdown-searchable.open .searchable-chevron .chevron {
-  transform: rotate(180deg);
 }
 
 /* Curso bloqueado hasta elegir el nivel educativo: mismo tratamiento que en Docencia. */
@@ -299,108 +112,7 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.option-name {
-  font-size: 14px;
-  color: var(--color-text-primary);
-}
-
-.option-detail {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.dropdown-empty {
-  padding: 16px 12px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-}
-
-/* ---------- Buttons ---------- */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  border: 1px solid transparent;
-}
-
-.btn-primary {
-  background: var(--color-accent-blue);
-  color: #ffffff;
-  flex-shrink: 0;
-}
-
-.btn-primary:hover {
-  background: #2f6fe0;
-}
-
-.btn-primary:disabled,
-.btn-primary:disabled:hover {
-  opacity: 0.45;
-  cursor: not-allowed;
-  background: var(--color-accent-blue);
-}
-
-.btn-primary .plus {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.btn-secondary {
-  height: 32px;
-  padding: 0 14px;
-  background: var(--color-bg);
-  border-color: var(--color-border);
-  color: var(--color-text-primary);
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.btn-secondary:hover {
-  background: #f9fafb;
-}
-
 /* ---------- Table ---------- */
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.data-table th {
-  text-align: left;
-  padding: 0 16px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  text-transform: none;
-  border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
-}
-
-.data-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-  white-space: nowrap;
-}
-
-.data-table tbody tr:last-child td {
-  border-bottom: none;
-}
 
 /* El número identifica la inscripción: se destaca igual que el nombre en Alumnos. */
 .enrollment-number {
@@ -416,32 +128,6 @@
 
 .data-table td.col-student {
   min-width: 160px;
-}
-
-/* Chip de estado, igual que en Administrador: borde gris sutil y texto oscuro; el color queda solo en el ícono outline. */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  /* Izquierda menor: compensa el margen interno del viewBox del ícono */
-  padding: 4px 12px 4px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-bg);
-  color: var(--color-text-primary);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 18px;
-}
-
-.badge-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-
-.badge-active .badge-icon {
-  color: #059669;
 }
 
 .badge-completed .badge-icon {
@@ -470,83 +156,10 @@
   color: var(--color-text-tertiary);
 }
 
-/* ---------- Table footer / pagination ---------- */
-
-.table-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding-top: 4px;
-}
-
-.results-count {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.page-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 32px;
-  min-width: 32px;
-  padding: 0 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  justify-content: center;
-}
-
-.page-btn svg {
-  width: 13px;
-  height: 13px;
-}
-
-.page-btn:hover {
-  background: #f9fafb;
-}
-
-.page-btn.active {
-  border-color: var(--color-text-primary);
-  font-weight: 700;
-}
-
-.page-nav {
-  padding: 0 12px;
-}
-
-.page-ellipsis {
-  padding: 0 4px;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-}
-
 /* ---------- Modales: Nueva inscripción / Editar inscripción ---------- */
 
 .modal-header {
   padding: 28px 32px 20px;
-}
-
-.modal-header h2 {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.modal-header p {
-  margin-top: 4px;
-  font-size: 14px;
-  color: var(--color-text-secondary);
 }
 
 .modal-body {
@@ -554,12 +167,6 @@
   flex-direction: column;
   gap: 20px;
   padding: 0 32px;
-}
-
-/* Los menús del modal se ajustan al ancho del campo, no al mínimo de los filtros. */
-.modal-body .dropdown-menu {
-  width: 100%;
-  min-width: 0;
 }
 
 /* Form fields */
@@ -576,10 +183,6 @@
   color: var(--color-text-primary);
 }
 
-.dropdown-label.placeholder {
-  color: var(--color-text-tertiary);
-}
-
 /* Footer */
 
 .modal-footer {
@@ -587,13 +190,6 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 24px 32px 28px;
-}
-
-.modal-footer .btn {
-  height: 38px;
-  padding: 0 20px;
-  font-size: 14px;
-  font-weight: 600;
 }
 
 .modal :focus-visible {

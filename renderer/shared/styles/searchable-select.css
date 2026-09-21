@@ -1,0 +1,49 @@
+/* Estilos reutilizables: campo con búsqueda integrada de los modales (input de filtro y
+   lista desplegable en un único componente). La barra, el ícono, el input y el valor
+   elegido los dimensiona cada vista. */
+
+.dropdown-searchable {
+  position: relative;
+}
+
+.searchable-icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+.searchable-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.searchable-bar.has-value:not(.is-editing) .searchable-input,
+.searchable-bar.has-value:not(.is-editing) .searchable-icon {
+  display: none;
+}
+
+.searchable-chevron {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+}
+
+.searchable-chevron .chevron {
+  width: 13px;
+  height: 13px;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.dropdown-searchable.open .searchable-chevron .chevron {
+  transform: rotate(180deg);
+}
+
+/* Los menús del modal se ajustan al ancho del campo, no al mínimo de los filtros. */
+.modal-body .dropdown-menu {
+  width: 100%;
+  min-width: 0;
+}

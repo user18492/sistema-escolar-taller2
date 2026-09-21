@@ -120,6 +120,40 @@ body {
   flex-shrink: 0;
 }
 
+/* ---------- Página ---------- */
+/* Encabezado (título + descripción) y cards del contenido de cada vista. Las vistas de
+   Inicio y las que tienen ruta de navegación (breadcrumb.css) ajustan el encabezado. */
+
+.content {
+  gap: 24px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.page-header p {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
 /* ---------- Modales ---------- */
 /* Sistema compartido por todas las vistas: overlay a pantalla completa, panel
    centrado y transición de apertura/cierre. Cada vista solo ajusta su ancho y
@@ -261,6 +295,27 @@ dialog.is-resizing {
   dialog::backdrop {
     transition: none;
   }
+}
+
+/* Título, descripción y botones de los modales de formulario; el espaciado del
+   encabezado, del cuerpo y del pie lo define cada vista. */
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.modal-header p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.modal-footer .btn {
+  height: 38px;
+  padding: 0 20px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 body {

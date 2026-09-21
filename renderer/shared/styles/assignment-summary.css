@@ -1,7 +1,7 @@
 /* Componente reutilizable: card de contexto con los datos de la asignación seleccionada
    (Curso, Nivel educativo, Materia, Ciclo lectivo) en las vistas del Profesor que se abren
    desde Asignaciones. El aspecto de la card (fondo, borde, radio, sombra) lo aporta el
-   .card de la vista; aquí solo se define la organización de los datos.
+   .card de base.css; aquí solo se define la organización de los datos.
    Uso:
    <section class="card assignment-summary">
      <div class="summary-item">

@@ -1,0 +1,70 @@
+/* Estilos reutilizables: pie de las tablas con el total de resultados y la paginación. */
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.results-count {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  justify-content: center;
+}
+
+.page-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.page-btn:hover {
+  background: #f9fafb;
+}
+
+.page-btn.active {
+  border-color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+/* Con una sola página, Previo y Siguiente quedan sin destino. */
+.page-btn:disabled {
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.page-btn:disabled:hover {
+  background: var(--color-bg);
+}
+
+.page-nav {
+  padding: 0 12px;
+}
+
+.page-ellipsis {
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}

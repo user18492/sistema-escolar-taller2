@@ -1,5 +1,5 @@
 /* Componente reutilizable: filtro compuesto "Curso" — Grado / División / Turno.
-   Reutiliza la grilla y los divisores de grade-dropdown.css y el campo .field de la vista;
+   Reutiliza la grilla y los divisores de grade-dropdown.css y el campo .field de form-field.css;
    aquí solo se define la organización en categorías. */
 
 course-filter {

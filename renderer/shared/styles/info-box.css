@@ -1,0 +1,56 @@
+/* Estilos reutilizables: recuadro informativo de los modales (por ejemplo, el ciclo lectivo
+   actual, que no es editable). */
+
+.info-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #f5f8ff;
+  border: 1px solid var(--color-accent-blue-bg);
+  border-radius: var(--radius-md);
+}
+
+.info-box-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-box-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.info-box-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.info-box-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-accent-blue);
+}
+
+.info-box-text p {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.info-box-badge {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+  font-size: 15px;
+  font-weight: 700;
+}

@@ -1,0 +1,51 @@
+/* Estilos reutilizables: botones de acción (.btn) en sus variantes primaria y secundaria. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: var(--color-accent-blue);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.btn-primary:hover {
+  background: #2f6fe0;
+}
+
+.btn-primary:disabled,
+.btn-primary:disabled:hover {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--color-accent-blue);
+}
+
+.btn-primary .plus {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.btn-secondary {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.btn-secondary:hover {
+  background: #f9fafb;
+}
