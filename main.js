@@ -2,40 +2,40 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true });
 
 const { app } = require('electron');
-const { createMainWindow } = require('./src/main/app-window');
-const { createAppTray } = require('./src/main/app-tray');
+const { crearVentanaPrincipal } = require('./src/main/ventana-principal');
+const { crearBandejaSistema } = require('./src/main/bandeja-sistema');
 
-let mainWindow;
-let tray;
-let isQuitting = false;
+let ventanaPrincipal;
+let bandeja;
+let estaSaliendo = false;
 
-function showMainWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    mainWindow = createMainWindow();
-    mainWindow.on('close', (event) => {
-      if (!isQuitting) {
-        event.preventDefault();
-        mainWindow.hide();
+function mostrarVentanaPrincipal() {
+  if (!ventanaPrincipal || ventanaPrincipal.isDestroyed()) {
+    ventanaPrincipal = crearVentanaPrincipal();
+    ventanaPrincipal.on('close', (evento) => {
+      if (!estaSaliendo) {
+        evento.preventDefault();
+        ventanaPrincipal.hide();
       }
     });
   }
 
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show();
-  mainWindow.focus();
+  if (ventanaPrincipal.isMinimized()) ventanaPrincipal.restore();
+  ventanaPrincipal.show();
+  ventanaPrincipal.focus();
 }
 
 app.whenReady().then(() => {
-  showMainWindow();
-  tray = createAppTray(showMainWindow);
+  mostrarVentanaPrincipal();
+  bandeja = crearBandejaSistema(mostrarVentanaPrincipal);
 
-  app.on('activate', showMainWindow);
+  app.on('activate', mostrarVentanaPrincipal);
 });
 
 app.on('before-quit', () => {
-  isQuitting = true;
+  estaSaliendo = true;
 });
 
 app.on('will-quit', () => {
-  if (tray) tray.destroy();
+  if (bandeja) bandeja.destroy();
 });

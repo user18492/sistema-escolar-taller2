@@ -39,14 +39,14 @@
         button.title = label;
       };
 
-      const controls = window.api?.windowControls;
-      if (!controls) return;
+      const controles = window.api?.ventana;
+      if (!controles) return;
 
-      this.querySelector('[data-action="minimize"]').onclick = () => controls.minimize();
-      this.querySelector('[data-action="maximize"]').onclick = () => controls.toggleMaximize();
-      this.querySelector('[data-action="close"]').onclick = () => controls.close();
-      this.unsubscribeMaximized = controls.onMaximizedChanged((maximized) => this.updateMaximized(maximized));
-      controls.isMaximized().then((maximized) => {
+      this.querySelector('[data-action="minimize"]').onclick = () => controles.minimizar();
+      this.querySelector('[data-action="maximize"]').onclick = () => controles.alternarMaximizado();
+      this.querySelector('[data-action="close"]').onclick = () => controles.cerrar();
+      this.unsubscribeMaximized = controles.alCambiarMaximizado((maximized) => this.updateMaximized(maximized));
+      controles.estaMaximizada().then((maximized) => {
         if (this.isConnected) this.updateMaximized(maximized);
       });
     }

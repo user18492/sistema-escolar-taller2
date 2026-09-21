@@ -2,15 +2,15 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Se exponen acciones concretas, sin dar acceso directo al IPC desde la UI.
 contextBridge.exposeInMainWorld('api', {
-  windowControls: {
-    minimize: () => ipcRenderer.invoke('window:minimize'),
-    toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
-    close: () => ipcRenderer.invoke('window:close'),
-    isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
-    onMaximizedChanged: (callback) => {
-      const listener = (_event, maximized) => callback(maximized);
-      ipcRenderer.on('window:maximized-changed', listener);
-      return () => ipcRenderer.removeListener('window:maximized-changed', listener);
+  ventana: {
+    minimizar: () => ipcRenderer.invoke('ventana:minimizar'),
+    alternarMaximizado: () => ipcRenderer.invoke('ventana:alternar-maximizado'),
+    cerrar: () => ipcRenderer.invoke('ventana:cerrar'),
+    estaMaximizada: () => ipcRenderer.invoke('ventana:esta-maximizada'),
+    alCambiarMaximizado: (callback) => {
+      const manejador = (_evento, maximizada) => callback(maximizada);
+      ipcRenderer.on('ventana:cambio-maximizado', manejador);
+      return () => ipcRenderer.removeListener('ventana:cambio-maximizado', manejador);
     },
   },
 });
