@@ -1,6 +1,5 @@
 -- Datos minimos de prueba.
--- Ejecutar DESPUES de schema.sql, contra la misma base:
---   psql -U tu_usuario -d nombre_de_tu_db -f seed.sql
+-- Lo ejecuta db/setup-db.ps1 (npm run db:setup) después de schema.sql.
 --
 -- Contraseñas: los valores de password_hash son hashes bcrypt (algoritmo $2b$,
 -- costo 10). La contraseña en texto plano de cada usuario se indica en el

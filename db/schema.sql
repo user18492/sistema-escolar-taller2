@@ -1,10 +1,5 @@
--- Pasos a seguir:
---   1) Crear la base de datos:
---        createdb nombre_de_tu_db
---   2) Ejecutar este archivo contra esa base:
---        psql -U tu_usuario -d nombre_de_tu_db -f schema.sql
-
---Si te sale no reconocido, tenes que agregar el path del bin de postgres a la variable de entorno PATH de tu sistema operativo.
+-- Esquema de la base de datos.
+-- Lo ejecuta db/setup-db.ps1 (npm run db:setup) antes de seed.sql.
 
 BEGIN;
 
