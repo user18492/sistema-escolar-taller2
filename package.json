@@ -16,12 +16,15 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "db:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File db/setup-db.ps1",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
     "electron": "^44.0.0"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^18.0.1",
     "pg": "^8.23.0"
   }
 }
