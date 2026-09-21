@@ -2,209 +2,17 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  const dropdowns = document.querySelectorAll('.dropdown');
-
-  let searchableSelects = [];
-  const closeAllSearchableMenus = (except) => {
-    searchableSelects.forEach((select) => {
-      if (select.root !== except) select.close();
-    });
-  };
-
-  const closeDropdown = (dropdown) => {
-    dropdown.classList.remove('open');
-    dropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
-    dropdown.querySelector('.dropdown-menu').hidden = true;
-  };
-
-  const closeAllDropdowns = (except) => {
-    dropdowns.forEach((dropdown) => {
-      if (dropdown !== except) closeDropdown(dropdown);
-    });
-  };
-
-  dropdowns.forEach((dropdown) => {
-    const toggle = dropdown.querySelector('.dropdown-toggle');
-    const label = dropdown.querySelector('.dropdown-label');
-    const menu = dropdown.querySelector('.dropdown-menu');
-    const options = dropdown.querySelectorAll('.dropdown-option');
-
-    toggle.addEventListener('click', () => {
-      const isOpen = dropdown.classList.contains('open');
-      closeAllDropdowns(dropdown);
-      closeAllSearchableMenus();
-
-      if (isOpen) {
-        closeDropdown(dropdown);
-        return;
-      }
-
-      dropdown.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
-    });
-
-    options.forEach((option) => {
-      option.addEventListener('click', () => {
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-        });
-        option.classList.add('selected');
-        option.setAttribute('aria-selected', 'true');
-        label.textContent = option.textContent.trim();
-        closeDropdown(dropdown);
-      });
-    });
-  });
-
-  document.addEventListener('click', (event) => {
-    if (!event.target.closest('.dropdown')) {
-      closeAllDropdowns();
-    }
-    if (!event.target.closest('.dropdown-searchable')) {
-      closeAllSearchableMenus();
-    }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeAllDropdowns();
-      closeAllSearchableMenus();
-    }
+  // Apertura, cierre y selección de los dropdowns: componente compartido dropdown.component.js.
+  // Abrir un dropdown, hacer clic fuera de los buscadores o pulsar Escape cierra también los
+  // buscadores (searchable-select.component.js).
+  const { closeAllDropdowns } = setupDropdowns({
+    onToggle: closeAllSearchableMenus,
+    onDismiss: dismissSearchableMenus,
   });
 
   // Los filtros de Número de inscripción / Alumno / Curso / Estado viven en los encabezados
   // de la tabla y los gestiona el componente compartido column-filter.js; Curso incrusta
   // <course-filter>, el mismo filtro compuesto de Docencia.
-
-  // ---------- Campos con búsqueda del modal: Alumno / Curso ----------
-
-  // Campo con búsqueda integrada: un único componente que combina un input de filtro
-  // y una lista desplegable (mismo patrón usado en Alumnos y en Docencia).
-  // `setGroupFilter` restringe las opciones visibles a un nivel educativo y
-  // `lock`/`unlock` deshabilitan el campo mientras ese nivel no esté elegido.
-  function setupSearchableSelect(root) {
-    const bar = root.querySelector('.searchable-bar');
-    const input = bar.querySelector('.searchable-input');
-    const valueBox = bar.querySelector('.searchable-value');
-    const chevronBtn = bar.querySelector('.searchable-chevron');
-    const menu = root.querySelector('.dropdown-menu');
-    const options = Array.from(menu.querySelectorAll('.dropdown-option'));
-    const emptyState = menu.querySelector('.dropdown-empty');
-    const defaultPlaceholder = input.placeholder;
-
-    let selectedOption = null;
-    let groupFilter = '';
-    let onSelectCallback = null;
-
-    const applyFilter = () => {
-      const query = input.value.trim().toLowerCase();
-      let visibleCount = 0;
-      options.forEach((option) => {
-        const matchesGroup = !groupFilter || option.dataset.level === groupFilter;
-        const matchesQuery = !query || option.textContent.toLowerCase().includes(query);
-        const visible = matchesGroup && matchesQuery;
-        option.hidden = !visible;
-        if (visible) visibleCount += 1;
-      });
-      if (emptyState) emptyState.hidden = visibleCount > 0;
-    };
-
-    const openMenu = () => {
-      if (root.classList.contains('is-locked')) return;
-      closeAllDropdowns();
-      closeAllSearchableMenus(root);
-      root.classList.add('open');
-      chevronBtn.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
-      bar.classList.add('is-editing');
-      input.value = '';
-      applyFilter();
-      input.focus();
-    };
-
-    const closeMenu = () => {
-      root.classList.remove('open');
-      chevronBtn.setAttribute('aria-expanded', 'false');
-      menu.hidden = true;
-      bar.classList.remove('is-editing');
-      input.value = '';
-    };
-
-    chevronBtn.addEventListener('click', () => {
-      if (root.classList.contains('open')) {
-        closeMenu();
-      } else {
-        openMenu();
-      }
-    });
-
-    input.addEventListener('focus', () => {
-      if (!root.classList.contains('open')) openMenu();
-    });
-
-    input.addEventListener('input', applyFilter);
-
-    valueBox.addEventListener('click', openMenu);
-
-    options.forEach((option) => {
-      option.addEventListener('click', () => {
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-        });
-        option.classList.add('selected');
-        option.setAttribute('aria-selected', 'true');
-        selectedOption = option;
-
-        const nameEl = option.querySelector('.option-name');
-        valueBox.textContent = nameEl ? nameEl.textContent.trim() : option.textContent.trim();
-        bar.classList.add('has-value');
-
-        closeMenu();
-        if (typeof onSelectCallback === 'function') onSelectCallback(option);
-      });
-    });
-
-    return {
-      root,
-      close: closeMenu,
-      onSelect(callback) {
-        onSelectCallback = callback;
-      },
-      reset() {
-        selectedOption = null;
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-        });
-        if (emptyState) emptyState.hidden = true;
-        bar.classList.remove('has-value');
-        valueBox.textContent = '';
-        closeMenu();
-      },
-      lock(placeholder) {
-        root.classList.add('is-locked');
-        input.disabled = true;
-        chevronBtn.disabled = true;
-        input.placeholder = placeholder ?? defaultPlaceholder;
-      },
-      unlock(placeholder) {
-        root.classList.remove('is-locked');
-        input.disabled = false;
-        chevronBtn.disabled = false;
-        input.placeholder = placeholder ?? defaultPlaceholder;
-      },
-      setGroupFilter(value) {
-        groupFilter = value ?? '';
-        applyFilter();
-      },
-      getValue() {
-        return selectedOption ? selectedOption.dataset.value : '';
-      },
-    };
-  }
 
   // ---------- Modal: Nueva inscripción ----------
 
@@ -217,13 +25,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const MODAL_COURSE_LOCKED_PLACEHOLDER = 'Selecciona primero un nivel educativo';
   const MODAL_COURSE_UNLOCKED_PLACEHOLDER = 'Buscar curso';
 
+  // Campos con búsqueda integrada (Alumno y Curso): componente compartido
+  // searchable-select.component.js. El valor muestra solo el nombre, reiniciar el campo
+  // conserva el filtro por nivel y cambiar de nivel vuelve a filtrar la lista en el momento.
+  const searchableOptions = {
+    onOpen: closeAllDropdowns,
+    valueContent: 'name',
+    resetClearsGroupFilter: false,
+    filterOnGroupChange: true,
+  };
   const modalStudentSelect = setupSearchableSelect(
-    enrollmentOverlay.querySelector('[data-role="new-enrollment-student-select"]')
+    enrollmentOverlay.querySelector('[data-role="new-enrollment-student-select"]'),
+    searchableOptions
   );
   const modalCourseSelect = setupSearchableSelect(
-    enrollmentOverlay.querySelector('[data-role="new-enrollment-course-select"]')
+    enrollmentOverlay.querySelector('[data-role="new-enrollment-course-select"]'),
+    searchableOptions
   );
-  searchableSelects = [modalStudentSelect, modalCourseSelect];
 
   const modalLevelDropdown = enrollmentOverlay.querySelector('[data-filter="new-enrollment-level"]');
   const modalLevelLabel = modalLevelDropdown.querySelector('.dropdown-label');
@@ -291,20 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
+  // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
   enrollmentOverlay.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeEnrollmentModal();
-    if (event.key !== 'Tab') return;
-    const controls = Array.from(enrollmentOverlay.querySelectorAll('button:not(:disabled), input:not(:disabled)'))
-      .filter((element) => element.getClientRects().length > 0);
-    const first = controls[0];
-    const last = controls[controls.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   });
 
   createEnrollmentBtn.addEventListener('click', () => {
@@ -369,20 +176,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
+  // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
   editOverlay.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeEditModal();
-    if (event.key !== 'Tab') return;
-    const controls = Array.from(editOverlay.querySelectorAll('button:not(:disabled), input:not(:disabled)'))
-      .filter((element) => element.getClientRects().length > 0);
-    const first = controls[0];
-    const last = controls[controls.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   });
 
   saveEnrollmentBtn.addEventListener('click', () => {
@@ -392,34 +188,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar inscripción ----------
 
-  const deleteOverlay = document.getElementById('deleteEnrollmentOverlay');
-  const cancelDeleteBtn = document.getElementById('cancelDeleteEnrollmentBtn');
-  let deleteTrigger = null;
-
-  function openDeleteModal(trigger) {
-    deleteTrigger = trigger;
-    closeAllDropdowns();
-    closeAllSearchableMenus();
-    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
-    deleteOverlay.classList.add('is-open');
-    // "Cancelar" recibe el foco para evitar eliminaciones accidentales con Enter.
-    cancelDeleteBtn.focus();
-  }
-
-  function closeDeleteModal() {
-    deleteOverlay.classList.remove('is-open');
-    deleteTrigger?.focus();
-  }
-
-  document.querySelectorAll('.data-table tbody [data-action="delete"]').forEach((button) => {
-    button.addEventListener('click', () => openDeleteModal(button));
-  });
-  deleteOverlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeDeleteModal();
-  });
-  cancelDeleteBtn.addEventListener('click', closeDeleteModal);
-  document.getElementById('confirmDeleteEnrollmentBtn').addEventListener('click', () => {
-    // Vista puramente visual: la eliminación real se conecta cuando exista la capa de servicios/IPC.
-    closeDeleteModal();
+  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
+  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
+  setupConfirmModal(document.getElementById('deleteEnrollmentOverlay'), {
+    beforeOpen: () => {
+      closeAllDropdowns();
+      closeAllSearchableMenus();
+    },
   });
 });

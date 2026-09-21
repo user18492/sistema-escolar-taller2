@@ -45,68 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Dropdowns del modal ----------
 
-  const dropdowns = document.querySelectorAll('.dropdown');
-
-  const closeDropdown = (dropdown) => {
-    dropdown.classList.remove('open');
-    dropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
-    dropdown.querySelector('.dropdown-menu').hidden = true;
-  };
-
-  const closeAllDropdowns = (except) => {
-    dropdowns.forEach((dropdown) => {
-      if (dropdown !== except) closeDropdown(dropdown);
-    });
-  };
-
-  dropdowns.forEach((dropdown) => {
-    const toggle = dropdown.querySelector('.dropdown-toggle');
-    const label = dropdown.querySelector('.dropdown-label');
-    const menu = dropdown.querySelector('.dropdown-menu');
-    const options = dropdown.querySelectorAll('.dropdown-option');
-
-    label.dataset.placeholder = label.textContent.trim();
-
-    toggle.addEventListener('click', () => {
-      const isOpen = dropdown.classList.contains('open');
-      closeAllDropdowns(dropdown);
-
-      if (isOpen) {
-        closeDropdown(dropdown);
-        return;
-      }
-
-      dropdown.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
-    });
-
-    options.forEach((option) => {
-      option.addEventListener('click', () => {
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-        });
-        option.classList.add('selected');
-        option.setAttribute('aria-selected', 'true');
-        label.textContent = option.textContent.trim();
-        label.classList.remove('placeholder');
-        closeDropdown(dropdown);
-      });
-    });
-  });
-
-  document.addEventListener('click', (event) => {
-    if (!event.target.closest('.dropdown')) {
-      closeAllDropdowns();
-    }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeAllDropdowns();
-    }
-  });
+  // Apertura, cierre y selección: componente compartido dropdown.component.js. También guarda
+  // en data-placeholder el texto inicial de la etiqueta, que usa el reinicio del formulario.
+  const { closeAllDropdowns } = setupDropdowns();
 
   // ---------- Modal compartido: Nueva evaluación / Editar evaluación ----------
 
@@ -234,34 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar evaluación ----------
 
-  const deleteOverlay = document.getElementById('deleteEvaluationOverlay');
-  const cancelDeleteBtn = document.getElementById('cancelDeleteEvaluationBtn');
-  let deleteTrigger = null;
-
-  function openDeleteModal(trigger) {
-    deleteTrigger = trigger;
-    closeAllDropdowns();
-    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
-    deleteOverlay.classList.add('is-open');
-    // "Cancelar" recibe el foco para evitar eliminaciones accidentales con Enter.
-    cancelDeleteBtn.focus();
-  }
-
-  function closeDeleteModal() {
-    deleteOverlay.classList.remove('is-open');
-    deleteTrigger?.focus();
-  }
-
-  document.querySelectorAll('.data-table tbody [data-action="delete"]').forEach((button) => {
-    button.addEventListener('click', () => openDeleteModal(button));
-  });
-  deleteOverlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeDeleteModal();
-  });
-  cancelDeleteBtn.addEventListener('click', closeDeleteModal);
-  document.getElementById('confirmDeleteEvaluationBtn').addEventListener('click', () => {
-    // Vista puramente visual: la eliminación real se conecta cuando exista la capa de servicios/IPC.
-    closeDeleteModal();
-  });
+  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
+  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
+  setupConfirmModal(document.getElementById('deleteEvaluationOverlay'), { beforeOpen: closeAllDropdowns });
 
 });

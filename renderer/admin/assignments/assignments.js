@@ -2,82 +2,13 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  const dropdowns = document.querySelectorAll('.dropdown');
-
-  document.querySelectorAll('.dropdown-label.placeholder').forEach((label) => {
-    label.dataset.placeholder = label.textContent.trim();
-  });
-
-  let searchableSelects = [];
-  const closeAllSearchableMenus = (except) => {
-    searchableSelects.forEach((select) => {
-      if (select.root !== except) select.close();
-    });
-  };
-
-  const closeDropdown = (dropdown) => {
-    dropdown.classList.remove('open');
-    dropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
-    dropdown.querySelector('.dropdown-menu').hidden = true;
-  };
-
-  const closeAllDropdowns = (except) => {
-    dropdowns.forEach((dropdown) => {
-      if (dropdown !== except) closeDropdown(dropdown);
-    });
-  };
-
-  dropdowns.forEach((dropdown) => {
-    const toggle = dropdown.querySelector('.dropdown-toggle');
-    const label = dropdown.querySelector('.dropdown-label');
-    const menu = dropdown.querySelector('.dropdown-menu');
-    const options = dropdown.querySelectorAll('.dropdown-option');
-
-    toggle.addEventListener('click', () => {
-      const isOpen = dropdown.classList.contains('open');
-      closeAllDropdowns(dropdown);
-      closeAllSearchableMenus();
-
-      if (isOpen) {
-        closeDropdown(dropdown);
-        return;
-      }
-
-      dropdown.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
-    });
-
-    options.forEach((option) => {
-      option.addEventListener('click', () => {
-        if (option.getAttribute('aria-disabled') === 'true') return;
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-        });
-        option.classList.add('selected');
-        option.setAttribute('aria-selected', 'true');
-        label.textContent = option.dataset.label ?? option.textContent.trim();
-        label.classList.remove('placeholder');
-        closeDropdown(dropdown);
-      });
-    });
-  });
-
-  document.addEventListener('click', (event) => {
-    if (!event.target.closest('.dropdown')) {
-      closeAllDropdowns();
-    }
-    if (!event.target.closest('.dropdown-searchable')) {
-      closeAllSearchableMenus();
-    }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeAllDropdowns();
-      closeAllSearchableMenus();
-    }
+  // Apertura, cierre y selección de los dropdowns: componente compartido dropdown.component.js.
+  // También guarda en data-placeholder el texto inicial de las etiquetas con .placeholder, que
+  // usa el reinicio del formulario. Abrir un dropdown, hacer clic fuera de los buscadores o
+  // pulsar Escape cierra también los buscadores (searchable-select.component.js).
+  const { closeAllDropdowns } = setupDropdowns({
+    onToggle: closeAllSearchableMenus,
+    onDismiss: dismissSearchableMenus,
   });
 
   // Los textos truncados (nombre / email del profesor) muestran su tooltip con el
@@ -97,130 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const assignmentYearBadge = document.getElementById('newAssignmentYearBadge');
   assignmentYearBadge.textContent = String(new Date().getFullYear());
 
-  // Campo con búsqueda integrada: un único componente que combina un input de filtro
-  // y una lista desplegable (usado por Profesor y Curso).
-  function setupSearchableSelect(root) {
-    const bar = root.querySelector('.searchable-bar');
-    const input = bar.querySelector('.searchable-input');
-    const valueBox = bar.querySelector('.searchable-value');
-    const chevronBtn = bar.querySelector('.searchable-chevron');
-    const menu = root.querySelector('.dropdown-menu');
-    const options = Array.from(menu.querySelectorAll('.dropdown-option'));
-    const emptyState = menu.querySelector('.dropdown-empty');
-    const defaultPlaceholder = input.placeholder;
-
-    let selectedOption = null;
-    let groupFilter = '';
-    let onSelectCallback = null;
-
-    const applyFilter = () => {
-      const query = input.value.trim().toLowerCase();
-      let visibleCount = 0;
-      options.forEach((option) => {
-        const matchesGroup = !groupFilter || option.dataset.level === groupFilter;
-        const matchesQuery = !query || option.textContent.toLowerCase().includes(query);
-        const visible = matchesGroup && matchesQuery;
-        option.hidden = !visible;
-        if (visible) visibleCount += 1;
-      });
-      if (emptyState) emptyState.hidden = visibleCount > 0;
-    };
-
-    const openMenu = () => {
-      if (root.classList.contains('is-locked')) return;
-      closeAllDropdowns();
-      closeAllSearchableMenus(root);
-      root.classList.add('open');
-      chevronBtn.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
-      bar.classList.add('is-editing');
-      input.value = '';
-      applyFilter();
-      input.focus();
-    };
-
-    const closeMenu = () => {
-      root.classList.remove('open');
-      chevronBtn.setAttribute('aria-expanded', 'false');
-      menu.hidden = true;
-      bar.classList.remove('is-editing');
-      input.value = '';
-    };
-
-    chevronBtn.addEventListener('click', () => {
-      if (root.classList.contains('open')) {
-        closeMenu();
-      } else {
-        openMenu();
-      }
-    });
-
-    input.addEventListener('focus', () => {
-      if (!root.classList.contains('open')) openMenu();
-    });
-
-    input.addEventListener('input', applyFilter);
-
-    valueBox.addEventListener('click', openMenu);
-
-    options.forEach((option) => {
-      option.addEventListener('click', () => {
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-        });
-        option.classList.add('selected');
-        option.setAttribute('aria-selected', 'true');
-        selectedOption = option;
-
-        valueBox.innerHTML = option.innerHTML;
-        bar.classList.add('has-value');
-
-        closeMenu();
-        if (typeof onSelectCallback === 'function') onSelectCallback(option);
-      });
-    });
-
-    return {
-      root,
-      close: closeMenu,
-      onSelect(callback) {
-        onSelectCallback = callback;
-      },
-      reset() {
-        selectedOption = null;
-        groupFilter = '';
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-          o.hidden = false;
-        });
-        if (emptyState) emptyState.hidden = true;
-        bar.classList.remove('has-value');
-        valueBox.innerHTML = '';
-        closeMenu();
-      },
-      lock(placeholder) {
-        root.classList.add('is-locked');
-        input.disabled = true;
-        chevronBtn.disabled = true;
-        input.placeholder = placeholder ?? defaultPlaceholder;
-      },
-      unlock(placeholder) {
-        root.classList.remove('is-locked');
-        input.disabled = false;
-        chevronBtn.disabled = false;
-        input.placeholder = placeholder ?? defaultPlaceholder;
-      },
-      setGroupFilter(value) {
-        groupFilter = value ?? '';
-      },
-      getValue() {
-        return selectedOption ? selectedOption.dataset.value : '';
-      },
-    };
-  }
-
   const teacherRoot = assignmentOverlay.querySelector('[data-role="teacher-select"]');
   const courseRoot = assignmentOverlay.querySelector('[data-role="course-select"]');
   const levelDropdown = assignmentOverlay.querySelector('[data-filter="new-assignment-level"]');
@@ -237,10 +44,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const SUBJECT_LOCKED_PLACEHOLDER = 'Selecciona primero un curso';
   const SUBJECT_UNLOCKED_PLACEHOLDER = 'Seleccionar materia';
 
-  const teacherSelect = setupSearchableSelect(teacherRoot);
-  const courseSelect = setupSearchableSelect(courseRoot);
-
-  searchableSelects = [teacherSelect, courseSelect];
+  // Campos con búsqueda integrada (Profesor y Curso): componente compartido
+  // searchable-select.component.js. El valor muestra la opción completa (avatar, nombre y
+  // email) y reiniciar el campo también quita el filtro por nivel; el filtro se aplica al
+  // volver a abrir la lista.
+  const searchableOptions = {
+    onOpen: closeAllDropdowns,
+    valueContent: 'markup',
+    resetClearsGroupFilter: true,
+    filterOnGroupChange: false,
+  };
+  const teacherSelect = setupSearchableSelect(teacherRoot, searchableOptions);
+  const courseSelect = setupSearchableSelect(courseRoot, searchableOptions);
 
   function updateCreateButtonState() {
     const hasTeacher = Boolean(teacherSelect.getValue());
@@ -378,34 +193,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar asignación ----------
 
-  const deleteOverlay = document.getElementById('deleteAssignmentOverlay');
-  const cancelDeleteBtn = document.getElementById('cancelDeleteAssignmentBtn');
-  let deleteTrigger = null;
-
-  function openDeleteModal(trigger) {
-    deleteTrigger = trigger;
-    closeAllDropdowns();
-    closeAllSearchableMenus();
-    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
-    deleteOverlay.classList.add('is-open');
-    // "Cancelar" recibe el foco para evitar eliminaciones accidentales con Enter.
-    cancelDeleteBtn.focus();
-  }
-
-  function closeDeleteModal() {
-    deleteOverlay.classList.remove('is-open');
-    deleteTrigger?.focus();
-  }
-
-  document.querySelectorAll('.data-table tbody [data-action="delete"]').forEach((button) => {
-    button.addEventListener('click', () => openDeleteModal(button));
-  });
-  deleteOverlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeDeleteModal();
-  });
-  cancelDeleteBtn.addEventListener('click', closeDeleteModal);
-  document.getElementById('confirmDeleteAssignmentBtn').addEventListener('click', () => {
-    // Vista puramente visual: la eliminación real se conecta cuando exista la capa de servicios/IPC.
-    closeDeleteModal();
+  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
+  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
+  setupConfirmModal(document.getElementById('deleteAssignmentOverlay'), {
+    beforeOpen: () => {
+      closeAllDropdowns();
+      closeAllSearchableMenus();
+    },
   });
 });
