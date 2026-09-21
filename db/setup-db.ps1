@@ -3,17 +3,25 @@
 #   2) Se conecta a la base administrativa "postgres" y crea la base DB_NAME.
 #   3) Ejecuta sobre esa base db/schema.sql y luego db/seed.sql.
 #
-# Si la base ya existe, el script aborta sin modificar nada: schema.sql no
-# contiene sentencias DROP, así que volver a ejecutarlo fallaría. Para
-# reinicializar, borrar la base manualmente y volver a correr este script.
+# Se puede ejecutar más de una vez: si la base ya existe, informa que no hizo
+# cambios y termina con código 0, sin volver a ejecutar schema.sql ni seed.sql.
+# Si schema.sql o seed.sql fallan, borra con dropdb la base recién creada y
+# termina con error: si quedara incompleta, la próxima ejecución la tomaría
+# como existente y no la completaría.
 #
 # Requisitos:
-#   - psql accesible desde el PATH (carpeta bin de PostgreSQL).
+#   - psql, createdb y dropdb accesibles desde el PATH (carpeta bin de PostgreSQL).
 #   - Un archivo .env válido (copiar .env.example a .env).
 #
 # Uso:
-#   powershell -ExecutionPolicy Bypass -File db\setup-db.ps1
-#   powershell -ExecutionPolicy Bypass -File db\setup-db.ps1 -EnvFile C:\ruta\.env
+#   powershell -NoProfile -ExecutionPolicy Bypass -File db\setup-db.ps1
+#   powershell -NoProfile -ExecutionPolicy Bypass -File db\setup-db.ps1 -EnvFile C:\ruta\.env
+#
+#   Códigos de salida: 0 si la base quedó creada o ya existía; 1 si hubo un error.
+#
+#   Para reinicializar la base (por ejemplo, si cambian schema.sql o seed.sql),
+#   borrarla y volver a ejecutar el script:
+#     dropdb --host <DB_HOST> --port <DB_PORT> --username <DB_USER> <DB_NAME>
 
 [CmdletBinding()]
 param(
@@ -125,7 +133,7 @@ $previousPassword = $env:PGPASSWORD
 $previousClientEncoding = $env:PGCLIENTENCODING
 
 try {
-    foreach ($tool in @('psql', 'createdb')) {
+    foreach ($tool in @('psql', 'createdb', 'dropdb')) {
         if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
             throw "No se encontró '$tool' en el PATH. Agregá la carpeta bin de PostgreSQL a la variable de entorno PATH."
         }
@@ -161,7 +169,8 @@ try {
         -ErrorMessage "No se pudo conectar a la base administrativa '$adminDatabase' como '$dbUser'. Revisá que PostgreSQL esté en ejecución y que las credenciales del .env sean correctas."
 
     if (($existing | Out-String).Trim() -eq '1') {
-        throw "La base '$dbName' ya existe. Borrala manualmente (DROP DATABASE) antes de volver a ejecutar este script."
+        Write-Host "La base '$dbName' ya existe; no se realizaron cambios." -ForegroundColor Yellow
+        exit 0
     }
 
     # 2) Crea la base del proyecto. Se usa createdb (y no un CREATE DATABASE por
@@ -174,16 +183,30 @@ try {
         throw "No se pudo crear la base '$dbName'."
     }
 
-    # 3) Aplica el esquema y los datos de prueba, en ese orden.
-    Write-Host "Ejecutando schema.sql..." -ForegroundColor Cyan
-    Invoke-Psql -Database $dbName `
-        -Arguments @('--quiet', '--file', $schemaFile) `
-        -ErrorMessage "Falló la ejecución de 'schema.sql'. La base '$dbName' quedó creada pero incompleta: borrala antes de reintentar."
+    # 3) Aplica el esquema y los datos de prueba, en ese orden. Si alguno falla,
+    # borra la base recién creada para que no quede incompleta.
+    try {
+        Write-Host "Ejecutando schema.sql..." -ForegroundColor Cyan
+        Invoke-Psql -Database $dbName `
+            -Arguments @('--quiet', '--file', $schemaFile) `
+            -ErrorMessage "Falló la ejecución de 'schema.sql'."
 
-    Write-Host "Ejecutando seed.sql..." -ForegroundColor Cyan
-    Invoke-Psql -Database $dbName `
-        -Arguments @('--quiet', '--file', $seedFile) `
-        -ErrorMessage "Falló la ejecución de 'seed.sql'. La base '$dbName' quedó creada pero incompleta: borrala antes de reintentar."
+        Write-Host "Ejecutando seed.sql..." -ForegroundColor Cyan
+        Invoke-Psql -Database $dbName `
+            -Arguments @('--quiet', '--file', $seedFile) `
+            -ErrorMessage "Falló la ejecución de 'seed.sql'."
+    }
+    catch {
+        $mensajeError = $_.Exception.Message
+
+        Write-Host "Borrando la base '$dbName' para no dejarla incompleta..." -ForegroundColor Cyan
+        & dropdb --host $dbHost --port $dbPort --username $dbUser --no-password --maintenance-db $adminDatabase $dbName
+        if ($LASTEXITCODE -ne 0) {
+            throw "$mensajeError Además, no se pudo borrar la base '$dbName': borrala con dropdb antes de reintentar."
+        }
+
+        throw "$mensajeError Se borró la base '$dbName'; corregí el error y volvé a ejecutar el script."
+    }
 
     Write-Host "Listo: la base '$dbName' quedó creada con el esquema y los datos de prueba." -ForegroundColor Green
     exit 0
