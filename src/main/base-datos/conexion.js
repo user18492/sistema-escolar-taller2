@@ -1,4 +1,4 @@
-// Único módulo que accede a PostgreSQL; solo lo usan los repositorios.
+// Único módulo que accede a PostgreSQL. Lo usan los repositorios y, al iniciar y cerrar la app, main.js.
 const { Pool } = require('pg');
 
 const VARIABLES_REQUERIDAS = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
@@ -8,10 +8,13 @@ let pool;
 function validarConfiguracion() {
   const faltantes = VARIABLES_REQUERIDAS.filter((nombre) => !process.env[nombre]?.trim());
   if (faltantes.length > 0) {
-    throw new Error(
+    const error = new Error(
       `Faltan variables de conexión en el archivo .env: ${faltantes.join(', ')}. ` +
       'Copiá .env.example a .env y ajustá los valores.'
     );
+    // Con un código propio se distingue de los errores de PostgreSQL (ECONNREFUSED, 28P01…).
+    error.code = 'CONFIGURACION_INCOMPLETA';
+    throw error;
   }
 }
 
