@@ -1,4 +1,4 @@
-/* Vista Login — puramente visual, sin autenticación real */
+/* Vista Login */
 
 /* ---------- Content ---------- */
 
@@ -131,6 +131,33 @@ body {
   display: block;
 }
 
+/* ---------- Errores ---------- */
+
+/* El borde rojo se mantiene con el foco, hasta que se corrige el campo. */
+.field input[aria-invalid="true"] {
+  border-color: var(--color-accent-red);
+}
+
+/* Mensaje de validación debajo de su campo: descuenta parte del gap del formulario
+   para quedar pegado al campo que describe. */
+.login-field-error {
+  margin-top: -6px;
+  font-size: 12px;
+  color: var(--color-accent-red);
+}
+
+/* Error del intento de acceso (credenciales, cuenta suspendida, falla de conexión).
+   El rojo más oscuro que --color-accent-red mantiene el contraste AA sobre el fondo. */
+.login-error {
+  padding: 10px 12px;
+  border: 1px solid var(--color-accent-red-bg);
+  border-radius: var(--radius-sm);
+  background: #fef2f2;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #b91c1c;
+}
+
 /* ---------- Recordar mi cuenta ---------- */
 
 .login-remember {
@@ -207,4 +234,35 @@ body {
 .login-submit:focus-visible {
   outline: 2px solid var(--color-accent-blue);
   outline-offset: 2px;
+}
+
+/* Mientras se verifica la cuenta el botón queda deshabilitado, pero sin el aspecto
+   atenuado de una acción no disponible (.btn-primary:disabled, en buttons.css). */
+.login-submit.is-loading:disabled {
+  opacity: 0.85;
+  cursor: progress;
+}
+
+.login-submit.is-loading::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: login-spin 0.7s linear infinite;
+}
+
+@keyframes login-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Más lento, sin detenerlo: un indicador quieto parecería trabado. */
+@media (prefers-reduced-motion: reduce) {
+  .login-submit.is-loading::before {
+    animation-duration: 1.6s;
+  }
 }
