@@ -32,8 +32,8 @@
             icon: '<path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />',
           },
           {
+            // Sin href: la vista de Reportes todavía no existe (opción no disponible).
             key: 'reports',
-            href: '../reports/index.html',
             label: 'Reportes',
             // resources/ChartBar.svg
             iconStyle: 'resource',
@@ -133,8 +133,11 @@
       const navHtml = navGroups.map((group, groupIndex) => {
         const itemsHtml = group.items.map((item) => {
           const activeClass = item.key === active ? ' active' : '';
+          // Un item sin href es una opción no disponible: se muestra deshabilitada y, al no
+          // ser un enlace navegable, no recibe foco ni se activa con el ratón o el teclado.
+          const atributosEnlace = item.href ? `href="${item.href}"` : 'role="link" aria-disabled="true"';
           return `
-            <a class="nav-item${activeClass}" href="${item.href}"${item.key === active ? ' aria-current="page"' : ''}>
+            <a class="nav-item${activeClass}" ${atributosEnlace}${item.key === active ? ' aria-current="page"' : ''}>
               <svg ${ICON_SVG_ATTRS[item.iconStyle] || ICON_SVG_ATTRS.outline}>
                 ${item.icon}
               </svg>
