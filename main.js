@@ -2,37 +2,37 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true });
 
 const { app, dialog } = require('electron');
-const { crearVentanaPrincipal } = require('./src/main/ventana-principal');
-const { crearBandejaSistema } = require('./src/main/bandeja-sistema');
-const { verificarConexion, cerrarConexion } = require('./src/main/base-datos/conexion');
+const { createMainWindow } = require('./src/main/main-window');
+const { createSystemTray } = require('./src/main/system-tray');
+const { checkConnection, closeConnection } = require('./src/main/database/connection');
 
-let ventanaPrincipal;
-let bandeja;
-let estaSaliendo = false;
+let mainWindow;
+let tray;
+let isQuitting = false;
 
-function mostrarVentanaPrincipal() {
-  if (!ventanaPrincipal || ventanaPrincipal.isDestroyed()) {
-    ventanaPrincipal = crearVentanaPrincipal();
-    ventanaPrincipal.on('close', (evento) => {
-      if (!estaSaliendo) {
-        evento.preventDefault();
-        ventanaPrincipal.hide();
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    mainWindow = createMainWindow();
+    mainWindow.on('close', (event) => {
+      if (!isQuitting) {
+        event.preventDefault();
+        mainWindow.hide();
       }
     });
   }
 
-  if (ventanaPrincipal.isMinimized()) ventanaPrincipal.restore();
-  ventanaPrincipal.show();
-  ventanaPrincipal.focus();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
 }
 
 // Solo los errores de configuración más comunes tienen un mensaje propio; el resto se detalla en la consola.
-function describirErrorConexion(error) {
+function describeConnectionError(error) {
   const { DB_HOST, DB_PORT, DB_NAME, DB_USER } = process.env;
 
   switch (error.code) {
-    // Falta el .env o alguna variable: el mensaje de conexion.js ya dice cuáles y cómo corregirlo.
-    case 'CONFIGURACION_INCOMPLETA':
+    // Falta el .env o alguna variable: el mensaje de connection.js ya dice cuáles y cómo corregirlo.
+    case 'INCOMPLETE_CONFIGURATION':
       return error.message;
     case 'ECONNREFUSED':
       return `PostgreSQL no está en ejecución o no responde en ${DB_HOST}:${DB_PORT}. ` +
@@ -50,28 +50,28 @@ function describirErrorConexion(error) {
 
 app.whenReady().then(async () => {
   try {
-    await verificarConexion();
+    await checkConnection();
   } catch (error) {
     console.error('No se pudo conectar a la base de datos:', error);
-    dialog.showErrorBox('Error de conexión con la base de datos', describirErrorConexion(error));
+    dialog.showErrorBox('Error de conexión con la base de datos', describeConnectionError(error));
     app.quit();
     return;
   }
 
-  mostrarVentanaPrincipal();
-  bandeja = crearBandejaSistema(mostrarVentanaPrincipal);
+  showMainWindow();
+  tray = createSystemTray(showMainWindow);
 
-  app.on('activate', mostrarVentanaPrincipal);
+  app.on('activate', showMainWindow);
 });
 
 app.on('before-quit', () => {
-  estaSaliendo = true;
+  isQuitting = true;
 });
 
 app.on('will-quit', () => {
-  if (bandeja) bandeja.destroy();
+  if (tray) tray.destroy();
   // No se espera el cierre: la app termina igual, pero un fallo no debe quedar como promesa sin manejar.
-  cerrarConexion().catch((error) => {
+  closeConnection().catch((error) => {
     console.error('Error al cerrar la conexión con la base de datos:', error);
   });
 });
