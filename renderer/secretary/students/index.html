@@ -27,6 +27,11 @@
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
     <script src="../../shared/components/dropdown.component.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
+    <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="../../shared/components/search-bar.component.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
+    <script src="../../shared/components/row-actions.component.js"></script>
+    <script src="../../shared/components/status-badge.component.js"></script>
     <script src="./students.js" defer></script>
   </head>
   <body>
@@ -60,22 +65,9 @@
                 <thead>
                   <tr>
                     <th scope="col" class="column-filter col-name" data-filter="name">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por nombre" aria-expanded="false" aria-controls="nameFilter" popovertarget="nameFilter">
-                        <span>Nombre</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="nameFilter" heading="Nombre" label="Filtrar por nombre"></column-filter-toggle>
                       <div id="nameFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por nombre">
-                        <div class="searchable-bar">
-                          <span class="searchable-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                              <circle cx="11" cy="11" r="7" />
-                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                          </span>
-                          <input type="text" class="searchable-input" placeholder="Buscar por nombre" aria-label="Buscar por nombre" autocomplete="off" />
-                        </div>
+                        <search-bar placeholder="Buscar por nombre"></search-bar>
                         <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="Nombre">
                           <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
                             <span class="option-name text-truncate">Álvarez, Camila</span>
@@ -123,22 +115,9 @@
                       </div>
                     </th>
                     <th scope="col" class="column-filter col-email" data-filter="email">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por email" aria-expanded="false" aria-controls="emailFilter" popovertarget="emailFilter">
-                        <span>Email</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="emailFilter" heading="Email" label="Filtrar por email"></column-filter-toggle>
                       <div id="emailFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por email">
-                        <div class="searchable-bar">
-                          <span class="searchable-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                              <circle cx="11" cy="11" r="7" />
-                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                          </span>
-                          <input type="text" class="searchable-input" placeholder="Buscar por email" aria-label="Buscar por email" autocomplete="off" />
-                        </div>
+                        <search-bar placeholder="Buscar por email"></search-bar>
                         <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="Email">
                           <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
                             <span class="option-name text-truncate">camila.alvarez@institucion.edu.ar</span>
@@ -186,22 +165,9 @@
                       </div>
                     </th>
                     <th scope="col" class="column-filter" data-filter="phone">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por teléfono" aria-expanded="false" aria-controls="phoneFilter" popovertarget="phoneFilter">
-                        <span>Teléfono</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="phoneFilter" heading="Teléfono" label="Filtrar por teléfono"></column-filter-toggle>
                       <div id="phoneFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por teléfono">
-                        <div class="searchable-bar">
-                          <span class="searchable-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                              <circle cx="11" cy="11" r="7" />
-                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                          </span>
-                          <input type="text" class="searchable-input" placeholder="Buscar por teléfono" aria-label="Buscar por teléfono" autocomplete="off" />
-                        </div>
+                        <search-bar placeholder="Buscar por teléfono"></search-bar>
                         <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="Teléfono">
                           <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
                             <span class="option-name text-truncate">379 412-3456</span>
@@ -250,22 +216,9 @@
                     </th>
                     <th class="col-address">Dirección</th>
                     <th scope="col" class="column-filter" data-filter="dni">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por DNI" aria-expanded="false" aria-controls="dniFilter" popovertarget="dniFilter">
-                        <span>DNI</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="dniFilter" heading="DNI" label="Filtrar por DNI"></column-filter-toggle>
                       <div id="dniFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por DNI">
-                        <div class="searchable-bar">
-                          <span class="searchable-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                              <circle cx="11" cy="11" r="7" />
-                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                          </span>
-                          <input type="text" class="searchable-input" placeholder="Buscar por DNI" aria-label="Buscar por DNI" autocomplete="off" />
-                        </div>
+                        <search-bar placeholder="Buscar por DNI"></search-bar>
                         <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="DNI">
                           <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
                             <span class="option-name text-truncate">48.123.456</span>
@@ -314,12 +267,7 @@
                     </th>
                     <th>Fecha de nacimiento</th>
                     <th scope="col" class="column-filter" data-filter="status">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por estado" aria-expanded="false" aria-controls="statusFilter" popovertarget="statusFilter">
-                        <span>Estado</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="statusFilter" heading="Estado" label="Filtrar por estado"></column-filter-toggle>
                       <div id="statusFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por estado">
                         <ul class="dropdown-menu" role="listbox" aria-label="Estado" aria-multiselectable="true">
                           <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
@@ -342,26 +290,10 @@
                     <td>48.123.456</td>
                     <td>12 MAR 2010</td>
                     <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
+                      <status-badge status="active" label="Activo"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -372,26 +304,10 @@
                     <td>47.982.310</td>
                     <td>25 JUL 2009</td>
                     <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
+                      <status-badge status="active" label="Activo"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -402,26 +318,10 @@
                     <td>49.204.775</td>
                     <td>08 NOV 2011</td>
                     <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
+                      <status-badge status="active" label="Activo"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -432,26 +332,10 @@
                     <td>46.870.223</td>
                     <td>30 ENE 2008</td>
                     <td>
-                      <span class="badge badge-graduated">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
-                        </svg>
-                        Egresado
-                      </span>
+                      <status-badge status="graduated" label="Egresado"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -462,26 +346,10 @@
                     <td>48.556.941</td>
                     <td>17 MAY 2010</td>
                     <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
+                      <status-badge status="active" label="Activo"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -492,26 +360,10 @@
                     <td>47.331.408</td>
                     <td>02 SEP 2009</td>
                     <td>
-                      <span class="badge badge-suspended">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                        </svg>
-                        Suspendido
-                      </span>
+                      <status-badge status="suspended" label="Suspendido"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -522,26 +374,10 @@
                     <td>49.617.882</td>
                     <td>21 DIC 2011</td>
                     <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
+                      <status-badge status="active" label="Activo"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -552,26 +388,10 @@
                     <td>46.204.559</td>
                     <td>14 JUN 2008</td>
                     <td>
-                      <span class="badge badge-graduated">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
-                        </svg>
-                        Egresado
-                      </span>
+                      <status-badge status="graduated" label="Egresado"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -582,26 +402,10 @@
                     <td>48.998.127</td>
                     <td>09 FEB 2010</td>
                     <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
+                      <status-badge status="active" label="Activo"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -612,54 +416,17 @@
                     <td>47.145.690</td>
                     <td>26 OCT 2009</td>
                     <td>
-                      <span class="badge badge-suspended">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                        </svg>
-                        Suspendido
-                      </span>
+                      <status-badge status="suspended" label="Suspendido"></status-badge>
                     </td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar alumno" title="Editar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Eliminar alumno" title="Eliminar alumno">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div class="table-footer">
-              <span class="results-count">Mostrando 1-10 de 248</span>
-              <nav class="pagination" aria-label="Paginación de alumnos">
-                <button class="page-btn page-nav" type="button">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                  Previo
-                </button>
-                <button class="page-btn active" type="button">1</button>
-                <button class="page-btn" type="button">2</button>
-                <button class="page-btn" type="button">3</button>
-                <span class="page-ellipsis">…</span>
-                <button class="page-btn" type="button">25</button>
-                <button class="page-btn page-nav" type="button">
-                  Siguiente
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
+            <table-pagination results="Mostrando 1-10 de 248" label="Paginación de alumnos" pages="1 2 3 … 25"></table-pagination>
           </section>
         </main>
       </div>
@@ -754,24 +521,6 @@
     </div>
 
     <!-- Modal: Eliminar alumno -->
-    <div class="modal-overlay" id="deleteStudentOverlay">
-      <div class="modal modal-confirm" role="alertdialog" aria-modal="true" aria-labelledby="deleteStudentTitle" aria-describedby="deleteStudentDescription">
-        <div class="confirm-content">
-          <span class="confirm-icon" aria-hidden="true">
-            <!-- resources/ExclamationTriangle.svg -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-            </svg>
-          </span>
-          <h2 id="deleteStudentTitle">Eliminar alumno</h2>
-          <p id="deleteStudentDescription">¿Quieres eliminar este alumno?</p>
-        </div>
-
-        <div class="confirm-actions">
-          <button type="button" class="btn btn-neutral" id="cancelDeleteStudentBtn">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteStudentBtn">Sí, eliminar</button>
-        </div>
-      </div>
-    </div>
+    <confirm-modal entity="Student" heading="Eliminar alumno" description="¿Quieres eliminar este alumno?"></confirm-modal>
   </body>
 </html>

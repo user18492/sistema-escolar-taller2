@@ -1,5 +1,9 @@
 /* Componente reutilizable: modal de confirmación para acciones destructivas (Eliminar) */
 
+confirm-modal {
+  display: contents;
+}
+
 /* Confirmación compacta: más angosta que los formularios y con el contenido centrado.
    Se combina con .modal para no depender del orden de carga frente al ancho que cada
    vista le da a sus modales de formulario. */

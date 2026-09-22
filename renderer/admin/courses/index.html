@@ -28,6 +28,9 @@
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
     <script src="../../shared/components/dropdown.component.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
+    <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
+    <script src="../../shared/components/row-actions.component.js"></script>
     <script src="./courses.js" defer></script>
   </head>
   <body>
@@ -55,24 +58,14 @@
                 <thead>
                   <tr>
                     <th scope="col" class="column-filter" data-filter="grade">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por grado" aria-expanded="false" aria-controls="gradeFilter" popovertarget="gradeFilter">
-                        <span>Grado</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="gradeFilter" heading="Grado" label="Filtrar por grado"></column-filter-toggle>
                       <div id="gradeFilter" class="column-filter-panel column-filter-grade" popover="auto" role="group" aria-label="Filtrar por grado">
                         <grade-dropdown variant="panel"></grade-dropdown>
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
                     <th scope="col" class="column-filter" data-filter="division">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por división" aria-expanded="false" aria-controls="divisionFilter" popovertarget="divisionFilter">
-                        <span>División</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="divisionFilter" heading="División" label="Filtrar por división"></column-filter-toggle>
                       <div id="divisionFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por división">
                         <div class="field">
                           <input type="text" class="column-filter-input" placeholder="Filtrar por división" aria-label="Filtrar por división" autocomplete="off" />
@@ -81,12 +74,7 @@
                       </div>
                     </th>
                     <th scope="col" class="column-filter" data-filter="shift">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por turno" aria-expanded="false" aria-controls="shiftFilter" popovertarget="shiftFilter">
-                        <span>Turno</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="shiftFilter" heading="Turno" label="Filtrar por turno"></column-filter-toggle>
                       <div id="shiftFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por turno">
                         <ul class="dropdown-menu" role="listbox" aria-label="Turno">
                           <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
@@ -98,12 +86,7 @@
                     </th>
                     <th>Nivel educativo</th>
                     <th scope="col" class="column-filter" data-filter="year">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por ciclo lectivo" aria-expanded="false" aria-controls="yearFilter" popovertarget="yearFilter">
-                        <span>Ciclo lectivo</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="yearFilter" heading="Ciclo lectivo" label="Filtrar por ciclo lectivo"></column-filter-toggle>
                       <div id="yearFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por ciclo lectivo">
                         <div class="field">
                           <input type="text" class="column-filter-input" data-format="year" inputmode="numeric" placeholder="AAAA" aria-label="Filtrar por ciclo lectivo (AAAA)" autocomplete="off" />
@@ -122,18 +105,7 @@
                     <td>Primaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -143,18 +115,7 @@
                     <td>Primaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -164,18 +125,7 @@
                     <td>Primaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -185,18 +135,7 @@
                     <td>Primaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -206,18 +145,7 @@
                     <td>Primaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -227,18 +155,7 @@
                     <td>Primaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -248,18 +165,7 @@
                     <td>Secundaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -269,18 +175,7 @@
                     <td>Secundaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -290,18 +185,7 @@
                     <td>Secundaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                   <tr>
@@ -311,46 +195,14 @@
                     <td>Secundaria</td>
                     <td>2026</td>
                     <td>
-                      <div class="table-actions">
-                        <button class="table-action" type="button" data-action="edit" aria-label="Editar curso" title="Editar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="table-action" type="button" data-action="delete" aria-label="Borrar curso" title="Borrar curso">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
+                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div class="table-footer">
-              <span class="results-count">Mostrando 1-10 de 48</span>
-              <nav class="pagination" aria-label="Paginación de cursos">
-                <button class="page-btn page-nav" type="button">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                  Previo
-                </button>
-                <button class="page-btn active" type="button">1</button>
-                <button class="page-btn" type="button">2</button>
-                <button class="page-btn" type="button">3</button>
-                <span class="page-ellipsis">…</span>
-                <button class="page-btn" type="button">5</button>
-                <button class="page-btn page-nav" type="button">
-                  Siguiente
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
+            <table-pagination results="Mostrando 1-10 de 48" label="Paginación de cursos" pages="1 2 3 … 5"></table-pagination>
           </section>
         </main>
       </div>
@@ -449,24 +301,6 @@
     </div>
 
     <!-- Modal: Eliminar curso -->
-    <div class="modal-overlay" id="deleteCourseOverlay">
-      <div class="modal modal-confirm" role="alertdialog" aria-modal="true" aria-labelledby="deleteCourseTitle" aria-describedby="deleteCourseDescription">
-        <div class="confirm-content">
-          <span class="confirm-icon" aria-hidden="true">
-            <!-- resources/ExclamationTriangle.svg -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-            </svg>
-          </span>
-          <h2 id="deleteCourseTitle">Eliminar curso</h2>
-          <p id="deleteCourseDescription">¿Quieres eliminar este curso?</p>
-        </div>
-
-        <div class="confirm-actions">
-          <button type="button" class="btn btn-neutral" id="cancelDeleteCourseBtn">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteCourseBtn">Sí, eliminar</button>
-        </div>
-      </div>
-    </div>
+    <confirm-modal entity="Course" heading="Eliminar curso" description="¿Quieres eliminar este curso?"></confirm-modal>
   </body>
 </html>

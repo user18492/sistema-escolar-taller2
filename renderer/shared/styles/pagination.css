@@ -1,5 +1,9 @@
 /* Estilos reutilizables: pie de las tablas con el total de resultados y la paginación. */
 
+table-pagination {
+  display: contents;
+}
+
 .table-footer {
   display: flex;
   align-items: center;

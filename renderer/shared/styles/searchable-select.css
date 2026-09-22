@@ -4,6 +4,10 @@
    column-filter.css acota a .column-filter-panel las variantes del filtro; cada vista define
    el relleno de la barra, el alto del input y el valor elegido de sus campos. */
 
+search-bar {
+  display: contents;
+}
+
 .dropdown-searchable {
   position: relative;
 }

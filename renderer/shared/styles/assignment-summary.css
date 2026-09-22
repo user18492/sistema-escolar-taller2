@@ -14,6 +14,10 @@
    .assignment-summary-split a la card y agrupar los datos de cada bloque en un
    .summary-group. */
 
+assignment-summary {
+  display: contents;
+}
+
 /* Un dato por fila: etiqueta en una columna de ancho fijo y valor alineado en la segunda. */
 .assignment-summary,
 .summary-group {

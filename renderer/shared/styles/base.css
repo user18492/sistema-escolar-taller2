@@ -358,6 +358,10 @@ svg {
 }
 
 /* Acciones de tablas: iconos sin fondo ni borde. */
+row-actions {
+  display: contents;
+}
+
 .user-actions,
 .table-actions {
   display: flex;
@@ -398,6 +402,10 @@ svg {
 /* Acción de texto "Gestionar" + chevron (resources/ChevronRight.svg): abre la vista
    que continúa desde la fila. Gris claro para no competir con los datos de la fila;
    se resalta en azul al pasar el puntero. */
+manage-link {
+  display: contents;
+}
+
 .manage-link {
   display: inline-flex;
   align-items: center;

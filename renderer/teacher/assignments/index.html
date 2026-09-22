@@ -21,6 +21,9 @@
     <script src="../../shared/components/grade-dropdown.js"></script>
     <script src="../../shared/components/course-filter.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
+    <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
+    <script src="../../shared/components/manage-link.component.js"></script>
     <script src="./assignments.js" defer></script>
   </head>
   <body>
@@ -50,12 +53,7 @@
                 <thead>
                   <tr>
                     <th scope="col" class="column-filter" data-filter="course">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por curso" aria-expanded="false" aria-controls="courseFilter" popovertarget="courseFilter">
-                        <span>Curso</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="courseFilter" heading="Curso" label="Filtrar por curso"></column-filter-toggle>
                       <div id="courseFilter" class="column-filter-panel column-filter-grade" popover="auto" role="group" aria-label="Filtrar por curso">
                         <course-filter></course-filter>
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
@@ -64,12 +62,7 @@
                     <!-- Columna informativa: el nivel educativo se filtra desde Curso. -->
                     <th>Nivel educativo</th>
                     <th scope="col" class="column-filter" data-filter="subject">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por materia" aria-expanded="false" aria-controls="subjectFilter" popovertarget="subjectFilter">
-                        <span>Materia</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="subjectFilter" heading="Materia" label="Filtrar por materia"></column-filter-toggle>
                       <!-- Solo las materias que el profesor tiene asignadas. -->
                       <div id="subjectFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por materia">
                         <ul class="dropdown-menu" role="listbox" aria-label="Materia" aria-multiselectable="true">
@@ -81,12 +74,7 @@
                       </div>
                     </th>
                     <th scope="col" class="column-filter" data-filter="year">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por ciclo lectivo" aria-expanded="false" aria-controls="yearFilter" popovertarget="yearFilter">
-                        <span>Ciclo lectivo</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="yearFilter" heading="Ciclo lectivo" label="Filtrar por ciclo lectivo"></column-filter-toggle>
                       <div id="yearFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por ciclo lectivo">
                         <div class="field">
                           <input type="text" class="column-filter-input" data-format="year" inputmode="numeric" placeholder="AAAA" aria-label="Filtrar por ciclo lectivo (AAAA)" autocomplete="off" />
@@ -104,13 +92,7 @@
                     <td>Matemática</td>
                     <td>2026</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                   <tr>
@@ -119,13 +101,7 @@
                     <td>Matemática</td>
                     <td>2026</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                   <tr>
@@ -134,13 +110,7 @@
                     <td>Ciencias Naturales</td>
                     <td>2026</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                   <tr>
@@ -149,13 +119,7 @@
                     <td>Matemática</td>
                     <td>2026</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                   <tr>
@@ -164,13 +128,7 @@
                     <td>Matemática</td>
                     <td>2026</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                   <tr>
@@ -179,13 +137,7 @@
                     <td>Matemática</td>
                     <td>2026</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                   <tr>
@@ -194,13 +146,7 @@
                     <td>Ciencias Naturales</td>
                     <td>2026</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                   <tr>
@@ -209,13 +155,7 @@
                     <td>Matemática</td>
                     <td>2025</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                   <tr>
@@ -224,13 +164,7 @@
                     <td>Matemática</td>
                     <td>2025</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                   <tr>
@@ -239,38 +173,14 @@
                     <td>Ciencias Naturales</td>
                     <td>2025</td>
                     <td>
-                      <a class="manage-link" href="../assignment-management/index.html">
-                        Gestionar
-                        <!-- resources/ChevronRight.svg -->
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                      </a>
+                      <manage-link href="../assignment-management/index.html"></manage-link>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div class="table-footer">
-              <span class="results-count">Mostrando 1-10 de 16</span>
-              <nav class="pagination" aria-label="Paginación de asignaciones">
-                <button class="page-btn page-nav" type="button">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                  Previo
-                </button>
-                <button class="page-btn active" type="button">1</button>
-                <button class="page-btn" type="button">2</button>
-                <button class="page-btn page-nav" type="button">
-                  Siguiente
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
+            <table-pagination results="Mostrando 1-10 de 16" label="Paginación de asignaciones" pages="1 2"></table-pagination>
           </section>
         </main>
       </div>

@@ -4,6 +4,10 @@
    aporta column-filter.js. Los paneles con buscador requieren searchable-select.css,
    cargada antes que esta hoja. */
 
+column-filter-toggle {
+  display: contents;
+}
+
 .column-filter-toggle {
   display: inline-flex;
   align-items: center;

@@ -1,6 +1,10 @@
 /* Estilos reutilizables: chip de estado de las tablas. Borde gris sutil y texto oscuro; el
    color queda solo en el ícono outline. Cada vista agrega los colores de sus otros estados. */
 
+status-badge {
+  display: contents;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

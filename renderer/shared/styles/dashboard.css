@@ -21,6 +21,10 @@
   gap: 16px;
 }
 
+stat-card {
+  display: contents;
+}
+
 /* Disposición vertical: ícono arriba y etiqueta + valor en la parte inferior.
    isolation crea un contexto de apilamiento para dejar la ilustración detrás del contenido. */
 .stat-card {
