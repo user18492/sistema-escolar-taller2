@@ -1,6 +1,7 @@
 const path = require('node:path');
 const { BrowserWindow } = require('electron');
 const { registerWindowControls } = require('./ipc/window-controls.controller');
+const { registerUsersControls } = require('./ipc/users.controller');
 
 const PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'preload.js');
 const ICON_PATH = path.join(__dirname, '..', '..', 'resources', 'icon_app.png');
@@ -23,6 +24,9 @@ function createMainWindow() {
 
   window.setMenu(null);
   registerWindowControls(window);
+
+  registerUsersControls(window);
+  
   window.loadFile(DASHBOARD_PATH);
 
   return window;

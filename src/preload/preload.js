@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld('api', {
       return () => ipcRenderer.removeListener('window:maximized-changed', listener);
     },
   },
+  usuarios: {
+    crear: (datos) => ipcRenderer.invoke('usuarios:crear', datos),
+  },
 });

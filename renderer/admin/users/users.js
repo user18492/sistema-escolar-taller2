@@ -118,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const avatarZoom = document.getElementById('avatarZoom');
   const avatarZoomValue = document.getElementById('avatarZoomValue');
   let savedCrop = null;
+  let avatarDataUrl = null;
   let draftCrop = null;
   let avatarLoadId = 0;
   let drag = null;
@@ -195,7 +196,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('saveAvatarCropBtn').addEventListener('click', () => {
     savedCrop = { ...draftCrop };
-    avatarPreview.style.backgroundImage = `url(${cropCanvas.toDataURL('image/png')})`;
+    avatarDataUrl = cropCanvas.toDataURL('image/png');
+    avatarPreview.style.backgroundImage = `url(${avatarDataUrl})`;
     avatarPreview.classList.add('has-image');
     editAvatarBtn.hidden = false;
     cropDialog.close();
@@ -246,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     avatarInput.value = '';
     avatarLoadId += 1;
     savedCrop = null;
+    avatarDataUrl = null; //para que no arrastre la imagen de un alta anterior
     editAvatarBtn.hidden = true;
     avatarError.hidden = true;
 
@@ -319,10 +322,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
-  createBtn.addEventListener('click', () => {
-    // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
+  createBtn.addEventListener('click', async () => {
+  if (isEditing) {
+    // TODO: conectar la edición real cuando exista el UPDATE correspondiente.
     closeModal();
-  });
+    return;
+  }
+
+  const [day, month, year] = birthdateInput.value.split('/');
+  const fechaNacimiento = day && month && year ? `${year}-${month}-${day}` : null;
+  const rolSeleccionado = roleDropdown.querySelector('.dropdown-option.selected');
+
+  const datos = {
+    nombre: document.getElementById('newUserFirstName').value.trim(),
+    apellido: document.getElementById('newUserLastName').value.trim(),
+    dni: dniInput.value.replace(/\D/g, ''),
+    email: document.getElementById('newUserEmail').value.trim(),
+    fechaNacimiento,
+    rol: rolSeleccionado.dataset.value,
+    passwordPlano: currentPassword,
+    imagenUrl: avatarDataUrl,
+  };
+
+  createBtn.disabled = true;
+  try {
+    await window.api.usuarios.crear(datos);
+    closeModal();
+    // TODO: agregar la fila del nuevo usuario a la tabla, o refrescar el listado.
+  } catch (error) {
+    console.error('No se pudo crear el usuario:', error);
+    alert('No se pudo crear el usuario. Revisá los datos e intentá de nuevo.');
+  } finally {
+    createBtn.disabled = false;
+  }
+});
 
   // ---------- Modal: Eliminar usuario ----------
 
