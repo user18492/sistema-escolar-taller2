@@ -1,13 +1,8 @@
+const { handleTrusted } = require('./trusted-sender');
+
 // Los canales pertenecen únicamente al contenido de esta ventana.
 function registerWindowControls(browserWindow) {
-  const handle = (channel, action) => {
-    browserWindow.webContents.ipc.handle(channel, (event) => {
-      if (event.senderFrame !== browserWindow.webContents.mainFrame) {
-        throw new Error('Origen de control de ventana no permitido.');
-      }
-      return action();
-    });
-  };
+  const handle = (channel, action) => handleTrusted(browserWindow, channel, action);
 
   handle('window:minimize', () => browserWindow.minimize());
   handle('window:toggle-maximize', () => {
