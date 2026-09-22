@@ -30,11 +30,16 @@ function normalizeEmail(email) {
   return typeof email === 'string' ? email.trim().toLowerCase() : '';
 }
 
+// Recibe un email ya normalizado.
+function isValidEmail(email) {
+  return email.length <= EMAIL_MAX_LENGTH && EMAIL_PATTERN.test(email);
+}
+
 function validateCredentials(email, password) {
   if (!email) {
     throw new AuthenticationError('INVALID_INPUT', 'Ingresá tu email.');
   }
-  if (email.length > EMAIL_MAX_LENGTH || !EMAIL_PATTERN.test(email)) {
+  if (!isValidEmail(email)) {
     throw new AuthenticationError('INVALID_INPUT', 'Ingresá un email válido.');
   }
   if (typeof password !== 'string' || password === '') {
@@ -48,6 +53,7 @@ function toPublicUser(user) {
     id: user.id,
     role: user.role,
     institutionId: user.institutionId,
+    institutionName: user.institutionName,
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
@@ -81,4 +87,4 @@ async function authenticate(credentials) {
   return toPublicUser(user);
 }
 
-module.exports = { authenticate, AuthenticationError };
+module.exports = { authenticate, normalizeEmail, isValidEmail, AuthenticationError };

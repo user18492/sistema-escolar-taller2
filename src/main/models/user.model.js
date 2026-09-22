@@ -6,6 +6,7 @@ class User {
     role,
     isActive,
     institutionId,
+    institutionName,
     firstName,
     lastName,
     email,
@@ -19,6 +20,8 @@ class User {
     // false = suspendido.
     this.isActive = isActive;
     this.institutionId = institutionId;
+    // Nombre de la institución (instituciones.nombre), para mostrarlo sin otra consulta.
+    this.institutionName = institutionName;
     this.firstName = firstName;
     this.lastName = lastName;
     this.email = email;

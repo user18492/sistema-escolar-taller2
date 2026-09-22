@@ -13,9 +13,11 @@ const FIND_BY_EMAIL_SQL = `
          u.dni,
          u.fecha_nacimiento,
          u.imagen_url,
-         r.nombre AS rol
+         r.nombre AS rol,
+         i.nombre AS institucion_nombre
     FROM usuarios u
     JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
+    JOIN instituciones i ON i.institucion_id = u.institucion_id
    WHERE u.email = $1
 `;
 
@@ -25,6 +27,7 @@ function toUser(row) {
     role: row.rol,
     isActive: row.usuario_estado,
     institutionId: row.institucion_id,
+    institutionName: row.institucion_nombre,
     firstName: row.nombre,
     lastName: row.apellido,
     email: row.email,

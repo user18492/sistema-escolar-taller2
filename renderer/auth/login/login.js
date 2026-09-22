@@ -2,6 +2,8 @@
 
 // Vista inicial de cada rol. El rol es el que devuelve el proceso principal después de
 // verificar la cuenta (auth.service.js), nunca uno elegido o guardado en la interfaz.
+// Mismas vistas que HOME_VIEW_BY_ROLE en navigation-guard.js, que igual rechaza cualquier
+// vista que no corresponda a la sesión.
 const HOME_BY_ROLE = {
   ADMIN: '../../admin/dashboard/index.html',
   SECRETARIO: '../../secretary/dashboard/index.html',
@@ -27,12 +29,22 @@ function validatePassword(password) {
 }
 
 // Nunca rechaza: si el IPC falla, devuelve el mismo formato que un error del proceso principal.
-async function requestLogin(email, password) {
+async function requestLogin(email, password, rememberAccount) {
   try {
-    return await window.api.auth.login(email, password);
+    return await window.api.auth.login(email, password, rememberAccount);
   } catch (error) {
     console.error('Error al iniciar sesión:', error);
     return { ok: false, error: { code: 'UNEXPECTED_ERROR', message: UNEXPECTED_ERROR_MESSAGE } };
+  }
+}
+
+// Nunca rechaza: si no se puede leer, el formulario queda como sin cuenta recordada.
+async function requestRememberedEmail() {
+  try {
+    return await window.api.auth.getRememberedEmail();
+  } catch (error) {
+    console.error('Error al obtener la cuenta recordada:', error);
+    return null;
   }
 }
 
@@ -41,10 +53,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const email = document.getElementById('loginEmail');
   const password = document.getElementById('loginPassword');
   const toggle = document.getElementById('passwordToggle');
+  const rememberAccount = document.getElementById('rememberAccount');
   const submitButton = document.getElementById('loginSubmit');
   const formError = document.getElementById('loginError');
   const submitLabel = submitButton.textContent;
   let isSubmitting = false;
+
+  // Con una cuenta recordada, el email llega completo y la casilla marcada: solo falta la contraseña.
+  // Si ya se empezó a escribir otro email, se respeta.
+  requestRememberedEmail().then((rememberedEmail) => {
+    if (!rememberedEmail || email.value) return;
+    email.value = rememberedEmail;
+    rememberAccount.checked = true;
+    if (document.activeElement === document.body) password.focus();
+  });
+
+  // Desmarcar la casilla olvida el email en el momento; marcarla lo guarda recién con el próximo
+  // acceso exitoso (auth.controller.js).
+  rememberAccount.onchange = () => {
+    if (rememberAccount.checked) return;
+    window.api.auth.forgetRememberedEmail().catch((error) => {
+      console.error('Error al olvidar la cuenta recordada:', error);
+    });
+  };
+
+  // Mientras se verifica la cuenta la casilla no cambia: su valor ya se envió con los datos.
+  rememberAccount.onclick = (event) => {
+    if (isSubmitting) event.preventDefault();
+  };
 
   // El botón no toma el foco al pulsarlo: así el campo no lo pierde ni lo recupera
   // y su borde azul no parpadea. El foco por teclado (Tab) no se ve afectado.
@@ -119,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setLoading(true);
-    const result = await requestLogin(emailValue, passwordValue);
+    const result = await requestLogin(emailValue, passwordValue, rememberAccount.checked);
 
     if (result.ok && Object.hasOwn(HOME_BY_ROLE, result.user?.role)) {
       // El estado de carga se mantiene mientras se abre la vista, así no se puede reenviar.

@@ -15,9 +15,13 @@ contextBridge.exposeInMainWorld('api', {
   },
   auth: {
     // Resuelve { ok: true, user } o { ok: false, error: { code, message } }, con el mensaje listo para mostrar.
-    login: (email, password) => ipcRenderer.invoke('auth:login', { email, password }),
-    // Resuelve { firstName, lastName, role, imageUrl }, o null si no hay sesión iniciada.
+    // Con un acceso exitoso, `rememberAccount` guarda el email para el próximo inicio o lo olvida.
+    login: (email, password, rememberAccount) => ipcRenderer.invoke('auth:login', { email, password, rememberAccount }),
+    // Resuelve { firstName, lastName, role, imageUrl, institutionName }, o null si no hay sesión iniciada.
     getCurrentUser: () => ipcRenderer.invoke('auth:get-current-user'),
     logout: () => ipcRenderer.invoke('auth:logout'),
+    // Resuelve el email recordado, o null si no hay ninguno.
+    getRememberedEmail: () => ipcRenderer.invoke('auth:get-remembered-email'),
+    forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
 });
