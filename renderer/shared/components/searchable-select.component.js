@@ -4,6 +4,9 @@
 // quedan registrados: la vista los cierra con closeAllSearchableMenus() y le pasa
 // closeAllSearchableMenus y dismissSearchableMenus a setupDropdowns() como onToggle y onDismiss,
 // para que abrir un dropdown, hacer clic fuera de los buscadores o pulsar Escape los cierre.
+// Escape cierra la lista abierta antes que el modal (dropdown.component.js consume esa pulsación)
+// y deja el foco en el chevron: el input se oculta si el campo tiene valor, y enfocarlo
+// reabriría la lista.
 // Opciones (cada vista declara las tres últimas de forma explícita):
 //   - onOpen(): se llama al abrir la lista, antes de cerrar los demás buscadores (la vista
 //     cierra ahí sus dropdowns).
@@ -25,10 +28,14 @@
     });
   };
 
-  // Un clic dentro de un buscador no los cierra; uno fuera de ellos o Escape, sí
+  // Un clic dentro de un buscador no los cierra; uno fuera de ellos o Escape, sí. Devuelve si
+  // había uno abierto, para que setupDropdowns consuma esa pulsación de Escape.
   const dismissSearchableMenus = (event) => {
-    if (event.type === 'click' && event.target.closest('.dropdown-searchable')) return;
+    if (event.type === 'click' && event.target.closest('.dropdown-searchable')) return false;
+    const openSelect = searchableSelects.find((select) => select.root.classList.contains('open'));
     closeAllSearchableMenus();
+    if (openSelect && event.key === 'Escape') openSelect.root.querySelector('.searchable-chevron').focus();
+    return Boolean(openSelect);
   };
 
   function setupSearchableSelect(

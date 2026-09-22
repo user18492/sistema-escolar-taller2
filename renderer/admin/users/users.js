@@ -258,8 +258,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.data-table tbody [data-action="edit"]').forEach((button) => {
     button.addEventListener('click', () => openModal(button.closest('tr'), button));
   });
-  overlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !cropDialog.open) closeModal();
+  // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
+  // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
+  // quedado fuera de un control; el diálogo de recorte cierra solo con su propio Escape.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && overlay.classList.contains('is-open') && !cropDialog.open) closeModal();
   });
   cancelBtn.addEventListener('click', closeModal);
 

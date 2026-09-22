@@ -110,8 +110,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
-  enrollmentOverlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeEnrollmentModal();
+  // Escape cierra el modal si no hay un desplegable ni un buscador abiertos
+  // (dropdown.component.js resuelve antes esa pulsación). Se escucha en el documento para que
+  // funcione aunque el foco haya quedado fuera de un control.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && enrollmentOverlay.classList.contains('is-open')) closeEnrollmentModal();
   });
 
   createEnrollmentBtn.addEventListener('click', () => {
@@ -177,8 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
-  editOverlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeEditModal();
+  // Escape: mismo criterio que en Nueva inscripción.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && editOverlay.classList.contains('is-open')) closeEditModal();
   });
 
   saveEnrollmentBtn.addEventListener('click', () => {

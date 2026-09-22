@@ -159,8 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
-  overlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeModal();
+  // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
+  // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
+  // quedado fuera de un control.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && overlay.classList.contains('is-open')) closeModal();
   });
 
   cancelBtn.addEventListener('click', closeModal);

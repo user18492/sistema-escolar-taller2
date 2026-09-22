@@ -4,7 +4,13 @@
 // closeAllDropdowns } para cerrarlos desde sus modales. Se llama antes de que la vista registre
 // sus propios listeners sobre las opciones, para que el genérico siga corriendo primero.
 // Actúa sobre los .dropdown que existen al llamarlo:
-//   - abrir uno cierra los demás, y un clic fuera de ellos o Escape los cierra todos;
+//   - abrir uno cierra los demás, y un clic fuera de ellos los cierra todos;
+//   - Escape resuelve primero el desplegable abierto: lo cierra, devuelve el foco a su botón y
+//     consume la pulsación antes que los handlers de los modales, que solo la reciben si no había
+//     ninguno abierto. Si hay un <dialog> modal o un popover automático abiertos (recorte de
+//     avatar, filtros de column-filter.js), Escape les pertenece y el navegador los cierra; los
+//     menús flotantes de modal-dropdown.js son popovers manuales y no cuentan. Las repeticiones
+//     de la tecla mantenida se descartan, para que una pulsación no encadene varios cierres;
 //   - elegir una opción la marca como seleccionada, copia su data-label (o su texto) en la
 //     etiqueta, le quita .placeholder y emite "dropdown-change" con su data-value;
 //   - las opciones con aria-disabled="true" no se pueden elegir;
@@ -15,9 +21,13 @@
 // dropdowns:
 //   - onToggle(): se llama cada vez que se pulsa el botón de un dropdown, después de cerrar los demás.
 //   - onDismiss(event): se llama con cada clic en el documento y con Escape, después de cerrar
-//     los dropdowns.
+//     los dropdowns; con Escape devuelve true si cerró algún desplegable, y esa pulsación
+//     también se consume.
 
 (() => {
+  // Capas que resuelven Escape por sí mismas
+  const NATIVE_LAYER_SELECTOR = 'dialog:modal, :popover-open:not([popover="manual"])';
+
   window.setupDropdowns = ({ onToggle, onDismiss } = {}) => {
     const dropdowns = document.querySelectorAll('.dropdown');
 
@@ -84,12 +94,25 @@
       onDismiss?.(event);
     });
 
+    // En fase de captura, para decidir antes que los handlers de los modales
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        closeAllDropdowns();
-        onDismiss?.(event);
+      if (event.key !== 'Escape') return;
+      const consume = () => {
+        event.preventDefault();
+        event.stopPropagation();
+      };
+      if (event.repeat) {
+        consume();
+        return;
       }
-    });
+      if (document.querySelector(NATIVE_LAYER_SELECTOR)) return;
+
+      const openDropdown = Array.from(dropdowns).find((dropdown) => dropdown.classList.contains('open'));
+      closeAllDropdowns();
+      openDropdown?.querySelector('.dropdown-toggle').focus();
+      const dismissed = onDismiss?.(event);
+      if (openDropdown || dismissed) consume();
+    }, true);
 
     return { closeDropdown, closeAllDropdowns };
   };

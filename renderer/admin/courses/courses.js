@@ -134,6 +134,13 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', (event) => openCourseModal(event, button.closest('tr')));
   });
 
+  // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
+  // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
+  // quedado fuera de un control.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && courseOverlay.classList.contains('is-open')) closeCourseModal();
+  });
+
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   createCourseBtn.addEventListener('click', () => {

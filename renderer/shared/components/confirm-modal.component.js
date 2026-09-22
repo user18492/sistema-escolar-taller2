@@ -4,7 +4,9 @@
 // están en confirm-modal.css.
 // Lo abre cada botón [data-action="delete"] de las filas de la tabla: se cierran los filtros de
 // columna abiertos y el foco pasa a "Cancelar". Cancelar, Escape y confirmar lo cierran y
-// devuelven el foco al botón que lo abrió. El overlay no lo cierra al hacer clic fuera.
+// devuelven el foco al botón que lo abrió. Escape se escucha en el documento mientras está
+// abierto, así que también lo cierra si el foco quedó fuera de un control (clic en su texto).
+// El overlay no lo cierra al hacer clic fuera.
 // Opciones:
 //   - beforeOpen(): se llama antes de abrirlo (la vista cierra ahí sus dropdowns y buscadores).
 //   - onConfirm(trigger): se llama al confirmar, antes de cerrarlo, con el botón de la fila.
@@ -34,8 +36,8 @@
     document.querySelectorAll(TRIGGER_SELECTOR).forEach((button) => {
       button.addEventListener('click', () => openModal(button));
     });
-    overlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') closeModal();
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && overlay.classList.contains('is-open')) closeModal();
     });
     cancelButton.addEventListener('click', closeModal);
     confirmButton.addEventListener('click', () => {

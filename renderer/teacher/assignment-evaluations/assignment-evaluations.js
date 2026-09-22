@@ -159,9 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => openEvaluationModal(button.closest('tr'), button));
   });
 
-  // Escape cierra primero el desplegable abierto y, si no hay ninguno, el modal.
-  evaluationOverlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !typeDropdown.classList.contains('open')) closeEvaluationModal();
+  // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
+  // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
+  // quedado fuera de un control.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && evaluationOverlay.classList.contains('is-open')) closeEvaluationModal();
   });
 
   cancelEvaluationBtn.addEventListener('click', closeEvaluationModal);
