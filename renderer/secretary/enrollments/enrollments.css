@@ -18,49 +18,18 @@
 
 /* ---------- Dropdown custom (Nivel educativo / Estado) ---------- */
 
-/* Campo con búsqueda integrada del modal (Alumno / Curso):
-   dimensiones estables entre búsqueda y selección. */
+/* Campo con búsqueda integrada del modal (Alumno / Curso): base común en
+   searchable-select.css. Propio de Inscripciones: barra sin relleno vertical ni margen
+   inferior, con min-width: 0, e input a todo su alto, para mantener dimensiones estables
+   entre búsqueda y selección. */
 
-/* Acotado al campo del modal: la barra del filtro de columna la dimensiona column-filter.css.
-   Sin margen inferior: el que column-filter.css da a su barra de búsqueda no aplica al campo. */
 .field-searchable .searchable-bar {
-  width: 100%;
   min-width: 0;
-  height: 38px;
-  margin-bottom: 0;
   padding: 0 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
-.dropdown-searchable.open .searchable-bar,
-.searchable-bar:focus-within {
-  border-color: var(--color-accent-blue);
-}
-
-.searchable-icon svg {
-  width: 15px;
-  height: 15px;
-}
-
-/* Mayor especificidad que .field input: el borde pertenece solo a la barra. */
 .field-searchable .searchable-input {
-  flex: 1;
-  min-width: 0;
   height: 100%;
-  border: none;
-  border-radius: 0;
-  outline: none;
-  box-shadow: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--color-text-primary);
-  padding: 0;
 }
 
 /* Valor elegido, truncado con .text-truncate de base.css. */
@@ -73,22 +42,6 @@
 
 .searchable-bar.has-value:not(.is-editing) .searchable-value {
   display: block;
-}
-
-/* Curso bloqueado hasta elegir el nivel educativo: mismo tratamiento que en Docencia. */
-
-.dropdown-searchable.is-locked .searchable-bar,
-.dropdown-searchable.is-locked .searchable-bar:hover {
-  background: #f9fafb;
-  cursor: not-allowed;
-}
-
-.dropdown-searchable.is-locked .searchable-icon {
-  display: none;
-}
-
-.dropdown-searchable.is-locked .searchable-chevron {
-  opacity: 0.5;
 }
 
 /* Opciones de las listas desplegables con búsqueda. */

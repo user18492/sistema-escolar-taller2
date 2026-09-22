@@ -82,24 +82,13 @@
   color: var(--color-text-primary);
 }
 
-/* Campo con búsqueda integrada (Profesor / Curso): un único componente combinando input de búsqueda y lista desplegable */
+/* Campo con búsqueda integrada (Profesor / Curso): base común en searchable-select.css.
+   Propio de Docencia: relleno vertical, ícono de 16px, input de 26px y un margen inferior
+   de 6px que separa el campo del siguiente. */
 
-/* Acotado al campo del modal: la barra del filtro de columna la dimensiona column-filter.css. */
 .field-searchable .searchable-bar {
-  width: 100%;
-  min-height: 38px;
+  margin-bottom: 6px;
   padding: 6px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.dropdown-searchable.open .searchable-bar,
-.searchable-bar:focus-within {
-  border-color: var(--color-accent-blue);
 }
 
 .field-searchable .searchable-icon svg {
@@ -107,20 +96,8 @@
   height: 16px;
 }
 
-/* Mayor especificidad que .field input: el borde pertenece solo a la barra. */
 .field-searchable .searchable-input {
-  flex: 1;
-  min-width: 0;
   height: 26px;
-  border: none;
-  border-radius: 0;
-  outline: none;
-  box-shadow: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--color-text-primary);
-  padding: 0;
 }
 
 .searchable-value {
@@ -135,21 +112,15 @@
   display: flex;
 }
 
-/* Campo bloqueado a la espera de completar un paso previo (Curso / Materia) */
+/* Materia bloqueada a la espera de elegir un curso: mismo tratamiento que el campo con
+   búsqueda bloqueado (Curso), definido en searchable-select.css. */
 
-.dropdown-searchable.is-locked .searchable-bar,
-.dropdown-searchable.is-locked .searchable-bar:hover,
 .dropdown.is-locked .dropdown-toggle,
 .dropdown.is-locked .dropdown-toggle:hover {
   background: #f9fafb;
   cursor: not-allowed;
 }
 
-.dropdown-searchable.is-locked .searchable-icon {
-  display: none;
-}
-
-.dropdown-searchable.is-locked .searchable-chevron,
 .dropdown.is-locked .dropdown-toggle .chevron {
   opacity: 0.5;
 }

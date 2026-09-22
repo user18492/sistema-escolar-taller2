@@ -1,9 +1,25 @@
-/* Estilos reutilizables: campo con búsqueda integrada de los modales (input de filtro y
-   lista desplegable en un único componente). La barra, el ícono, el input y el valor
-   elegido los dimensiona cada vista. */
+/* Estilos reutilizables: buscador (.searchable-bar con su ícono y su input). Es la base común
+   del campo con búsqueda integrada de los modales (.dropdown-searchable: input de filtro y
+   lista desplegable en un único componente) y del buscador de los filtros de columna.
+   column-filter.css acota a .column-filter-panel las variantes del filtro; cada vista define
+   el relleno de la barra, el alto del input y el valor elegido de sus campos. */
 
 .dropdown-searchable {
   position: relative;
+}
+
+.searchable-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.searchable-bar:focus-within,
+.dropdown-searchable.open .searchable-bar {
+  border-color: var(--color-accent-blue);
 }
 
 .searchable-icon {
@@ -12,8 +28,41 @@
   color: var(--color-text-tertiary);
 }
 
+.searchable-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.searchable-input {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
 .searchable-input::placeholder {
   color: var(--color-text-tertiary);
+}
+
+/* ---------- Campo con búsqueda integrada de los modales ---------- */
+
+.dropdown-searchable .searchable-bar {
+  width: 100%;
+  background: var(--color-bg);
+}
+
+/* Mayor especificidad que .field input (form-field.css): el borde pertenece solo a la barra. */
+.dropdown-searchable .searchable-input {
+  flex: 1;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  font-size: 14px;
 }
 
 .searchable-bar.has-value:not(.is-editing) .searchable-input,
@@ -40,6 +89,22 @@
 
 .dropdown-searchable.open .searchable-chevron .chevron {
   transform: rotate(180deg);
+}
+
+/* Campo bloqueado a la espera de completar un paso previo (lock() del componente). */
+
+.dropdown-searchable.is-locked .searchable-bar,
+.dropdown-searchable.is-locked .searchable-bar:hover {
+  background: #f9fafb;
+  cursor: not-allowed;
+}
+
+.dropdown-searchable.is-locked .searchable-icon {
+  display: none;
+}
+
+.dropdown-searchable.is-locked .searchable-chevron {
+  opacity: 0.5;
 }
 
 /* Los menús del modal se ajustan al ancho del campo, no al mínimo de los filtros. */

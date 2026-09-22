@@ -1,7 +1,8 @@
 /* Componente reutilizable: filtros desplegables en los encabezados de las tablas.
    Marcado: <th class="column-filter"> con un botón .column-filter-toggle (título + embudo)
    y un panel .column-filter-panel[popover] que contiene el filtro. El comportamiento lo
-   aporta column-filter.js. */
+   aporta column-filter.js. Los paneles con buscador requieren searchable-select.css,
+   cargada antes que esta hoja. */
 
 .column-filter-toggle {
   display: inline-flex;
@@ -113,47 +114,19 @@
   height: 36px;
 }
 
-.searchable-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 38px;
+/* Buscador del panel: la base la aporta searchable-select.css; aquí, el relleno ajustado al
+   panel y la separación con la lista de opciones. */
+.column-filter-panel .searchable-bar {
   margin-bottom: 6px;
   padding: 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
 }
 
-.searchable-bar:focus-within {
-  border-color: var(--color-accent-blue);
-}
-
-.searchable-icon {
-  display: flex;
-  color: var(--color-text-tertiary);
-}
-
-.searchable-icon svg {
-  width: 15px;
-  height: 15px;
-}
-
-.searchable-input {
+.column-filter-panel .searchable-input {
   width: 100%;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-primary);
-  font: inherit;
 }
 
 .column-filter-panel .searchable-input:focus-visible {
   outline: none;
-}
-
-.searchable-input::placeholder {
-  color: var(--color-text-tertiary);
 }
 
 .column-filter-clear {
