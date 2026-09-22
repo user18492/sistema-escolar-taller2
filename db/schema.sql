@@ -44,7 +44,7 @@ CREATE TABLE usuarios (
     password_hash      VARCHAR(255),
     dni                VARCHAR(20),
     fecha_nacimiento   DATE,
-    imagen_url         VARCHAR(255)
+    imagen_url         TEXT
 );
 
 -- Indices porque sino no se hacen solos
