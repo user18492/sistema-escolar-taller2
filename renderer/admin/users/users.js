@@ -123,34 +123,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   editAvatarBtn.addEventListener('click', () => openCrop(savedCrop));
 
-  const generatePasswordBtn = document.getElementById('generatePasswordBtn');
-  const passwordValueEl = document.getElementById('generatedPasswordValue');
-  const togglePasswordBtn = document.getElementById('togglePasswordBtn');
-  const copyPasswordBtn = document.getElementById('copyPasswordBtn');
+  // Generación, Mostrar/Ocultar, Copiar y Descartar: componente compartido password-generator.component.js.
+  const passwordGenerator = overlay.querySelector('password-generator');
 
-  let currentPassword = '';
   let isEditing = false;
   let modalTrigger = openModalBtn;
-  const passwordDisplay = overlay.querySelector('.password-display');
-  const passwordHelp = overlay.querySelector('.password-heading p');
 
   function updateCreateButtonState() {
     const hasAllTextInputs = Array.from(textInputs).every((input) => !input.required || input.value.trim().length > 0);
     const hasRole = Boolean(roleDropdown.querySelector('.dropdown-option.selected'));
     createBtn.disabled = !(hasAllTextInputs && hasRole);
-  }
-
-  function generatePassword(length = 14) {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
-    const values = new Uint32Array(length);
-    crypto.getRandomValues(values);
-    return Array.from(values, (n) => chars[n % chars.length]).join('');
-  }
-
-  function renderPassword() {
-    const isVisible = passwordValueEl.dataset.visible === 'true';
-    passwordValueEl.textContent = isVisible ? currentPassword : '•'.repeat(currentPassword.length);
-    togglePasswordBtn.querySelector('span').textContent = isVisible ? 'Ocultar' : 'Mostrar';
   }
 
   function resetForm() {
@@ -171,9 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
     editAvatarBtn.hidden = true;
     avatarError.hidden = true;
 
-    passwordValueEl.dataset.visible = 'false';
-    currentPassword = generatePassword();
-    renderPassword();
+    passwordGenerator.reset(isEditing ? 'edit' : 'create');
 
     updateCreateButtonState();
   }
@@ -189,10 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Modifica los datos del usuario.'
       : 'Completa los datos para crear una nueva cuenta de usuario.';
     createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear usuario';
-    passwordDisplay.hidden = isEditing;
-    passwordHelp.textContent = isEditing
-      ? 'Genera una nueva contraseña solo si necesitas reemplazar la actual.'
-      : 'Se generará automáticamente una contraseña segura.';
     if (row) {
       const [lastName, firstName] = row.querySelector('.user-cell > span:last-child').textContent.trim().split(', ');
       document.getElementById('newUserFirstName').value = firstName;
@@ -207,8 +183,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selected) roleLabel.textContent = option.textContent.trim();
       });
       roleLabel.classList.remove('placeholder');
-      currentPassword = '';
-      renderPassword();
     }
     updateCreateButtonState();
     closeAllDropdowns();
@@ -221,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function closeModal() {
     avatarLoadId += 1;
     if (cropDialog.open) cropDialog.close();
+    passwordGenerator.clear();
     overlay.classList.remove('is-open');
     modalTrigger.focus();
     closeAllDropdowns();
@@ -250,6 +225,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
     if (validateFields(overlay)) return;
     // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
+    // Enviará password: passwordGenerator.value, que en la edición es null para conservar la
+    // contraseña actual; el proceso principal la valida y la hashea (password.service.js).
     closeModal();
   });
 
@@ -289,43 +266,5 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       URL.revokeObjectURL(url);
     }
-  });
-
-  generatePasswordBtn.addEventListener('click', () => {
-    passwordDisplay.hidden = false;
-    currentPassword = generatePassword();
-    passwordValueEl.dataset.visible = 'false';
-    renderPassword();
-  });
-
-  togglePasswordBtn.addEventListener('click', () => {
-    const isVisible = passwordValueEl.dataset.visible === 'true';
-    passwordValueEl.dataset.visible = String(!isVisible);
-    renderPassword();
-  });
-
-  copyPasswordBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(currentPassword);
-    } catch (error) {
-      const textarea = document.createElement('textarea');
-      textarea.value = currentPassword;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-    }
-
-    const label = copyPasswordBtn.querySelector('span');
-    const originalLabel = label.textContent;
-    copyPasswordBtn.classList.add('copied');
-    label.textContent = 'Copiado';
-
-    setTimeout(() => {
-      copyPasswordBtn.classList.remove('copied');
-      label.textContent = originalLabel;
-    }, 1500);
   });
 });

@@ -1,4 +1,5 @@
-/* Estilos reutilizables: botones de acción (.btn) en sus variantes primaria y secundaria. */
+/* Estilos reutilizables: botones de acción (.btn) en sus variantes primaria, secundaria y con borde
+   azul, y botones con aspecto de enlace (.link-btn). */
 
 .btn {
   display: inline-flex;
@@ -48,4 +49,40 @@
 
 .btn-secondary:hover {
   background: #f9fafb;
+}
+
+.btn-outline-blue {
+  background: var(--color-bg);
+  border-color: var(--color-accent-blue);
+  color: var(--color-accent-blue);
+}
+
+.btn-outline-blue:hover {
+  background: var(--color-accent-blue-bg);
+}
+
+.btn-outline-blue svg {
+  width: 15px;
+  height: 15px;
+}
+
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent-blue);
+}
+
+.link-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.link-btn:hover {
+  color: #2f6fe0;
 }
