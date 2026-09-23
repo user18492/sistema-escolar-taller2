@@ -16,7 +16,9 @@
 // Reglas: person-name, dni, birth-date (edad con data-min-age y data-max-age), day-month
 // (año tomado del texto del elemento cuyo id indica data-year-source), email, phone, street,
 // street-number, division y title.
-// También expone setFieldError(input, mensaje) e isValidEmail(email), que usa el login.
+// También expone setFieldError(input, mensaje), isValidEmail(email), que usa el login, y
+// formatDni(valor), que da a los dígitos de un DNI el formato de la máscara (35.678.901) para
+// mostrarlo en las tablas.
 // Estas reglas solo anticipan errores: el proceso principal vuelve a validar los datos.
 
 (() => {
@@ -143,6 +145,11 @@
     return isRealDate(year, Number(match[2]), Number(match[1])) ? '' : `La fecha no existe en ${year}.`;
   };
 
+  // ---------- DNI ----------
+
+  // Puntos de miles sobre los dígitos: "35678901" → "35.678.901"
+  const formatDni = (digits) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
   // ---------- Reglas ----------
 
   // Cada regla define, según corresponda:
@@ -159,7 +166,7 @@
       validate: (value) => (PERSON_NAME_PATTERN.test(value) ? '' : 'Guiones y apóstrofos deben ir entre letras.'),
     },
     dni: {
-      mask: { maxDigits: 8, format: (digits) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') },
+      mask: { maxDigits: 8, format: formatDni },
       validate: (value) => {
         const digits = digitsOf(value);
         if (digits.length < 7 || digits.length > 8) return 'El DNI debe tener 7 u 8 dígitos.';
@@ -320,6 +327,7 @@
 
   window.setFieldError = setFieldError;
   window.isValidEmail = isValidEmail;
+  window.formatDni = (value) => formatDni(digitsOf(value));
 
   window.clearFieldErrors = (container) => {
     container.querySelectorAll('[data-validate]').forEach((input) => setFieldError(input, ''));

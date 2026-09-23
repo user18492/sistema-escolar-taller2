@@ -24,4 +24,9 @@ contextBridge.exposeInMainWorld('api', {
     getRememberedEmail: () => ipcRenderer.invoke('auth:get-remembered-email'),
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
+  users: {
+    // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, ordenados por apellido
+    // y nombre ({ id, firstName, lastName, dni, email, isActive, role }), o { ok: false, error: { code, message } }.
+    list: () => ipcRenderer.invoke('users:list'),
+  },
 });

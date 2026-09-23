@@ -21,6 +21,23 @@ const FIND_BY_EMAIL_SQL = `
    WHERE u.email = $1
 `;
 
+// Listado de usuarios de una institución, sin password_hash: los campos que no se seleccionan quedan undefined.
+const FIND_BY_INSTITUTION_SQL = `
+  SELECT u.usuario_id,
+         u.usuario_estado,
+         u.institucion_id,
+         u.nombre,
+         u.apellido,
+         u.email,
+         u.dni,
+         r.nombre AS rol
+    FROM usuarios u
+    JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
+   WHERE u.institucion_id = $1
+     AND u.usuario_id <> $2
+   ORDER BY u.apellido, u.nombre, u.usuario_id
+`;
+
 function toUser(row) {
   return new User({
     id: row.usuario_id,
@@ -44,4 +61,10 @@ async function findByEmail(email) {
   return rows.length > 0 ? toUser(rows[0]) : null;
 }
 
-module.exports = { findByEmail };
+// Usuarios de la institución ordenados por apellido y nombre, sin el de `excludedUserId`.
+async function findByInstitution(institutionId, excludedUserId) {
+  const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId, excludedUserId]);
+  return rows.map(toUser);
+}
+
+module.exports = { findByEmail, findByInstitution };

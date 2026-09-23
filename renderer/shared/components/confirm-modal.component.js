@@ -2,7 +2,8 @@
 // Uso: setupConfirmModal(overlay, opciones) con el .modal-overlay del modal, cuyo .confirm-actions
 // tiene el botón Cancelar (.btn-neutral) y el de confirmación (.btn-danger); los estilos
 // están en confirm-modal.css.
-// Lo abre cada botón [data-action="delete"] de las filas de la tabla: se cierran los filtros de
+// Lo abre cada botón [data-action="delete"] de las filas de la tabla, también de las que la vista
+// agrega después de llamar a setupConfirmModal: se cierran los filtros de
 // columna abiertos y el foco pasa a "Cancelar". Cancelar, Escape y confirmar lo cierran y
 // devuelven el foco al botón que lo abrió. Escape se escucha en el documento mientras está
 // abierto, así que también lo cierra si el foco quedó fuera de un control (clic en su texto).
@@ -72,8 +73,10 @@
       trigger?.focus();
     };
 
-    document.querySelectorAll(TRIGGER_SELECTOR).forEach((button) => {
-      button.addEventListener('click', () => openModal(button));
+    // Por delegación, para abarcar también las filas que la vista genera después de cargar
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest?.(TRIGGER_SELECTOR);
+      if (button) openModal(button);
     });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && overlay.classList.contains('is-open')) closeModal();

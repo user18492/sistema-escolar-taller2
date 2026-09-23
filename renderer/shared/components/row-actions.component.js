@@ -3,8 +3,9 @@
 //   - "edit-label" / "delete-label": aria-label y title de cada botón.
 //   - "variant" (opcional): "user" usa .user-actions/.user-action; por defecto .table-actions/.table-action.
 //   - "manage-href" (opcional): antepone un <manage-link> con ese href (requiere manage-link.component.js).
-// Los botones llevan data-action="edit" / "delete": confirm-modal.component.js y la vista los
-// enlazan en DOMContentLoaded, así que el script se carga sin defer en <head>.
+// Los botones llevan data-action="edit" / "delete". confirm-modal.component.js los atiende por
+// delegación, pero hay vistas que enlazan Editar en DOMContentLoaded, así que el script se carga
+// sin defer en <head>.
 // Estilos en base.css.
 
 (() => {

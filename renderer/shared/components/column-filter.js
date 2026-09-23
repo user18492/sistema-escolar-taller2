@@ -2,6 +2,13 @@
 // Uso: <th class="column-filter"> con un botón .column-filter-toggle (con popovertarget)
 // y un panel .column-filter-panel[popover="auto"] que contiene el filtro; la vista no
 // necesita registrar nada.
+// Las opciones se leen cada vez que se usan: la vista puede agregarlas o reemplazarlas después
+// de cargar (p. ej. con los datos de la base) y funcionan igual que las escritas en el marcado.
+// Después de cada cambio del usuario (elegir, marcar o desmarcar, "Limpiar filtro", escribir en
+// el campo de texto o usar un componente interno), el <th class="column-filter"> emite el evento
+// column-filter-change (burbujea) con detail { values, text }: los data-value no vacíos de las
+// opciones marcadas y el valor que filtra el campo de texto ('' si no hay o si el año está
+// incompleto). La vista lo escucha para filtrar sus filas; la inicialización no lo emite.
 // El panel se promueve al top layer del navegador con la API de popover, así que la lista
 // deja de estar recortada por el desplazamiento de la tabla; su posición y su alto máximo
 // se calculan sobre el botón del encabezado, y se abre hacia arriba si abajo no cabe.
@@ -73,14 +80,14 @@
     const search = panel.querySelector('.searchable-input');
     const textInput = panel.querySelector('.column-filter-input');
     const isYearInput = textInput?.dataset.format === 'year';
-    const options = Array.from(panel.querySelectorAll('.dropdown-option'));
+    const getOptions = () => Array.from(panel.querySelectorAll('.dropdown-option'));
     const isMultiple = panel.querySelector('[role="listbox"]')?.getAttribute('aria-multiselectable') === 'true';
     const emptyState = panel.querySelector('.dropdown-empty');
     const clearButton = panel.querySelector('.column-filter-clear');
     const components = Array.from(panel.children).filter(isFilterComponent);
     const filterLabel = toggle.getAttribute('aria-label');
 
-    const selectedOptions = () => options.filter((option) => option.classList.contains('selected'));
+    const selectedOptions = () => getOptions().filter((option) => option.classList.contains('selected'));
     const optionLabel = (option) => (option.querySelector('.option-name') ?? option).textContent.trim();
 
     // Un año incompleto (menos de 4 dígitos) todavía no filtra
@@ -104,9 +111,22 @@
       toggle.setAttribute('aria-label', value ? `${filterLabel}: ${value}` : filterLabel);
     };
 
+    const notifyChange = () => {
+      root.dispatchEvent(new CustomEvent('column-filter-change', {
+        bubbles: true,
+        detail: {
+          values: selectedOptions().map((option) => option.dataset.value).filter(Boolean),
+          text: textValue(),
+        },
+      }));
+    };
+
+    // Corre en cada apertura, así que también prepara las opciones agregadas después de cargar
     const filterOptions = () => {
       const query = search ? search.value.trim().toLocaleLowerCase('es') : '';
+      const options = getOptions();
       options.forEach((option) => {
+        option.tabIndex = 0;
         option.hidden = !option.textContent.toLocaleLowerCase('es').includes(query);
       });
       if (emptyState) emptyState.hidden = options.some((option) => !option.hidden);
@@ -133,9 +153,10 @@
     };
 
     const selectOption = (option) => {
-      options.forEach((candidate) => setSelected(candidate, candidate === option));
+      getOptions().forEach((candidate) => setSelected(candidate, candidate === option));
       refreshState();
       closePanel();
+      notifyChange();
     };
 
     // Selección múltiple: el panel sigue abierto para marcar más opciones, y "Todos" deja de
@@ -146,8 +167,9 @@
         return;
       }
       setSelected(option, !option.classList.contains('selected'));
-      options.filter((candidate) => !candidate.dataset.value).forEach((candidate) => setSelected(candidate, false));
+      getOptions().filter((candidate) => !candidate.dataset.value).forEach((candidate) => setSelected(candidate, false));
       refreshState();
+      notifyChange();
     };
 
     const chooseOption = isMultiple ? toggleOption : selectOption;
@@ -177,27 +199,34 @@
       const focusTarget = search
         ?? textInput
         ?? selectedOptions()[0]
-        ?? options[0]
+        ?? getOptions()[0]
         ?? panel.querySelector('button, [tabindex="0"]')
         ?? panel;
       focusTarget.focus({ preventScroll: true });
     });
 
-    options.forEach((option) => {
-      option.tabIndex = 0;
-      option.addEventListener('click', () => chooseOption(option));
-      option.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          chooseOption(option);
-        }
-      });
+    // Por delegación, para alcanzar también a las opciones agregadas después de cargar
+    const optionOf = (event) => {
+      const option = event.target.closest?.('.dropdown-option');
+      return option && panel.contains(option) ? option : null;
+    };
+
+    panel.addEventListener('click', (event) => {
+      const option = optionOf(event);
+      if (option) chooseOption(option);
     });
 
     panel.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        const option = optionOf(event);
+        if (!option) return;
+        event.preventDefault();
+        chooseOption(option);
+        return;
+      }
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
       event.preventDefault();
-      const visibleOptions = options.filter((option) => !option.hidden);
+      const visibleOptions = getOptions().filter((option) => !option.hidden);
       if (!visibleOptions.length) return;
       const current = visibleOptions.indexOf(document.activeElement);
       const next = current < 0
@@ -211,16 +240,24 @@
     if (textInput) {
       // Antes que refreshState, para que el embudo evalúe el valor ya depurado
       if (isYearInput) setupYearInput(textInput);
-      textInput.addEventListener('input', refreshState);
+      textInput.addEventListener('input', () => {
+        refreshState();
+        notifyChange();
+      });
       textInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') closePanel();
       });
     }
 
-    // Los componentes mantienen su propio estado al hacer clic o escribir; aquí solo se refresca el embudo
+    // Los componentes mantienen su propio estado al hacer clic o escribir; aquí solo se refresca
+    // el embudo y se avisa a la vista si el cambio ocurrió dentro de uno de ellos
     if (components.length) {
-      panel.addEventListener('click', refreshState);
-      panel.addEventListener('input', refreshState);
+      const handleComponentChange = (event) => {
+        refreshState();
+        if (components.some((component) => component.contains(event.target))) notifyChange();
+      };
+      panel.addEventListener('click', handleComponentChange);
+      panel.addEventListener('input', handleComponentChange);
     }
 
     clearButton?.addEventListener('click', clearFilter);

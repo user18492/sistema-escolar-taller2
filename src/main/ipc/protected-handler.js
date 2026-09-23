@@ -1,4 +1,5 @@
 const { handleTrusted } = require('./trusted-sender');
+const { failure } = require('./ipc-response');
 const { requireRole, AccessError } = require('../services/access.service');
 
 // Registra una operación protegida: solo se ejecuta con una sesión iniciada y un rol de `allowedRoles`
@@ -12,7 +13,7 @@ function handleProtected(browserWindow, channel, allowedRoles, action) {
       user = requireRole(allowedRoles);
     } catch (error) {
       if (!(error instanceof AccessError)) throw error;
-      return { ok: false, error: { code: error.code, message: error.message } };
+      return failure(error.code, error.message);
     }
     return action(user, ...args);
   });

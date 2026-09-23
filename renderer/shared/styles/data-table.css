@@ -32,3 +32,12 @@
 .data-table tbody tr:last-child td {
   border-bottom: none;
 }
+
+/* Fila única de mensaje (cargando, error, sin resultados) que ocupa todo el ancho de la tabla;
+   mismo tamaño y color que .dropdown-empty. */
+.data-table td.table-message {
+  text-align: center;
+  white-space: normal;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}

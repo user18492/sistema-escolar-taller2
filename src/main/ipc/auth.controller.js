@@ -1,4 +1,5 @@
 const { handleTrusted } = require('./trusted-sender');
+const { failure } = require('./ipc-response');
 const sessionService = require('../services/session.service');
 const rememberedAccountService = require('../services/remembered-account.service');
 const { AuthenticationError } = require('../services/auth.service');
@@ -20,10 +21,6 @@ function isLoginPayload(payload) {
     && typeof payload.email === 'string'
     && typeof payload.password === 'string'
     && (payload.rememberAccount === undefined || typeof payload.rememberAccount === 'boolean');
-}
-
-function failure(code, message) {
-  return { ok: false, error: { code, message } };
 }
 
 // Se aplica solo después de un acceso exitoso y nunca lo impide: si falla, el detalle queda en la consola.
