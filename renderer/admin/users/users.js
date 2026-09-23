@@ -20,38 +20,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const roleLabel = roleDropdown.querySelector('.dropdown-label');
   const roleOptions = roleDropdown.querySelectorAll('.dropdown-option');
 
+  // Máscaras, formato y errores de los campos de texto: componente compartido
+  // field-validation.component.js, según el data-validate de cada campo.
   const dniInput = document.getElementById('newUserDni');
-
-  function formatDniInput() {
-    const digitsBeforeCursor = dniInput.value.slice(0, dniInput.selectionStart).replace(/\D/g, '').length;
-    const digits = dniInput.value.replace(/\D/g, '').slice(0, 8);
-    const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    let cursor = 0;
-    let digitCount = 0;
-
-    // Mantener el cursor junto al mismo dígito al insertar o quitar los puntos.
-    while (cursor < formatted.length && digitCount < digitsBeforeCursor) {
-      if (formatted[cursor] !== '.') digitCount += 1;
-      cursor += 1;
-    }
-
-    dniInput.value = formatted;
-    dniInput.setSelectionRange(cursor, cursor);
-  }
-
-  dniInput.addEventListener('input', formatDniInput);
-
   const birthdateInput = document.getElementById('newUserBirthdate');
 
-  function formatBirthdateInput() {
-    const digits = birthdateInput.value.replace(/\D/g, '').slice(0, 8);
-    let formatted = digits.slice(0, 2);
-    if (digits.length > 2) formatted += '/' + digits.slice(2, 4);
-    if (digits.length > 4) formatted += '/' + digits.slice(4, 8);
-    birthdateInput.value = formatted;
-  }
-
-  birthdateInput.addEventListener('input', formatBirthdateInput);
+  // Mismos tipos que admite el atributo accept del selector de archivos.
+  const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
   const avatarInput = document.getElementById('avatarFileInput');
   const avatarPreview = document.getElementById('newUserAvatarPreview');
@@ -160,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const passwordHelp = overlay.querySelector('.password-heading p');
 
   function updateCreateButtonState() {
-    const hasAllTextInputs = Array.from(textInputs).every((input) => (isEditing && input === birthdateInput) || input.value.trim().length > 0);
+    const hasAllTextInputs = Array.from(textInputs).every((input) => !input.required || input.value.trim().length > 0);
     const hasRole = Boolean(roleDropdown.querySelector('.dropdown-option.selected'));
     createBtn.disabled = !(hasAllTextInputs && hasRole);
   }
@@ -180,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resetForm() {
     textInputs.forEach((input) => (input.value = ''));
+    clearFieldErrors(overlay);
     roleOptions.forEach((o) => {
       o.classList.remove('selected');
       o.setAttribute('aria-selected', 'false');
@@ -205,6 +181,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function openModal(row = null, trigger = openModalBtn) {
     isEditing = Boolean(row);
     modalTrigger = trigger;
+    // La maqueta de la tabla no trae la fecha de nacimiento: al editar no se exige.
+    birthdateInput.required = !isEditing;
     resetForm();
     document.getElementById('newUserTitle').textContent = isEditing ? 'Editar usuario' : 'Nuevo usuario';
     overlay.querySelector('.modal-header p').textContent = isEditing
@@ -269,6 +247,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   createBtn.addEventListener('click', () => {
+    // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
+    if (validateFields(overlay)) return;
     // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
     closeModal();
   });
@@ -296,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
     avatarError.hidden = true;
     const url = URL.createObjectURL(file);
     try {
-      if (!file.type.startsWith('image/')) throw new Error('Formato inválido');
+      if (!AVATAR_TYPES.includes(file.type)) throw new Error('Formato inválido');
       const image = new Image();
       image.src = url;
       await image.decode();

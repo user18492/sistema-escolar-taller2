@@ -1,6 +1,7 @@
 /* Estilos reutilizables: campo de texto (.field) de filtros y formularios, con la variante
-   de fecha (ícono de calendario dentro del campo). Cada vista define el ancho de sus
-   campos y los casos particulares (Login redefine el campo completo). */
+   de fecha (ícono de calendario dentro del campo) y el error de validación debajo del campo
+   (field-validation.component.js). Cada vista define el ancho de sus campos y los casos
+   particulares (Login redefine el campo completo). */
 
 .field {
   position: relative;
@@ -29,6 +30,19 @@
 .field select:focus {
   outline: none;
   border-color: var(--color-accent-blue);
+}
+
+/* El borde rojo se mantiene con el foco, hasta que se corrige el campo. La variante :focus
+   gana también sobre los estilos de foco de las vistas que cargan después (Login). */
+.field input[aria-invalid="true"],
+.field input[aria-invalid="true"]:focus {
+  border-color: var(--color-accent-red);
+}
+
+.field-error {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-accent-red);
 }
 
 .field-date svg {

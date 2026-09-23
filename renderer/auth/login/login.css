@@ -133,17 +133,10 @@ body {
 
 /* ---------- Errores ---------- */
 
-/* El borde rojo se mantiene con el foco, hasta que se corrige el campo. */
-.field input[aria-invalid="true"] {
-  border-color: var(--color-accent-red);
-}
-
-/* Mensaje de validación debajo de su campo: descuenta parte del gap del formulario
-   para quedar pegado al campo que describe. */
-.login-field-error {
+/* Mensaje de validación debajo de su campo (form-field.css): descuenta parte del gap del
+   formulario para quedar pegado al campo que describe. */
+.login-form .field-error {
   margin-top: -6px;
-  font-size: 12px;
-  color: var(--color-accent-red);
 }
 
 /* Error del intento de acceso (credenciales, cuenta suspendida, falla de conexión).

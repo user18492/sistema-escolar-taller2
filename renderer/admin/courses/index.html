@@ -26,6 +26,7 @@
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
     <script src="../../shared/components/dropdown.component.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
@@ -242,7 +243,7 @@
           <div class="form-field">
             <label for="newCourseDivision">División</label>
             <div class="field">
-              <input type="text" id="newCourseDivision" placeholder="Ej. A, B, C..." />
+              <input type="text" id="newCourseDivision" placeholder="Ej. A, B, C..." data-validate="division" required autocomplete="off" />
             </div>
           </div>
 

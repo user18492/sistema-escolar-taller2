@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const cycleDescription = courseOverlay.querySelector('.info-box-text p');
   let modalTrigger = null;
 
+  // Formato y error de la división: componente compartido field-validation.component.js.
   const divisionInput = document.getElementById('newCourseDivision');
 
   const gradeDropdown = courseOverlay.querySelector('[data-filter="new-course-grade"]');
@@ -68,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resetCourseForm() {
     divisionInput.value = '';
+    clearFieldErrors(courseOverlay);
 
     gradeCards.forEach((card) => {
       card.classList.remove('selected');
@@ -144,6 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   createCourseBtn.addEventListener('click', () => {
+    // Con la división inválida, el modal sigue abierto con el foco en ella.
+    if (validateFields(courseOverlay)) return;
     // Vista puramente visual: crear y guardar no modifican datos persistidos.
     closeCourseModal();
   });

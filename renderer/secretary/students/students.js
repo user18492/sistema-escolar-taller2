@@ -40,34 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let modalTrigger = openModalBtn;
 
-  function formatDniInput() {
-    const digitsBeforeCursor = dniInput.value.slice(0, dniInput.selectionStart).replace(/\D/g, '').length;
-    const digits = dniInput.value.replace(/\D/g, '').slice(0, 8);
-    const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    let cursor = 0;
-    let digitCount = 0;
-
-    // Mantener el cursor junto al mismo dígito al insertar o quitar los puntos.
-    while (cursor < formatted.length && digitCount < digitsBeforeCursor) {
-      if (formatted[cursor] !== '.') digitCount += 1;
-      cursor += 1;
-    }
-
-    dniInput.value = formatted;
-    dniInput.setSelectionRange(cursor, cursor);
-  }
-
-  dniInput.addEventListener('input', formatDniInput);
-
-  function formatBirthdateInput() {
-    const digits = birthdateInput.value.replace(/\D/g, '').slice(0, 8);
-    let formatted = digits.slice(0, 2);
-    if (digits.length > 2) formatted += '/' + digits.slice(2, 4);
-    if (digits.length > 4) formatted += '/' + digits.slice(4, 8);
-    birthdateInput.value = formatted;
-  }
-
-  birthdateInput.addEventListener('input', formatBirthdateInput);
+  // Máscaras, formato y errores de los campos de texto: componente compartido
+  // field-validation.component.js, según el data-validate de cada campo.
 
   function updateCreateButtonState() {
     const hasAllTextInputs = Array.from(textInputs).every((input) => input.value.trim().length > 0);
@@ -89,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resetForm() {
     textInputs.forEach((input) => (input.value = ''));
+    clearFieldErrors(overlay);
     statusOptions.forEach((option) => {
       option.classList.remove('selected');
       option.setAttribute('aria-selected', 'false');
@@ -171,6 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   createBtn.addEventListener('click', () => {
+    // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
+    if (validateFields(overlay)) return;
     // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
     closeModal();
   });

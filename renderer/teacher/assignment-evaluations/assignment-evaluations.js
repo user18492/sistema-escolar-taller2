@@ -70,24 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let modalTrigger = openEvaluationModalBtn;
 
-  // Fecha de evaluación: solo día y mes. La "/" se inserta sola al escribir el mes,
-  // y el cursor queda junto al mismo dígito al editar en medio del valor.
-  function formatDateInput() {
-    const digitsBeforeCursor = dateInput.value.slice(0, dateInput.selectionStart).replace(/\D/g, '').length;
-    const digits = dateInput.value.replace(/\D/g, '').slice(0, 4);
-    let formatted = digits.slice(0, 2);
-    if (digits.length > 2) formatted += '/' + digits.slice(2, 4);
-    let cursor = 0;
-    let digitCount = 0;
-
-    while (cursor < formatted.length && digitCount < digitsBeforeCursor) {
-      if (formatted[cursor] !== '/') digitCount += 1;
-      cursor += 1;
-    }
-
-    dateInput.value = formatted;
-    dateInput.setSelectionRange(cursor, cursor);
-  }
+  // Máscara DD/MM de la fecha, formato del título y errores: componente compartido
+  // field-validation.component.js. La fecha se valida contra el año del ciclo (yearBadge).
 
   function updateSaveButtonState() {
     const hasTitle = titleInput.value.trim().length > 0;
@@ -99,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetEvaluationForm() {
     titleInput.value = '';
     dateInput.value = '';
+    clearFieldErrors(evaluationOverlay);
     typeOptions.forEach((option) => {
       option.classList.remove('selected');
       option.setAttribute('aria-selected', 'false');
@@ -148,10 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   titleInput.addEventListener('input', updateSaveButtonState);
-  dateInput.addEventListener('input', () => {
-    formatDateInput();
-    updateSaveButtonState();
-  });
+  dateInput.addEventListener('input', updateSaveButtonState);
   typeOptions.forEach((option) => option.addEventListener('click', updateSaveButtonState));
 
   openEvaluationModalBtn.addEventListener('click', () => openEvaluationModal());
@@ -171,6 +153,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   saveEvaluationBtn.addEventListener('click', () => {
+    // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
+    if (validateFields(evaluationOverlay)) return;
     // Vista puramente visual: crear y guardar no modifican datos persistidos.
     closeEvaluationModal();
   });

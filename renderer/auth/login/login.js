@@ -10,17 +10,15 @@ const HOME_BY_ROLE = {
   PROFESOR: '../../teacher/assignments/index.html',
 };
 
-// Mismas reglas y mensajes que auth.service.js, para avisar sin esperar al proceso
-// principal, que vuelve a validar los datos de todas formas.
-const EMAIL_MAX_LENGTH = 150;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 const UNEXPECTED_ERROR_MESSAGE = 'No se pudo iniciar sesión. Intentá nuevamente.';
 const UNRECOGNIZED_ROLE_MESSAGE = 'Tu cuenta no tiene un rol habilitado. Contactá al administrador.';
 
+// Mismos mensajes que auth.service.js (y las mismas reglas, en isValidEmail de
+// field-validation.component.js), para avisar sin esperar al proceso principal, que vuelve a
+// validar los datos de todas formas.
 function validateEmail(email) {
   if (!email) return 'Ingresá tu email.';
-  if (email.length > EMAIL_MAX_LENGTH || !EMAIL_PATTERN.test(email)) return 'Ingresá un email válido.';
+  if (!isValidEmail(email)) return 'Ingresá un email válido.';
   return '';
 }
 
@@ -104,15 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // El mensaje va en el elemento que describe al campo (aria-describedby); sin mensaje, se oculta.
-  const setFieldError = (input, message) => {
-    const fieldError = document.getElementById(input.getAttribute('aria-describedby'));
-    fieldError.textContent = message;
-    fieldError.hidden = !message;
-    if (message) input.setAttribute('aria-invalid', 'true');
-    else input.removeAttribute('aria-invalid');
-  };
-
+  // Los errores de cada campo se muestran con setFieldError (field-validation.component.js),
+  // en el elemento #<id>Error que lo describe (aria-describedby).
   const setFormError = (message) => {
     formError.textContent = message;
     formError.hidden = !message;

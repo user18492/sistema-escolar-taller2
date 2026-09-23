@@ -25,6 +25,7 @@
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
     <script src="../../shared/components/dropdown.component.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
@@ -438,19 +439,19 @@
             <div class="form-field">
               <label for="newStudentFirstName">Nombre</label>
               <div class="field">
-                <input type="text" id="newStudentFirstName" placeholder="Camila" />
+                <input type="text" id="newStudentFirstName" placeholder="Camila" data-validate="person-name" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newStudentLastName">Apellido</label>
               <div class="field">
-                <input type="text" id="newStudentLastName" placeholder="Álvarez" />
+                <input type="text" id="newStudentLastName" placeholder="Álvarez" data-validate="person-name" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newStudentDni">DNI</label>
               <div class="field">
-                <input type="text" id="newStudentDni" placeholder="48.123.456" inputmode="numeric" />
+                <input type="text" id="newStudentDni" placeholder="48.123.456" inputmode="numeric" data-validate="dni" required />
               </div>
             </div>
             <div class="form-field">
@@ -462,29 +463,29 @@
                   <line x1="8" y1="3" x2="8" y2="7" />
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
-                <input type="text" id="newStudentBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" maxlength="10" autocomplete="off" />
+                <input type="text" id="newStudentBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" autocomplete="off" data-validate="birth-date" data-min-age="5" data-max-age="25" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newStudentEmail">Email</label>
               <div class="field">
-                <input type="email" id="newStudentEmail" placeholder="camila.alvarez@institucion.edu.ar" />
+                <input type="email" id="newStudentEmail" placeholder="camila.alvarez@institucion.edu.ar" data-validate="email" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newStudentPhone">Teléfono</label>
               <div class="field">
-                <input type="tel" id="newStudentPhone" placeholder="379 412-3456" inputmode="tel" />
+                <input type="tel" id="newStudentPhone" placeholder="379 412-3456" inputmode="tel" data-validate="phone" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newStudentStreet">Dirección</label>
               <div class="field-pair">
                 <div class="field">
-                  <input type="text" id="newStudentStreet" placeholder="Av. Belgrano" aria-label="Calle" />
+                  <input type="text" id="newStudentStreet" placeholder="Av. Belgrano" aria-label="Calle" data-validate="street" required />
                 </div>
                 <div class="field">
-                  <input type="text" id="newStudentStreetNumber" placeholder="1245" inputmode="numeric" aria-label="Altura" />
+                  <input type="text" id="newStudentStreetNumber" placeholder="1245" inputmode="numeric" aria-label="Altura" data-validate="street-number" required />
                 </div>
               </div>
             </div>

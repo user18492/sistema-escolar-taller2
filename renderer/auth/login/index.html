@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="./login.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
     <script src="./login.js" defer></script>
   </head>
   <body>
@@ -30,7 +31,7 @@
             <div class="field">
               <input type="email" id="loginEmail" placeholder="Email" aria-label="Email" aria-describedby="loginEmailError" autocomplete="username" spellcheck="false" />
             </div>
-            <p class="login-field-error" id="loginEmailError" hidden></p>
+            <p class="field-error" id="loginEmailError" hidden></p>
 
             <div class="field field-password">
               <input type="password" id="loginPassword" placeholder="Contraseña" aria-label="Contraseña" aria-describedby="loginPasswordError" autocomplete="current-password" />
@@ -46,7 +47,7 @@
                 </svg>
               </button>
             </div>
-            <p class="login-field-error" id="loginPasswordError" hidden></p>
+            <p class="field-error" id="loginPasswordError" hidden></p>
 
             <label class="login-remember">
               <input type="checkbox" id="rememberAccount" />

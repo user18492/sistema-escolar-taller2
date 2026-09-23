@@ -25,6 +25,7 @@
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
     <script src="../../shared/components/dropdown.component.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
@@ -538,7 +539,7 @@
                 </svg>
                 Subir imagen
               </button>
-              <input type="file" accept="image/*" id="avatarFileInput" hidden />
+              <input type="file" accept="image/jpeg,image/png,image/webp" id="avatarFileInput" hidden />
               <p id="avatarError" role="alert" hidden></p>
             </div>
           </div>
@@ -547,25 +548,25 @@
             <div class="form-field">
               <label for="newUserFirstName">Nombre</label>
               <div class="field">
-                <input type="text" id="newUserFirstName" placeholder="Juan" />
+                <input type="text" id="newUserFirstName" placeholder="Juan" data-validate="person-name" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newUserLastName">Apellido</label>
               <div class="field">
-                <input type="text" id="newUserLastName" placeholder="Pérez" />
+                <input type="text" id="newUserLastName" placeholder="Pérez" data-validate="person-name" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newUserDni">DNI</label>
               <div class="field">
-                <input type="text" id="newUserDni" placeholder="34.567.890" inputmode="numeric" />
+                <input type="text" id="newUserDni" placeholder="34.567.890" inputmode="numeric" data-validate="dni" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newUserEmail">Email</label>
               <div class="field">
-                <input type="email" id="newUserEmail" placeholder="juan.perez@institucion.edu.ar" />
+                <input type="email" id="newUserEmail" placeholder="juan.perez@institucion.edu.ar" data-validate="email" required />
               </div>
             </div>
             <div class="form-field">
@@ -577,7 +578,7 @@
                   <line x1="8" y1="3" x2="8" y2="7" />
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
-                <input type="text" id="newUserBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" maxlength="10" autocomplete="off" />
+                <input type="text" id="newUserBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" autocomplete="off" data-validate="birth-date" data-min-age="18" data-max-age="80" required />
               </div>
             </div>
             <div class="form-field">
