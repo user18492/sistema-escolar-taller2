@@ -1,8 +1,8 @@
 // Vista Usuarios del Administrador: la tabla muestra los demás usuarios de la institución, que
 // llegan del proceso principal (window.api.users.list), y los filtros de columna los filtran en
 // memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
-// Editar guarda los cambios (window.api.users.update) y Eliminar da de baja al usuario (baja
-// lógica, window.api.users.delete); el alta sigue siendo solo visual.
+// Nuevo usuario lo crea (window.api.users.create), Editar guarda los cambios
+// (window.api.users.update) y Eliminar da de baja al usuario (baja lógica, window.api.users.delete).
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -21,7 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const optionTemplate = document.getElementById('userOptionTemplate');
   // El script del componente se carga sin defer en <head>: acá ya está definido y conectado
   const pagination = document.querySelector('.users-card table-pagination');
-  // "Nuevo usuario": recibe el foco si la tabla queda sin filas después de editar o eliminar
+  // "Nuevo usuario": abre el alta y recibe el foco si la tabla queda sin filas después de editar o
+  // eliminar
   const openModalBtn = document.getElementById('openNewUserModalBtn');
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar los usuarios. Intentá nuevamente.';
@@ -122,12 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return row;
   };
 
-  // Muestra la página actual de los usuarios filtrados (10 por página, en memoria). Al cambiar un
-  // filtro se vuelve a la página 1; al recargar se conserva, y el componente la acota a la última
-  // que quede.
-  const renderRows = ({ resetPage = false } = {}) => {
+  // Muestra la página `page` (por defecto, la actual) de los usuarios filtrados (10 por página, en
+  // memoria). Al cambiar un filtro se vuelve a la página 1; al recargar se conserva, y el componente
+  // la acota a la última que quede.
+  const renderRows = ({ page } = {}) => {
     const visibleUsers = users.filter(matchesFilters);
-    const pageUsers = pagination.slice(visibleUsers, resetPage ? { page: 1 } : {});
+    const pageUsers = pagination.slice(visibleUsers, { page });
     if (pageUsers.length) tbody.replaceChildren(...pageUsers.map(createRow));
     else showMessage(users.length ? 'Ningún usuario coincide con los filtros.' : 'No hay otros usuarios registrados.');
   };
@@ -155,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // falló, se guardan los valores sin reemplazar el mensaje de la tabla.
   table.tHead.addEventListener('column-filter-change', (event) => {
     activeFilters[event.target.dataset.filter] = event.detail.values;
-    if (isLoaded) renderRows({ resetPage: true });
+    if (isLoaded) renderRows({ page: 1 });
   });
 
   // Previo, Siguiente o un número: el componente ya marcó la página nueva
@@ -163,10 +164,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadUsers();
 
-  // ---------- Tabla: cambios después de editar o eliminar ----------
+  // ---------- Tabla: cambios después de crear, editar o eliminar ----------
 
-  // Sin recargar la lista: se conservan los filtros y la página (el componente la acota si la
-  // última quedó vacía).
+  // Sin recargar la lista: se conservan los filtros y, salvo al crear, la página (el componente la
+  // acota si la última quedó vacía).
+
+  // Orden aproximado al de la base (apellido, nombre, id): el exacto depende de su intercalación y
+  // se aplica en la próxima carga.
+  const nameCollator = new Intl.Collator('es');
+  const compareUsers = (a, b) =>
+    nameCollator.compare(a.lastName ?? '', b.lastName ?? '') ||
+    nameCollator.compare(a.firstName ?? '', b.firstName ?? '') ||
+    a.id - b.id;
+
+  // Agrega al usuario creado a la lista en memoria y a las opciones de Usuario, DNI y Email, en su
+  // lugar alfabético, sin tocar los filtros. Si coincide con los filtros activos, la tabla pasa a la
+  // página donde quedó; si no, no se muestra. Si la lista no se había podido cargar, se vuelve a
+  // pedir: mostrar solo al usuario nuevo taparía el error.
+  const insertUser = (newUser) => {
+    if (!isLoaded) {
+      loadUsers();
+      return;
+    }
+    const index = users.findIndex((user) => compareUsers(newUser, user) < 0);
+    const position = index === -1 ? users.length : index;
+    const nextUser = users[position];
+    users = users.toSpliced(position, 0, newUser);
+    Object.entries(FILTER_OPTION_TEXTS).forEach(([filter, textsOf]) => {
+      const list = table.querySelector(`th[data-filter="${filter}"] [role="listbox"]`);
+      const reference = (nextUser && findOption(list, String(nextUser.id))) ?? list.querySelector('.dropdown-empty');
+      list.insertBefore(createOption(newUser, textsOf(newUser)), reference);
+    });
+    const visibleIndex = users.filter(matchesFilters).indexOf(newUser);
+    renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
+  };
 
   // Quita al usuario de la lista en memoria y de las opciones de Usuario, DNI y Email, sin tocar a
   // los demás ni los otros filtros.
@@ -245,7 +276,12 @@ document.addEventListener('DOMContentLoaded', () => {
     birthDate: birthdateInput,
   };
 
-  const GENERIC_UPDATE_ERROR = 'No se pudieron guardar los cambios. Intentá nuevamente.';
+  // Error sin mensaje del proceso principal (o sin respuesta) y texto del botón principal, en reposo
+  // y mientras se espera la respuesta, según el modo del modal
+  const MODAL_TEXTS = {
+    create: { genericError: 'No se pudo crear el usuario. Intentá nuevamente.', submit: 'Crear usuario', saving: 'Creando…' },
+    edit: { genericError: 'No se pudieron guardar los cambios. Intentá nuevamente.', submit: 'Guardar cambios', saving: 'Guardando…' },
+  };
 
   // Mismos tipos que admite el atributo accept del selector de archivos.
   const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -357,6 +393,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // El usuario que se editaba ya no existe: "Guardar cambios" queda deshabilitado hasta cerrar
   let isUserGone = false;
 
+  const modalTexts = () => MODAL_TEXTS[isEditing ? 'edit' : 'create'];
+
   function updateCreateButtonState() {
     const hasAllTextInputs = Array.from(textInputs).every((input) => !input.required || input.value.trim().length > 0);
     const hasRole = Boolean(roleDropdown.querySelector('.dropdown-option.selected'));
@@ -376,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modalBody.inert = saving;
     overlay.querySelector('.modal').setAttribute('aria-busy', String(saving));
     [cancelBtn, createBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
-    createBtn.textContent = saving ? 'Guardando…' : 'Guardar cambios';
+    createBtn.textContent = saving ? modalTexts().saving : modalTexts().submit;
   };
 
   function resetForm() {
@@ -418,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.querySelector('.modal-header p').textContent = isEditing
       ? 'Modifica los datos del usuario.'
       : 'Completa los datos para crear una nueva cuenta de usuario.';
-    createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear usuario';
+    createBtn.textContent = modalTexts().submit;
     if (user) {
       firstNameInput.value = user.firstName ?? '';
       lastNameInput.value = user.lastName ?? '';
@@ -479,27 +517,31 @@ document.addEventListener('DOMContentLoaded', () => {
     return invalidFields.length > 0;
   };
 
-  // Con cualquier error, el modal sigue abierto con lo que se escribió.
+  // Crea o guarda según el modo. Con cualquier error, el modal sigue abierto con lo que se escribió
+  // y, en el alta, con la misma contraseña.
   const saveUser = async () => {
     const userId = editingUserId;
     setSaving(true);
     let response;
     try {
-      response = await window.api?.users?.update(userId, readFormData());
+      response = await (isEditing
+        ? window.api?.users?.update(userId, readFormData())
+        : window.api?.users?.create(readFormData()));
     } catch (error) {
       console.error('Error al guardar el usuario:', error);
     }
     setSaving(false);
 
     if (response?.ok) {
-      replaceUser(response.user);
+      if (isEditing) replaceUser(response.user);
+      else insertUser(response.user);
       closeModal();
       return;
     }
     const error = response?.error;
     if (showFieldErrors(error?.fieldErrors)) return;
-    setFormError(error?.message || GENERIC_UPDATE_ERROR);
-    if (error?.code === 'USER_NOT_FOUND') {
+    setFormError(error?.message || modalTexts().genericError);
+    if (isEditing && error?.code === 'USER_NOT_FOUND') {
       // Ya no está vigente: se quita de la tabla, como al eliminarlo, y no se puede reintentar
       isUserGone = true;
       updateCreateButtonState();
@@ -538,14 +580,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setFormError('');
     // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
     if (validateFields(overlay)) return;
-    if (isEditing) {
-      // Envía password: passwordGenerator.value, null para conservar la contraseña actual; el
-      // proceso principal vuelve a validar todo y la hashea (password.service.js).
-      saveUser();
-      return;
-    }
-    // Alta todavía visual: el guardado real se conecta cuando exista su canal IPC.
-    closeModal();
+    // Envía password: passwordGenerator.value, en texto plano (al editar, null conserva la
+    // contraseña actual); el proceso principal vuelve a validar todo y guarda solo su hash
+    // (password.service.js).
+    saveUser();
   });
 
   // ---------- Modal: Eliminar usuario ----------

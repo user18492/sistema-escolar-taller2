@@ -71,12 +71,36 @@ const EXISTS_NOT_DELETED_SQL = `
 
 // Compara con todos los demás usuarios, también los de otras instituciones y los dados de baja,
 // como las restricciones UNIQUE de dni y email. El email se compara sin distinguir mayúsculas.
+// Con $3 null (un alta) no excluye a nadie: `<>` daría NULL y descartaría todas las filas.
 const FIND_TAKEN_FIELDS_SQL = `
   SELECT COALESCE(BOOL_OR(dni = $1), FALSE)          AS dni_taken,
          COALESCE(BOOL_OR(LOWER(email) = $2), FALSE) AS email_taken
     FROM usuarios
-   WHERE usuario_id <> $3
+   WHERE usuario_id IS DISTINCT FROM $3
      AND (dni = $1 OR LOWER(email) = $2)
+`;
+
+// Alta en la institución: usuario_estado toma su valor por defecto (activo) y deleted_at queda
+// NULL (vigente). Devuelve la fila creada, con el nombre del rol.
+const CREATE_SQL = `
+  WITH created AS (
+    INSERT INTO usuarios (usuario_rol_id, institucion_id, nombre, apellido, dni, email,
+                          fecha_nacimiento, password_hash)
+    VALUES ((SELECT usuario_rol_id FROM usuario_roles WHERE nombre = $7), $1, $2, $3, $4, $5, $6, $8)
+    RETURNING usuario_id, usuario_rol_id, usuario_estado, institucion_id, nombre, apellido,
+              email, dni, fecha_nacimiento
+  )
+  SELECT u.usuario_id,
+         u.usuario_estado,
+         u.institucion_id,
+         u.nombre,
+         u.apellido,
+         u.email,
+         u.dni,
+         u.fecha_nacimiento,
+         r.nombre AS rol
+    FROM created u
+    JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
 // Solo modifica a un usuario vigente de la institución. password_hash cambia solo si llega uno:
@@ -164,14 +188,32 @@ async function existsNotDeleted(userId, institutionId) {
   return rows.length > 0;
 }
 
-// Campos ('dni', 'email') cuyo valor ya tiene un usuario distinto de `excludedUserId`. Espera el
-// dni solo con dígitos y el email normalizado, como se guardan.
+// Campos ('dni', 'email') cuyo valor ya tiene un usuario distinto de `excludedUserId` (null en un
+// alta, para comparar con todos). Espera el dni solo con dígitos y el email normalizado, como se
+// guardan.
 async function findTakenFields({ dni, email }, excludedUserId) {
   const { rows } = await query(FIND_TAKEN_FIELDS_SQL, [dni, email, excludedUserId]);
   const fields = [];
   if (rows[0].dni_taken) fields.push('dni');
   if (rows[0].email_taken) fields.push('email');
   return fields;
+}
+
+// Crea un usuario vigente y activo en la institución. Recibe los datos como update, con
+// `passwordHash` obligatorio. Devuelve el usuario creado, sin password_hash. Si el dni o el email ya
+// son de otro usuario, PostgreSQL rechaza el alta: ver duplicateFieldOf.
+async function create(institutionId, { firstName, lastName, dni, email, birthDate, role, passwordHash }) {
+  const { rows } = await query(CREATE_SQL, [
+    institutionId,
+    firstName,
+    lastName,
+    dni,
+    email,
+    birthDate,
+    role,
+    passwordHash,
+  ]);
+  return toUser(rows[0]);
 }
 
 // Reemplaza los datos de un usuario vigente de la institución. `birthDate` es 'AAAA-MM-DD', `role`
@@ -208,6 +250,7 @@ module.exports = {
   existsInInstitution,
   existsNotDeleted,
   findTakenFields,
+  create,
   update,
   duplicateFieldOf,
 };

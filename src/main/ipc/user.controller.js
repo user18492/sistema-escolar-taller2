@@ -73,9 +73,27 @@ async function updateUser(currentUser, userId, data) {
   }
 }
 
+// Nunca rechaza, como updateUser, y tampoco registra `data`: trae la contraseña en texto plano. Que
+// la contraseña no sea null lo comprueba el servicio.
+async function createUser(currentUser, data) {
+  if (!isUserData(data)) {
+    return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');
+  }
+  try {
+    return { ok: true, user: await userService.createUser(currentUser, data) };
+  } catch (error) {
+    if (error instanceof UserError) {
+      return failure(error.code, error.message, error.fieldErrors);
+    }
+    console.error('Error al crear el usuario:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo crear el usuario. Intentá nuevamente.');
+  }
+}
+
 // Sin sesión o con otro rol, handleProtected responde UNAUTHENTICATED o FORBIDDEN sin llamar a la acción.
 function registerUserHandlers(browserWindow) {
   handleProtected(browserWindow, 'users:list', ['ADMIN'], listUsers);
+  handleProtected(browserWindow, 'users:create', ['ADMIN'], createUser);
   handleProtected(browserWindow, 'users:update', ['ADMIN'], updateUser);
   handleProtected(browserWindow, 'users:delete', ['ADMIN'], deleteUser);
 }

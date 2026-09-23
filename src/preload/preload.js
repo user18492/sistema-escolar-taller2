@@ -29,6 +29,11 @@ contextBridge.exposeInMainWorld('api', {
     // y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role }, con birthDate 'AAAA-MM-DD'
     // o null), o { ok: false, error: { code, message } }.
     list: () => ipcRenderer.invoke('users:list'),
+    // Solo ADMIN. Crea un usuario activo en su institución. `data` tiene los campos de update, con
+    // password obligatoria: viaja en texto plano y el proceso principal guarda solo su hash. Resuelve
+    // { ok: true, user } con el usuario creado (mismos campos que list) o { ok: false, error: { code,
+    // message, fieldErrors } }, como update: DUPLICATE_VALUE indica un dni o un email ya registrados.
+    create: (data) => ipcRenderer.invoke('users:create', data),
     // Solo ADMIN. Guarda los datos del usuario con ese id (usuario_id) de su institución. `data` es
     // { firstName, lastName, dni, email, birthDate, role, password }, con birthDate 'AAAA-MM-DD' y
     // password null para conservar la actual. Resuelve { ok: true, user } con el usuario como quedó

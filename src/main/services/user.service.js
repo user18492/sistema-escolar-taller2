@@ -29,9 +29,18 @@ const NOT_PERSON_NAME_CHAR = new RegExp(`[^${LETTERS} '-]`);
 const BIRTH_DATE_MIN_AGE = 18;
 const BIRTH_DATE_MAX_AGE = 80;
 
+// Al editar, el propio usuario no cuenta como duplicado: el que ya tiene el dato es "otro".
 const DUPLICATE_MESSAGES = {
-  dni: 'Ya existe otro usuario con este DNI.',
-  email: 'Ya existe otro usuario con este email.',
+  create: {
+    message: 'Ya existe un usuario con estos datos.',
+    dni: 'Ya existe un usuario con este DNI.',
+    email: 'Ya existe un usuario con este email.',
+  },
+  update: {
+    message: 'Ya existe otro usuario con estos datos.',
+    dni: 'Ya existe otro usuario con este DNI.',
+    email: 'Ya existe otro usuario con este email.',
+  },
 };
 
 // Tipográfico → recto, tildes unidas a su letra (NFC) y espacios simples, como al salir del campo.
@@ -129,9 +138,31 @@ function parseUserData(data) {
   return values;
 }
 
-function duplicateError(fields) {
-  const fieldErrors = Object.fromEntries(fields.map((field) => [field, DUPLICATE_MESSAGES[field]]));
-  return new UserError('DUPLICATE_VALUE', 'Ya existe otro usuario con estos datos.', fieldErrors);
+// `operation` es 'create' o 'update'.
+function duplicateError(fields, operation) {
+  const messages = DUPLICATE_MESSAGES[operation];
+  const fieldErrors = Object.fromEntries(fields.map((field) => [field, messages[field]]));
+  return new UserError('DUPLICATE_VALUE', messages.message, fieldErrors);
+}
+
+// Lanza un UserError DUPLICATE_VALUE si el dni o el email de `values` ya son de un usuario distinto
+// de `excludedUserId` (null en un alta).
+async function assertNotTaken(values, excludedUserId, operation) {
+  const takenFields = await userRepository.findTakenFields(values, excludedUserId);
+  if (takenFields.length > 0) throw duplicateError(takenFields, operation);
+}
+
+// Ejecuta `save` (el INSERT o el UPDATE). Si otro usuario tomó el dni o el email entre la
+// comprobación y el guardado, la restricción UNIQUE de la base lo rechaza y se informa como
+// duplicado.
+async function saveUnique(save, operation) {
+  try {
+    return await save();
+  } catch (error) {
+    const field = userRepository.duplicateFieldOf(error);
+    if (!field) throw error;
+    throw duplicateError([field], operation);
+  }
 }
 
 function userNotFoundError() {
@@ -204,23 +235,37 @@ async function updateUser(currentUser, userId, data) {
     throw userNotFoundError();
   }
   // Excluye al propio usuario: conservar su dni o su email no es un duplicado.
-  const takenFields = await userRepository.findTakenFields(values, userId);
-  if (takenFields.length > 0) throw duplicateError(takenFields);
+  await assertNotTaken(values, userId, 'update');
 
   const passwordHash = data.password === null ? null : await hashPassword(data.password);
-  let user;
-  try {
-    user = await userRepository.update(userId, currentUser.institutionId, { ...values, passwordHash });
-  } catch (error) {
-    // Otro usuario tomó el dni o el email entre la comprobación y el guardado: la restricción
-    // UNIQUE de la base lo rechaza.
-    const field = userRepository.duplicateFieldOf(error);
-    if (!field) throw error;
-    throw duplicateError([field]);
-  }
+  const user = await saveUnique(
+    () => userRepository.update(userId, currentUser.institutionId, { ...values, passwordHash }),
+    'update'
+  );
   // Se dio de baja entre la comprobación y el guardado.
   if (!user) throw userNotFoundError();
   return toListedUser(user);
 }
 
-module.exports = { listUsers, deleteUser, updateUser, UserError };
+// Crea un usuario activo en la institución de `currentUser` y lo devuelve con los campos de
+// listUsers. `data` trae los mismos campos que en updateUser, con `password` obligatoria: llega en
+// texto plano y solo se guarda su hash. Lanza un UserError si algún dato no es válido o falta la
+// contraseña (INVALID_INPUT) o si el dni o el email ya son de otro usuario, aunque esté dado de baja
+// o sea de otra institución (DUPLICATE_VALUE, con fieldErrors).
+async function createUser(currentUser, data) {
+  const values = parseUserData(data);
+  // parseUserData acepta null porque al editar conserva la contraseña actual; un alta la necesita.
+  if (data.password === null) {
+    throw new UserError('INVALID_INPUT', 'Falta la contraseña del usuario.');
+  }
+  await assertNotTaken(values, null, 'create');
+
+  const passwordHash = await hashPassword(data.password);
+  const user = await saveUnique(
+    () => userRepository.create(currentUser.institutionId, { ...values, passwordHash }),
+    'create'
+  );
+  return toListedUser(user);
+}
+
+module.exports = { listUsers, deleteUser, updateUser, createUser, UserError };
