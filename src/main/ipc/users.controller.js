@@ -1,5 +1,5 @@
 // src/main/ipc/users.controller.js
-const { crearUsuario } = require('../../../db/users.repository');
+const { crearUsuario, listarUsuarios } = require('../../../db/users.repository');
 
 // Mismo patrón de seguridad que window-controls: solo el frame principal
 // de esta ventana puede invocar estos canales.
@@ -14,6 +14,7 @@ function registerUsersControls(window) {
     };
 
     handle('usuarios:crear', (datos) => crearUsuario(datos));
+    handle('usuarios:listar', () => listarUsuarios());
 }
 
 module.exports = { registerUsersControls };

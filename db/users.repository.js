@@ -23,7 +23,7 @@ async function crearUsuario({ nombre, apellido, email, dni, fechaNacimiento, rol
         )
         VALUES (
             (SELECT usuario_rol_id FROM usuario_roles WHERE nombre = $1),
-            (SELECT usuario_estado_id FROM usuario_estados WHERE nombre = 'activo'),
+            (SELECT usuario_estado_id FROM usuario_estados WHERE nombre = 'ACTIVE'),
             $2, $3, $4, $5, $6, $7, $8, $9
         )
         RETURNING usuario_id, nombre, apellido, email, dni, fecha_nacimiento, imagen_url;
@@ -45,4 +45,24 @@ async function crearUsuario({ nombre, apellido, email, dni, fechaNacimiento, rol
     return rows[0];
 }
 
-module.exports = { crearUsuario };
+async function listarUsuarios() {
+    const sql = `
+        SELECT
+            u.usuario_id,
+            u.nombre,
+            u.apellido,
+            u.dni,
+            u.email,
+            r.nombre AS rol,
+            e.nombre AS estado
+        FROM usuarios u
+        JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
+        JOIN usuario_estados e ON e.usuario_estado_id = u.usuario_estado_id
+        ORDER BY u.apellido, u.nombre;
+    `;
+
+    const { rows } = await query(sql);
+    return rows;
+}
+
+module.exports = { crearUsuario, listarUsuarios };
