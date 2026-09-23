@@ -29,5 +29,9 @@ contextBridge.exposeInMainWorld('api', {
     // y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role }, con birthDate 'AAAA-MM-DD'
     // o null), o { ok: false, error: { code, message } }.
     list: () => ipcRenderer.invoke('users:list'),
+    // Solo ADMIN. Baja lógica del usuario con ese id (usuario_id) de su institución. Resuelve { ok: true }
+    // o { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_ALREADY_DELETED indican que ya no
+    // está vigente.
+    delete: (userId) => ipcRenderer.invoke('users:delete', userId),
   },
 });

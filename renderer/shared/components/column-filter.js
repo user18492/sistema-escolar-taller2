@@ -9,6 +9,9 @@
 // column-filter-change (burbujea) con detail { values, text }: los data-value no vacíos de las
 // opciones marcadas y el valor que filtra el campo de texto ('' si no hay o si el año está
 // incompleto). La vista lo escucha para filtrar sus filas; la inicialización no lo emite.
+// Si la vista quita una opción marcada (p. ej., la de un registro que se eliminó), emite
+// column-filter-refresh sobre el <th class="column-filter"> para que el embudo refleje las
+// marcadas que quedan; no emite column-filter-change, así que la vista actualiza su propio filtro.
 // El panel se promueve al top layer del navegador con la API de popover, así que la lista
 // deja de estar recortada por el desplazamiento de la tabla; su posición y su alto máximo
 // se calculan sobre el botón del encabezado, y se abre hacia arriba si abajo no cabe.
@@ -261,6 +264,8 @@
     }
 
     clearButton?.addEventListener('click', clearFilter);
+
+    root.addEventListener('column-filter-refresh', refreshState);
 
     window.addEventListener('resize', () => {
       if (panel.matches(':popover-open')) positionPanel();

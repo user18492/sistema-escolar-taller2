@@ -1,7 +1,8 @@
 // Vista Usuarios del Administrador: la tabla muestra los demás usuarios de la institución, que
 // llegan del proceso principal (window.api.users.list), y los filtros de columna los filtran en
 // memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
-// Alta, edición y eliminación siguen siendo solo visuales.
+// Eliminar da de baja al usuario (baja lógica, window.api.users.delete); alta y edición siguen
+// siendo solo visuales.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -377,9 +378,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar usuario ----------
 
-  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
-  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
-  setupConfirmModal(document.getElementById('deleteUserOverlay'), { beforeOpen: closeAllDropdowns });
+  const GENERIC_DELETE_ERROR = 'No se pudo eliminar el usuario. Intentá nuevamente.';
+  // El usuario ya no está vigente: se quita de la tabla igual que después de darlo de baja
+  const NO_LONGER_ACTIVE_CODES = ['USER_NOT_FOUND', 'USER_ALREADY_DELETED'];
+  // Posición de la fila quitada, solo para devolver el foco a la que ocupe su lugar
+  let removedRowIndex = 0;
+
+  // Quita al usuario de la lista en memoria y de las opciones de Usuario, DNI y Email, sin tocar a
+  // los demás, los otros filtros ni la página (el componente la acota si la última quedó vacía).
+  const removeUser = (userId) => {
+    const id = String(userId);
+    users = users.filter((user) => String(user.id) !== id);
+    Object.keys(FILTER_OPTION_TEXTS).forEach((filter) => {
+      const header = table.querySelector(`th[data-filter="${filter}"]`);
+      const option = Array.from(header.querySelectorAll('.dropdown-option')).find((candidate) => candidate.dataset.value === id);
+      if (!option) return;
+      const wasSelected = option.classList.contains('selected');
+      option.remove();
+      if (!wasSelected) return;
+      // El filtro estaba en este usuario: deja de filtrar por él y el embudo se actualiza
+      activeFilters[filter] = (activeFilters[filter] ?? []).filter((value) => value !== id);
+      header.dispatchEvent(new Event('column-filter-refresh'));
+    });
+    renderRows();
+  };
+
+  // El id sale del data-user-id de la fila del botón (el usuario_id, fijado al crearla), no de su
+  // posición en la tabla. Resuelve { message } para que el modal lo muestre sin cerrarse.
+  const deleteUser = async (trigger) => {
+    const row = trigger.closest('tr');
+    const userId = Number(row?.dataset.userId);
+    let response;
+    try {
+      response = await window.api?.users?.delete(userId);
+    } catch (error) {
+      console.error('Error al eliminar el usuario:', error);
+    }
+    const isNoLongerActive = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
+    if (response?.ok || isNoLongerActive) {
+      removedRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+      removeUser(userId);
+    }
+    if (response?.ok) return undefined;
+    return { message: response?.error?.message || GENERIC_DELETE_ERROR, canRetry: !isNoLongerActive };
+  };
+
+  // Su fila ya no está: el foco pasa a Eliminar en la fila que quedó en su lugar (o en la última de
+  // la página), o a "Nuevo usuario" si la tabla quedó sin usuarios
+  const focusAfterRemoval = () => {
+    const deleteButtons = tbody.querySelectorAll('[data-action="delete"]');
+    return deleteButtons[Math.min(removedRowIndex, deleteButtons.length - 1)] ?? openModalBtn;
+  };
+
+  // Componente compartido confirm-modal.component.js: espera la respuesta abierto y muestra el
+  // error, o que el usuario ya no está vigente, sin cerrarse.
+  setupConfirmModal(document.getElementById('deleteUserOverlay'), {
+    beforeOpen: closeAllDropdowns,
+    onConfirm: deleteUser,
+    fallbackFocus: focusAfterRemoval,
+  });
 
   roleOptions.forEach((option) => {
     option.addEventListener('click', () => {

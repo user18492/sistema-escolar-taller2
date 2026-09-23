@@ -2,6 +2,7 @@ const { query } = require('../database/connection');
 const { User } = require('../models/user.model');
 
 // Compara el email tal como llega: normalizarlo (espacios, mayúsculas) es tarea del servicio.
+// Los usuarios dados de baja no se encuentran: el login los trata como un email inexistente.
 const FIND_BY_EMAIL_SQL = `
   SELECT u.usuario_id,
          u.usuario_estado,
@@ -19,9 +20,11 @@ const FIND_BY_EMAIL_SQL = `
     JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
     JOIN instituciones i ON i.institucion_id = u.institucion_id
    WHERE u.email = $1
+     AND u.deleted_at IS NULL
 `;
 
-// Listado de usuarios de una institución, sin password_hash: los campos que no se seleccionan quedan undefined.
+// Listado de los usuarios vigentes de una institución, sin password_hash: los campos que no se
+// seleccionan quedan undefined.
 const FIND_BY_INSTITUTION_SQL = `
   SELECT u.usuario_id,
          u.usuario_estado,
@@ -36,7 +39,26 @@ const FIND_BY_INSTITUTION_SQL = `
     JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
    WHERE u.institucion_id = $1
      AND u.usuario_id <> $2
+     AND u.deleted_at IS NULL
    ORDER BY u.apellido, u.nombre, u.usuario_id
+`;
+
+// Baja lógica: la fila se conserva con la fecha de baja. Solo marca a un usuario vigente de la
+// institución, así una segunda baja (repetida o simultánea) no pisa la fecha de la primera.
+const MARK_AS_DELETED_SQL = `
+  UPDATE usuarios
+     SET deleted_at = NOW()
+   WHERE usuario_id = $1
+     AND institucion_id = $2
+     AND deleted_at IS NULL
+`;
+
+// Cuenta también a los dados de baja.
+const EXISTS_IN_INSTITUTION_SQL = `
+  SELECT 1
+    FROM usuarios
+   WHERE usuario_id = $1
+     AND institucion_id = $2
 `;
 
 function toUser(row) {
@@ -62,10 +84,22 @@ async function findByEmail(email) {
   return rows.length > 0 ? toUser(rows[0]) : null;
 }
 
-// Usuarios de la institución ordenados por apellido y nombre, sin el de `excludedUserId`.
+// Usuarios vigentes de la institución ordenados por apellido y nombre, sin el de `excludedUserId`.
 async function findByInstitution(institutionId, excludedUserId) {
   const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId, excludedUserId]);
   return rows.map(toUser);
 }
 
-module.exports = { findByEmail, findByInstitution };
+// Devuelve true si dio de baja al usuario; false si no existe en la institución o ya estaba dado de baja.
+async function markAsDeleted(userId, institutionId) {
+  const { rowCount } = await query(MARK_AS_DELETED_SQL, [userId, institutionId]);
+  return rowCount > 0;
+}
+
+// true si el usuario pertenece a la institución, esté vigente o dado de baja.
+async function existsInInstitution(userId, institutionId) {
+  const { rows } = await query(EXISTS_IN_INSTITUTION_SQL, [userId, institutionId]);
+  return rows.length > 0;
+}
+
+module.exports = { findByEmail, findByInstitution, markAsDeleted, existsInInstitution };

@@ -48,6 +48,14 @@ confirm-modal {
   color: var(--color-text-secondary);
 }
 
+/* Resultado de la confirmación cuando el modal sigue abierto (error del backend, registro que ya
+   no existe). Oculto mientras no hay mensaje, así las vistas que no lo usan no cambian. */
+.confirm-content .confirm-message {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--color-accent-red);
+}
+
 /* Ambas acciones comparten el ancho disponible, como en la maqueta. */
 .confirm-actions {
   display: flex;
@@ -82,6 +90,28 @@ confirm-modal {
 
 .btn-danger:hover {
   background: #b91c1c;
+}
+
+/* Sin la acción disponible (el registro ya no existe): atenuado, como .btn-primary:disabled. */
+.confirm-actions .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Mientras espera la respuesta (aria-disabled: los botones conservan el foco), sin el aspecto
+   atenuado de una acción no disponible, como el botón de Login mientras verifica la cuenta. */
+.confirm-actions .btn[aria-disabled="true"] {
+  opacity: 0.85;
+  cursor: progress;
+}
+
+/* Deshabilitados o en espera, los botones no cambian de color al pasar el mouse. */
+.btn-neutral:is(:disabled, [aria-disabled="true"]):hover {
+  background: #f3f4f6;
+}
+
+.btn-danger:is(:disabled, [aria-disabled="true"]):hover {
+  background: var(--color-accent-red);
 }
 
 @media (max-width: 600px) {

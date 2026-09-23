@@ -10,15 +10,26 @@
 // El overlay no lo cierra al hacer clic fuera.
 // Opciones:
 //   - beforeOpen(): se llama antes de abrirlo (la vista cierra ahí sus dropdowns y buscadores).
-//   - onConfirm(trigger): se llama al confirmar, antes de cerrarlo, con el botón de la fila.
+//   - onConfirm(trigger): se llama al confirmar, con el botón de la fila. Si devuelve una promesa,
+//     el modal la espera abierto: "Sí, eliminar" pasa a "Eliminando…" y ni los botones ni Escape
+//     responden. Si el resultado es { message }, el modal sigue abierto, muestra el mensaje debajo
+//     de la descripción y el foco vuelve a "Cancelar"; con { message, canRetry: false }, "Sí,
+//     eliminar" queda deshabilitado (p. ej., el registro ya no existe). Con cualquier otro
+//     resultado se cierra.
+//   - fallbackFocus(): al cerrar, si el botón que lo abrió ya no está en el documento (su fila se
+//     eliminó), el foco pasa al elemento que devuelva.
 // Marcado: <confirm-modal entity="User" heading="Eliminar usuario" description="¿Quieres eliminar
 // este usuario?"></confirm-modal> genera el .modal-overlay con los ids delete{entity}Overlay,
-// delete{entity}Title, delete{entity}Description, cancelDelete{entity}Btn y confirmDelete{entity}Btn.
+// delete{entity}Title, delete{entity}Description, delete{entity}Message, cancelDelete{entity}Btn
+// y confirmDelete{entity}Btn.
 // El script se carga sin defer en <head>, así el marcado existe antes de que la vista llame a
 // setupConfirmModal en DOMContentLoaded.
 
 (() => {
   const TRIGGER_SELECTOR = '.data-table tbody [data-action="delete"]';
+  const PENDING_LABEL = 'Eliminando…';
+  // Solo si la promesa de onConfirm se rechaza: la vista debería resolverla con su propio mensaje
+  const GENERIC_ERROR = 'No se pudo completar la operación. Intentá nuevamente.';
 
   // resources/ExclamationTriangle.svg
   const WARNING_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -39,6 +50,7 @@
             </span>
             <h2 id="delete${entity}Title"></h2>
             <p id="delete${entity}Description"></p>
+            <p class="confirm-message" id="delete${entity}Message" role="alert" hidden></p>
           </div>
 
           <div class="confirm-actions">
@@ -54,15 +66,35 @@
 
   customElements.define('confirm-modal', ConfirmModal);
 
-  window.setupConfirmModal = (overlay, { beforeOpen, onConfirm } = {}) => {
+  window.setupConfirmModal = (overlay, { beforeOpen, onConfirm, fallbackFocus } = {}) => {
+    const dialog = overlay.querySelector('.modal-confirm');
+    const message = overlay.querySelector('.confirm-message');
     const cancelButton = overlay.querySelector('.confirm-actions .btn-neutral');
     const confirmButton = overlay.querySelector('.confirm-actions .btn-danger');
+    const confirmLabel = confirmButton.textContent;
     let trigger = null;
+    let isPending = false;
+
+    const showMessage = (text) => {
+      message.textContent = text;
+      message.hidden = !text;
+    };
+
+    // Mientras espera, los botones quedan con aria-disabled y no con disabled: así conservan el
+    // foco y la retención de modal-focus-trap sigue teniendo controles donde apoyarse.
+    const setPending = (pending) => {
+      isPending = pending;
+      dialog.setAttribute('aria-busy', String(pending));
+      [cancelButton, confirmButton].forEach((button) => button.setAttribute('aria-disabled', String(pending)));
+      confirmButton.textContent = pending ? PENDING_LABEL : confirmLabel;
+    };
 
     const openModal = (button) => {
       trigger = button;
       beforeOpen?.();
       document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
+      showMessage('');
+      confirmButton.disabled = false;
       overlay.classList.add('is-open');
       // "Cancelar" recibe el foco para evitar eliminaciones accidentales con Enter.
       cancelButton.focus();
@@ -70,7 +102,18 @@
 
     const closeModal = () => {
       overlay.classList.remove('is-open');
-      trigger?.focus();
+      (trigger?.isConnected ? trigger : fallbackFocus?.())?.focus();
+    };
+
+    // Con un mensaje, el modal sigue abierto para mostrarlo; sin mensaje, se cierra
+    const finish = (result) => {
+      if (!result?.message) {
+        closeModal();
+        return;
+      }
+      showMessage(result.message);
+      confirmButton.disabled = result.canRetry === false;
+      cancelButton.focus();
     };
 
     // Por delegación, para abarcar también las filas que la vista genera después de cargar
@@ -79,12 +122,29 @@
       if (button) openModal(button);
     });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && overlay.classList.contains('is-open')) closeModal();
+      if (event.key === 'Escape' && overlay.classList.contains('is-open') && !isPending) closeModal();
     });
-    cancelButton.addEventListener('click', closeModal);
+    cancelButton.addEventListener('click', () => {
+      if (!isPending) closeModal();
+    });
     confirmButton.addEventListener('click', () => {
-      onConfirm?.(trigger);
-      closeModal();
+      if (isPending) return;
+      const result = onConfirm?.(trigger);
+      if (typeof result?.then !== 'function') {
+        finish(result);
+        return;
+      }
+      showMessage('');
+      setPending(true);
+      result
+        .catch((error) => {
+          console.error('Error al confirmar la acción:', error);
+          return { message: GENERIC_ERROR };
+        })
+        .then((value) => {
+          setPending(false);
+          finish(value);
+        });
     });
   };
 })();

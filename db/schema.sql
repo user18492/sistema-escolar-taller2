@@ -34,7 +34,10 @@ CREATE TABLE usuarios (
     password_hash      VARCHAR(255),
     dni                VARCHAR(20)   UNIQUE,
     fecha_nacimiento   DATE,
-    imagen_url         VARCHAR(255)
+    imagen_url         VARCHAR(255),
+    deleted_at         TIMESTAMPTZ
+    -- NULL = vigente; con fecha = dado de baja (baja lógica): no se lista ni puede iniciar sesión,
+    -- y conserva su email y su dni
 );
 
 -- Indices porque sino no se hacen solos
