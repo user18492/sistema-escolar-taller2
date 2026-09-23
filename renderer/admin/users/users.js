@@ -38,6 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const fullName = (user) => `${user.lastName ?? ''}, ${user.firstName ?? ''}`;
   const initialsOf = (user) =>
     [user.firstName, user.lastName].map((name) => name?.trim().charAt(0) ?? '').join('').toUpperCase();
+  // La fecha llega como 'AAAA-MM-DD' (o null) y el campo del modal usa DD/MM/AAAA
+  const toDisplayDate = (isoDate) => (isoDate ? isoDate.split('-').reverse().join('/') : '');
 
   // Lo que compara cada filtro: Usuario, DNI y Email eligen un usuario por su id
   const FILTER_KEYS = {
@@ -303,8 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function openModal(row = null, trigger = openModalBtn) {
     isEditing = Boolean(row);
     modalTrigger = trigger;
-    // La tabla no trae la fecha de nacimiento: al editar no se exige.
-    birthdateInput.required = !isEditing;
     resetForm();
     document.getElementById('newUserTitle').textContent = isEditing ? 'Editar usuario' : 'Nuevo usuario';
     overlay.querySelector('.modal-header p').textContent = isEditing
@@ -317,7 +317,10 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('newUserLastName').value = lastName;
       dniInput.value = row.cells[1].textContent.trim();
       document.getElementById('newUserEmail').value = row.cells[2].textContent.trim();
-      // La tabla no contiene fecha de nacimiento ni foto de perfil.
+      // La fecha de nacimiento no se muestra en la tabla: sale del usuario cargado de la base.
+      // La foto de perfil todavía no se carga.
+      const user = users.find((candidate) => String(candidate.id) === row.dataset.userId);
+      birthdateInput.value = toDisplayDate(user?.birthDate);
       roleOptions.forEach((option) => {
         const selected = option.textContent.trim() === row.cells[4].textContent.trim();
         option.classList.toggle('selected', selected);

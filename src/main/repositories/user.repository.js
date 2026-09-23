@@ -30,6 +30,7 @@ const FIND_BY_INSTITUTION_SQL = `
          u.apellido,
          u.email,
          u.dni,
+         u.fecha_nacimiento,
          r.nombre AS rol
     FROM usuarios u
     JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id

@@ -26,7 +26,8 @@ contextBridge.exposeInMainWorld('api', {
   },
   users: {
     // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, ordenados por apellido
-    // y nombre ({ id, firstName, lastName, dni, email, isActive, role }), o { ok: false, error: { code, message } }.
+    // y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role }, con birthDate 'AAAA-MM-DD'
+    // o null), o { ok: false, error: { code, message } }.
     list: () => ipcRenderer.invoke('users:list'),
   },
 });
