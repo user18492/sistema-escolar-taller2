@@ -1,6 +1,7 @@
 // Vista Usuarios del Administrador: la tabla muestra los demás usuarios de la institución, que
 // llegan del proceso principal (window.api.users.list), y los filtros de columna los filtran en
-// memoria. Alta, edición y eliminación siguen siendo solo visuales.
+// memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
+// Alta, edición y eliminación siguen siendo solo visuales.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -17,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const columnCount = table.tHead.rows[0].cells.length;
   const rowTemplate = document.getElementById('userRowTemplate');
   const optionTemplate = document.getElementById('userOptionTemplate');
+  // El script del componente se carga sin defer en <head>: acá ya está definido y conectado
+  const pagination = document.querySelector('.users-card table-pagination');
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar los usuarios. Intentá nuevamente.';
 
@@ -106,22 +109,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return row;
   };
 
-  // <table-pagination> lee sus atributos solo al conectarse: se reemplaza por uno nuevo.
-  // Sin paginación todavía: una sola página con todas las filas visibles.
-  const updatePagination = (count) => {
-    const pagination = document.querySelector('.users-card table-pagination');
-    const replacement = document.createElement('table-pagination');
-    replacement.setAttribute('results', count ? `Mostrando 1-${count} de ${count}` : 'Mostrando 0 de 0');
-    replacement.setAttribute('label', pagination.getAttribute('label'));
-    replacement.setAttribute('pages', '1');
-    pagination.replaceWith(replacement);
-  };
-
-  const renderRows = () => {
+  // Muestra la página actual de los usuarios filtrados (10 por página, en memoria). Al cambiar un
+  // filtro se vuelve a la página 1; al recargar se conserva, y el componente la acota a la última
+  // que quede.
+  const renderRows = ({ resetPage = false } = {}) => {
     const visibleUsers = users.filter(matchesFilters);
-    if (visibleUsers.length) tbody.replaceChildren(...visibleUsers.map(createRow));
+    const pageUsers = pagination.slice(visibleUsers, resetPage ? { page: 1 } : {});
+    if (pageUsers.length) tbody.replaceChildren(...pageUsers.map(createRow));
     else showMessage(users.length ? 'Ningún usuario coincide con los filtros.' : 'No hay otros usuarios registrados.');
-    updatePagination(visibleUsers.length);
   };
 
   // Punto de entrada también para recargar la lista después de crear, editar o eliminar.
@@ -147,8 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // falló, se guardan los valores sin reemplazar el mensaje de la tabla.
   table.tHead.addEventListener('column-filter-change', (event) => {
     activeFilters[event.target.dataset.filter] = event.detail.values;
-    if (isLoaded) renderRows();
+    if (isLoaded) renderRows({ resetPage: true });
   });
+
+  // Previo, Siguiente o un número: el componente ya marcó la página nueva
+  pagination.addEventListener('page-change', () => renderRows());
 
   loadUsers();
 
@@ -353,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
 
   openModalBtn.addEventListener('click', () => openModal());
-  // Por delegación: las filas se generan al cargar los usuarios y al filtrar
+  // Por delegación: las filas se generan al cargar los usuarios, al filtrar y al cambiar de página
   tbody.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action="edit"]');
     if (button) openModal(button.closest('tr'), button);

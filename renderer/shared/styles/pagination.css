@@ -53,7 +53,7 @@ table-pagination {
   font-weight: 700;
 }
 
-/* Con una sola página, Previo y Siguiente quedan sin destino. */
+/* Previo en la primera página y Siguiente en la última. */
 .page-btn:disabled {
   color: var(--color-text-tertiary);
   cursor: default;
