@@ -87,4 +87,4 @@ async function authenticate(credentials) {
   return toPublicUser(user);
 }
 
-module.exports = { authenticate, normalizeEmail, isValidEmail, AuthenticationError };
+module.exports = { authenticate, normalizeEmail, isValidEmail, RECOGNIZED_ROLES, AuthenticationError };

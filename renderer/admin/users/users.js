@@ -1,8 +1,8 @@
 // Vista Usuarios del Administrador: la tabla muestra los demás usuarios de la institución, que
 // llegan del proceso principal (window.api.users.list), y los filtros de columna los filtran en
 // memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
-// Eliminar da de baja al usuario (baja lógica, window.api.users.delete); alta y edición siguen
-// siendo solo visuales.
+// Editar guarda los cambios (window.api.users.update) y Eliminar da de baja al usuario (baja
+// lógica, window.api.users.delete); el alta sigue siendo solo visual.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const optionTemplate = document.getElementById('userOptionTemplate');
   // El script del componente se carga sin defer en <head>: acá ya está definido y conectado
   const pagination = document.querySelector('.users-card table-pagination');
+  // "Nuevo usuario": recibe el foco si la tabla queda sin filas después de editar o eliminar
+  const openModalBtn = document.getElementById('openNewUserModalBtn');
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar los usuarios. Intentá nuevamente.';
 
@@ -38,12 +40,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const activeFilters = {};
 
   const statusCode = (user) => (user.isActive ? 'ACTIVE' : 'SUSPENDED');
-  // "Apellido, Nombre": el modal de edición separa los dos por ", "
+  // "Apellido, Nombre"
   const fullName = (user) => `${user.lastName ?? ''}, ${user.firstName ?? ''}`;
   const initialsOf = (user) =>
     [user.firstName, user.lastName].map((name) => name?.trim().charAt(0) ?? '').join('').toUpperCase();
   // La fecha llega como 'AAAA-MM-DD' (o null) y el campo del modal usa DD/MM/AAAA
   const toDisplayDate = (isoDate) => (isoDate ? isoDate.split('-').reverse().join('/') : '');
+  // El campo ya validado (DD/MM/AAAA) se envía como 'AAAA-MM-DD'
+  const toIsoDate = (displayDate) => displayDate.split('/').reverse().join('-');
 
   // Lo que compara cada filtro: Usuario, DNI y Email eligen un usuario por su id
   const FILTER_KEYS = {
@@ -76,14 +80,22 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML
-  const createOption = (user, [name, detail]) => {
-    const option = optionTemplate.content.firstElementChild.cloneNode(true);
-    option.dataset.value = String(user.id);
+  const fillOption = (option, user, [name, detail]) => {
     option.querySelector('.avatar-circle').textContent = initialsOf(user);
     option.querySelector('.option-name').textContent = name ?? '';
     option.querySelector('.option-email').textContent = detail ?? '';
+  };
+
+  const createOption = (user, texts) => {
+    const option = optionTemplate.content.firstElementChild.cloneNode(true);
+    option.dataset.value = String(user.id);
+    fillOption(option, user, texts);
     return option;
   };
+
+  // Opción del usuario con ese id (string) en el filtro de columna de `header`, o undefined
+  const findOption = (header, id) =>
+    Array.from(header.querySelectorAll('.dropdown-option')).find((candidate) => candidate.dataset.value === id);
 
   // Las opciones van antes de .dropdown-empty; column-filter.js las lee al usarlas
   const fillFilterOptions = () => {
@@ -151,12 +163,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadUsers();
 
-  // ---------- Modal: Nuevo usuario ----------
+  // ---------- Tabla: cambios después de editar o eliminar ----------
+
+  // Sin recargar la lista: se conservan los filtros y la página (el componente la acota si la
+  // última quedó vacía).
+
+  // Quita al usuario de la lista en memoria y de las opciones de Usuario, DNI y Email, sin tocar a
+  // los demás ni los otros filtros.
+  const removeUser = (userId) => {
+    const id = String(userId);
+    users = users.filter((user) => String(user.id) !== id);
+    Object.keys(FILTER_OPTION_TEXTS).forEach((filter) => {
+      const header = table.querySelector(`th[data-filter="${filter}"]`);
+      const option = findOption(header, id);
+      if (!option) return;
+      const wasSelected = option.classList.contains('selected');
+      option.remove();
+      if (!wasSelected) return;
+      // El filtro estaba en este usuario: deja de filtrar por él y el embudo se actualiza
+      activeFilters[filter] = (activeFilters[filter] ?? []).filter((value) => value !== id);
+      header.dispatchEvent(new Event('column-filter-refresh'));
+    });
+    renderRows();
+  };
+
+  // Reemplaza al usuario en la lista en memoria y en las opciones de Usuario, DNI y Email. Conserva
+  // su lugar en la lista aunque cambie su apellido: el orden se actualiza en la próxima carga. Si ya
+  // no coincide con los filtros activos (p. ej., cambió su rol), su fila deja de mostrarse.
+  const replaceUser = (updatedUser) => {
+    const id = String(updatedUser.id);
+    users = users.map((user) => (String(user.id) === id ? updatedUser : user));
+    Object.entries(FILTER_OPTION_TEXTS).forEach(([filter, textsOf]) => {
+      const header = table.querySelector(`th[data-filter="${filter}"]`);
+      const option = findOption(header, id);
+      if (!option) return;
+      fillOption(option, updatedUser, textsOf(updatedUser));
+      // La etiqueta del embudo nombra a las opciones marcadas
+      if (option.classList.contains('selected')) header.dispatchEvent(new Event('column-filter-refresh'));
+    });
+    renderRows();
+  };
+
+  // Posición en la página de la fila del botón que abrió el último modal, solo para devolver el
+  // foco a la que ocupe su lugar si esa fila ya no se muestra
+  let triggerRowIndex = 0;
+
+  // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
+  // página), o "Nuevo usuario" si la tabla quedó sin usuarios
+  const focusAfterRemoval = (action) => {
+    const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
+    return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openModalBtn;
+  };
+
+  // ---------- Modal: Nuevo usuario / Editar usuario ----------
 
   const overlay = document.getElementById('newUserOverlay');
-  const openModalBtn = document.getElementById('openNewUserModalBtn');
+  const modalBody = overlay.querySelector('.modal-body');
   const cancelBtn = document.getElementById('cancelNewUserBtn');
   const createBtn = document.getElementById('createUserBtn');
+  const formError = document.getElementById('newUserFormError');
 
   const textInputs = overlay.querySelectorAll('.modal-body input[type="text"], .modal-body input[type="email"]');
   const roleDropdown = overlay.querySelector('.dropdown');
@@ -165,8 +230,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Máscaras, formato y errores de los campos de texto: componente compartido
   // field-validation.component.js, según el data-validate de cada campo.
+  const firstNameInput = document.getElementById('newUserFirstName');
+  const lastNameInput = document.getElementById('newUserLastName');
   const dniInput = document.getElementById('newUserDni');
+  const emailInput = document.getElementById('newUserEmail');
   const birthdateInput = document.getElementById('newUserBirthdate');
+
+  // Campos que el proceso principal puede marcar (error.fieldErrors), en el orden del formulario
+  const FIELD_INPUTS = {
+    firstName: firstNameInput,
+    lastName: lastNameInput,
+    dni: dniInput,
+    email: emailInput,
+    birthDate: birthdateInput,
+  };
+
+  const GENERIC_UPDATE_ERROR = 'No se pudieron guardar los cambios. Intentá nuevamente.';
 
   // Mismos tipos que admite el atributo accept del selector de archivos.
   const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -271,16 +350,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let isEditing = false;
   let modalTrigger = openModalBtn;
+  // usuario_id del usuario que se edita, fijado al abrir el modal desde su fila: es el único que se
+  // envía al guardar
+  let editingUserId = null;
+  let isSaving = false;
+  // El usuario que se editaba ya no existe: "Guardar cambios" queda deshabilitado hasta cerrar
+  let isUserGone = false;
 
   function updateCreateButtonState() {
     const hasAllTextInputs = Array.from(textInputs).every((input) => !input.required || input.value.trim().length > 0);
     const hasRole = Boolean(roleDropdown.querySelector('.dropdown-option.selected'));
-    createBtn.disabled = !(hasAllTextInputs && hasRole);
+    createBtn.disabled = isUserGone || !(hasAllTextInputs && hasRole);
   }
+
+  const setFormError = (message) => {
+    formError.textContent = message;
+    formError.hidden = !message;
+  };
+
+  // Mientras se espera la respuesta, el cuerpo del modal queda inerte, así lo enviado coincide con
+  // lo que se ve. Los botones del pie quedan con aria-disabled y no con disabled: conservan el foco,
+  // como en confirm-modal.component.js.
+  const setSaving = (saving) => {
+    isSaving = saving;
+    modalBody.inert = saving;
+    overlay.querySelector('.modal').setAttribute('aria-busy', String(saving));
+    [cancelBtn, createBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
+    createBtn.textContent = saving ? 'Guardando…' : 'Guardar cambios';
+  };
 
   function resetForm() {
     textInputs.forEach((input) => (input.value = ''));
     clearFieldErrors(overlay);
+    setFormError('');
+    isUserGone = false;
     roleOptions.forEach((o) => {
       o.classList.remove('selected');
       o.setAttribute('aria-selected', 'false');
@@ -302,38 +405,43 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openModal(row = null, trigger = openModalBtn) {
-    isEditing = Boolean(row);
+    // La fila identifica al usuario solo por su data-user-id (el usuario_id). Los datos del
+    // formulario salen del usuario cargado de la base, no del texto de las celdas.
+    const user = row ? users.find((candidate) => String(candidate.id) === row.dataset.userId) : null;
+    if (row && !user) return;
+    isEditing = Boolean(user);
+    editingUserId = user?.id ?? null;
     modalTrigger = trigger;
+    triggerRowIndex = row ? Math.max(0, Array.from(tbody.rows).indexOf(row)) : 0;
     resetForm();
     document.getElementById('newUserTitle').textContent = isEditing ? 'Editar usuario' : 'Nuevo usuario';
     overlay.querySelector('.modal-header p').textContent = isEditing
       ? 'Modifica los datos del usuario.'
       : 'Completa los datos para crear una nueva cuenta de usuario.';
     createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear usuario';
-    if (row) {
-      const [lastName, firstName] = row.querySelector('.user-cell > span:last-child').textContent.trim().split(', ');
-      document.getElementById('newUserFirstName').value = firstName;
-      document.getElementById('newUserLastName').value = lastName;
-      dniInput.value = row.cells[1].textContent.trim();
-      document.getElementById('newUserEmail').value = row.cells[2].textContent.trim();
-      // La fecha de nacimiento no se muestra en la tabla: sale del usuario cargado de la base.
-      // La foto de perfil todavía no se carga.
-      const user = users.find((candidate) => String(candidate.id) === row.dataset.userId);
-      birthdateInput.value = toDisplayDate(user?.birthDate);
+    if (user) {
+      firstNameInput.value = user.firstName ?? '';
+      lastNameInput.value = user.lastName ?? '';
+      dniInput.value = formatDni(user.dni ?? '');
+      emailInput.value = user.email ?? '';
+      birthdateInput.value = toDisplayDate(user.birthDate);
+      // La foto de perfil todavía no se carga ni se guarda.
       roleOptions.forEach((option) => {
-        const selected = option.textContent.trim() === row.cells[4].textContent.trim();
+        const selected = option.dataset.value === user.role;
         option.classList.toggle('selected', selected);
         option.setAttribute('aria-selected', String(selected));
-        if (selected) roleLabel.textContent = option.textContent.trim();
+        if (selected) {
+          roleLabel.textContent = option.textContent.trim();
+          roleLabel.classList.remove('placeholder');
+        }
       });
-      roleLabel.classList.remove('placeholder');
     }
     updateCreateButtonState();
     closeAllDropdowns();
     document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     overlay.classList.add('is-open');
     overlay.querySelector('.modal').scrollTop = 0;
-    document.getElementById('newUserFirstName').focus();
+    firstNameInput.focus();
   }
 
   function closeModal() {
@@ -341,9 +449,64 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cropDialog.open) cropDialog.close();
     passwordGenerator.clear();
     overlay.classList.remove('is-open');
-    modalTrigger.focus();
+    // Después de guardar, o si el usuario ya no existe, la tabla se volvió a dibujar: el foco pasa
+    // a Editar en la fila del usuario o, si ya no se muestra, en la que quedó en su lugar
+    const focusTarget = modalTrigger.isConnected
+      ? modalTrigger
+      : tbody.querySelector(`tr[data-user-id="${editingUserId}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
+    focusTarget.focus();
     closeAllDropdowns();
   }
+
+  // Solo los datos del formulario: el id va aparte, tomado al abrir el modal. El DNI se envía solo
+  // con dígitos, como se guarda.
+  const readFormData = () => ({
+    firstName: firstNameInput.value,
+    lastName: lastNameInput.value,
+    dni: dniInput.value.replace(/\D/g, ''),
+    email: emailInput.value,
+    birthDate: toIsoDate(birthdateInput.value),
+    role: roleDropdown.querySelector('.dropdown-option.selected')?.dataset.value ?? '',
+    password: passwordGenerator.value,
+  });
+
+  // Marca los campos que rechazó el proceso principal (DNI o email de otro usuario, datos
+  // inválidos) y enfoca el primero. Devuelve false si no había ninguno para marcar.
+  const showFieldErrors = (fieldErrors = {}) => {
+    const invalidFields = Object.entries(FIELD_INPUTS).filter(([field]) => fieldErrors[field]);
+    invalidFields.forEach(([field, input]) => setFieldError(input, fieldErrors[field]));
+    invalidFields[0]?.[1].focus();
+    return invalidFields.length > 0;
+  };
+
+  // Con cualquier error, el modal sigue abierto con lo que se escribió.
+  const saveUser = async () => {
+    const userId = editingUserId;
+    setSaving(true);
+    let response;
+    try {
+      response = await window.api?.users?.update(userId, readFormData());
+    } catch (error) {
+      console.error('Error al guardar el usuario:', error);
+    }
+    setSaving(false);
+
+    if (response?.ok) {
+      replaceUser(response.user);
+      closeModal();
+      return;
+    }
+    const error = response?.error;
+    if (showFieldErrors(error?.fieldErrors)) return;
+    setFormError(error?.message || GENERIC_UPDATE_ERROR);
+    if (error?.code === 'USER_NOT_FOUND') {
+      // Ya no está vigente: se quita de la tabla, como al eliminarlo, y no se puede reintentar
+      isUserGone = true;
+      updateCreateButtonState();
+      removeUser(userId);
+      cancelBtn.focus();
+    }
+  };
 
   textInputs.forEach((input) => {
     input.addEventListener('input', updateCreateButtonState);
@@ -359,20 +522,29 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
   // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
-  // quedado fuera de un control; el diálogo de recorte cierra solo con su propio Escape.
+  // quedado fuera de un control; el diálogo de recorte cierra solo con su propio Escape. Mientras
+  // se guarda, ni Escape ni Cancelar lo cierran.
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && overlay.classList.contains('is-open') && !cropDialog.open) closeModal();
+    if (event.key === 'Escape' && overlay.classList.contains('is-open') && !cropDialog.open && !isSaving) closeModal();
   });
-  cancelBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', () => {
+    if (!isSaving) closeModal();
+  });
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   createBtn.addEventListener('click', () => {
+    if (isSaving) return;
+    setFormError('');
     // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
     if (validateFields(overlay)) return;
-    // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
-    // Enviará password: passwordGenerator.value, que en la edición es null para conservar la
-    // contraseña actual; el proceso principal la valida y la hashea (password.service.js).
+    if (isEditing) {
+      // Envía password: passwordGenerator.value, null para conservar la contraseña actual; el
+      // proceso principal vuelve a validar todo y la hashea (password.service.js).
+      saveUser();
+      return;
+    }
+    // Alta todavía visual: el guardado real se conecta cuando exista su canal IPC.
     closeModal();
   });
 
@@ -381,27 +553,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const GENERIC_DELETE_ERROR = 'No se pudo eliminar el usuario. Intentá nuevamente.';
   // El usuario ya no está vigente: se quita de la tabla igual que después de darlo de baja
   const NO_LONGER_ACTIVE_CODES = ['USER_NOT_FOUND', 'USER_ALREADY_DELETED'];
-  // Posición de la fila quitada, solo para devolver el foco a la que ocupe su lugar
-  let removedRowIndex = 0;
-
-  // Quita al usuario de la lista en memoria y de las opciones de Usuario, DNI y Email, sin tocar a
-  // los demás, los otros filtros ni la página (el componente la acota si la última quedó vacía).
-  const removeUser = (userId) => {
-    const id = String(userId);
-    users = users.filter((user) => String(user.id) !== id);
-    Object.keys(FILTER_OPTION_TEXTS).forEach((filter) => {
-      const header = table.querySelector(`th[data-filter="${filter}"]`);
-      const option = Array.from(header.querySelectorAll('.dropdown-option')).find((candidate) => candidate.dataset.value === id);
-      if (!option) return;
-      const wasSelected = option.classList.contains('selected');
-      option.remove();
-      if (!wasSelected) return;
-      // El filtro estaba en este usuario: deja de filtrar por él y el embudo se actualiza
-      activeFilters[filter] = (activeFilters[filter] ?? []).filter((value) => value !== id);
-      header.dispatchEvent(new Event('column-filter-refresh'));
-    });
-    renderRows();
-  };
 
   // El id sale del data-user-id de la fila del botón (el usuario_id, fijado al crearla), no de su
   // posición en la tabla. Resuelve { message } para que el modal lo muestre sin cerrarse.
@@ -416,26 +567,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const isNoLongerActive = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
     if (response?.ok || isNoLongerActive) {
-      removedRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+      triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
       removeUser(userId);
     }
     if (response?.ok) return undefined;
     return { message: response?.error?.message || GENERIC_DELETE_ERROR, canRetry: !isNoLongerActive };
   };
 
-  // Su fila ya no está: el foco pasa a Eliminar en la fila que quedó en su lugar (o en la última de
-  // la página), o a "Nuevo usuario" si la tabla quedó sin usuarios
-  const focusAfterRemoval = () => {
-    const deleteButtons = tbody.querySelectorAll('[data-action="delete"]');
-    return deleteButtons[Math.min(removedRowIndex, deleteButtons.length - 1)] ?? openModalBtn;
-  };
-
   // Componente compartido confirm-modal.component.js: espera la respuesta abierto y muestra el
-  // error, o que el usuario ya no está vigente, sin cerrarse.
+  // error, o que el usuario ya no está vigente, sin cerrarse. Si la fila ya no está, el foco pasa a
+  // Eliminar en la que quedó en su lugar.
   setupConfirmModal(document.getElementById('deleteUserOverlay'), {
     beforeOpen: closeAllDropdowns,
     onConfirm: deleteUser,
-    fallbackFocus: focusAfterRemoval,
+    fallbackFocus: () => focusAfterRemoval('delete'),
   });
 
   roleOptions.forEach((option) => {

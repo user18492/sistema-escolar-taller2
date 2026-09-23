@@ -61,6 +61,62 @@ const EXISTS_IN_INSTITUTION_SQL = `
      AND institucion_id = $2
 `;
 
+const EXISTS_NOT_DELETED_SQL = `
+  SELECT 1
+    FROM usuarios
+   WHERE usuario_id = $1
+     AND institucion_id = $2
+     AND deleted_at IS NULL
+`;
+
+// Compara con todos los demás usuarios, también los de otras instituciones y los dados de baja,
+// como las restricciones UNIQUE de dni y email. El email se compara sin distinguir mayúsculas.
+const FIND_TAKEN_FIELDS_SQL = `
+  SELECT COALESCE(BOOL_OR(dni = $1), FALSE)          AS dni_taken,
+         COALESCE(BOOL_OR(LOWER(email) = $2), FALSE) AS email_taken
+    FROM usuarios
+   WHERE usuario_id <> $3
+     AND (dni = $1 OR LOWER(email) = $2)
+`;
+
+// Solo modifica a un usuario vigente de la institución. password_hash cambia solo si llega uno:
+// con $9 null se conserva el actual. Devuelve la fila como quedó, con el nombre del rol.
+const UPDATE_SQL = `
+  WITH updated AS (
+    UPDATE usuarios
+       SET nombre = $3,
+           apellido = $4,
+           dni = $5,
+           email = $6,
+           fecha_nacimiento = $7,
+           usuario_rol_id = (SELECT usuario_rol_id FROM usuario_roles WHERE nombre = $8),
+           password_hash = COALESCE($9, password_hash)
+     WHERE usuario_id = $1
+       AND institucion_id = $2
+       AND deleted_at IS NULL
+    RETURNING usuario_id, usuario_rol_id, usuario_estado, institucion_id, nombre, apellido,
+              email, dni, fecha_nacimiento
+  )
+  SELECT u.usuario_id,
+         u.usuario_estado,
+         u.institucion_id,
+         u.nombre,
+         u.apellido,
+         u.email,
+         u.dni,
+         u.fecha_nacimiento,
+         r.nombre AS rol
+    FROM updated u
+    JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
+`;
+
+// Restricciones UNIQUE de usuarios (nombres que les da PostgreSQL según db/schema.sql) y el campo
+// que protege cada una.
+const UNIQUE_CONSTRAINT_FIELDS = {
+  usuarios_dni_key: 'dni',
+  usuarios_email_key: 'email',
+};
+
 function toUser(row) {
   return new User({
     id: row.usuario_id,
@@ -102,4 +158,56 @@ async function existsInInstitution(userId, institutionId) {
   return rows.length > 0;
 }
 
-module.exports = { findByEmail, findByInstitution, markAsDeleted, existsInInstitution };
+// true si el usuario pertenece a la institución y no está dado de baja.
+async function existsNotDeleted(userId, institutionId) {
+  const { rows } = await query(EXISTS_NOT_DELETED_SQL, [userId, institutionId]);
+  return rows.length > 0;
+}
+
+// Campos ('dni', 'email') cuyo valor ya tiene un usuario distinto de `excludedUserId`. Espera el
+// dni solo con dígitos y el email normalizado, como se guardan.
+async function findTakenFields({ dni, email }, excludedUserId) {
+  const { rows } = await query(FIND_TAKEN_FIELDS_SQL, [dni, email, excludedUserId]);
+  const fields = [];
+  if (rows[0].dni_taken) fields.push('dni');
+  if (rows[0].email_taken) fields.push('email');
+  return fields;
+}
+
+// Reemplaza los datos de un usuario vigente de la institución. `birthDate` es 'AAAA-MM-DD', `role`
+// un valor de usuario_roles.nombre y `passwordHash` null para conservar la contraseña actual.
+// Devuelve el usuario como quedó, sin password_hash, o null si no hay uno vigente con ese id en la
+// institución. Si el dni o el email ya son de otro usuario, PostgreSQL rechaza el cambio: ver
+// duplicateFieldOf.
+async function update(userId, institutionId, { firstName, lastName, dni, email, birthDate, role, passwordHash }) {
+  const { rows } = await query(UPDATE_SQL, [
+    userId,
+    institutionId,
+    firstName,
+    lastName,
+    dni,
+    email,
+    birthDate,
+    role,
+    passwordHash,
+  ]);
+  return rows.length > 0 ? toUser(rows[0]) : null;
+}
+
+// Campo ('dni' o 'email') cuyo valor repetido causó `error`, si es una violación de una restricción
+// UNIQUE de usuarios; si no, null.
+function duplicateFieldOf(error) {
+  if (error?.code !== '23505') return null;
+  return UNIQUE_CONSTRAINT_FIELDS[error.constraint] ?? null;
+}
+
+module.exports = {
+  findByEmail,
+  findByInstitution,
+  markAsDeleted,
+  existsInInstitution,
+  existsNotDeleted,
+  findTakenFields,
+  update,
+  duplicateFieldOf,
+};

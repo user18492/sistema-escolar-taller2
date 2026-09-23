@@ -1,5 +1,5 @@
 /* Estilos reutilizables: botones de acción (.btn) en sus variantes primaria, secundaria y con borde
-   azul, y botones con aspecto de enlace (.link-btn). */
+   azul, con su estado de espera, y botones con aspecto de enlace (.link-btn). */
 
 .btn {
   display: inline-flex;
@@ -49,6 +49,21 @@
 
 .btn-secondary:hover {
   background: #f9fafb;
+}
+
+/* Mientras se espera una respuesta (aria-disabled: el botón conserva el foco), sin el aspecto
+   atenuado de una acción no disponible (:disabled) ni el cambio de color al pasar el mouse. */
+.btn[aria-disabled="true"] {
+  opacity: 0.85;
+  cursor: progress;
+}
+
+.btn-primary[aria-disabled="true"]:hover {
+  background: var(--color-accent-blue);
+}
+
+.btn-secondary[aria-disabled="true"]:hover {
+  background: var(--color-bg);
 }
 
 .btn-outline-blue {

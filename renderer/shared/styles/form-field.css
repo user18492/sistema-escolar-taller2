@@ -1,6 +1,7 @@
 /* Estilos reutilizables: campo de texto (.field) de filtros y formularios, con la variante
-   de fecha (ícono de calendario dentro del campo) y el error de validación debajo del campo
-   (field-validation.component.js). Cada vista define el ancho de sus campos y los casos
+   de fecha (ícono de calendario dentro del campo), el error de validación debajo del campo
+   (field-validation.component.js) y el error del formulario completo (.form-error). Cada
+   vista define el ancho de sus campos y los casos
    particulares (Login redefine el campo completo). */
 
 .field {
@@ -43,6 +44,18 @@
   font-size: 12px;
   line-height: 1.4;
   color: var(--color-accent-red);
+}
+
+/* Error del formulario completo, no de un campo (credenciales en Login, falla al guardar en un
+   modal). El rojo más oscuro que --color-accent-red mantiene el contraste AA sobre el fondo. */
+.form-error {
+  padding: 10px 12px;
+  border: 1px solid var(--color-accent-red-bg);
+  border-radius: var(--radius-sm);
+  background: #fef2f2;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #b91c1c;
 }
 
 .field-date svg {

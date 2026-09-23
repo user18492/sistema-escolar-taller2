@@ -98,14 +98,8 @@ confirm-modal {
   cursor: not-allowed;
 }
 
-/* Mientras espera la respuesta (aria-disabled: los botones conservan el foco), sin el aspecto
-   atenuado de una acción no disponible, como el botón de Login mientras verifica la cuenta. */
-.confirm-actions .btn[aria-disabled="true"] {
-  opacity: 0.85;
-  cursor: progress;
-}
-
-/* Deshabilitados o en espera, los botones no cambian de color al pasar el mouse. */
+/* Mientras espera la respuesta, el aspecto de los botones lo da .btn[aria-disabled="true"]
+   (buttons.css). Deshabilitados o en espera, no cambian de color al pasar el mouse. */
 .btn-neutral:is(:disabled, [aria-disabled="true"]):hover {
   background: #f3f4f6;
 }

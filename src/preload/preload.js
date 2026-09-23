@@ -29,6 +29,13 @@ contextBridge.exposeInMainWorld('api', {
     // y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role }, con birthDate 'AAAA-MM-DD'
     // o null), o { ok: false, error: { code, message } }.
     list: () => ipcRenderer.invoke('users:list'),
+    // Solo ADMIN. Guarda los datos del usuario con ese id (usuario_id) de su institución. `data` es
+    // { firstName, lastName, dni, email, birthDate, role, password }, con birthDate 'AAAA-MM-DD' y
+    // password null para conservar la actual. Resuelve { ok: true, user } con el usuario como quedó
+    // (mismos campos que list) o { ok: false, error: { code, message, fieldErrors } }: fieldErrors
+    // ({ campo: mensaje }) llega con DUPLICATE_VALUE (dni o email de otro usuario) y con los campos
+    // inválidos; USER_NOT_FOUND indica que ya no está vigente.
+    update: (userId, data) => ipcRenderer.invoke('users:update', userId, data),
     // Solo ADMIN. Baja lógica del usuario con ese id (usuario_id) de su institución. Resuelve { ok: true }
     // o { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_ALREADY_DELETED indican que ya no
     // está vigente.
