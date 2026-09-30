@@ -1,6 +1,7 @@
 const userRepository = require('../repositories/user.repository');
 const { normalizeEmail, isValidEmail, RECOGNIZED_ROLES } = require('./auth.service');
 const { isValidPassword, hashPassword } = require('./password.service');
+const profileImageService = require('./profile-image.service');
 
 // Error previsto, con un mensaje apto para la UI (como AccessError en access.service.js).
 // `fieldErrors` ({ campo: mensaje }), si llega, indica qué campos del formulario están mal.
@@ -138,6 +139,22 @@ function parseUserData(data) {
   return values;
 }
 
+// Cambio de foto de perfil de `data` (el controlador ya verificó que `image` sea un Uint8Array o
+// null y `removeImage` un booleano). Devuelve { jpeg, removeImage }: jpeg es la foto nueva, lista
+// para guardar, o null si no hay una. Lanza un UserError INVALID_INPUT, sin fieldErrors como el rol y
+// la contraseña, si la imagen no es válida o si piden a la vez una foto nueva y quitar la actual.
+function parseImageChange(data) {
+  const invalidImageError = () =>
+    new UserError('INVALID_INPUT', 'La foto de perfil no es válida. Elegí otra imagen.');
+
+  if (data.image === null) return { jpeg: null, removeImage: data.removeImage };
+  if (data.removeImage) throw invalidImageError();
+
+  const jpeg = profileImageService.prepareImage(data.image);
+  if (!jpeg) throw invalidImageError();
+  return { jpeg, removeImage: false };
+}
+
 // `operation` es 'create' o 'update'.
 function duplicateError(fields, operation) {
   const messages = DUPLICATE_MESSAGES[operation];
@@ -165,6 +182,22 @@ async function saveUnique(save, operation) {
   }
 }
 
+// Guarda el archivo de `jpeg` (si hay una foto nueva) y llama a `save` (el INSERT o el UPDATE) con su
+// nombre, o con null. Si `save` falla o devuelve null (el usuario ya no existe), el archivo se borra:
+// la base no lo usa. Devuelve lo mismo que `save`.
+async function saveWithImage(jpeg, save) {
+  const imageFileName = jpeg ? await profileImageService.storeImage(jpeg) : null;
+  let result;
+  try {
+    result = await save(imageFileName);
+  } catch (error) {
+    await profileImageService.discardImage(imageFileName);
+    throw error;
+  }
+  if (result === null) await profileImageService.discardImage(imageFileName);
+  return result;
+}
+
 function userNotFoundError() {
   return new UserError('USER_NOT_FOUND', 'El usuario ya no existe.');
 }
@@ -179,7 +212,8 @@ function toIsoDate(date) {
 }
 
 // Lista explícita de campos, como toPublicUser (auth.service.js): lo que muestran la tabla de Usuarios
-// y el modal de edición, y el id para identificar la fila. `role` es el valor de usuario_roles.nombre.
+// y el modal de edición, y el id para identificar la fila. `role` es el valor de usuario_roles.nombre
+// e `imageUrl` la URL de su foto (null si no tiene).
 function toListedUser(user) {
   return {
     id: user.id,
@@ -190,6 +224,7 @@ function toListedUser(user) {
     birthDate: toIsoDate(user.birthDate),
     isActive: user.isActive,
     role: user.role,
+    imageUrl: profileImageService.toImageUrl(user.imageFileName),
   };
 }
 
@@ -219,7 +254,9 @@ async function deleteUser(currentUser, userId) {
 
 // Guarda los datos de un usuario vigente de la institución de `currentUser` y lo devuelve como
 // quedó, con los campos de listUsers. `data` trae firstName, lastName, dni, email, birthDate
-// ('AAAA-MM-DD'), role y password: una contraseña nueva, o null para conservar la actual.
+// ('AAAA-MM-DD'), role, password (una contraseña nueva, o null para conservar la actual), image (el
+// PNG del recorte de una foto nueva, o null para no cambiarla) y removeImage (true quita la foto).
+// La foto anterior se borra recién cuando la base confirma el cambio.
 // Lanza un UserError si es el propio usuario de la sesión (CANNOT_EDIT_SELF), si algún dato no es
 // válido (INVALID_INPUT), si el usuario no existe en la institución o fue dado de baja
 // (USER_NOT_FOUND) o si el dni o el email ya son de otro usuario (DUPLICATE_VALUE, con fieldErrors).
@@ -230,6 +267,7 @@ async function updateUser(currentUser, userId, data) {
     throw new UserError('CANNOT_EDIT_SELF', 'No podés editar tu propia cuenta desde esta vista.');
   }
   const values = parseUserData(data);
+  const { jpeg, removeImage } = parseImageChange(data);
 
   if (!(await userRepository.existsNotDeleted(userId, currentUser.institutionId))) {
     throw userNotFoundError();
@@ -238,33 +276,42 @@ async function updateUser(currentUser, userId, data) {
   await assertNotTaken(values, userId, 'update');
 
   const passwordHash = data.password === null ? null : await hashPassword(data.password);
-  const user = await saveUnique(
-    () => userRepository.update(userId, currentUser.institutionId, { ...values, passwordHash }),
+  const setImage = Boolean(jpeg) || removeImage;
+  const result = await saveWithImage(jpeg, (imageFileName) => saveUnique(
+    () => userRepository.update(userId, currentUser.institutionId, {
+      ...values,
+      passwordHash,
+      setImage,
+      imageFileName,
+    }),
     'update'
-  );
+  ));
   // Se dio de baja entre la comprobación y el guardado.
-  if (!user) throw userNotFoundError();
-  return toListedUser(user);
+  if (!result) throw userNotFoundError();
+  if (setImage) await profileImageService.discardImage(result.previousImageFileName);
+  return toListedUser(result.user);
 }
 
 // Crea un usuario activo en la institución de `currentUser` y lo devuelve con los campos de
 // listUsers. `data` trae los mismos campos que en updateUser, con `password` obligatoria: llega en
-// texto plano y solo se guarda su hash. Lanza un UserError si algún dato no es válido o falta la
-// contraseña (INVALID_INPUT) o si el dni o el email ya son de otro usuario, aunque esté dado de baja
-// o sea de otra institución (DUPLICATE_VALUE, con fieldErrors).
+// texto plano y solo se guarda su hash. `image` null crea al usuario sin foto; `removeImage` no
+// quita nada, pero tampoco puede venir en true junto con una foto. Lanza un UserError si algún dato
+// no es válido o falta la contraseña (INVALID_INPUT) o si el dni o el email ya son de otro usuario,
+// aunque esté dado de baja o sea de otra institución (DUPLICATE_VALUE, con fieldErrors).
 async function createUser(currentUser, data) {
   const values = parseUserData(data);
   // parseUserData acepta null porque al editar conserva la contraseña actual; un alta la necesita.
   if (data.password === null) {
     throw new UserError('INVALID_INPUT', 'Falta la contraseña del usuario.');
   }
+  const { jpeg } = parseImageChange(data);
   await assertNotTaken(values, null, 'create');
 
   const passwordHash = await hashPassword(data.password);
-  const user = await saveUnique(
-    () => userRepository.create(currentUser.institutionId, { ...values, passwordHash }),
+  const user = await saveWithImage(jpeg, (imageFileName) => saveUnique(
+    () => userRepository.create(currentUser.institutionId, { ...values, passwordHash, imageFileName }),
     'create'
-  );
+  ));
   return toListedUser(user);
 }
 

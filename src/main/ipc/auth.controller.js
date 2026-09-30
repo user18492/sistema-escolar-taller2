@@ -3,14 +3,16 @@ const { failure } = require('./ipc-response');
 const sessionService = require('../services/session.service');
 const rememberedAccountService = require('../services/remembered-account.service');
 const { AuthenticationError } = require('../services/auth.service');
+const { toImageUrl } = require('../services/profile-image.service');
 
-// Solo lo que muestra la interfaz: los ids y el email quedan en la sesión del proceso principal.
+// Solo lo que muestra la interfaz: los ids y el email quedan en la sesión del proceso principal, y
+// la foto sale como URL del protocolo profile-image (o null), nunca como nombre de archivo.
 function toSessionUser(user) {
   return {
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role,
-    imageUrl: user.imageUrl,
+    imageUrl: toImageUrl(user.imageFileName),
     institutionName: user.institutionName,
   };
 }

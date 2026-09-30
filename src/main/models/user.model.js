@@ -13,7 +13,7 @@ class User {
     passwordHash,
     dni,
     birthDate,
-    imageUrl,
+    imageFileName,
   }) {
     this.id = id;
     this.role = role;
@@ -28,7 +28,9 @@ class User {
     this.passwordHash = passwordHash;
     this.dni = dni;
     this.birthDate = birthDate;
-    this.imageUrl = imageUrl;
+    // Nombre del archivo de la foto de perfil (usuarios.imagen_url), no una URL: profile-image.service.js
+    // lo convierte en la URL que muestra la interfaz.
+    this.imageFileName = imageFileName;
   }
 }
 

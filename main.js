@@ -5,6 +5,10 @@ const { app, dialog } = require('electron');
 const { createMainWindow } = require('./src/main/main-window');
 const { createSystemTray } = require('./src/main/system-tray');
 const { checkConnection, closeConnection } = require('./src/main/database/connection');
+const { registerProfileImageScheme, handleProfileImageRequests } = require('./src/main/profile-image-protocol');
+
+// Electron exige registrar los esquemas propios antes de que la aplicación esté lista.
+registerProfileImageScheme();
 
 let mainWindow;
 let tray;
@@ -58,6 +62,8 @@ app.whenReady().then(async () => {
     return;
   }
 
+  // Una sola vez, fuera de createMainWindow: la ventana se puede volver a crear.
+  handleProfileImageRequests();
   showMainWindow();
   tray = createSystemTray(showMainWindow);
 

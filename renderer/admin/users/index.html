@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="../../shared/styles/password-generator.css" />
     <link rel="stylesheet" href="./users.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
@@ -190,6 +191,7 @@
                 </svg>
                 Subir imagen
               </button>
+              <button type="button" class="link-btn" id="removeAvatarBtn" hidden>Quitar foto</button>
               <input type="file" accept="image/jpeg,image/png,image/webp" id="avatarFileInput" hidden />
               <p id="avatarError" role="alert" hidden></p>
             </div>

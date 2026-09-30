@@ -57,7 +57,7 @@ function toPublicUser(user) {
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
-    imageUrl: user.imageUrl,
+    imageFileName: user.imageFileName,
   };
 }
 

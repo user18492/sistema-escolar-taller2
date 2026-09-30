@@ -1,4 +1,4 @@
-const { query } = require('../database/connection');
+const { query, runInTransaction } = require('../database/connection');
 const { User } = require('../models/user.model');
 
 // Compara el email tal como llega: normalizarlo (espacios, mayúsculas) es tarea del servicio.
@@ -34,6 +34,7 @@ const FIND_BY_INSTITUTION_SQL = `
          u.email,
          u.dni,
          u.fecha_nacimiento,
+         u.imagen_url,
          r.nombre AS rol
     FROM usuarios u
     JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
@@ -81,14 +82,14 @@ const FIND_TAKEN_FIELDS_SQL = `
 `;
 
 // Alta en la institución: usuario_estado toma su valor por defecto (activo) y deleted_at queda
-// NULL (vigente). Devuelve la fila creada, con el nombre del rol.
+// NULL (vigente). imagen_url es null sin foto. Devuelve la fila creada, con el nombre del rol.
 const CREATE_SQL = `
   WITH created AS (
     INSERT INTO usuarios (usuario_rol_id, institucion_id, nombre, apellido, dni, email,
-                          fecha_nacimiento, password_hash)
-    VALUES ((SELECT usuario_rol_id FROM usuario_roles WHERE nombre = $7), $1, $2, $3, $4, $5, $6, $8)
+                          fecha_nacimiento, password_hash, imagen_url)
+    VALUES ((SELECT usuario_rol_id FROM usuario_roles WHERE nombre = $7), $1, $2, $3, $4, $5, $6, $8, $9)
     RETURNING usuario_id, usuario_rol_id, usuario_estado, institucion_id, nombre, apellido,
-              email, dni, fecha_nacimiento
+              email, dni, fecha_nacimiento, imagen_url
   )
   SELECT u.usuario_id,
          u.usuario_estado,
@@ -98,13 +99,26 @@ const CREATE_SQL = `
          u.email,
          u.dni,
          u.fecha_nacimiento,
+         u.imagen_url,
          r.nombre AS rol
     FROM created u
     JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
+// Foto actual de un usuario vigente de la institución, con la fila bloqueada hasta el fin de la
+// transacción: así se sabe qué archivo reemplaza el UPDATE que sigue.
+const LOCK_FOR_UPDATE_SQL = `
+  SELECT imagen_url
+    FROM usuarios
+   WHERE usuario_id = $1
+     AND institucion_id = $2
+     AND deleted_at IS NULL
+     FOR UPDATE
+`;
+
 // Solo modifica a un usuario vigente de la institución. password_hash cambia solo si llega uno:
-// con $9 null se conserva el actual. Devuelve la fila como quedó, con el nombre del rol.
+// con $9 null se conserva el actual. imagen_url cambia a $11 (null quita la foto) solo con $10 true.
+// Devuelve la fila como quedó, con el nombre del rol.
 const UPDATE_SQL = `
   WITH updated AS (
     UPDATE usuarios
@@ -114,12 +128,13 @@ const UPDATE_SQL = `
            email = $6,
            fecha_nacimiento = $7,
            usuario_rol_id = (SELECT usuario_rol_id FROM usuario_roles WHERE nombre = $8),
-           password_hash = COALESCE($9, password_hash)
+           password_hash = COALESCE($9, password_hash),
+           imagen_url = CASE WHEN $10 THEN $11 ELSE imagen_url END
      WHERE usuario_id = $1
        AND institucion_id = $2
        AND deleted_at IS NULL
     RETURNING usuario_id, usuario_rol_id, usuario_estado, institucion_id, nombre, apellido,
-              email, dni, fecha_nacimiento
+              email, dni, fecha_nacimiento, imagen_url
   )
   SELECT u.usuario_id,
          u.usuario_estado,
@@ -129,6 +144,7 @@ const UPDATE_SQL = `
          u.email,
          u.dni,
          u.fecha_nacimiento,
+         u.imagen_url,
          r.nombre AS rol
     FROM updated u
     JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
@@ -154,7 +170,7 @@ function toUser(row) {
     passwordHash: row.password_hash,
     dni: row.dni,
     birthDate: row.fecha_nacimiento,
-    imageUrl: row.imagen_url,
+    imageFileName: row.imagen_url,
   });
 }
 
@@ -200,9 +216,13 @@ async function findTakenFields({ dni, email }, excludedUserId) {
 }
 
 // Crea un usuario vigente y activo en la institución. Recibe los datos como update, con
-// `passwordHash` obligatorio. Devuelve el usuario creado, sin password_hash. Si el dni o el email ya
-// son de otro usuario, PostgreSQL rechaza el alta: ver duplicateFieldOf.
-async function create(institutionId, { firstName, lastName, dni, email, birthDate, role, passwordHash }) {
+// `passwordHash` obligatorio y sin setImage: `imageFileName` es el archivo de su foto, o null sin
+// foto. Devuelve el usuario creado, sin password_hash. Si el dni o el email ya son de otro usuario,
+// PostgreSQL rechaza el alta: ver duplicateFieldOf.
+async function create(
+  institutionId,
+  { firstName, lastName, dni, email, birthDate, role, passwordHash, imageFileName }
+) {
   const { rows } = await query(CREATE_SQL, [
     institutionId,
     firstName,
@@ -212,28 +232,43 @@ async function create(institutionId, { firstName, lastName, dni, email, birthDat
     birthDate,
     role,
     passwordHash,
+    imageFileName,
   ]);
   return toUser(rows[0]);
 }
 
 // Reemplaza los datos de un usuario vigente de la institución. `birthDate` es 'AAAA-MM-DD', `role`
-// un valor de usuario_roles.nombre y `passwordHash` null para conservar la contraseña actual.
-// Devuelve el usuario como quedó, sin password_hash, o null si no hay uno vigente con ese id en la
-// institución. Si el dni o el email ya son de otro usuario, PostgreSQL rechaza el cambio: ver
+// un valor de usuario_roles.nombre y `passwordHash` null para conservar la contraseña actual. Con
+// `setImage` true, la foto pasa a ser `imageFileName` (null la quita); con false se conserva.
+// Devuelve { user, previousImageFileName }: el usuario como quedó, sin password_hash, y el archivo de
+// la foto que tenía antes del cambio (null si no tenía). Devuelve null si no hay uno vigente con ese
+// id en la institución. Si el dni o el email ya son de otro usuario, PostgreSQL rechaza el cambio: ver
 // duplicateFieldOf.
-async function update(userId, institutionId, { firstName, lastName, dni, email, birthDate, role, passwordHash }) {
-  const { rows } = await query(UPDATE_SQL, [
-    userId,
-    institutionId,
-    firstName,
-    lastName,
-    dni,
-    email,
-    birthDate,
-    role,
-    passwordHash,
-  ]);
-  return rows.length > 0 ? toUser(rows[0]) : null;
+async function update(
+  userId,
+  institutionId,
+  { firstName, lastName, dni, email, birthDate, role, passwordHash, setImage, imageFileName }
+) {
+  // En una transacción, y no con RETURNING OLD (PostgreSQL 18), para funcionar con cualquier versión.
+  return runInTransaction(async (transactionQuery) => {
+    const locked = await transactionQuery(LOCK_FOR_UPDATE_SQL, [userId, institutionId]);
+    if (locked.rows.length === 0) return null;
+
+    const { rows } = await transactionQuery(UPDATE_SQL, [
+      userId,
+      institutionId,
+      firstName,
+      lastName,
+      dni,
+      email,
+      birthDate,
+      role,
+      passwordHash,
+      setImage,
+      imageFileName,
+    ]);
+    return { user: toUser(rows[0]), previousImageFileName: locked.rows[0].imagen_url };
+  });
 }
 
 // Campo ('dni' o 'email') cuyo valor repetido causó `error`, si es una violación de una restricción

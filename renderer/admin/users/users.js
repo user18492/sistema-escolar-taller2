@@ -3,6 +3,8 @@
 // memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
 // Nuevo usuario lo crea (window.api.users.create), Editar guarda los cambios
 // (window.api.users.update) y Eliminar da de baja al usuario (baja lógica, window.api.users.delete).
+// La foto de perfil viaja con los datos del modal (el recorte, no el archivo original) y las filas y
+// los filtros la muestran con fillAvatar (user-avatar.component.js).
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -43,8 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusCode = (user) => (user.isActive ? 'ACTIVE' : 'SUSPENDED');
   // "Apellido, Nombre"
   const fullName = (user) => `${user.lastName ?? ''}, ${user.firstName ?? ''}`;
-  const initialsOf = (user) =>
-    [user.firstName, user.lastName].map((name) => name?.trim().charAt(0) ?? '').join('').toUpperCase();
   // La fecha llega como 'AAAA-MM-DD' (o null) y el campo del modal usa DD/MM/AAAA
   const toDisplayDate = (isoDate) => (isoDate ? isoDate.split('-').reverse().join('/') : '');
   // El campo ya validado (DD/MM/AAAA) se envía como 'AAAA-MM-DD'
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML
   const fillOption = (option, user, [name, detail]) => {
-    option.querySelector('.avatar-circle').textContent = initialsOf(user);
+    fillAvatar(option.querySelector('.avatar-circle'), user);
     option.querySelector('.option-name').textContent = name ?? '';
     option.querySelector('.option-email').textContent = detail ?? '';
   };
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const createRow = (user) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.userId = String(user.id);
-    row.querySelector('.avatar-circle').textContent = initialsOf(user);
+    fillAvatar(row.querySelector('.avatar-circle'), user);
     row.querySelector('.user-cell .text-truncate').textContent = fullName(user);
     row.cells[1].textContent = formatDni(user.dni ?? '');
     row.cells[2].querySelector('.text-truncate').textContent = user.email ?? '';
@@ -285,11 +285,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Mismos tipos que admite el atributo accept del selector de archivos.
   const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  // Tamaño máximo del archivo elegido. Solo se envía el recorte, que es más liviano.
+  const AVATAR_MAX_FILE_BYTES = 5 * 1024 * 1024;
 
   const avatarInput = document.getElementById('avatarFileInput');
   const avatarPreview = document.getElementById('newUserAvatarPreview');
   const uploadAvatarBtn = document.getElementById('uploadAvatarBtn');
   const editAvatarBtn = document.getElementById('editAvatarBtn');
+  const removeAvatarBtn = document.getElementById('removeAvatarBtn');
   const avatarError = document.getElementById('avatarError');
   const cropDialog = document.getElementById('avatarCropDialog');
   const cropCanvas = document.getElementById('avatarCropCanvas');
@@ -300,6 +303,53 @@ document.addEventListener('DOMContentLoaded', () => {
   let draftCrop = null;
   let avatarLoadId = 0;
   let drag = null;
+  // Foto guardada del usuario que se edita (su imageUrl al abrir el modal), o null
+  let currentImageUrl = null;
+  // Recorte confirmado con "Usar encuadre", que se envía al guardar: promesa del PNG (Uint8Array), o null
+  let pendingImage = null;
+  // Se pulsó "Quitar foto" sobre la foto guardada: al guardar se pide quitarla
+  let isImageRemoved = false;
+
+  // Vista previa del modal: la foto de `url` o, con null, el ícono
+  const setAvatarPreview = (url) => {
+    avatarPreview.style.backgroundImage = url ? `url("${url}")` : '';
+    avatarPreview.classList.toggle('has-image', Boolean(url));
+  };
+
+  const showAvatarError = (message) => {
+    avatarError.textContent = message;
+    avatarError.hidden = false;
+  };
+
+  // Vista previa de la foto guardada del usuario que se edita. Si no carga (p. ej., se subió desde
+  // otra PC), queda el ícono.
+  async function showCurrentImage() {
+    const loadId = ++avatarLoadId;
+    const image = new Image();
+    image.src = currentImageUrl;
+    try {
+      await image.decode();
+    } catch {
+      return;
+    }
+    if (loadId === avatarLoadId) setAvatarPreview(currentImageUrl);
+  }
+
+  // PNG del recorte, del tamaño de #avatarCropCanvas: su width y su height deben coincidir con
+  // PROFILE_IMAGE_SIZE (profile-image.service.js), que rechaza otro tamaño. El proceso principal lo
+  // guarda como JPEG, sin transparencia: el fondo blanco evita que lo transparente quede negro.
+  const exportCrop = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = cropCanvas.width;
+    canvas.height = cropCanvas.height;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(cropCanvas, 0, 0);
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('No se pudo exportar el recorte.'))), 'image/png');
+    }).then(async (blob) => new Uint8Array(await blob.arrayBuffer()));
+  };
 
   function renderCrop() {
     if (!draftCrop) return;
@@ -374,12 +424,28 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('saveAvatarCropBtn').addEventListener('click', () => {
     savedCrop = { ...draftCrop };
-    avatarPreview.style.backgroundImage = `url(${cropCanvas.toDataURL('image/png')})`;
-    avatarPreview.classList.add('has-image');
+    pendingImage = exportCrop();
+    isImageRemoved = false;
+    setAvatarPreview(cropCanvas.toDataURL('image/png'));
     editAvatarBtn.hidden = false;
+    removeAvatarBtn.hidden = false;
     cropDialog.close();
   });
   editAvatarBtn.addEventListener('click', () => openCrop(savedCrop));
+
+  // Vuelve al ícono: descarta el recorte elegido y, si el usuario tenía una foto guardada, la quita
+  // al guardar. El foco pasa a "Subir imagen", porque este botón se oculta.
+  removeAvatarBtn.addEventListener('click', () => {
+    avatarLoadId += 1;
+    pendingImage = null;
+    savedCrop = null;
+    isImageRemoved = Boolean(currentImageUrl);
+    setAvatarPreview(null);
+    avatarError.hidden = true;
+    uploadAvatarBtn.focus();
+    editAvatarBtn.hidden = true;
+    removeAvatarBtn.hidden = true;
+  });
 
   // Generación, Mostrar/Ocultar, Copiar y Descartar: componente compartido password-generator.component.js.
   const passwordGenerator = overlay.querySelector('password-generator');
@@ -429,12 +495,15 @@ document.addEventListener('DOMContentLoaded', () => {
     roleLabel.textContent = 'Seleccionar rol';
     roleLabel.classList.add('placeholder');
 
-    avatarPreview.style.backgroundImage = '';
-    avatarPreview.classList.remove('has-image');
+    setAvatarPreview(null);
     avatarInput.value = '';
     avatarLoadId += 1;
     savedCrop = null;
+    currentImageUrl = null;
+    pendingImage = null;
+    isImageRemoved = false;
     editAvatarBtn.hidden = true;
+    removeAvatarBtn.hidden = true;
     avatarError.hidden = true;
 
     passwordGenerator.reset(isEditing ? 'edit' : 'create');
@@ -463,7 +532,13 @@ document.addEventListener('DOMContentLoaded', () => {
       dniInput.value = formatDni(user.dni ?? '');
       emailInput.value = user.email ?? '';
       birthdateInput.value = toDisplayDate(user.birthDate);
-      // La foto de perfil todavía no se carga ni se guarda.
+      if (user.imageUrl) {
+        // Sin el archivo original no se puede reencuadrar (sin lápiz), pero sí quitar o reemplazar.
+        // "Quitar foto" se ofrece aunque no cargue la vista previa: la base la tiene registrada.
+        currentImageUrl = user.imageUrl;
+        removeAvatarBtn.hidden = false;
+        showCurrentImage();
+      }
       roleOptions.forEach((option) => {
         const selected = option.dataset.value === user.role;
         option.classList.toggle('selected', selected);
@@ -517,16 +592,19 @@ document.addEventListener('DOMContentLoaded', () => {
     return invalidFields.length > 0;
   };
 
-  // Crea o guarda según el modo. Con cualquier error, el modal sigue abierto con lo que se escribió
-  // y, en el alta, con la misma contraseña.
+  // Crea o guarda según el modo. Con cualquier error, el modal sigue abierto con lo que se escribió,
+  // la foto elegida y, en el alta, la misma contraseña.
   const saveUser = async () => {
     const userId = editingUserId;
     setSaving(true);
     let response;
     try {
+      // image null no cambia la foto (en el alta, crea al usuario sin foto)
+      const image = pendingImage ? await pendingImage : null;
+      const data = { ...readFormData(), image, removeImage: isImageRemoved };
       response = await (isEditing
-        ? window.api?.users?.update(userId, readFormData())
-        : window.api?.users?.create(readFormData()));
+        ? window.api?.users?.update(userId, data)
+        : window.api?.users?.create(data));
     } catch (error) {
       console.error('Error al guardar el usuario:', error);
     }
@@ -636,6 +714,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!file) return;
     const loadId = ++avatarLoadId;
     avatarError.hidden = true;
+    if (file.size > AVATAR_MAX_FILE_BYTES) {
+      showAvatarError('La imagen supera los 5 MB. Selecciona una más liviana.');
+      return;
+    }
     const url = URL.createObjectURL(file);
     try {
       if (!AVATAR_TYPES.includes(file.type)) throw new Error('Formato inválido');
@@ -646,8 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
       openCrop({ image, zoom: 1, x: 0, y: 0 });
     } catch (error) {
       if (loadId !== avatarLoadId) return;
-      avatarError.textContent = 'No se pudo abrir la imagen. Selecciona un archivo JPG, PNG o WebP válido.';
-      avatarError.hidden = false;
+      showAvatarError('No se pudo abrir la imagen. Selecciona un archivo JPG, PNG o WebP válido.');
     } finally {
       URL.revokeObjectURL(url);
     }

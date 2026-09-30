@@ -14,15 +14,17 @@ function isUserId(value) {
 // Campos de texto del formulario de usuario; el servicio valida su contenido.
 const USER_TEXT_FIELDS = ['firstName', 'lastName', 'dni', 'email', 'birthDate', 'role'];
 
-// Un objeto con todos los campos de texto como strings y `password` string o null. Si trae otros
-// campos, el servicio no los usa.
+// Un objeto con todos los campos de texto como strings, `password` string o null, `image` (los bytes
+// de la foto) Uint8Array o null y `removeImage` booleano. Si trae otros campos, el servicio no los usa.
 function isUserData(value) {
   return (
     typeof value === 'object' &&
     value !== null &&
     !Array.isArray(value) &&
     USER_TEXT_FIELDS.every((field) => typeof value[field] === 'string') &&
-    (value.password === null || typeof value.password === 'string')
+    (value.password === null || typeof value.password === 'string') &&
+    (value.image === null || value.image instanceof Uint8Array) &&
+    typeof value.removeImage === 'boolean'
   );
 }
 
@@ -54,7 +56,7 @@ async function deleteUser(currentUser, userId) {
 }
 
 // Nunca rechaza, como deleteUser. Los errores previstos pueden traer fieldErrors. No registra
-// `data`: puede traer una contraseña en texto plano.
+// `data`: puede traer una contraseña en texto plano y los bytes de una foto.
 async function updateUser(currentUser, userId, data) {
   if (!isUserId(userId)) {
     return failure('INVALID_INPUT', 'No se pudo identificar al usuario.');
@@ -73,8 +75,8 @@ async function updateUser(currentUser, userId, data) {
   }
 }
 
-// Nunca rechaza, como updateUser, y tampoco registra `data`: trae la contraseña en texto plano. Que
-// la contraseña no sea null lo comprueba el servicio.
+// Nunca rechaza, como updateUser, y tampoco registra `data`: trae la contraseña en texto plano y
+// puede traer los bytes de una foto. Que la contraseña no sea null lo comprueba el servicio.
 async function createUser(currentUser, data) {
   if (!isUserData(data)) {
     return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');

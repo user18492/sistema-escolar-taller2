@@ -2,7 +2,8 @@
 // Uso: <app-sidebar nav-role="admin" active="dashboard"></app-sidebar>
 // El atributo "nav-role" elige el menú del rol (por defecto "admin") y "active" marca
 // qué item de ese menú se resalta como actual. La institución y el perfil son los del
-// usuario de la sesión, que informa el proceso principal.
+// usuario de la sesión, que informa el proceso principal. El avatar del perfil lo completa
+// user-avatar.component.js, que se carga antes que este script.
 // El menú solo muestra las opciones del rol: qué vistas se pueden abrir lo decide el
 // proceso principal (navigation-guard.js), no este componente.
 // Sin shadow DOM a propósito: así los estilos de sidebar.css (selectores .sidebar, .nav-item, etc.) siguen aplicando tal cual.
@@ -274,15 +275,8 @@
       this.querySelector('.sidebar-institution').textContent = user.institutionName ?? '';
       this.querySelector('.profile-name').textContent = names.join(' ');
       this.querySelector('.profile-role').textContent = ROLE_LABELS[user.role] ?? '';
-      const avatar = this.querySelector('.profile-avatar');
-      avatar.textContent = names.map((name) => name.charAt(0)).join('').toUpperCase();
-      if (user.imageUrl) {
-        const image = document.createElement('img');
-        image.alt = '';
-        image.src = user.imageUrl;
-        image.addEventListener('error', () => image.remove());
-        avatar.append(image);
-      }
+      // Iniciales y, si tiene, la foto: user-avatar.component.js
+      fillAvatar(this.querySelector('.profile-avatar'), user);
     }
 
     // Vuelve al login recién cuando el proceso principal eliminó la sesión.
