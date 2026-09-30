@@ -6,9 +6,12 @@
     <title>Iniciar sesión - Gestión Escolar</title>
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
     <link rel="stylesheet" href="./login.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
     <script src="./login.js" defer></script>
   </head>
   <body>
@@ -26,11 +29,12 @@
 
           <form class="login-form" id="loginForm" novalidate>
             <div class="field">
-              <input type="email" id="loginEmail" placeholder="Email" aria-label="Email" autocomplete="username" spellcheck="false" />
+              <input type="email" id="loginEmail" placeholder="Email" aria-label="Email" aria-describedby="loginEmailError" autocomplete="username" spellcheck="false" />
             </div>
+            <p class="field-error" id="loginEmailError" hidden></p>
 
             <div class="field field-password">
-              <input type="password" id="loginPassword" placeholder="Contraseña" aria-label="Contraseña" autocomplete="current-password" />
+              <input type="password" id="loginPassword" placeholder="Contraseña" aria-label="Contraseña" aria-describedby="loginPasswordError" autocomplete="current-password" />
               <button class="password-toggle" type="button" id="passwordToggle" aria-controls="loginPassword" aria-pressed="false" aria-label="Mostrar contraseña" title="Mostrar contraseña">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <!-- resources/Eye.svg: mostrar contraseña -->
@@ -43,6 +47,7 @@
                 </svg>
               </button>
             </div>
+            <p class="field-error" id="loginPasswordError" hidden></p>
 
             <label class="login-remember">
               <input type="checkbox" id="rememberAccount" />
@@ -52,7 +57,9 @@
               <span>Recordar mi cuenta</span>
             </label>
 
-            <button class="btn btn-primary login-submit" type="submit">Login</button>
+            <p class="form-error" id="loginError" role="alert" hidden></p>
+
+            <button class="btn btn-primary login-submit" type="submit" id="loginSubmit">Login</button>
           </form>
         </section>
       </main>

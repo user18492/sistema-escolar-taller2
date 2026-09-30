@@ -1,4 +1,4 @@
-/* Vista Login — puramente visual, sin autenticación real */
+/* Vista Login */
 
 /* ---------- Content ---------- */
 
@@ -67,12 +67,6 @@ body {
   gap: 12px;
 }
 
-.field {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
 /* Campos sin etiqueta propia: el placeholder nombra el dato, así que el relleno
    gris los delimita sin necesidad de borde. */
 .field input {
@@ -85,10 +79,6 @@ body {
   color: var(--color-text-primary);
   background: #f3f4f6;
   appearance: none;
-}
-
-.field input::placeholder {
-  color: var(--color-text-tertiary);
 }
 
 .field input:focus {
@@ -140,6 +130,17 @@ body {
 .password-toggle.is-visible .password-hide-icon {
   display: block;
 }
+
+/* ---------- Errores ---------- */
+
+/* Mensaje de validación debajo de su campo (form-field.css): descuenta parte del gap del
+   formulario para quedar pegado al campo que describe. */
+.login-form .field-error {
+  margin-top: -6px;
+}
+
+/* El error del intento de acceso (credenciales, cuenta suspendida, falla de conexión) usa
+   .form-error de form-field.css. */
 
 /* ---------- Recordar mi cuenta ---------- */
 
@@ -208,30 +209,6 @@ body {
 
 /* ---------- Buttons ---------- */
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  border: 1px solid transparent;
-}
-
-.btn-primary {
-  background: var(--color-accent-blue);
-  color: #ffffff;
-  flex-shrink: 0;
-}
-
-.btn-primary:hover {
-  background: #2f6fe0;
-}
-
 .login-submit {
   height: 42px;
   margin-top: 6px;
@@ -241,4 +218,35 @@ body {
 .login-submit:focus-visible {
   outline: 2px solid var(--color-accent-blue);
   outline-offset: 2px;
+}
+
+/* Mientras se verifica la cuenta el botón queda deshabilitado, pero sin el aspecto
+   atenuado de una acción no disponible (.btn-primary:disabled, en buttons.css). */
+.login-submit.is-loading:disabled {
+  opacity: 0.85;
+  cursor: progress;
+}
+
+.login-submit.is-loading::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: login-spin 0.7s linear infinite;
+}
+
+@keyframes login-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Más lento, sin detenerlo: un indicador quieto parecería trabado. */
+@media (prefers-reduced-motion: reduce) {
+  .login-submit.is-loading::before {
+    animation-duration: 1.6s;
+  }
 }

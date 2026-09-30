@@ -7,9 +7,17 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/searchable-select.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/confirm-modal.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
+    <link rel="stylesheet" href="../../shared/styles/data-table.css" />
+    <link rel="stylesheet" href="../../shared/styles/badge.css" />
+    <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="../../shared/styles/password-generator.css" />
     <link rel="stylesheet" href="./users.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
@@ -18,6 +26,15 @@
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
+    <script src="../../shared/components/dropdown.component.js"></script>
+    <script src="../../shared/components/confirm-modal.component.js"></script>
+    <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="../../shared/components/search-bar.component.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
+    <script src="../../shared/components/row-actions.component.js"></script>
+    <script src="../../shared/components/status-badge.component.js"></script>
+    <script src="../../shared/components/password-generator.component.js"></script>
     <script src="./users.js" defer></script>
   </head>
   <body>
@@ -45,282 +62,37 @@
                 <thead>
                   <tr>
                     <th scope="col" class="column-filter col-user" data-filter="name">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por usuario" aria-expanded="false" aria-controls="nameFilter" popovertarget="nameFilter">
-                        <span>Usuario</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="nameFilter" heading="Usuario" label="Filtrar por usuario"></column-filter-toggle>
                       <div id="nameFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por usuario">
-                        <div class="searchable-bar">
-                          <span class="searchable-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.35-4.35" /></svg>
-                          </span>
-                          <input type="text" class="searchable-input" placeholder="Buscar por nombre" aria-label="Buscar por nombre" autocomplete="off" />
-                        </div>
+                        <search-bar placeholder="Buscar por nombre"></search-bar>
                         <ul class="dropdown-menu dropdown-menu-user" role="listbox" aria-label="Usuario">
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u1" aria-selected="false">
-                            <span class="avatar-circle">AM</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">Morales, Ana</span>
-                              <span class="option-email text-truncate">ana.morales@institucion.edu.ar</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u2" aria-selected="false">
-                            <span class="avatar-circle">PL</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">Pérez, Lucía</span>
-                              <span class="option-email text-truncate">lucia.perez@institucion.edu.ar</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u3" aria-selected="false">
-                            <span class="avatar-circle">GM</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">Gómez, Martín</span>
-                              <span class="option-email text-truncate">martin.gomez@institucion.edu.ar</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u4" aria-selected="false">
-                            <span class="avatar-circle">CF</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">Fernández, Carla</span>
-                              <span class="option-email text-truncate">carla.fernandez@institucion.edu.ar</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u5" aria-selected="false">
-                            <span class="avatar-circle">PR</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">Rodríguez, Pablo</span>
-                              <span class="option-email text-truncate">pablo.rodriguez@institucion.edu.ar</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u6" aria-selected="false">
-                            <span class="avatar-circle">SV</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">Suárez, Valentina</span>
-                              <span class="option-email text-truncate">valentina.suarez@institucion.edu.ar</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u7" aria-selected="false">
-                            <span class="avatar-circle">DL</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">López, Diego</span>
-                              <span class="option-email text-truncate">diego.lopez@institucion.edu.ar</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u8" aria-selected="false">
-                            <span class="avatar-circle">MA</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">Acosta, Micaela</span>
-                              <span class="option-email text-truncate">micaela.acosta@institucion.edu.ar</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u9" aria-selected="false">
-                            <span class="avatar-circle">TJ</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">Torres, Juan</span>
-                              <span class="option-email text-truncate">juan.torres@institucion.edu.ar</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u10" aria-selected="false">
-                            <span class="avatar-circle">SM</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">Medina, Sofía</span>
-                              <span class="option-email text-truncate">sofia.medina@institucion.edu.ar</span>
-                            </span>
-                          </li>
                           <li class="dropdown-empty" hidden>Sin resultados</li>
                         </ul>
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
                     <th scope="col" class="column-filter" data-filter="dni">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por dni" aria-expanded="false" aria-controls="dniFilter" popovertarget="dniFilter">
-                        <span>DNI</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="dniFilter" heading="DNI" label="Filtrar por dni"></column-filter-toggle>
                       <div id="dniFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por dni">
-                        <div class="searchable-bar">
-                          <span class="searchable-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.35-4.35" /></svg>
-                          </span>
-                          <input type="text" class="searchable-input" placeholder="Buscar por DNI" aria-label="Buscar por DNI" autocomplete="off" />
-                        </div>
+                        <search-bar placeholder="Buscar por DNI"></search-bar>
                         <ul class="dropdown-menu dropdown-menu-user" role="listbox" aria-label="DNI">
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u1" aria-selected="false">
-                            <span class="avatar-circle">AM</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">34.567.890</span>
-                              <span class="option-email text-truncate">Morales, Ana</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u2" aria-selected="false">
-                            <span class="avatar-circle">PL</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">35.678.901</span>
-                              <span class="option-email text-truncate">Pérez, Lucía</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u3" aria-selected="false">
-                            <span class="avatar-circle">GM</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">36.789.012</span>
-                              <span class="option-email text-truncate">Gómez, Martín</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u4" aria-selected="false">
-                            <span class="avatar-circle">CF</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">37.890.123</span>
-                              <span class="option-email text-truncate">Fernández, Carla</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u5" aria-selected="false">
-                            <span class="avatar-circle">PR</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">38.901.234</span>
-                              <span class="option-email text-truncate">Rodríguez, Pablo</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u6" aria-selected="false">
-                            <span class="avatar-circle">SV</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">39.012.345</span>
-                              <span class="option-email text-truncate">Suárez, Valentina</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u7" aria-selected="false">
-                            <span class="avatar-circle">DL</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">40.123.456</span>
-                              <span class="option-email text-truncate">López, Diego</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u8" aria-selected="false">
-                            <span class="avatar-circle">MA</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">41.234.567</span>
-                              <span class="option-email text-truncate">Acosta, Micaela</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u9" aria-selected="false">
-                            <span class="avatar-circle">TJ</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">42.345.678</span>
-                              <span class="option-email text-truncate">Torres, Juan</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u10" aria-selected="false">
-                            <span class="avatar-circle">SM</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">43.456.789</span>
-                              <span class="option-email text-truncate">Medina, Sofía</span>
-                            </span>
-                          </li>
                           <li class="dropdown-empty" hidden>Sin resultados</li>
                         </ul>
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
                     <th scope="col" class="column-filter col-email" data-filter="email">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por email" aria-expanded="false" aria-controls="emailFilter" popovertarget="emailFilter">
-                        <span>Email</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="emailFilter" heading="Email" label="Filtrar por email"></column-filter-toggle>
                       <div id="emailFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por email">
-                        <div class="searchable-bar">
-                          <span class="searchable-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.35-4.35" /></svg>
-                          </span>
-                          <input type="text" class="searchable-input" placeholder="Buscar por email" aria-label="Buscar por email" autocomplete="off" />
-                        </div>
+                        <search-bar placeholder="Buscar por email"></search-bar>
                         <ul class="dropdown-menu dropdown-menu-user" role="listbox" aria-label="Email">
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u1" aria-selected="false">
-                            <span class="avatar-circle">AM</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">ana.morales@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">Morales, Ana</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u2" aria-selected="false">
-                            <span class="avatar-circle">PL</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">lucia.perez@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">Pérez, Lucía</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u3" aria-selected="false">
-                            <span class="avatar-circle">GM</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">martin.gomez@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">Gómez, Martín</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u4" aria-selected="false">
-                            <span class="avatar-circle">CF</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">carla.fernandez@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">Fernández, Carla</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u5" aria-selected="false">
-                            <span class="avatar-circle">PR</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">pablo.rodriguez@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">Rodríguez, Pablo</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u6" aria-selected="false">
-                            <span class="avatar-circle">SV</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">valentina.suarez@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">Suárez, Valentina</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u7" aria-selected="false">
-                            <span class="avatar-circle">DL</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">diego.lopez@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">López, Diego</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u8" aria-selected="false">
-                            <span class="avatar-circle">MA</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">micaela.acosta@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">Acosta, Micaela</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u9" aria-selected="false">
-                            <span class="avatar-circle">TJ</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">juan.torres@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">Torres, Juan</span>
-                            </span>
-                          </li>
-                          <li class="dropdown-option option-user avatar-item" role="option" data-value="u10" aria-selected="false">
-                            <span class="avatar-circle">SM</span>
-                            <span class="avatar-item-text">
-                              <span class="option-name text-truncate">sofia.medina@institucion.edu.ar</span>
-                              <span class="option-email text-truncate">Medina, Sofía</span>
-                            </span>
-                          </li>
                           <li class="dropdown-empty" hidden>Sin resultados</li>
                         </ul>
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
                     <th scope="col" class="column-filter" data-filter="status">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por estado" aria-expanded="false" aria-controls="statusFilter" popovertarget="statusFilter">
-                        <span>Estado</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="statusFilter" heading="Estado" label="Filtrar por estado"></column-filter-toggle>
                       <div id="statusFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por estado">
                         <ul class="dropdown-menu" role="listbox" aria-label="Estado">
                           <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
@@ -331,18 +103,13 @@
                       </div>
                     </th>
                     <th scope="col" class="column-filter" data-filter="role">
-                      <button type="button" class="column-filter-toggle" aria-label="Filtrar por rol" aria-expanded="false" aria-controls="roleFilter" popovertarget="roleFilter">
-                        <span>Rol</span>
-                        <svg class="column-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                        </svg>
-                      </button>
+                      <column-filter-toggle target="roleFilter" heading="Rol" label="Filtrar por rol"></column-filter-toggle>
                       <div id="roleFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por rol">
                         <ul class="dropdown-menu" role="listbox" aria-label="Rol" aria-multiselectable="true">
                           <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
                           <li class="dropdown-option" role="option" data-value="ADMIN" aria-selected="false">Administrador</li>
-                          <li class="dropdown-option" role="option" data-value="SECRETARY" aria-selected="false">Secretario</li>
-                          <li class="dropdown-option" role="option" data-value="TEACHER" aria-selected="false">Profesor</li>
+                          <li class="dropdown-option" role="option" data-value="SECRETARIO" aria-selected="false">Secretario</li>
+                          <li class="dropdown-option" role="option" data-value="PROFESOR" aria-selected="false">Profesor</li>
                         </ul>
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
@@ -350,363 +117,41 @@
                     <th>Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">AM</span>
-                        <span class="text-truncate">Morales, Ana</span>
-                      </div>
-                    </td>
-                    <td>34.567.890</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">ana.morales@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
-                    </td>
-                    <td>Administrador</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">PL</span>
-                        <span class="text-truncate">Pérez, Lucía</span>
-                      </div>
-                    </td>
-                    <td>35.678.901</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">lucia.perez@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
-                    </td>
-                    <td>Secretario</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">GM</span>
-                        <span class="text-truncate">Gómez, Martín</span>
-                      </div>
-                    </td>
-                    <td>36.789.012</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">martin.gomez@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
-                    </td>
-                    <td>Profesor</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">CF</span>
-                        <span class="text-truncate">Fernández, Carla</span>
-                      </div>
-                    </td>
-                    <td>37.890.123</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">carla.fernandez@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-suspended">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                        </svg>
-                        Suspendido
-                      </span>
-                    </td>
-                    <td>Profesor</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">PR</span>
-                        <span class="text-truncate">Rodríguez, Pablo</span>
-                      </div>
-                    </td>
-                    <td>38.901.234</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">pablo.rodriguez@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
-                    </td>
-                    <td>Profesor</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">SV</span>
-                        <span class="text-truncate">Suárez, Valentina</span>
-                      </div>
-                    </td>
-                    <td>39.012.345</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">valentina.suarez@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
-                    </td>
-                    <td>Profesor</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">DL</span>
-                        <span class="text-truncate">López, Diego</span>
-                      </div>
-                    </td>
-                    <td>40.123.456</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">diego.lopez@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-suspended">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                        </svg>
-                        Suspendido
-                      </span>
-                    </td>
-                    <td>Profesor</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">MA</span>
-                        <span class="text-truncate">Acosta, Micaela</span>
-                      </div>
-                    </td>
-                    <td>41.234.567</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">micaela.acosta@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
-                    </td>
-                    <td>Secretario</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">TJ</span>
-                        <span class="text-truncate">Torres, Juan</span>
-                      </div>
-                    </td>
-                    <td>42.345.678</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">juan.torres@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-active">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        Activo
-                      </span>
-                    </td>
-                    <td>Profesor</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="col-user col-truncate">
-                      <div class="user-cell avatar-item">
-                        <span class="avatar-circle">SM</span>
-                        <span class="text-truncate">Medina, Sofía</span>
-                      </div>
-                    </td>
-                    <td>43.456.789</td>
-                    <td class="col-email col-truncate"><span class="text-truncate">sofia.medina@institucion.edu.ar</span></td>
-                    <td>
-                      <span class="badge badge-suspended">
-                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                        </svg>
-                        Suspendido
-                      </span>
-                    </td>
-                    <td>Profesor</td>
-                    <td>
-                      <div class="user-actions">
-                        <button class="user-action" type="button" data-action="edit" aria-label="Editar usuario" title="Editar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                          </svg>
-                        </button>
-                        <button class="user-action" type="button" data-action="delete" aria-label="Borrar usuario" title="Borrar usuario">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
+                <tbody></tbody>
               </table>
             </div>
 
-            <div class="table-footer">
-              <span class="results-count">Mostrando 1-10 de 67</span>
-              <nav class="pagination" aria-label="Paginación de usuarios">
-                <button class="page-btn page-nav" type="button">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                  Previo
-                </button>
-                <button class="page-btn active" type="button">1</button>
-                <button class="page-btn" type="button">2</button>
-                <button class="page-btn" type="button">3</button>
-                <span class="page-ellipsis">…</span>
-                <button class="page-btn" type="button">7</button>
-                <button class="page-btn page-nav" type="button">
-                  Siguiente
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
+            <table-pagination results="" label="Paginación de usuarios" pages="1"></table-pagination>
+
+            <!-- Plantillas: users.js las completa con los usuarios que devuelve el proceso principal -->
+            <template id="userRowTemplate">
+              <tr>
+                <td class="col-user col-truncate">
+                  <div class="user-cell avatar-item">
+                    <span class="avatar-circle"></span>
+                    <span class="text-truncate"></span>
+                  </div>
+                </td>
+                <td></td>
+                <td class="col-email col-truncate"><span class="text-truncate"></span></td>
+                <td>
+                  <status-badge></status-badge>
+                </td>
+                <td></td>
+                <td>
+                  <row-actions variant="user" edit-label="Editar usuario" delete-label="Borrar usuario"></row-actions>
+                </td>
+              </tr>
+            </template>
+            <template id="userOptionTemplate">
+              <li class="dropdown-option option-user avatar-item" role="option" aria-selected="false">
+                <span class="avatar-circle"></span>
+                <span class="avatar-item-text">
+                  <span class="option-name text-truncate"></span>
+                  <span class="option-email text-truncate"></span>
+                </span>
+              </li>
+            </template>
           </section>
         </main>
       </div>
@@ -745,7 +190,7 @@
                 </svg>
                 Subir imagen
               </button>
-              <input type="file" accept="image/*" id="avatarFileInput" hidden />
+              <input type="file" accept="image/jpeg,image/png,image/webp" id="avatarFileInput" hidden />
               <p id="avatarError" role="alert" hidden></p>
             </div>
           </div>
@@ -754,25 +199,25 @@
             <div class="form-field">
               <label for="newUserFirstName">Nombre</label>
               <div class="field">
-                <input type="text" id="newUserFirstName" placeholder="Juan" />
+                <input type="text" id="newUserFirstName" placeholder="Juan" data-validate="person-name" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newUserLastName">Apellido</label>
               <div class="field">
-                <input type="text" id="newUserLastName" placeholder="Pérez" />
+                <input type="text" id="newUserLastName" placeholder="Pérez" data-validate="person-name" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newUserDni">DNI</label>
               <div class="field">
-                <input type="text" id="newUserDni" placeholder="34.567.890" inputmode="numeric" />
+                <input type="text" id="newUserDni" placeholder="34.567.890" inputmode="numeric" data-validate="dni" required />
               </div>
             </div>
             <div class="form-field">
               <label for="newUserEmail">Email</label>
               <div class="field">
-                <input type="email" id="newUserEmail" placeholder="juan.perez@institucion.edu.ar" />
+                <input type="email" id="newUserEmail" placeholder="juan.perez@institucion.edu.ar" data-validate="email" required />
               </div>
             </div>
             <div class="form-field">
@@ -784,7 +229,7 @@
                   <line x1="8" y1="3" x2="8" y2="7" />
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
-                <input type="text" id="newUserBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" maxlength="10" autocomplete="off" />
+                <input type="text" id="newUserBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" autocomplete="off" data-validate="birth-date" data-min-age="18" data-max-age="80" required />
               </div>
             </div>
             <div class="form-field">
@@ -798,55 +243,17 @@
                 </button>
                 <ul class="dropdown-menu" role="listbox" hidden>
                   <li class="dropdown-option" role="option" data-value="ADMIN" aria-selected="false">Administrador</li>
-                  <li class="dropdown-option" role="option" data-value="SECRETARY" aria-selected="false">Secretario</li>
-                  <li class="dropdown-option" role="option" data-value="TEACHER" aria-selected="false">Profesor</li>
+                  <li class="dropdown-option" role="option" data-value="SECRETARIO" aria-selected="false">Secretario</li>
+                  <li class="dropdown-option" role="option" data-value="PROFESOR" aria-selected="false">Profesor</li>
                 </ul>
               </div>
             </div>
           </div>
 
-          <div class="password-section">
-            <div class="password-heading">
-              <span class="password-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="5" y="11" width="14" height="9" rx="2" />
-                  <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-                </svg>
-              </span>
-              <div>
-                <span class="password-title">Contraseña</span>
-                <p>Se generará automáticamente una contraseña segura.</p>
-              </div>
-            </div>
+          <password-generator></password-generator>
 
-            <button type="button" class="btn btn-outline-blue" id="generatePasswordBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12a9 9 0 1 1-3-6.7" />
-                <polyline points="21 3 21 9 15 9" />
-              </svg>
-              Generar contraseña
-            </button>
-
-            <div class="password-display">
-              <span class="password-value" id="generatedPasswordValue" data-visible="false"></span>
-              <div class="password-actions">
-                <button type="button" class="link-btn" id="togglePasswordBtn">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <span>Mostrar</span>
-                </button>
-                <button type="button" class="link-btn" id="copyPasswordBtn">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
-                  <span>Copiar</span>
-                </button>
-              </div>
-            </div>
-          </div>
+          <!-- Error al guardar que no corresponde a un campo (usuario inexistente, falla del backend) -->
+          <p class="form-error" id="newUserFormError" role="alert" hidden></p>
         </div>
 
         <div class="modal-footer">
@@ -856,25 +263,7 @@
       </div>
     </div>
     <!-- Modal: Eliminar usuario -->
-    <div class="modal-overlay" id="deleteUserOverlay">
-      <div class="modal modal-confirm" role="alertdialog" aria-modal="true" aria-labelledby="deleteUserTitle" aria-describedby="deleteUserDescription">
-        <div class="confirm-content">
-          <span class="confirm-icon" aria-hidden="true">
-            <!-- resources/ExclamationTriangle.svg -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-            </svg>
-          </span>
-          <h2 id="deleteUserTitle">Eliminar usuario</h2>
-          <p id="deleteUserDescription">¿Quieres eliminar este usuario?</p>
-        </div>
-
-        <div class="confirm-actions">
-          <button type="button" class="btn btn-neutral" id="cancelDeleteUserBtn">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteUserBtn">Sí, eliminar</button>
-        </div>
-      </div>
-    </div>
+    <confirm-modal entity="User" heading="Eliminar usuario" description="¿Quieres eliminar este usuario?"></confirm-modal>
     <dialog class="avatar-crop-dialog" id="avatarCropDialog" aria-labelledby="avatarCropTitle" aria-describedby="avatarCropHelp">
       <div class="modal-header">
         <h2 id="avatarCropTitle">Ajustar foto de perfil</h2>

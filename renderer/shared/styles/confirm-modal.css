@@ -1,5 +1,9 @@
 /* Componente reutilizable: modal de confirmación para acciones destructivas (Eliminar) */
 
+confirm-modal {
+  display: contents;
+}
+
 /* Confirmación compacta: más angosta que los formularios y con el contenido centrado.
    Se combina con .modal para no depender del orden de carga frente al ancho que cada
    vista le da a sus modales de formulario. */
@@ -44,6 +48,14 @@
   color: var(--color-text-secondary);
 }
 
+/* Resultado de la confirmación cuando el modal sigue abierto (error del backend, registro que ya
+   no existe). Oculto mientras no hay mensaje, así las vistas que no lo usan no cambian. */
+.confirm-content .confirm-message {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--color-accent-red);
+}
+
 /* Ambas acciones comparten el ancho disponible, como en la maqueta. */
 .confirm-actions {
   display: flex;
@@ -78,6 +90,22 @@
 
 .btn-danger:hover {
   background: #b91c1c;
+}
+
+/* Sin la acción disponible (el registro ya no existe): atenuado, como .btn-primary:disabled. */
+.confirm-actions .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Mientras espera la respuesta, el aspecto de los botones lo da .btn[aria-disabled="true"]
+   (buttons.css). Deshabilitados o en espera, no cambian de color al pasar el mouse. */
+.btn-neutral:is(:disabled, [aria-disabled="true"]):hover {
+  background: #f3f4f6;
+}
+
+.btn-danger:is(:disabled, [aria-disabled="true"]):hover {
+  background: var(--color-accent-red);
 }
 
 @media (max-width: 600px) {

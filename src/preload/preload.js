@@ -2,15 +2,48 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Se exponen acciones concretas, sin dar acceso directo al IPC desde la UI.
 contextBridge.exposeInMainWorld('api', {
-  ventana: {
-    minimizar: () => ipcRenderer.invoke('ventana:minimizar'),
-    alternarMaximizado: () => ipcRenderer.invoke('ventana:alternar-maximizado'),
-    cerrar: () => ipcRenderer.invoke('ventana:cerrar'),
-    estaMaximizada: () => ipcRenderer.invoke('ventana:esta-maximizada'),
-    alCambiarMaximizado: (callback) => {
-      const manejador = (_evento, maximizada) => callback(maximizada);
-      ipcRenderer.on('ventana:cambio-maximizado', manejador);
-      return () => ipcRenderer.removeListener('ventana:cambio-maximizado', manejador);
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
+    close: () => ipcRenderer.invoke('window:close'),
+    isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+    onMaximizedChange: (callback) => {
+      const handler = (_event, maximized) => callback(maximized);
+      ipcRenderer.on('window:maximized-change', handler);
+      return () => ipcRenderer.removeListener('window:maximized-change', handler);
     },
+  },
+  auth: {
+    // Resuelve { ok: true, user } o { ok: false, error: { code, message } }, con el mensaje listo para mostrar.
+    // Con un acceso exitoso, `rememberAccount` guarda el email para el próximo inicio o lo olvida.
+    login: (email, password, rememberAccount) => ipcRenderer.invoke('auth:login', { email, password, rememberAccount }),
+    // Resuelve { firstName, lastName, role, imageUrl, institutionName }, o null si no hay sesión iniciada.
+    getCurrentUser: () => ipcRenderer.invoke('auth:get-current-user'),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    // Resuelve el email recordado, o null si no hay ninguno.
+    getRememberedEmail: () => ipcRenderer.invoke('auth:get-remembered-email'),
+    forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
+  },
+  users: {
+    // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, ordenados por apellido
+    // y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role }, con birthDate 'AAAA-MM-DD'
+    // o null), o { ok: false, error: { code, message } }.
+    list: () => ipcRenderer.invoke('users:list'),
+    // Solo ADMIN. Crea un usuario activo en su institución. `data` tiene los campos de update, con
+    // password obligatoria: viaja en texto plano y el proceso principal guarda solo su hash. Resuelve
+    // { ok: true, user } con el usuario creado (mismos campos que list) o { ok: false, error: { code,
+    // message, fieldErrors } }, como update: DUPLICATE_VALUE indica un dni o un email ya registrados.
+    create: (data) => ipcRenderer.invoke('users:create', data),
+    // Solo ADMIN. Guarda los datos del usuario con ese id (usuario_id) de su institución. `data` es
+    // { firstName, lastName, dni, email, birthDate, role, password }, con birthDate 'AAAA-MM-DD' y
+    // password null para conservar la actual. Resuelve { ok: true, user } con el usuario como quedó
+    // (mismos campos que list) o { ok: false, error: { code, message, fieldErrors } }: fieldErrors
+    // ({ campo: mensaje }) llega con DUPLICATE_VALUE (dni o email de otro usuario) y con los campos
+    // inválidos; USER_NOT_FOUND indica que ya no está vigente.
+    update: (userId, data) => ipcRenderer.invoke('users:update', userId, data),
+    // Solo ADMIN. Baja lógica del usuario con ese id (usuario_id) de su institución. Resuelve { ok: true }
+    // o { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_ALREADY_DELETED indican que ya no
+    // está vigente.
+    delete: (userId) => ipcRenderer.invoke('users:delete', userId),
   },
 });

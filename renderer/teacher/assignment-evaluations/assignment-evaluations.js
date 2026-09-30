@@ -45,68 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Dropdowns del modal ----------
 
-  const dropdowns = document.querySelectorAll('.dropdown');
-
-  const closeDropdown = (dropdown) => {
-    dropdown.classList.remove('open');
-    dropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
-    dropdown.querySelector('.dropdown-menu').hidden = true;
-  };
-
-  const closeAllDropdowns = (except) => {
-    dropdowns.forEach((dropdown) => {
-      if (dropdown !== except) closeDropdown(dropdown);
-    });
-  };
-
-  dropdowns.forEach((dropdown) => {
-    const toggle = dropdown.querySelector('.dropdown-toggle');
-    const label = dropdown.querySelector('.dropdown-label');
-    const menu = dropdown.querySelector('.dropdown-menu');
-    const options = dropdown.querySelectorAll('.dropdown-option');
-
-    label.dataset.placeholder = label.textContent.trim();
-
-    toggle.addEventListener('click', () => {
-      const isOpen = dropdown.classList.contains('open');
-      closeAllDropdowns(dropdown);
-
-      if (isOpen) {
-        closeDropdown(dropdown);
-        return;
-      }
-
-      dropdown.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
-    });
-
-    options.forEach((option) => {
-      option.addEventListener('click', () => {
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-        });
-        option.classList.add('selected');
-        option.setAttribute('aria-selected', 'true');
-        label.textContent = option.textContent.trim();
-        label.classList.remove('placeholder');
-        closeDropdown(dropdown);
-      });
-    });
-  });
-
-  document.addEventListener('click', (event) => {
-    if (!event.target.closest('.dropdown')) {
-      closeAllDropdowns();
-    }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeAllDropdowns();
-    }
-  });
+  // Apertura, cierre y selección: componente compartido dropdown.component.js. También guarda
+  // en data-placeholder el texto inicial de la etiqueta, que usa el reinicio del formulario.
+  const { closeAllDropdowns } = setupDropdowns();
 
   // ---------- Modal compartido: Nueva evaluación / Editar evaluación ----------
 
@@ -129,24 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let modalTrigger = openEvaluationModalBtn;
 
-  // Fecha de evaluación: solo día y mes. La "/" se inserta sola al escribir el mes,
-  // y el cursor queda junto al mismo dígito al editar en medio del valor.
-  function formatDateInput() {
-    const digitsBeforeCursor = dateInput.value.slice(0, dateInput.selectionStart).replace(/\D/g, '').length;
-    const digits = dateInput.value.replace(/\D/g, '').slice(0, 4);
-    let formatted = digits.slice(0, 2);
-    if (digits.length > 2) formatted += '/' + digits.slice(2, 4);
-    let cursor = 0;
-    let digitCount = 0;
-
-    while (cursor < formatted.length && digitCount < digitsBeforeCursor) {
-      if (formatted[cursor] !== '/') digitCount += 1;
-      cursor += 1;
-    }
-
-    dateInput.value = formatted;
-    dateInput.setSelectionRange(cursor, cursor);
-  }
+  // Máscara DD/MM de la fecha, formato del título y errores: componente compartido
+  // field-validation.component.js. La fecha se valida contra el año del ciclo (yearBadge).
 
   function updateSaveButtonState() {
     const hasTitle = titleInput.value.trim().length > 0;
@@ -158,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetEvaluationForm() {
     titleInput.value = '';
     dateInput.value = '';
+    clearFieldErrors(evaluationOverlay);
     typeOptions.forEach((option) => {
       option.classList.remove('selected');
       option.setAttribute('aria-selected', 'false');
@@ -207,10 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   titleInput.addEventListener('input', updateSaveButtonState);
-  dateInput.addEventListener('input', () => {
-    formatDateInput();
-    updateSaveButtonState();
-  });
+  dateInput.addEventListener('input', updateSaveButtonState);
   typeOptions.forEach((option) => option.addEventListener('click', updateSaveButtonState));
 
   openEvaluationModalBtn.addEventListener('click', () => openEvaluationModal());
@@ -218,9 +141,11 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => openEvaluationModal(button.closest('tr'), button));
   });
 
-  // Escape cierra primero el desplegable abierto y, si no hay ninguno, el modal.
-  evaluationOverlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !typeDropdown.classList.contains('open')) closeEvaluationModal();
+  // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
+  // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
+  // quedado fuera de un control.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && evaluationOverlay.classList.contains('is-open')) closeEvaluationModal();
   });
 
   cancelEvaluationBtn.addEventListener('click', closeEvaluationModal);
@@ -228,40 +153,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   saveEvaluationBtn.addEventListener('click', () => {
+    // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
+    if (validateFields(evaluationOverlay)) return;
     // Vista puramente visual: crear y guardar no modifican datos persistidos.
     closeEvaluationModal();
   });
 
   // ---------- Modal: Eliminar evaluación ----------
 
-  const deleteOverlay = document.getElementById('deleteEvaluationOverlay');
-  const cancelDeleteBtn = document.getElementById('cancelDeleteEvaluationBtn');
-  let deleteTrigger = null;
-
-  function openDeleteModal(trigger) {
-    deleteTrigger = trigger;
-    closeAllDropdowns();
-    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
-    deleteOverlay.classList.add('is-open');
-    // "Cancelar" recibe el foco para evitar eliminaciones accidentales con Enter.
-    cancelDeleteBtn.focus();
-  }
-
-  function closeDeleteModal() {
-    deleteOverlay.classList.remove('is-open');
-    deleteTrigger?.focus();
-  }
-
-  document.querySelectorAll('.data-table tbody [data-action="delete"]').forEach((button) => {
-    button.addEventListener('click', () => openDeleteModal(button));
-  });
-  deleteOverlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeDeleteModal();
-  });
-  cancelDeleteBtn.addEventListener('click', closeDeleteModal);
-  document.getElementById('confirmDeleteEvaluationBtn').addEventListener('click', () => {
-    // Vista puramente visual: la eliminación real se conecta cuando exista la capa de servicios/IPC.
-    closeDeleteModal();
-  });
+  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
+  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
+  setupConfirmModal(document.getElementById('deleteEvaluationOverlay'), { beforeOpen: closeAllDropdowns });
 
 });

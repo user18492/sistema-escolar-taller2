@@ -1,11 +1,21 @@
 // Componente reutilizable: navbar lateral (sidebar), compartido por todas las vistas de la app.
 // Uso: <app-sidebar nav-role="admin" active="dashboard"></app-sidebar>
 // El atributo "nav-role" elige el menú del rol (por defecto "admin") y "active" marca
-// qué item de ese menú se resalta como actual.
+// qué item de ese menú se resalta como actual. La institución y el perfil son los del
+// usuario de la sesión, que informa el proceso principal.
+// El menú solo muestra las opciones del rol: qué vistas se pueden abrir lo decide el
+// proceso principal (navigation-guard.js), no este componente.
 // Sin shadow DOM a propósito: así los estilos de sidebar.css (selectores .sidebar, .nav-item, etc.) siguen aplicando tal cual.
 
 (() => {
   const logoUrl = new URL('../../../resources/logotipo_header.png', document.currentScript.src).href;
+  const loginUrl = new URL('../../auth/login/index.html', document.currentScript.src).href;
+  // Nombre visible de cada rol (usuario_roles.nombre), igual que en la vista Usuarios.
+  const ROLE_LABELS = {
+    ADMIN: 'Administrador',
+    SECRETARIO: 'Secretario',
+    PROFESOR: 'Profesor',
+  };
   // Cada rol tiene su propio menú: las vistas viven en renderer/<rol>/<vista>, así que
   // los enlaces son relativos a la carpeta hermana dentro del mismo rol.
   // Atributos del <svg> según el estilo del ícono: "outline" (trazo 1.75) es el
@@ -32,8 +42,8 @@
             icon: '<path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />',
           },
           {
+            // Sin href: la vista de Reportes todavía no existe (opción no disponible).
             key: 'reports',
-            href: '../reports/index.html',
             label: 'Reportes',
             // resources/ChartBar.svg
             iconStyle: 'resource',
@@ -133,8 +143,11 @@
       const navHtml = navGroups.map((group, groupIndex) => {
         const itemsHtml = group.items.map((item) => {
           const activeClass = item.key === active ? ' active' : '';
+          // Un item sin href es una opción no disponible: se muestra deshabilitada y, al no
+          // ser un enlace navegable, no recibe foco ni se activa con el ratón o el teclado.
+          const atributosEnlace = item.href ? `href="${item.href}"` : 'role="link" aria-disabled="true"';
           return `
-            <a class="nav-item${activeClass}" href="${item.href}"${item.key === active ? ' aria-current="page"' : ''}>
+            <a class="nav-item${activeClass}" ${atributosEnlace}${item.key === active ? ' aria-current="page"' : ''}>
               <svg ${ICON_SVG_ATTRS[item.iconStyle] || ICON_SVG_ATTRS.outline}>
                 ${item.icon}
               </svg>
@@ -167,7 +180,7 @@
                 </svg>
                 Configuración
               </button>
-              <button class="profile-option" type="button">
+              <button class="profile-option" type="button" data-action="logout">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M9 12h12m-5-5 5 5-5 5" />
                 </svg>
@@ -183,19 +196,7 @@
             </button>
           </div>
         </aside>`;
-      this.querySelector('.sidebar-institution').textContent = this.getAttribute('institution-name') || 'Institución San Martín';
-      this.querySelector('.profile-name').textContent = this.getAttribute('user-name') || 'Ana Morales';
-      this.querySelector('.profile-role').textContent = this.getAttribute('user-role') || 'Administradora';
-      const avatar = this.querySelector('.profile-avatar');
-      avatar.textContent = this.getAttribute('user-initials') || 'AM';
-      const imageUrl = this.getAttribute('user-image');
-      if (imageUrl) {
-        const image = document.createElement('img');
-        image.alt = '';
-        image.src = imageUrl;
-        image.addEventListener('error', () => image.remove());
-        avatar.append(image);
-      }
+      this.loadSessionUser();
 
       // Volver a pulsar la vista activa no debe recargar la página: sin navegación no se
       // vuelve a renderizar el contenido ni se repite el fade-in de entrada de la vista.
@@ -241,6 +242,7 @@
           button.focus();
         }
       }, { signal });
+      panel.querySelector('[data-action="logout"]').addEventListener('click', () => this.logout(), { signal });
       document.addEventListener('click', (event) => {
         if (!profile.contains(event.target)) setOpen(false);
       }, { signal });
@@ -251,6 +253,49 @@
 
     disconnectedCallback() {
       this.profileListeners?.abort();
+    }
+
+    // Completa la institución y el perfil con el usuario de la sesión. Sin sesión quedan
+    // vacíos: el proceso principal no deja abrir la vista y vuelve al login.
+    async loadSessionUser() {
+      const auth = window.api?.auth;
+      if (!auth) return;
+
+      let user;
+      try {
+        user = await auth.getCurrentUser();
+      } catch (error) {
+        console.error('Error al obtener el usuario de la sesión:', error);
+        return;
+      }
+      if (!user || !this.isConnected) return;
+
+      const names = [user.firstName, user.lastName].map((name) => name?.trim() ?? '').filter(Boolean);
+      this.querySelector('.sidebar-institution').textContent = user.institutionName ?? '';
+      this.querySelector('.profile-name').textContent = names.join(' ');
+      this.querySelector('.profile-role').textContent = ROLE_LABELS[user.role] ?? '';
+      const avatar = this.querySelector('.profile-avatar');
+      avatar.textContent = names.map((name) => name.charAt(0)).join('').toUpperCase();
+      if (user.imageUrl) {
+        const image = document.createElement('img');
+        image.alt = '';
+        image.src = user.imageUrl;
+        image.addEventListener('error', () => image.remove());
+        avatar.append(image);
+      }
+    }
+
+    // Vuelve al login recién cuando el proceso principal eliminó la sesión.
+    async logout() {
+      if (this.isLoggingOut) return;
+      this.isLoggingOut = true;
+      try {
+        await window.api.auth.logout();
+        window.location.replace(loginUrl);
+      } catch (error) {
+        console.error('Error al cerrar la sesión:', error);
+        this.isLoggingOut = false;
+      }
     }
   }
 

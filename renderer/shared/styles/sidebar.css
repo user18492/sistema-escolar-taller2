@@ -131,6 +131,19 @@ app-sidebar {
   cursor: default;
 }
 
+/* Opción no disponible (item sin href, ver sidebar.js): texto e ícono en gris, sin fondo
+   de hover y con el cursor de bloqueo de los campos y botones deshabilitados. */
+.nav-item[aria-disabled="true"],
+.nav-item[aria-disabled="true"]:hover {
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+}
+
+.nav-item[aria-disabled="true"] svg {
+  color: inherit;
+}
+
 .nav-item:focus-visible {
   outline: 2px solid var(--color-accent-blue);
   outline-offset: -2px;

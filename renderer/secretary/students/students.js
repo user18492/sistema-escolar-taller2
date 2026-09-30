@@ -2,65 +2,8 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  const dropdowns = document.querySelectorAll('.dropdown');
-
-  const closeDropdown = (dropdown) => {
-    dropdown.classList.remove('open');
-    dropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
-    dropdown.querySelector('.dropdown-menu').hidden = true;
-  };
-
-  const closeAllDropdowns = (except) => {
-    dropdowns.forEach((dropdown) => {
-      if (dropdown !== except) closeDropdown(dropdown);
-    });
-  };
-
-  dropdowns.forEach((dropdown) => {
-    const toggle = dropdown.querySelector('.dropdown-toggle');
-    const label = dropdown.querySelector('.dropdown-label');
-    const menu = dropdown.querySelector('.dropdown-menu');
-    const options = dropdown.querySelectorAll('.dropdown-option');
-
-    toggle.addEventListener('click', () => {
-      const isOpen = dropdown.classList.contains('open');
-      closeAllDropdowns(dropdown);
-
-      if (isOpen) {
-        closeDropdown(dropdown);
-        return;
-      }
-
-      dropdown.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
-    });
-
-    options.forEach((option) => {
-      option.addEventListener('click', () => {
-        options.forEach((o) => {
-          o.classList.remove('selected');
-          o.setAttribute('aria-selected', 'false');
-        });
-        option.classList.add('selected');
-        option.setAttribute('aria-selected', 'true');
-        label.textContent = option.textContent.trim();
-        closeDropdown(dropdown);
-      });
-    });
-  });
-
-  document.addEventListener('click', (event) => {
-    if (!event.target.closest('.dropdown')) {
-      closeAllDropdowns();
-    }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeAllDropdowns();
-    }
-  });
+  // Apertura, cierre y selección de los dropdowns: componente compartido dropdown.component.js.
+  const { closeAllDropdowns } = setupDropdowns();
 
   // Los filtros de Nombre / Email / Teléfono / DNI / Estado viven en los encabezados
   // de la tabla y los gestiona el componente compartido column-filter.js.
@@ -97,34 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let modalTrigger = openModalBtn;
 
-  function formatDniInput() {
-    const digitsBeforeCursor = dniInput.value.slice(0, dniInput.selectionStart).replace(/\D/g, '').length;
-    const digits = dniInput.value.replace(/\D/g, '').slice(0, 8);
-    const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    let cursor = 0;
-    let digitCount = 0;
-
-    // Mantener el cursor junto al mismo dígito al insertar o quitar los puntos.
-    while (cursor < formatted.length && digitCount < digitsBeforeCursor) {
-      if (formatted[cursor] !== '.') digitCount += 1;
-      cursor += 1;
-    }
-
-    dniInput.value = formatted;
-    dniInput.setSelectionRange(cursor, cursor);
-  }
-
-  dniInput.addEventListener('input', formatDniInput);
-
-  function formatBirthdateInput() {
-    const digits = birthdateInput.value.replace(/\D/g, '').slice(0, 8);
-    let formatted = digits.slice(0, 2);
-    if (digits.length > 2) formatted += '/' + digits.slice(2, 4);
-    if (digits.length > 4) formatted += '/' + digits.slice(4, 8);
-    birthdateInput.value = formatted;
-  }
-
-  birthdateInput.addEventListener('input', formatBirthdateInput);
+  // Máscaras, formato y errores de los campos de texto: componente compartido
+  // field-validation.component.js, según el data-validate de cada campo.
 
   function updateCreateButtonState() {
     const hasAllTextInputs = Array.from(textInputs).every((input) => input.value.trim().length > 0);
@@ -146,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resetForm() {
     textInputs.forEach((input) => (input.value = ''));
+    clearFieldErrors(overlay);
     statusOptions.forEach((option) => {
       option.classList.remove('selected');
       option.setAttribute('aria-selected', 'false');
@@ -215,20 +133,12 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => openModal(button.closest('tr'), button));
   });
 
-  overlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeModal();
-    if (event.key !== 'Tab') return;
-    const controls = Array.from(overlay.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]'))
-      .filter((element) => element.getClientRects().length > 0);
-    const first = controls[0];
-    const last = controls[controls.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+  // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
+  // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
+  // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
+  // quedado fuera de un control.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && overlay.classList.contains('is-open')) closeModal();
   });
 
   cancelBtn.addEventListener('click', closeModal);
@@ -236,40 +146,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   createBtn.addEventListener('click', () => {
+    // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
+    if (validateFields(overlay)) return;
     // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
     closeModal();
   });
 
   // ---------- Modal: Eliminar alumno ----------
 
-  const deleteOverlay = document.getElementById('deleteStudentOverlay');
-  const cancelDeleteBtn = document.getElementById('cancelDeleteStudentBtn');
-  let deleteTrigger = null;
-
-  function openDeleteModal(trigger) {
-    deleteTrigger = trigger;
-    closeAllDropdowns();
-    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
-    deleteOverlay.classList.add('is-open');
-    // "Cancelar" recibe el foco para evitar eliminaciones accidentales con Enter.
-    cancelDeleteBtn.focus();
-  }
-
-  function closeDeleteModal() {
-    deleteOverlay.classList.remove('is-open');
-    deleteTrigger?.focus();
-  }
-
-  document.querySelectorAll('.data-table tbody [data-action="delete"]').forEach((button) => {
-    button.addEventListener('click', () => openDeleteModal(button));
-  });
-  deleteOverlay.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeDeleteModal();
-  });
-  cancelDeleteBtn.addEventListener('click', closeDeleteModal);
-  document.getElementById('confirmDeleteStudentBtn').addEventListener('click', () => {
-    // Vista puramente visual: la eliminación real se conecta cuando exista la capa de servicios/IPC.
-    closeDeleteModal();
-  });
+  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
+  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
+  setupConfirmModal(document.getElementById('deleteStudentOverlay'), { beforeOpen: closeAllDropdowns });
 });
 

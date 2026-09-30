@@ -1,0 +1,72 @@
+/* Estilos reutilizables: campo de texto (.field) de filtros y formularios, con la variante
+   de fecha (ícono de calendario dentro del campo), el error de validación debajo del campo
+   (field-validation.component.js) y el error del formulario completo (.form-error). Cada
+   vista define el ancho de sus campos y los casos
+   particulares (Login redefine el campo completo). */
+
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  appearance: none;
+}
+
+.field input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--color-accent-blue);
+}
+
+/* El borde rojo se mantiene con el foco, hasta que se corrige el campo. La variante :focus
+   gana también sobre los estilos de foco de las vistas que cargan después (Login). */
+.field input[aria-invalid="true"],
+.field input[aria-invalid="true"]:focus {
+  border-color: var(--color-accent-red);
+}
+
+.field-error {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-accent-red);
+}
+
+/* Error del formulario completo, no de un campo (credenciales en Login, falla al guardar en un
+   modal). El rojo más oscuro que --color-accent-red mantiene el contraste AA sobre el fondo. */
+.form-error {
+  padding: 10px 12px;
+  border: 1px solid var(--color-accent-red-bg);
+  border-radius: var(--radius-sm);
+  background: #fef2f2;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #b91c1c;
+}
+
+.field-date svg {
+  position: absolute;
+  left: 12px;
+  width: 15px;
+  height: 15px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.field-date input {
+  padding-left: 36px !important;
+}

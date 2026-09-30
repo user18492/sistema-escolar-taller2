@@ -8,23 +8,19 @@
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
     <link rel="stylesheet" href="../../shared/styles/assignment-summary.css" />
+    <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
     <link rel="stylesheet" href="./assignment-management.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/assignment-summary.component.js"></script>
     <script src="./assignment-management.js" defer></script>
   </head>
   <body>
     <app-titlebar></app-titlebar>
     <div class="app-shell">
       <!-- Vista intermedia abierta desde Asignaciones: el menú sigue marcando esa sección. -->
-      <app-sidebar
-        nav-role="teacher"
-        active="assignments"
-        user-name="María González"
-        user-role="Profesora"
-        user-initials="GM"
-      ></app-sidebar>
+      <app-sidebar nav-role="teacher" active="assignments"></app-sidebar>
 
       <!-- Main -->
       <div class="main">
@@ -46,24 +42,7 @@
 
           <!-- Datos de la asignación seleccionada: assignment-management.js los completa
                con los valores de la fila elegida en Asignaciones. -->
-          <section class="card assignment-summary">
-            <div class="summary-item">
-              <span class="summary-label">Curso</span>
-              <span class="summary-value text-truncate" data-field="course">1° A · Mañana</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Nivel educativo</span>
-              <span class="summary-value text-truncate" data-field="level">Primaria</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Materia</span>
-              <span class="summary-value text-truncate" data-field="subject">Matemática</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Ciclo lectivo</span>
-              <span class="summary-value text-truncate" data-field="year">2026</span>
-            </div>
-          </section>
+          <assignment-summary course="1° A · Mañana" level="Primaria" subject="Matemática" year="2026"></assignment-summary>
 
           <!-- Opciones de gestión de la asignación. -->
           <section class="card options-card">
