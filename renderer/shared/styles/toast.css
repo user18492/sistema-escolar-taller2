@@ -1,0 +1,168 @@
+/* Componente reutilizable: notificaciones toast de éxito y de error (toast.component.js) */
+
+/* Pila fija abajo a la derecha: el toast más nuevo queda pegado a la esquina y empuja a los
+   anteriores hacia arriba. Queda sobre los modales (.modal-overlay) y el titlebar; la pila no
+   recibe el puntero, así lo que está alrededor de los toasts sigue respondiendo a los clics. */
+.toast-stack {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 380px;
+  max-width: calc(100vw - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 103;
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 12px 14px 16px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--toast-bg);
+  box-shadow:
+    inset 0 0 0 1px var(--toast-line),
+    0 12px 28px -8px rgba(16, 24, 40, 0.16),
+    0 2px 6px rgba(16, 24, 40, 0.06);
+  pointer-events: auto;
+  animation:
+    toast-in 280ms cubic-bezier(0.16, 1, 0.3, 1) backwards,
+    toast-fade-in 280ms ease-out backwards;
+}
+
+.toast.is-leaving {
+  animation: toast-out var(--modal-transition) forwards;
+}
+
+.toast-success {
+  --toast-bg: #ecfdf5;
+  --toast-line: var(--color-accent-green-bg);
+  --toast-icon: #059669;
+  --toast-progress: var(--color-accent-green);
+}
+
+.toast-error {
+  --toast-bg: #fef2f2;
+  --toast-line: var(--color-accent-red-bg);
+  --toast-icon: var(--color-accent-red);
+  --toast-progress: var(--color-accent-red);
+}
+
+/* Mide lo mismo que la línea del título, así queda alineado con él aunque el texto ocupe
+   varias líneas. */
+.toast-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--toast-icon);
+}
+
+.toast-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toast-title {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.toast-description {
+  font-size: 13px;
+  line-height: 19px;
+  color: #374151;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: -3px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.toast-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.toast-close:hover {
+  background: rgba(17, 24, 39, 0.08);
+  color: var(--color-text-primary);
+}
+
+.toast-close:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 1px;
+}
+
+/* La barra es el temporizador: el toast se cierra cuando termina su animación
+   (toast.component.js). Con el puntero o el foco en el toast se pausan las dos cosas. */
+.toast-progress {
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: var(--toast-progress);
+  transform-origin: left center;
+  animation: toast-progress 5s linear forwards;
+}
+
+.toast:hover .toast-progress,
+.toast:focus-within .toast-progress {
+  animation-play-state: paused;
+}
+
+/* Entrada: se desliza desde el borde derecho de la ventana mientras se funde. */
+@keyframes toast-in {
+  from {
+    transform: translateX(calc(100% + 24px));
+  }
+}
+
+@keyframes toast-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Sin deslizamientos ni fundidos. La barra se conserva: es el temporizador. */
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast.is-leaving {
+    animation: none;
+  }
+}

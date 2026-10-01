@@ -3,6 +3,8 @@
 // memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
 // Nuevo usuario lo crea (window.api.users.create), Editar guarda los cambios
 // (window.api.users.update) y Eliminar da de baja al usuario (baja lógica, window.api.users.delete).
+// El resultado de las tres operaciones se avisa con un toast (toast.component.js), salvo los errores
+// de un campo, que se marcan en el formulario.
 // La foto de perfil viaja con los datos del modal (el recorte, no el archivo original) y las filas y
 // los filtros la muestran con fillAvatar (user-avatar.component.js).
 
@@ -45,6 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusCode = (user) => (user.isActive ? 'ACTIVE' : 'SUSPENDED');
   // "Apellido, Nombre"
   const fullName = (user) => `${user.lastName ?? ''}, ${user.firstName ?? ''}`;
+  // "Nombre Apellido", como lo nombran los toasts
+  const displayName = (user) => `${user.firstName} ${user.lastName}`;
   // La fecha llega como 'AAAA-MM-DD' (o null) y el campo del modal usa DD/MM/AAAA
   const toDisplayDate = (isoDate) => (isoDate ? isoDate.split('-').reverse().join('/') : '');
   // El campo ya validado (DD/MM/AAAA) se envía como 'AAAA-MM-DD'
@@ -246,13 +250,17 @@ document.addEventListener('DOMContentLoaded', () => {
     return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openModalBtn;
   };
 
+  // Descripción de los toasts de error: el mensaje del proceso principal. Sin respuesta, o con
+  // UNEXPECTED_ERROR (su mensaje repite el título del toast), queda la genérica.
+  const errorDescription = (error) =>
+    (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
+
   // ---------- Modal: Nuevo usuario / Editar usuario ----------
 
   const overlay = document.getElementById('newUserOverlay');
   const modalBody = overlay.querySelector('.modal-body');
   const cancelBtn = document.getElementById('cancelNewUserBtn');
   const createBtn = document.getElementById('createUserBtn');
-  const formError = document.getElementById('newUserFormError');
 
   const textInputs = overlay.querySelectorAll('.modal-body input[type="text"], .modal-body input[type="email"]');
   const roleDropdown = overlay.querySelector('.dropdown');
@@ -276,11 +284,23 @@ document.addEventListener('DOMContentLoaded', () => {
     birthDate: birthdateInput,
   };
 
-  // Error sin mensaje del proceso principal (o sin respuesta) y texto del botón principal, en reposo
-  // y mientras se espera la respuesta, según el modo del modal
+  // Texto del botón principal, en reposo y mientras se espera la respuesta, y de los toasts de
+  // éxito y de error, según el modo del modal
   const MODAL_TEXTS = {
-    create: { genericError: 'No se pudo crear el usuario. Intentá nuevamente.', submit: 'Crear usuario', saving: 'Creando…' },
-    edit: { genericError: 'No se pudieron guardar los cambios. Intentá nuevamente.', submit: 'Guardar cambios', saving: 'Guardando…' },
+    create: {
+      submit: 'Crear usuario',
+      saving: 'Creando…',
+      successTitle: 'Usuario creado',
+      successDescription: (user) => `Se registró la cuenta de ${displayName(user)}.`,
+      errorTitle: 'No se pudo crear el usuario',
+    },
+    edit: {
+      submit: 'Guardar cambios',
+      saving: 'Guardando…',
+      successTitle: 'Usuario actualizado',
+      successDescription: (user) => `Se guardaron los cambios de ${displayName(user)}.`,
+      errorTitle: 'No se pudieron guardar los cambios',
+    },
   };
 
   // Mismos tipos que admite el atributo accept del selector de archivos.
@@ -456,21 +476,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // envía al guardar
   let editingUserId = null;
   let isSaving = false;
-  // El usuario que se editaba ya no existe: "Guardar cambios" queda deshabilitado hasta cerrar
-  let isUserGone = false;
 
   const modalTexts = () => MODAL_TEXTS[isEditing ? 'edit' : 'create'];
 
   function updateCreateButtonState() {
     const hasAllTextInputs = Array.from(textInputs).every((input) => !input.required || input.value.trim().length > 0);
     const hasRole = Boolean(roleDropdown.querySelector('.dropdown-option.selected'));
-    createBtn.disabled = isUserGone || !(hasAllTextInputs && hasRole);
+    createBtn.disabled = !(hasAllTextInputs && hasRole);
   }
-
-  const setFormError = (message) => {
-    formError.textContent = message;
-    formError.hidden = !message;
-  };
 
   // Mientras se espera la respuesta, el cuerpo del modal queda inerte, así lo enviado coincide con
   // lo que se ve. Los botones del pie quedan con aria-disabled y no con disabled: conservan el foco,
@@ -486,8 +499,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetForm() {
     textInputs.forEach((input) => (input.value = ''));
     clearFieldErrors(overlay);
-    setFormError('');
-    isUserGone = false;
     roleOptions.forEach((o) => {
       o.classList.remove('selected');
       o.setAttribute('aria-selected', 'false');
@@ -592,8 +603,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return invalidFields.length > 0;
   };
 
-  // Crea o guarda según el modo. Con cualquier error, el modal sigue abierto con lo que se escribió,
-  // la foto elegida y, en el alta, la misma contraseña.
+  // Crea o guarda según el modo; al terminar cierra el modal y lo avisa con un toast. Los errores de
+  // un campo se marcan en el formulario y los demás salen en un toast: en ambos casos el modal sigue
+  // abierto con lo que se escribió, la foto elegida y, en el alta, la misma contraseña. Solo se
+  // cierra si el usuario que se editaba ya no existe.
   const saveUser = async () => {
     const userId = editingUserId;
     setSaving(true);
@@ -614,18 +627,21 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isEditing) replaceUser(response.user);
       else insertUser(response.user);
       closeModal();
+      showToast({
+        type: 'success',
+        title: modalTexts().successTitle,
+        description: modalTexts().successDescription(response.user),
+      });
       return;
     }
     const error = response?.error;
     if (showFieldErrors(error?.fieldErrors)) return;
-    setFormError(error?.message || modalTexts().genericError);
     if (isEditing && error?.code === 'USER_NOT_FOUND') {
-      // Ya no está vigente: se quita de la tabla, como al eliminarlo, y no se puede reintentar
-      isUserGone = true;
-      updateCreateButtonState();
+      // Ya no está vigente: se quita de la tabla, como al eliminarlo, y el modal se cierra
       removeUser(userId);
-      cancelBtn.focus();
+      closeModal();
     }
+    showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
   };
 
   textInputs.forEach((input) => {
@@ -655,7 +671,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   createBtn.addEventListener('click', () => {
     if (isSaving) return;
-    setFormError('');
     // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
     if (validateFields(overlay)) return;
     // Envía password: passwordGenerator.value, en texto plano (al editar, null conserva la
@@ -666,33 +681,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar usuario ----------
 
-  const GENERIC_DELETE_ERROR = 'No se pudo eliminar el usuario. Intentá nuevamente.';
   // El usuario ya no está vigente: se quita de la tabla igual que después de darlo de baja
   const NO_LONGER_ACTIVE_CODES = ['USER_NOT_FOUND', 'USER_ALREADY_DELETED'];
 
   // El id sale del data-user-id de la fila del botón (el usuario_id, fijado al crearla), no de su
-  // posición en la tabla. Resuelve { message } para que el modal lo muestre sin cerrarse.
+  // posición en la tabla. Avisa el resultado con un toast y no resuelve ningún mensaje, así el
+  // modal se cierra siempre.
   const deleteUser = async (trigger) => {
     const row = trigger.closest('tr');
     const userId = Number(row?.dataset.userId);
+    // Antes de quitarlo de la lista: el toast de éxito lo nombra
+    const user = users.find((candidate) => candidate.id === userId);
     let response;
     try {
       response = await window.api?.users?.delete(userId);
     } catch (error) {
       console.error('Error al eliminar el usuario:', error);
     }
-    const isNoLongerActive = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
-    if (response?.ok || isNoLongerActive) {
+    if (response?.ok || NO_LONGER_ACTIVE_CODES.includes(response?.error?.code)) {
       triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
       removeUser(userId);
     }
-    if (response?.ok) return undefined;
-    return { message: response?.error?.message || GENERIC_DELETE_ERROR, canRetry: !isNoLongerActive };
+    if (response?.ok) {
+      showToast({
+        type: 'success',
+        title: 'Usuario eliminado',
+        description: `La cuenta de ${displayName(user)} ya no figura en el listado.`,
+      });
+    } else {
+      showToast({ type: 'error', title: 'No se pudo eliminar el usuario', description: errorDescription(response?.error) });
+    }
   };
 
-  // Componente compartido confirm-modal.component.js: espera la respuesta abierto y muestra el
-  // error, o que el usuario ya no está vigente, sin cerrarse. Si la fila ya no está, el foco pasa a
-  // Eliminar en la que quedó en su lugar.
+  // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
+  // cierra. Si la fila ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
   setupConfirmModal(document.getElementById('deleteUserOverlay'), {
     beforeOpen: closeAllDropdowns,
     onConfirm: deleteUser,
