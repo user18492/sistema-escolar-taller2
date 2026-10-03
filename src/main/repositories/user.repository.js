@@ -49,52 +49,55 @@ const FIND_BY_INSTITUTION_SQL = `
 // Baja lógica: la fila se conserva con la fecha de baja. Solo marca a un usuario vigente de la
 // institución, así una segunda baja (repetida o simultánea) no pisa la fecha de la primera.
 const MARK_AS_DELETED_SQL = `
-  UPDATE usuarios
-     SET deleted_at = NOW()
+  UPDATE usuario
+     SET fecha_eliminacion = NOW()
    WHERE usuario_id = $1
      AND institucion_id = $2
-     AND deleted_at IS NULL
+     AND fecha_eliminacion IS NULL
 `;
 
 // Cuenta también a los dados de baja.
 const EXISTS_IN_INSTITUTION_SQL = `
   SELECT 1
-    FROM usuarios
+    FROM usuario
    WHERE usuario_id = $1
      AND institucion_id = $2
 `;
 
 const EXISTS_NOT_DELETED_SQL = `
   SELECT 1
-    FROM usuarios
+    FROM usuario
    WHERE usuario_id = $1
      AND institucion_id = $2
-     AND deleted_at IS NULL
+     AND fecha_eliminacion IS NULL
 `;
 
-// Compara con todos los demás usuarios, también los de otras instituciones y los dados de baja,
-// como las restricciones UNIQUE de dni y email. El email se compara sin distinguir mayúsculas.
-// Con $3 null (un alta) no excluye a nadie: `<>` daría NULL y descartaría todas las filas.
+// Compara con los demás usuarios de la institución, también los dados de baja, como las
+// restricciones UNIQUE de dni y email: los de otra institución no cuentan, porque quien pertenece a
+// varias tiene una cuenta en cada una con el mismo dni y el mismo email. El email se compara sin
+// distinguir mayúsculas.
+// Con $4 null (un alta) no excluye a nadie: `<>` daría NULL y descartaría todas las filas.
 const FIND_TAKEN_FIELDS_SQL = `
-  SELECT COALESCE(BOOL_OR(dni = $1), FALSE)          AS dni_taken,
-         COALESCE(BOOL_OR(LOWER(email) = $2), FALSE) AS email_taken
-    FROM usuarios
-   WHERE usuario_id IS DISTINCT FROM $3
-     AND (dni = $1 OR LOWER(email) = $2)
+  SELECT COALESCE(BOOL_OR(dni = $2), FALSE)          AS dni_taken,
+         COALESCE(BOOL_OR(LOWER(email) = $3), FALSE) AS email_taken
+    FROM usuario
+   WHERE institucion_id = $1
+     AND usuario_id IS DISTINCT FROM $4
+     AND (dni = $2 OR LOWER(email) = $3)
 `;
 
-// Alta en la institución: usuario_estado toma su valor por defecto (activo) y deleted_at queda
+// Alta en la institución: estado toma su valor por defecto (activo) y fecha_eliminacion queda
 // NULL (vigente). imagen_url es null sin foto. Devuelve la fila creada, con el nombre del rol.
 const CREATE_SQL = `
   WITH created AS (
-    INSERT INTO usuarios (usuario_rol_id, institucion_id, nombre, apellido, dni, email,
-                          fecha_nacimiento, password_hash, imagen_url)
-    VALUES ((SELECT usuario_rol_id FROM usuario_roles WHERE nombre = $7), $1, $2, $3, $4, $5, $6, $8, $9)
-    RETURNING usuario_id, usuario_rol_id, usuario_estado, institucion_id, nombre, apellido,
+    INSERT INTO usuario (usuario_rol_id, institucion_id, nombre, apellido, dni, email,
+                         fecha_nacimiento, password_hash, imagen_url)
+    VALUES ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = $7), $1, $2, $3, $4, $5, $6, $8, $9)
+    RETURNING usuario_id, usuario_rol_id, estado, institucion_id, nombre, apellido,
               email, dni, fecha_nacimiento, imagen_url
   )
   SELECT u.usuario_id,
-         u.usuario_estado,
+         u.estado,
          u.institucion_id,
          u.nombre,
          u.apellido,
@@ -104,17 +107,17 @@ const CREATE_SQL = `
          u.imagen_url,
          r.nombre AS rol
     FROM created u
-    JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
 // Foto actual de un usuario vigente de la institución, con la fila bloqueada hasta el fin de la
 // transacción: así se sabe qué archivo reemplaza el UPDATE que sigue.
 const LOCK_FOR_UPDATE_SQL = `
   SELECT imagen_url
-    FROM usuarios
+    FROM usuario
    WHERE usuario_id = $1
      AND institucion_id = $2
-     AND deleted_at IS NULL
+     AND fecha_eliminacion IS NULL
      FOR UPDATE
 `;
 
@@ -123,23 +126,23 @@ const LOCK_FOR_UPDATE_SQL = `
 // Devuelve la fila como quedó, con el nombre del rol.
 const UPDATE_SQL = `
   WITH updated AS (
-    UPDATE usuarios
+    UPDATE usuario
        SET nombre = $3,
            apellido = $4,
            dni = $5,
            email = $6,
            fecha_nacimiento = $7,
-           usuario_rol_id = (SELECT usuario_rol_id FROM usuario_roles WHERE nombre = $8),
+           usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = $8),
            password_hash = COALESCE($9, password_hash),
            imagen_url = CASE WHEN $10 THEN $11 ELSE imagen_url END
      WHERE usuario_id = $1
        AND institucion_id = $2
-       AND deleted_at IS NULL
-    RETURNING usuario_id, usuario_rol_id, usuario_estado, institucion_id, nombre, apellido,
+       AND fecha_eliminacion IS NULL
+    RETURNING usuario_id, usuario_rol_id, estado, institucion_id, nombre, apellido,
               email, dni, fecha_nacimiento, imagen_url
   )
   SELECT u.usuario_id,
-         u.usuario_estado,
+         u.estado,
          u.institucion_id,
          u.nombre,
          u.apellido,
@@ -149,14 +152,14 @@ const UPDATE_SQL = `
          u.imagen_url,
          r.nombre AS rol
     FROM updated u
-    JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
-// Restricciones UNIQUE de usuarios (nombres que les da PostgreSQL según db/schema.sql) y el campo
-// que protege cada una.
+// Restricciones UNIQUE de usuario (con los nombres que les da db/schema.sql) y el campo que protege
+// cada una.
 const UNIQUE_CONSTRAINT_FIELDS = {
-  usuarios_dni_key: 'dni',
-  usuarios_email_key: 'email',
+  uq_usuario_institucion_dni: 'dni',
+  uq_usuario_institucion_email: 'email',
 };
 
 function toUser(row) {
@@ -207,11 +210,11 @@ async function existsNotDeleted(userId, institutionId) {
   return rows.length > 0;
 }
 
-// Campos ('dni', 'email') cuyo valor ya tiene un usuario distinto de `excludedUserId` (null en un
-// alta, para comparar con todos). Espera el dni solo con dígitos y el email normalizado, como se
-// guardan.
-async function findTakenFields({ dni, email }, excludedUserId) {
-  const { rows } = await query(FIND_TAKEN_FIELDS_SQL, [dni, email, excludedUserId]);
+// Campos ('dni', 'email') cuyo valor ya tiene un usuario de la institución distinto de
+// `excludedUserId` (null en un alta, para comparar con todos). Espera el dni solo con dígitos y el
+// email normalizado, como se guardan.
+async function findTakenFields(institutionId, { dni, email }, excludedUserId) {
+  const { rows } = await query(FIND_TAKEN_FIELDS_SQL, [institutionId, dni, email, excludedUserId]);
   const fields = [];
   if (rows[0].dni_taken) fields.push('dni');
   if (rows[0].email_taken) fields.push('email');
@@ -220,8 +223,8 @@ async function findTakenFields({ dni, email }, excludedUserId) {
 
 // Crea un usuario vigente y activo en la institución. Recibe los datos como update, con
 // `passwordHash` obligatorio y sin setImage: `imageFileName` es el archivo de su foto, o null sin
-// foto. Devuelve el usuario creado, sin password_hash. Si el dni o el email ya son de otro usuario,
-// PostgreSQL rechaza el alta: ver duplicateFieldOf.
+// foto. Devuelve el usuario creado, sin password_hash. Si el dni o el email ya son de otro usuario
+// de la institución, PostgreSQL rechaza el alta: ver duplicateFieldOf.
 async function create(
   institutionId,
   { firstName, lastName, dni, email, birthDate, role, passwordHash, imageFileName }
@@ -241,12 +244,12 @@ async function create(
 }
 
 // Reemplaza los datos de un usuario vigente de la institución. `birthDate` es 'AAAA-MM-DD', `role`
-// un valor de usuario_roles.nombre y `passwordHash` null para conservar la contraseña actual. Con
+// un valor de usuario_rol.nombre y `passwordHash` null para conservar la contraseña actual. Con
 // `setImage` true, la foto pasa a ser `imageFileName` (null la quita); con false se conserva.
 // Devuelve { user, previousImageFileName }: el usuario como quedó, sin password_hash, y el archivo de
 // la foto que tenía antes del cambio (null si no tenía). Devuelve null si no hay uno vigente con ese
-// id en la institución. Si el dni o el email ya son de otro usuario, PostgreSQL rechaza el cambio: ver
-// duplicateFieldOf.
+// id en la institución. Si el dni o el email ya son de otro usuario de la institución, PostgreSQL
+// rechaza el cambio: ver duplicateFieldOf.
 async function update(
   userId,
   institutionId,
@@ -275,7 +278,7 @@ async function update(
 }
 
 // Campo ('dni' o 'email') cuyo valor repetido causó `error`, si es una violación de una restricción
-// UNIQUE de usuarios; si no, null.
+// UNIQUE de usuario; si no, null.
 function duplicateFieldOf(error) {
   if (error?.code !== '23505') return null;
   return UNIQUE_CONSTRAINT_FIELDS[error.constraint] ?? null;

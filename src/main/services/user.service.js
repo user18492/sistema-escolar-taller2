@@ -21,7 +21,7 @@ class UserError extends Error {
 // cambian allá, hay que cambiarlas acá.
 const REQUIRED_MESSAGE = 'Campo obligatorio.';
 
-// Largo de las columnas usuarios.nombre y usuarios.apellido.
+// Largo de las columnas usuario.nombre y usuario.apellido.
 const NAME_MAX_LENGTH = 100;
 const LETTERS = 'A-Za-zÀ-ÖØ-öø-ÿ';
 const PERSON_NAME_PATTERN = new RegExp(`^[${LETTERS}]+([ '-][${LETTERS}]+)*$`);
@@ -56,7 +56,7 @@ function checkPersonName(value) {
   return PERSON_NAME_PATTERN.test(value) ? '' : 'Guiones y apóstrofos deben ir entre letras.';
 }
 
-// Recibe solo los dígitos, como se guarda en usuarios.dni.
+// Recibe solo los dígitos, como se guarda en usuario.dni.
 function checkDni(value) {
   if (!value) return REQUIRED_MESSAGE;
   if (!/^\d{7,8}$/.test(value)) return 'El DNI debe tener 7 u 8 dígitos.';
@@ -162,10 +162,11 @@ function duplicateError(fields, operation) {
   return new UserError('DUPLICATE_VALUE', messages.message, fieldErrors);
 }
 
-// Lanza un UserError DUPLICATE_VALUE si el dni o el email de `values` ya son de un usuario distinto
-// de `excludedUserId` (null en un alta).
-async function assertNotTaken(values, excludedUserId, operation) {
-  const takenFields = await userRepository.findTakenFields(values, excludedUserId);
+// Lanza un UserError DUPLICATE_VALUE si el dni o el email de `values` ya son de un usuario de la
+// institución distinto de `excludedUserId` (null en un alta). Los de otra institución no cuentan:
+// quien pertenece a varias tiene una cuenta en cada una, con el mismo dni y el mismo email.
+async function assertNotTaken(institutionId, values, excludedUserId, operation) {
+  const takenFields = await userRepository.findTakenFields(institutionId, values, excludedUserId);
   if (takenFields.length > 0) throw duplicateError(takenFields, operation);
 }
 
@@ -259,7 +260,8 @@ async function deleteUser(currentUser, userId) {
 // La foto anterior se borra recién cuando la base confirma el cambio.
 // Lanza un UserError si es el propio usuario de la sesión (CANNOT_EDIT_SELF), si algún dato no es
 // válido (INVALID_INPUT), si el usuario no existe en la institución o fue dado de baja
-// (USER_NOT_FOUND) o si el dni o el email ya son de otro usuario (DUPLICATE_VALUE, con fieldErrors).
+// (USER_NOT_FOUND) o si el dni o el email ya son de otro usuario de la institución, aunque esté dado
+// de baja (DUPLICATE_VALUE, con fieldErrors).
 async function updateUser(currentUser, userId, data) {
   // La tabla no ofrece al usuario de la sesión, pero el id llega del renderer: se vuelve a comprobar.
   // Su sesión guarda sus datos en memoria y no se actualizaría.
@@ -273,7 +275,7 @@ async function updateUser(currentUser, userId, data) {
     throw userNotFoundError();
   }
   // Excluye al propio usuario: conservar su dni o su email no es un duplicado.
-  await assertNotTaken(values, userId, 'update');
+  await assertNotTaken(currentUser.institutionId, values, userId, 'update');
 
   const passwordHash = data.password === null ? null : await hashPassword(data.password);
   const setImage = Boolean(jpeg) || removeImage;
@@ -296,8 +298,8 @@ async function updateUser(currentUser, userId, data) {
 // listUsers. `data` trae los mismos campos que en updateUser, con `password` obligatoria: llega en
 // texto plano y solo se guarda su hash. `image` null crea al usuario sin foto; `removeImage` no
 // quita nada, pero tampoco puede venir en true junto con una foto. Lanza un UserError si algún dato
-// no es válido o falta la contraseña (INVALID_INPUT) o si el dni o el email ya son de otro usuario,
-// aunque esté dado de baja o sea de otra institución (DUPLICATE_VALUE, con fieldErrors).
+// no es válido o falta la contraseña (INVALID_INPUT) o si el dni o el email ya son de otro usuario
+// de la institución, aunque esté dado de baja (DUPLICATE_VALUE, con fieldErrors).
 async function createUser(currentUser, data) {
   const values = parseUserData(data);
   // parseUserData acepta null porque al editar conserva la contraseña actual; un alta la necesita.
@@ -305,7 +307,7 @@ async function createUser(currentUser, data) {
     throw new UserError('INVALID_INPUT', 'Falta la contraseña del usuario.');
   }
   const { jpeg } = parseImageChange(data);
-  await assertNotTaken(values, null, 'create');
+  await assertNotTaken(currentUser.institutionId, values, null, 'create');
 
   const passwordHash = await hashPassword(data.password);
   const user = await saveWithImage(jpeg, (imageFileName) => saveUnique(

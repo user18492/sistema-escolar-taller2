@@ -35,7 +35,7 @@ function prepareImage(bytes) {
   return image.toJPEG(JPEG_QUALITY);
 }
 
-// Guarda el JPEG de prepareImage en un archivo nuevo y devuelve su nombre, para usuarios.imagen_url.
+// Guarda el JPEG de prepareImage en un archivo nuevo y devuelve su nombre, para usuario.imagen_url.
 function storeImage(jpeg) {
   return profileImageRepository.save(jpeg);
 }
@@ -52,7 +52,7 @@ async function discardImage(fileName) {
   }
 }
 
-// URL para mostrar la foto de usuarios.imagen_url, o null si no tiene una válida.
+// URL para mostrar la foto de usuario.imagen_url, o null si no tiene una válida.
 function toImageUrl(fileName) {
   if (!profileImageRepository.isStoredFileName(fileName)) return null;
   return `${PROFILE_IMAGE_SCHEME}://${PROFILE_IMAGE_HOST}/${fileName}`;

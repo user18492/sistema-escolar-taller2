@@ -4,7 +4,7 @@ const path = require('node:path');
 const { app } = require('electron');
 
 // Las fotos de perfil se guardan como archivos en la carpeta de datos de la aplicación (userData),
-// como la cuenta recordada, y usuarios.imagen_url guarda solo el nombre del archivo. Si varias PCs
+// como la cuenta recordada, y usuario.imagen_url guarda solo el nombre del archivo. Si varias PCs
 // usan la misma base, cada una ve solo las fotos subidas desde ella.
 const DIRECTORY_NAME = 'profile-images';
 

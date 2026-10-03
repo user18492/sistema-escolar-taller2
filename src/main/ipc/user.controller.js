@@ -4,7 +4,7 @@ const userService = require('../services/user.service');
 
 const { UserError } = userService;
 
-// Rango de usuarios.usuario_id (SERIAL): fuera de él, PostgreSQL rechazaría el parámetro.
+// Rango de usuario.usuario_id (INT): fuera de él, PostgreSQL rechazaría el parámetro.
 const MAX_USER_ID = 2 ** 31 - 1;
 
 function isUserId(value) {
