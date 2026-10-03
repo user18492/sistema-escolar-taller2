@@ -1,11 +1,11 @@
 const bcrypt = require('bcrypt');
 const userRepository = require('../repositories/user.repository');
 
-// Valores de usuario_roles.nombre con acceso al sistema.
+// Valores de usuario_rol.nombre con acceso al sistema.
 const RECOGNIZED_ROLES = ['ADMIN', 'SECRETARIO', 'PROFESOR'];
 
-// Mismo largo que la columna usuarios.email.
-const EMAIL_MAX_LENGTH = 150;
+// Mismo largo que la columna usuario.email.
+const EMAIL_MAX_LENGTH = 254;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Hash bcrypt (costo 10, como los de la base) de un texto descartable. Si el email no existe, se compara
@@ -61,30 +61,38 @@ function toPublicUser(user) {
   };
 }
 
-// Devuelve el usuario sin datos sensibles. Si las credenciales no permiten el acceso, lanza un AuthenticationError
-// (INVALID_INPUT, INVALID_CREDENTIALS, INACTIVE_USER, UNRECOGNIZED_ROLE).
+// Devuelve, sin datos sensibles, las cuentas con las que esas credenciales permiten ingresar: una por
+// institución, ordenadas por el nombre de la institución. Quien pertenece a varias instituciones tiene
+// una cuenta en cada una, con el mismo email y su propia contraseña: cuentan solo las cuentas en las que
+// la contraseña coincide y que están habilitadas (activas y con un rol reconocido). Si ninguna permite el
+// acceso, lanza un AuthenticationError (INVALID_INPUT, INVALID_CREDENTIALS, INACTIVE_USER, UNRECOGNIZED_ROLE).
 async function authenticate(credentials) {
   const { email, password } = credentials ?? {};
   const normalizedEmail = normalizeEmail(email);
   validateCredentials(normalizedEmail, password);
 
-  const user = await userRepository.findByEmail(normalizedEmail);
+  const accounts = await userRepository.findAllByEmail(normalizedEmail);
 
-  // Se compara aunque el usuario no exista o no tenga contraseña (bcrypt lanza un error con un hash null).
-  const passwordMatches = await bcrypt.compare(password, user?.passwordHash || DUMMY_PASSWORD_HASH);
-  if (!user?.passwordHash || !passwordMatches) {
+  // Sin cuentas se compara igual, contra el hash descartable. Las comparaciones corren a la vez (bcrypt
+  // las reparte en hilos), para que la respuesta no demore más por cada institución del email.
+  const passwordHashes = accounts.length > 0 ? accounts.map((account) => account.passwordHash) : [DUMMY_PASSWORD_HASH];
+  const matches = await Promise.all(passwordHashes.map((passwordHash) => bcrypt.compare(password, passwordHash)));
+  const matchingAccounts = accounts.filter((_account, index) => matches[index]);
+  if (matchingAccounts.length === 0) {
     throw new AuthenticationError('INVALID_CREDENTIALS', INVALID_CREDENTIALS_MESSAGE);
   }
 
-  // El estado de la cuenta se informa recién con la contraseña verificada.
-  if (!user.isActive) {
-    throw new AuthenticationError('INACTIVE_USER', 'Tu cuenta está suspendida. Contactá al administrador.');
-  }
-  if (!RECOGNIZED_ROLES.includes(user.role)) {
+  // El estado de las cuentas se informa recién con la contraseña verificada, y solo si ninguna permite
+  // ingresar: una cuenta suspendida no impide el acceso con las de otras instituciones.
+  const enabledAccounts = matchingAccounts.filter((account) => account.isActive && RECOGNIZED_ROLES.includes(account.role));
+  if (enabledAccounts.length === 0) {
+    if (matchingAccounts.some((account) => !account.isActive)) {
+      throw new AuthenticationError('INACTIVE_USER', 'Tu cuenta está suspendida. Contactá al administrador.');
+    }
     throw new AuthenticationError('UNRECOGNIZED_ROLE', 'Tu cuenta no tiene un rol habilitado. Contactá al administrador.');
   }
 
-  return toPublicUser(user);
+  return enabledAccounts.map(toPublicUser);
 }
 
 module.exports = { authenticate, normalizeEmail, isValidEmail, RECOGNIZED_ROLES, AuthenticationError };

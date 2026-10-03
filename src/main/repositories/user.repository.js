@@ -2,10 +2,11 @@ const { query, runInTransaction } = require('../database/connection');
 const { User } = require('../models/user.model');
 
 // Compara el email tal como llega: normalizarlo (espacios, mayúsculas) es tarea del servicio.
-// Los usuarios dados de baja no se encuentran: el login los trata como un email inexistente.
-const FIND_BY_EMAIL_SQL = `
+// Da una fila por institución: quien pertenece a varias tiene una cuenta en cada una, con el mismo
+// email. Las cuentas dadas de baja no se encuentran: el login las trata como inexistentes.
+const FIND_ALL_BY_EMAIL_SQL = `
   SELECT u.usuario_id,
-         u.usuario_estado,
+         u.estado,
          u.institucion_id,
          u.nombre,
          u.apellido,
@@ -16,11 +17,12 @@ const FIND_BY_EMAIL_SQL = `
          u.imagen_url,
          r.nombre AS rol,
          i.nombre AS institucion_nombre
-    FROM usuarios u
-    JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
-    JOIN instituciones i ON i.institucion_id = u.institucion_id
+    FROM usuario u
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
+    JOIN institucion i ON i.institucion_id = u.institucion_id
    WHERE u.email = $1
-     AND u.deleted_at IS NULL
+     AND u.fecha_eliminacion IS NULL
+   ORDER BY i.nombre, u.institucion_id
 `;
 
 // Listado de los usuarios vigentes de una institución, sin password_hash: los campos que no se
@@ -161,7 +163,7 @@ function toUser(row) {
   return new User({
     id: row.usuario_id,
     role: row.rol,
-    isActive: row.usuario_estado,
+    isActive: row.estado,
     institutionId: row.institucion_id,
     institutionName: row.institucion_nombre,
     firstName: row.nombre,
@@ -174,10 +176,11 @@ function toUser(row) {
   });
 }
 
-// Devuelve null si no hay un usuario con ese email.
-async function findByEmail(email) {
-  const { rows } = await query(FIND_BY_EMAIL_SQL, [email]);
-  return rows.length > 0 ? toUser(rows[0]) : null;
+// Cuentas vigentes con ese email, una por institución y ordenadas por el nombre de la institución.
+// Devuelve una lista vacía si no hay ninguna.
+async function findAllByEmail(email) {
+  const { rows } = await query(FIND_ALL_BY_EMAIL_SQL, [email]);
+  return rows.map(toUser);
 }
 
 // Usuarios vigentes de la institución ordenados por apellido y nombre, sin el de `excludedUserId`.
@@ -279,7 +282,7 @@ function duplicateFieldOf(error) {
 }
 
 module.exports = {
-  findByEmail,
+  findAllByEmail,
   findByInstitution,
   markAsDeleted,
   existsInInstitution,

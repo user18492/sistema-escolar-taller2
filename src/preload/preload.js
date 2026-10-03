@@ -14,11 +14,19 @@ contextBridge.exposeInMainWorld('api', {
     },
   },
   auth: {
-    // Resuelve { ok: true, user } o { ok: false, error: { code, message } }, con el mensaje listo para mostrar.
+    // Resuelve { ok: true, user } con la sesión iniciada o { ok: false, error: { code, message } }, con el
+    // mensaje listo para mostrar. Si las credenciales permiten ingresar a varias instituciones, resuelve
+    // { ok: true, institutions } ([{ id, name, role }], con el rol del usuario en cada una y name null si
+    // la institución no tiene nombre) y la sesión se inicia con selectInstitution.
     // Con un acceso exitoso, `rememberAccount` guarda el email para el próximo inicio o lo olvida.
     login: (email, password, rememberAccount) => ipcRenderer.invoke('auth:login', { email, password, rememberAccount }),
+    // Completa el login con la institución elegida (el id de una de `institutions`). Resuelve como login:
+    // { ok: true, user } o { ok: false, error: { code, message } }; NO_PENDING_LOGIN indica que hay que
+    // volver a ingresar las credenciales.
+    selectInstitution: (institutionId, rememberAccount) => ipcRenderer.invoke('auth:select-institution', { institutionId, rememberAccount }),
     // Resuelve { firstName, lastName, role, imageUrl, institutionName }, o null si no hay sesión iniciada.
     getCurrentUser: () => ipcRenderer.invoke('auth:get-current-user'),
+    // También descarta un login que quedó a la espera de elegir la institución.
     logout: () => ipcRenderer.invoke('auth:logout'),
     // Resuelve el email recordado, o null si no hay ninguno.
     getRememberedEmail: () => ipcRenderer.invoke('auth:get-remembered-email'),

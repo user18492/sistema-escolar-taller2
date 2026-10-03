@@ -61,6 +61,39 @@
 
             <button class="btn btn-primary login-submit" type="submit" id="loginSubmit">Login</button>
           </form>
+
+          <!-- Segundo paso, solo para quien pertenece a varias instituciones: login.js lo muestra en
+               lugar del formulario, con una opción por institución generada con la plantilla. -->
+          <div class="login-institutions" id="institutionStep" hidden>
+            <p class="login-account text-truncate" id="institutionAccount"></p>
+
+            <ul class="institution-list" id="institutionList" aria-labelledby="loginTitle"></ul>
+
+            <p class="form-error" id="institutionError" role="alert" hidden></p>
+
+            <button class="link-btn login-back" type="button" id="institutionBack">
+              <!-- resources/ChevronRight.svg, girado hacia la izquierda en login.css -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+              Volver
+            </button>
+          </div>
+
+          <template id="institutionOptionTemplate">
+            <li>
+              <button class="institution-option" type="button">
+                <span class="institution-option-text">
+                  <span class="institution-name text-truncate"></span>
+                  <span class="institution-role text-truncate"></span>
+                </span>
+                <!-- resources/ChevronRight.svg -->
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+            </li>
+          </template>
         </section>
       </main>
     </div>

@@ -35,8 +35,8 @@
   const NAME_PARTICLES = new Set(['de', 'del', 'la', 'las', 'los', 'y']);
 
   // Mismas reglas que auth.service.js, que el renderer no puede importar: el largo de la
-  // columna usuarios.email y un formato básico.
-  const EMAIL_MAX_LENGTH = 150;
+  // columna usuario.email y un formato básico.
+  const EMAIL_MAX_LENGTH = 254;
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const PHONE_PATTERN = /^\+?([\d -]|\(\d+\))+$/;
