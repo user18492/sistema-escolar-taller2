@@ -29,7 +29,7 @@ const FIND_ALL_BY_EMAIL_SQL = `
 // seleccionan quedan undefined.
 const FIND_BY_INSTITUTION_SQL = `
   SELECT u.usuario_id,
-         u.usuario_estado,
+         u.estado,
          u.institucion_id,
          u.nombre,
          u.apellido,
@@ -38,11 +38,11 @@ const FIND_BY_INSTITUTION_SQL = `
          u.fecha_nacimiento,
          u.imagen_url,
          r.nombre AS rol
-    FROM usuarios u
-    JOIN usuario_roles r ON r.usuario_rol_id = u.usuario_rol_id
+    FROM usuario u
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
    WHERE u.institucion_id = $1
      AND u.usuario_id <> $2
-     AND u.deleted_at IS NULL
+     AND u.fecha_eliminacion IS NULL
    ORDER BY u.apellido, u.nombre, u.usuario_id
 `;
 

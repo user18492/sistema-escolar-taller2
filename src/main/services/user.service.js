@@ -212,7 +212,7 @@ function toIsoDate(date) {
 }
 
 // Lista explícita de campos, como toPublicUser (auth.service.js): lo que muestran la tabla de Usuarios
-// y el modal de edición, y el id para identificar la fila. `role` es el valor de usuario_roles.nombre
+// y el modal de edición, y el id para identificar la fila. `role` es el valor de usuario_rol.nombre
 // e `imageUrl` la URL de su foto (null si no tiene).
 function toListedUser(user) {
   return {
