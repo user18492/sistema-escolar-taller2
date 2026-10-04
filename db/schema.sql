@@ -50,7 +50,8 @@ CREATE TABLE usuario (
     -- Hash bcrypt: siempre 60 caracteres
     imagen_url         VARCHAR(255),
     fecha_eliminacion  TIMESTAMPTZ,
-    -- NULL = vigente; con fecha = dado de baja (baja lógica): no se lista ni puede iniciar sesión.
+    -- NULL = vigente; con fecha = dado de baja (baja lógica): se lista aparte, como eliminado, y no
+    -- puede iniciar sesión.
     -- La fila se conserva con su dni y su email, así que la baja y la reactivación son un UPDATE
     -- de esta columna y no un INSERT: las restricciones UNIQUE también cuentan a los dados de baja
 

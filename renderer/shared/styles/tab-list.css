@@ -1,0 +1,64 @@
+/* Componente reutilizable: pestañas (tablist) que eligen lo que muestra una vista, p. ej. las filas
+   de su tabla. Marcado: <div class="tab-list" role="tablist"> con un <button class="tab" role="tab">
+   por pestaña y, opcional, un contador <span class="tab-count"> dentro de cada una. El
+   comportamiento lo aporta tab-list.component.js. */
+
+.tab-list {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* El subrayado de la pestaña elegida se apoya sobre la línea de la lista. */
+  margin-bottom: -1px;
+  padding: 16px 2px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  /* El alto del contador: la pestaña mide lo mismo con él o sin él. */
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: var(--color-text-primary);
+}
+
+/* Elegida: el texto, el contador y el subrayado comparten el color. */
+.tab[aria-selected="true"] {
+  border-bottom-color: currentColor;
+  color: var(--color-accent-blue);
+  cursor: default;
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: -2px;
+}
+
+/* Contador: toma el color del texto de su pestaña. */
+.tab-count {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.tab[aria-selected="true"] .tab-count {
+  background: var(--color-accent-blue-bg);
+}
+
+/* Vacío mientras la vista no tiene la cantidad. */
+.tab-count:empty {
+  display: none;
+}

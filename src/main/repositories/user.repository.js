@@ -25,8 +25,8 @@ const FIND_ALL_BY_EMAIL_SQL = `
    ORDER BY i.nombre, u.institucion_id
 `;
 
-// Listado de los usuarios vigentes de una institución, sin password_hash: los campos que no se
-// seleccionan quedan undefined.
+// Listado de los usuarios de una institución, vigentes y dados de baja (fecha_eliminacion los
+// distingue), sin password_hash: los campos que no se seleccionan quedan undefined.
 const FIND_BY_INSTITUTION_SQL = `
   SELECT u.usuario_id,
          u.estado,
@@ -37,25 +37,43 @@ const FIND_BY_INSTITUTION_SQL = `
          u.dni,
          u.fecha_nacimiento,
          u.imagen_url,
+         u.fecha_eliminacion,
          r.nombre AS rol
     FROM usuario u
     JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
    WHERE u.institucion_id = $1
      AND u.usuario_id <> $2
-     AND u.fecha_eliminacion IS NULL
    ORDER BY u.apellido, u.nombre, u.usuario_id
 `;
 
 // Baja lógica: la fila se conserva con la fecha de baja y queda suspendida, como exige
 // ck_usuario_baja_suspendido (db/schema.sql). Solo marca a un usuario vigente de la institución, así
 // una segunda baja (repetida o simultánea) no pisa la fecha de la primera.
+// Devuelve la fila como quedó, con el nombre del rol.
 const MARK_AS_DELETED_SQL = `
-  UPDATE usuario
-     SET fecha_eliminacion = NOW(),
-         estado = FALSE
-   WHERE usuario_id = $1
-     AND institucion_id = $2
-     AND fecha_eliminacion IS NULL
+  WITH deleted AS (
+    UPDATE usuario
+       SET fecha_eliminacion = NOW(),
+           estado = FALSE
+     WHERE usuario_id = $1
+       AND institucion_id = $2
+       AND fecha_eliminacion IS NULL
+    RETURNING usuario_id, usuario_rol_id, estado, institucion_id, nombre, apellido,
+              email, dni, fecha_nacimiento, imagen_url, fecha_eliminacion
+  )
+  SELECT u.usuario_id,
+         u.estado,
+         u.institucion_id,
+         u.nombre,
+         u.apellido,
+         u.email,
+         u.dni,
+         u.fecha_nacimiento,
+         u.imagen_url,
+         u.fecha_eliminacion,
+         r.nombre AS rol
+    FROM deleted u
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
 // Cuenta también a los dados de baja.
@@ -189,6 +207,7 @@ function toUser(row) {
     dni: row.dni,
     birthDate: row.fecha_nacimiento,
     imageFileName: row.imagen_url,
+    deletedAt: row.fecha_eliminacion,
   });
 }
 
@@ -199,17 +218,18 @@ async function findAllByEmail(email) {
   return rows.map(toUser);
 }
 
-// Usuarios vigentes de la institución ordenados por apellido y nombre, sin el de `excludedUserId`.
+// Usuarios de la institución, vigentes y dados de baja (con `deletedAt`), ordenados por apellido y
+// nombre, sin el de `excludedUserId`.
 async function findByInstitution(institutionId, excludedUserId) {
   const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId, excludedUserId]);
   return rows.map(toUser);
 }
 
-// Da de baja al usuario, que queda además suspendido. Devuelve true si lo hizo; false si no existe en
-// la institución o ya estaba dado de baja.
+// Da de baja al usuario, que queda además suspendido. Devuelve el usuario como quedó, sin
+// password_hash; null si no existe en la institución o ya estaba dado de baja.
 async function markAsDeleted(userId, institutionId) {
-  const { rowCount } = await query(MARK_AS_DELETED_SQL, [userId, institutionId]);
-  return rowCount > 0;
+  const { rows } = await query(MARK_AS_DELETED_SQL, [userId, institutionId]);
+  return rows.length > 0 ? toUser(rows[0]) : null;
 }
 
 // true si el usuario pertenece a la institución, esté vigente o dado de baja.

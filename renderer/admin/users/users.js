@@ -1,6 +1,9 @@
 // Vista Usuarios del Administrador: la tabla muestra los demás usuarios de la institución, que
 // llegan del proceso principal (window.api.users.list), y los filtros de columna los filtran en
 // memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
+// Las pestañas (tab-list.component.js) eligen qué usuarios se listan: los vigentes o los dados de
+// baja, que llegan en la misma lista con su deletedAt. Los eliminados son de solo lectura: muestran
+// la fecha de baja en lugar del estado y no tienen acciones.
 // Nuevo usuario lo crea, siempre activo (window.api.users.create), Editar guarda los cambios, entre
 // ellos el estado (window.api.users.update), y Eliminar da de baja al usuario (baja lógica,
 // window.api.users.delete).
@@ -19,9 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Tabla: usuarios de la institución ----------
 
+  const tabList = document.querySelector('.users-card .tab-list');
   const table = document.querySelector('.users-card .data-table');
   const tbody = table.tBodies[0];
-  const columnCount = table.tHead.rows[0].cells.length;
+  const headerCells = Array.from(table.tHead.rows[0].cells);
   const rowTemplate = document.getElementById('userRowTemplate');
   const optionTemplate = document.getElementById('userOptionTemplate');
   // El script del componente se carga sin defer en <head>: acá ya está definido y conectado
@@ -40,10 +44,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const roleLabels = labelsOf('roleFilter');
   const statusLabels = labelsOf('statusFilter');
 
+  // Vigentes y dados de baja juntos, en el orden de la base
   let users = [];
   let isLoaded = false;
+  // Pestaña elegida, por su data-tab: 'current' (Vigentes) o 'deleted' (Eliminados)
+  let activeTab = tabList.querySelector('[aria-selected="true"]').dataset.tab;
   // Valores elegidos en cada filtro de columna, por su data-filter
   const activeFilters = {};
+
+  // Pestaña donde se lista cada usuario: los dados de baja traen el instante de su baja (deletedAt)
+  const tabOf = (user) => (user.deletedAt ? 'deleted' : 'current');
+  const tabUsers = (tab = activeTab) => users.filter((user) => tabOf(user) === tab);
+  // deletedAt llega en ISO 8601 y se muestra el día, en la hora local, como DD/MM/AAAA
+  const deletedDateFormat = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const statusCode = (user) => (user.isActive ? 'ACTIVE' : 'SUSPENDED');
   // "Apellido, Nombre"
@@ -75,14 +88,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const matchesFilters = (user) =>
     Object.entries(activeFilters).every(([filter, values]) => values.length === 0 || values.includes(FILTER_KEYS[filter](user)));
 
+  // Los encabezados con data-tab son de una sola pestaña: Estado y Acciones de Vigentes, Fecha de
+  // baja de Eliminados
+  const showTabColumns = () => {
+    headerCells.forEach((header) => {
+      if (header.dataset.tab) header.hidden = header.dataset.tab !== activeTab;
+    });
+  };
+
+  const visibleColumnCount = () => headerCells.filter((header) => !header.hidden).length;
+
   // Cargando, error o sin resultados, en una única fila de todo el ancho
   const showMessage = (message) => {
     const row = document.createElement('tr');
     const cell = row.insertCell();
-    cell.colSpan = columnCount;
+    cell.colSpan = visibleColumnCount();
     cell.className = 'table-message';
     cell.textContent = message;
     tbody.replaceChildren(row);
+  };
+
+  // Contador de cada pestaña: el total de sus usuarios, sin contar los filtros de columna. Sin la
+  // lista cargada queda vacío y no se muestra (tab-list.css).
+  const renderTabCounts = () => {
+    tabList.querySelectorAll('[role="tab"]').forEach((tab) => {
+      tab.querySelector('.tab-count').textContent = isLoaded ? String(tabUsers(tab.dataset.tab).length) : '';
+    });
   };
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML
@@ -103,12 +134,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const findOption = (header, id) =>
     Array.from(header.querySelectorAll('.dropdown-option')).find((candidate) => candidate.dataset.value === id);
 
-  // Las opciones van antes de .dropdown-empty; column-filter.js las lee al usarlas
+  // Opciones de Usuario, DNI y Email con los usuarios de la pestaña elegida. Van antes de
+  // .dropdown-empty; column-filter.js las lee al usarlas. Llegan sin marcar, así que esos filtros
+  // dejan de aplicarse y sus embudos se actualizan.
   const fillFilterOptions = () => {
+    const listedUsers = tabUsers();
     Object.entries(FILTER_OPTION_TEXTS).forEach(([filter, textsOf]) => {
-      const list = table.querySelector(`th[data-filter="${filter}"] [role="listbox"]`);
+      const header = table.querySelector(`th[data-filter="${filter}"]`);
+      const list = header.querySelector('[role="listbox"]');
       const emptyState = list.querySelector('.dropdown-empty');
-      list.replaceChildren(...users.map((user) => createOption(user, textsOf(user))), emptyState);
+      list.replaceChildren(...listedUsers.map((user) => createOption(user, textsOf(user))), emptyState);
+      delete activeFilters[filter];
+      header.dispatchEvent(new Event('column-filter-refresh'));
+    });
+  };
+
+  // Deja todos los filtros de columna sin nada elegido (column-filter-reset), sin volver a dibujar
+  // la tabla
+  const resetFilters = () => {
+    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
+    table.querySelectorAll('th.column-filter').forEach((header) => {
+      delete activeFilters[header.dataset.filter];
+      header.dispatchEvent(new Event('column-filter-reset'));
     });
   };
 
@@ -119,27 +166,43 @@ document.addEventListener('DOMContentLoaded', () => {
     row.querySelector('.user-cell .text-truncate').textContent = fullName(user);
     row.cells[1].textContent = formatDni(user.dni ?? '');
     row.cells[2].querySelector('.text-truncate').textContent = user.email ?? '';
+    row.cells[4].textContent = roleLabels[user.role] ?? user.role ?? '';
+    if (user.deletedAt) {
+      // Eliminados: la fecha de baja ocupa el lugar del estado y la fila no lleva acciones
+      row.cells[3].textContent = deletedDateFormat.format(new Date(user.deletedAt));
+      row.cells[5].remove();
+      return row;
+    }
     // <status-badge> lee sus atributos al conectarse: se fijan antes de insertar la fila
     const status = statusCode(user);
     const badge = row.querySelector('status-badge');
     badge.setAttribute('status', status.toLowerCase());
     badge.setAttribute('label', statusLabels[status]);
-    row.cells[4].textContent = roleLabels[user.role] ?? user.role ?? '';
     return row;
   };
 
-  // Muestra la página `page` (por defecto, la actual) de los usuarios filtrados (10 por página, en
-  // memoria). Al cambiar un filtro se vuelve a la página 1; al recargar se conserva, y el componente
-  // la acota a la última que quede.
-  const renderRows = ({ page } = {}) => {
-    const visibleUsers = users.filter(matchesFilters);
-    const pageUsers = pagination.slice(visibleUsers, { page });
-    if (pageUsers.length) tbody.replaceChildren(...pageUsers.map(createRow));
-    else showMessage(users.length ? 'Ningún usuario coincide con los filtros.' : 'No hay otros usuarios registrados.');
+  // Sin usuarios en la pestaña elegida
+  const EMPTY_TAB_MESSAGES = {
+    current: 'No hay otros usuarios registrados.',
+    deleted: 'No hay usuarios eliminados.',
   };
 
-  // Punto de entrada también para recargar la lista después de crear, editar o eliminar.
+  // Muestra la página `page` (por defecto, la actual) de los usuarios de la pestaña elegida que
+  // pasan los filtros (10 por página, en memoria). Al cambiar un filtro o de pestaña se vuelve a la
+  // página 1; al recargar se conserva, y el componente la acota a la última que quede.
+  const renderRows = ({ page } = {}) => {
+    const listedUsers = tabUsers();
+    const visibleUsers = listedUsers.filter(matchesFilters);
+    const pageUsers = pagination.slice(visibleUsers, { page });
+    if (pageUsers.length) tbody.replaceChildren(...pageUsers.map(createRow));
+    else showMessage(listedUsers.length ? 'Ningún usuario coincide con los filtros.' : EMPTY_TAB_MESSAGES[activeTab]);
+  };
+
+  // Punto de entrada también para volver a pedir la lista cuando la que está en memoria quedó
+  // vieja. Conserva la pestaña, la página y los filtros de Estado y Rol.
   async function loadUsers() {
+    isLoaded = false;
+    renderTabCounts();
     showMessage('Cargando usuarios…');
     let response;
     try {
@@ -154,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
     users = response.users;
     isLoaded = true;
     fillFilterOptions();
+    renderTabCounts();
     renderRows();
   }
 
@@ -164,15 +228,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isLoaded) renderRows({ page: 1 });
   });
 
+  // Otra pestaña: sus columnas y sus usuarios, sin filtros de columna y desde la página 1. Los
+  // contadores no cambian: salen de la misma lista en memoria. Mientras carga o si la carga falló,
+  // el mensaje de la tabla sigue, ajustado a las columnas de la pestaña.
+  tabList.addEventListener('tab-change', (event) => {
+    activeTab = event.detail.tab;
+    showTabColumns();
+    resetFilters();
+    if (isLoaded) {
+      fillFilterOptions();
+      renderRows({ page: 1 });
+    } else {
+      tbody.querySelector('.table-message').colSpan = visibleColumnCount();
+    }
+  });
+
   // Previo, Siguiente o un número: el componente ya marcó la página nueva
-  pagination.addEventListener('page-change', () => renderRows());
+  pagination.addEventListener('page-change', () => {
+    if (isLoaded) renderRows();
+  });
 
   loadUsers();
 
   // ---------- Tabla: cambios después de crear, editar o eliminar ----------
 
   // Sin recargar la lista: se conservan los filtros y, salvo al crear, la página (el componente la
-  // acota si la última quedó vacía).
+  // acota si la última quedó vacía). Los contadores de las pestañas se actualizan con cada cambio.
+  // Solo se vuelve a pedir la lista (loadUsers) si el proceso principal avisa que el usuario ya no
+  // está vigente: lo dio de baja otra sesión y la lista en memoria quedó vieja.
 
   // Orden aproximado al de la base (apellido, nombre, id): el exacto depende de su intercalación y
   // se aplica en la próxima carga.
@@ -182,10 +265,11 @@ document.addEventListener('DOMContentLoaded', () => {
     nameCollator.compare(a.firstName ?? '', b.firstName ?? '') ||
     a.id - b.id;
 
-  // Agrega al usuario creado a la lista en memoria y a las opciones de Usuario, DNI y Email, en su
-  // lugar alfabético, sin tocar los filtros. Si coincide con los filtros activos, la tabla pasa a la
-  // página donde quedó; si no, no se muestra. Si la lista no se había podido cargar, se vuelve a
-  // pedir: mostrar solo al usuario nuevo taparía el error.
+  // Agrega al usuario creado a la lista en memoria, en su lugar alfabético, y lo cuenta en su
+  // pestaña (Vigentes). Si es la elegida, lo agrega también a las opciones de Usuario, DNI y Email,
+  // sin tocar los filtros: si coincide con los activos, la tabla pasa a la página donde quedó; si
+  // no, no se muestra. En Eliminados solo cambia el contador de Vigentes. Si la lista no se había
+  // podido cargar, se vuelve a pedir: mostrar solo al usuario nuevo taparía el error.
   const insertUser = (newUser) => {
     if (!isLoaded) {
       loadUsers();
@@ -193,22 +277,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const index = users.findIndex((user) => compareUsers(newUser, user) < 0);
     const position = index === -1 ? users.length : index;
-    const nextUser = users[position];
     users = users.toSpliced(position, 0, newUser);
+    renderTabCounts();
+    if (tabOf(newUser) !== activeTab) return;
+    // Su opción va antes de la del usuario que lo sigue en la pestaña
+    const nextUser = users.slice(position + 1).find((user) => tabOf(user) === activeTab);
     Object.entries(FILTER_OPTION_TEXTS).forEach(([filter, textsOf]) => {
       const list = table.querySelector(`th[data-filter="${filter}"] [role="listbox"]`);
       const reference = (nextUser && findOption(list, String(nextUser.id))) ?? list.querySelector('.dropdown-empty');
       list.insertBefore(createOption(newUser, textsOf(newUser)), reference);
     });
-    const visibleIndex = users.filter(matchesFilters).indexOf(newUser);
+    const visibleIndex = tabUsers().filter(matchesFilters).indexOf(newUser);
     renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
   };
 
-  // Quita al usuario de la lista en memoria y de las opciones de Usuario, DNI y Email, sin tocar a
-  // los demás ni los otros filtros.
-  const removeUser = (userId) => {
-    const id = String(userId);
-    users = users.filter((user) => String(user.id) !== id);
+  // Pasa a Eliminados al usuario dado de baja (`deletedUser`, como quedó): lo reemplaza en la lista
+  // en memoria, donde conserva su lugar, y actualiza los contadores. Las bajas se hacen desde
+  // Vigentes, así que también lo quita de las opciones de Usuario, DNI y Email, sin tocar a los
+  // demás ni los otros filtros, y su fila deja de mostrarse.
+  const moveToDeleted = (deletedUser) => {
+    const id = String(deletedUser.id);
+    users = users.map((user) => (String(user.id) === id ? deletedUser : user));
     Object.keys(FILTER_OPTION_TEXTS).forEach((filter) => {
       const header = table.querySelector(`th[data-filter="${filter}"]`);
       const option = findOption(header, id);
@@ -220,6 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
       activeFilters[filter] = (activeFilters[filter] ?? []).filter((value) => value !== id);
       header.dispatchEvent(new Event('column-filter-refresh'));
     });
+    renderTabCounts();
     renderRows();
   };
 
@@ -637,6 +727,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Error al guardar el usuario:', error);
     }
+    // El usuario que se editaba ya no está vigente: la lista se vuelve a pedir antes de liberar el
+    // modal, que se cierra más abajo
+    const isGone = isEditing && response?.error?.code === 'USER_NOT_FOUND';
+    if (isGone) await loadUsers();
     setSaving(false);
 
     if (response?.ok) {
@@ -652,11 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const error = response?.error;
     if (showFieldErrors(error?.fieldErrors)) return;
-    if (isEditing && error?.code === 'USER_NOT_FOUND') {
-      // Ya no está vigente: se quita de la tabla, como al eliminarlo, y el modal se cierra
-      removeUser(userId);
-      closeModal();
-    }
+    if (isGone) closeModal();
     showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
   };
 
@@ -697,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar usuario ----------
 
-  // El usuario ya no está vigente: se quita de la tabla igual que después de darlo de baja
+  // El usuario ya no está vigente: la lista en memoria quedó vieja y se vuelve a pedir
   const NO_LONGER_ACTIVE_CODES = ['USER_NOT_FOUND', 'USER_ALREADY_DELETED'];
 
   // El id sale del data-user-id de la fila del botón (el usuario_id, fijado al crearla), no de su
@@ -706,27 +796,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteUser = async (trigger) => {
     const row = trigger.closest('tr');
     const userId = Number(row?.dataset.userId);
-    // Antes de quitarlo de la lista: el toast de éxito lo nombra
-    const user = users.find((candidate) => candidate.id === userId);
     let response;
     try {
       response = await window.api?.users?.delete(userId);
     } catch (error) {
       console.error('Error al eliminar el usuario:', error);
     }
-    if (response?.ok || NO_LONGER_ACTIVE_CODES.includes(response?.error?.code)) {
-      triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
-      removeUser(userId);
-    }
+    const isGone = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
+    // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
+    if (response?.ok || isGone) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
     if (response?.ok) {
+      moveToDeleted(response.user);
       showToast({
         type: 'success',
         title: 'Usuario eliminado',
-        description: `La cuenta de ${displayName(user)} ya no figura en el listado.`,
+        description: `La cuenta de ${displayName(response.user)} pasó a Eliminados.`,
       });
-    } else {
-      showToast({ type: 'error', title: 'No se pudo eliminar el usuario', description: errorDescription(response?.error) });
+      return;
     }
+    if (isGone) await loadUsers();
+    showToast({ type: 'error', title: 'No se pudo eliminar el usuario', description: errorDescription(response?.error) });
   };
 
   // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se

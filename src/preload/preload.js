@@ -36,10 +36,11 @@ contextBridge.exposeInMainWorld('api', {
   // { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal cierra la
   // sesión y vuelve al login.
   users: {
-    // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, ordenados por apellido
-    // y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role, imageUrl }, con birthDate
-    // 'AAAA-MM-DD' o null e imageUrl la URL de su foto, profile-image://avatars/<archivo>, o null), o
-    // { ok: false, error: { code, message } }.
+    // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, vigentes y dados de
+    // baja, ordenados por apellido y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role,
+    // imageUrl, deletedAt }, con birthDate 'AAAA-MM-DD' o null, imageUrl la URL de su foto,
+    // profile-image://avatars/<archivo>, o null, y deletedAt el instante de su baja en ISO 8601, o null si
+    // está vigente), o { ok: false, error: { code, message } }.
     list: () => ipcRenderer.invoke('users:list'),
     // Solo ADMIN. Crea un usuario en su institución, siempre activo. `data` tiene los campos de update
     // sin isActive y con password obligatoria: viaja en texto plano y el proceso principal guarda solo
@@ -60,8 +61,9 @@ contextBridge.exposeInMainWorld('api', {
     // está vigente.
     update: (userId, data) => ipcRenderer.invoke('users:update', userId, data),
     // Solo ADMIN. Baja lógica del usuario con ese id (usuario_id) de su institución, que queda además
-    // suspendido. Resuelve { ok: true } o { ok: false, error: { code, message } }; USER_NOT_FOUND y
-    // USER_ALREADY_DELETED indican que ya no está vigente.
+    // suspendido. Resuelve { ok: true, user } con el usuario como quedó (mismos campos que list, con su
+    // deletedAt) o { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_ALREADY_DELETED indican
+    // que ya no está vigente.
     delete: (userId) => ipcRenderer.invoke('users:delete', userId),
   },
 });

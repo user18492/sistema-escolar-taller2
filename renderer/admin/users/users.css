@@ -9,6 +9,14 @@
   gap: 20px;
 }
 
+/* ---------- Pestañas (Vigentes / Eliminados) ---------- */
+
+/* La lista (tab-list.css) llega hasta los bordes de la card, así su línea la cruza de lado a lado. */
+.users-card .tab-list {
+  margin: -24px -24px 0;
+  padding: 0 24px;
+}
+
 /* ---------- Dropdown custom (Rol / Estado) ---------- */
 
 /* Opciones con avatar (Nombre / DNI): patrón .avatar-item de base.css */

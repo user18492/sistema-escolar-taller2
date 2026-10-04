@@ -50,8 +50,7 @@ async function deleteUser(currentUser, userId) {
     return failure('INVALID_INPUT', 'No se pudo identificar al usuario.');
   }
   try {
-    await userService.deleteUser(currentUser, userId);
-    return { ok: true };
+    return { ok: true, user: await userService.deleteUser(currentUser, userId) };
   } catch (error) {
     if (error instanceof UserError) {
       return failure(error.code, error.message);

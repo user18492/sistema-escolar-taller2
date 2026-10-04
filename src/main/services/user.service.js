@@ -213,8 +213,10 @@ function toIsoDate(date) {
 }
 
 // Lista explícita de campos, como toPublicUser (auth.service.js): lo que muestran la tabla de Usuarios
-// y el modal de edición, y el id para identificar la fila. `role` es el valor de usuario_rol.nombre
-// e `imageUrl` la URL de su foto (null si no tiene).
+// y el modal de edición, y el id para identificar la fila. `role` es el valor de usuario_rol.nombre,
+// `imageUrl` la URL de su foto (null si no tiene) y `deletedAt` el instante de su baja en ISO 8601
+// (null si está vigente, también cuando la consulta no trae la columna: el alta y la edición solo
+// devuelven usuarios vigentes).
 function toListedUser(user) {
   return {
     id: user.id,
@@ -226,25 +228,29 @@ function toListedUser(user) {
     isActive: user.isActive,
     role: user.role,
     imageUrl: profileImageService.toImageUrl(user.imageFileName),
+    deletedAt: user.deletedAt instanceof Date ? user.deletedAt.toISOString() : null,
   };
 }
 
-// Usuarios de la institución de `currentUser` (el de la sesión), sin él mismo.
+// Usuarios de la institución de `currentUser` (el de la sesión), vigentes y dados de baja, sin él
+// mismo.
 async function listUsers(currentUser) {
   const users = await userRepository.findByInstitution(currentUser.institutionId, currentUser.id);
   return users.map(toListedUser);
 }
 
 // Baja lógica de un usuario de la institución de `currentUser`: la fila queda con su fecha de baja y
-// suspendida, deja de listarse y no puede iniciar sesión. Lanza un UserError si es el propio usuario
-// de la sesión (CANNOT_DELETE_SELF), si no existe en la institución (USER_NOT_FOUND) o si ya estaba
-// dado de baja (USER_ALREADY_DELETED).
+// suspendida, pasa a listarse como dada de baja y no puede iniciar sesión. Devuelve al usuario como
+// quedó, con los campos de listUsers. Lanza un UserError si es el propio usuario de la sesión
+// (CANNOT_DELETE_SELF), si no existe en la institución (USER_NOT_FOUND) o si ya estaba dado de baja
+// (USER_ALREADY_DELETED).
 async function deleteUser(currentUser, userId) {
   // La tabla no ofrece al usuario de la sesión, pero el id llega del renderer: se vuelve a comprobar.
   if (userId === currentUser.id) {
     throw new UserError('CANNOT_DELETE_SELF', 'No podés eliminar tu propia cuenta.');
   }
-  if (await userRepository.markAsDeleted(userId, currentUser.institutionId)) return;
+  const deletedUser = await userRepository.markAsDeleted(userId, currentUser.institutionId);
+  if (deletedUser) return toListedUser(deletedUser);
 
   // No se marcó: si existe en la institución es porque ya estaba dado de baja.
   if (await userRepository.existsInInstitution(userId, currentUser.institutionId)) {

@@ -15,6 +15,7 @@ class User {
     dni,
     birthDate,
     imageFileName,
+    deletedAt,
   }) {
     this.id = id;
     this.role = role;
@@ -32,6 +33,8 @@ class User {
     // Nombre del archivo de la foto de perfil (usuario.imagen_url), no una URL: profile-image.service.js
     // lo convierte en la URL que muestra la interfaz.
     this.imageFileName = imageFileName;
+    // Fecha de la baja lógica (usuario.fecha_eliminacion); null = vigente.
+    this.deletedAt = deletedAt;
   }
 }
 
