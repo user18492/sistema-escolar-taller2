@@ -28,6 +28,12 @@ function isUserData(value) {
   );
 }
 
+// Al editar llega además `isActive` (booleano): el estado no se elige en el alta, que siempre crea
+// al usuario activo.
+function isUserUpdateData(value) {
+  return isUserData(value) && typeof value.isActive === 'boolean';
+}
+
 // Nunca rechaza: si la consulta falla, devuelve un mensaje genérico con el detalle en la consola.
 async function listUsers(currentUser) {
   try {
@@ -61,7 +67,7 @@ async function updateUser(currentUser, userId, data) {
   if (!isUserId(userId)) {
     return failure('INVALID_INPUT', 'No se pudo identificar al usuario.');
   }
-  if (!isUserData(data)) {
+  if (!isUserUpdateData(data)) {
     return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');
   }
   try {
@@ -92,7 +98,8 @@ async function createUser(currentUser, data) {
   }
 }
 
-// Sin sesión o con otro rol, handleProtected responde UNAUTHENTICATED o FORBIDDEN sin llamar a la acción.
+// Sin sesión, con otro rol o con la cuenta suspendida, handleProtected responde UNAUTHENTICATED,
+// FORBIDDEN o ACCOUNT_SUSPENDED sin llamar a la acción.
 function registerUserHandlers(browserWindow) {
   handleProtected(browserWindow, 'users:list', ['ADMIN'], listUsers);
   handleProtected(browserWindow, 'users:create', ['ADMIN'], createUser);

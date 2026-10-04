@@ -46,11 +46,13 @@ const FIND_BY_INSTITUTION_SQL = `
    ORDER BY u.apellido, u.nombre, u.usuario_id
 `;
 
-// Baja lógica: la fila se conserva con la fecha de baja. Solo marca a un usuario vigente de la
-// institución, así una segunda baja (repetida o simultánea) no pisa la fecha de la primera.
+// Baja lógica: la fila se conserva con la fecha de baja y queda suspendida, como exige
+// ck_usuario_baja_suspendido (db/schema.sql). Solo marca a un usuario vigente de la institución, así
+// una segunda baja (repetida o simultánea) no pisa la fecha de la primera.
 const MARK_AS_DELETED_SQL = `
   UPDATE usuario
-     SET fecha_eliminacion = NOW()
+     SET fecha_eliminacion = NOW(),
+         estado = FALSE
    WHERE usuario_id = $1
      AND institucion_id = $2
      AND fecha_eliminacion IS NULL
@@ -72,6 +74,14 @@ const EXISTS_NOT_DELETED_SQL = `
      AND fecha_eliminacion IS NULL
 `;
 
+const EXISTS_ACTIVE_SQL = `
+  SELECT 1
+    FROM usuario
+   WHERE usuario_id = $1
+     AND estado
+     AND fecha_eliminacion IS NULL
+`;
+
 // Compara con los demás usuarios de la institución, también los dados de baja, como las
 // restricciones UNIQUE de dni y email: los de otra institución no cuentan, porque quien pertenece a
 // varias tiene una cuenta en cada una con el mismo dni y el mismo email. El email se compara sin
@@ -86,13 +96,14 @@ const FIND_TAKEN_FIELDS_SQL = `
      AND (dni = $2 OR LOWER(email) = $3)
 `;
 
-// Alta en la institución: estado toma su valor por defecto (activo) y fecha_eliminacion queda
-// NULL (vigente). imagen_url es null sin foto. Devuelve la fila creada, con el nombre del rol.
+// Alta en la institución: el usuario queda activo (estado TRUE, sin depender del valor por defecto
+// de la columna) y vigente (fecha_eliminacion NULL). imagen_url es null sin foto. Devuelve la fila
+// creada, con el nombre del rol.
 const CREATE_SQL = `
   WITH created AS (
-    INSERT INTO usuario (usuario_rol_id, institucion_id, nombre, apellido, dni, email,
+    INSERT INTO usuario (usuario_rol_id, institucion_id, estado, nombre, apellido, dni, email,
                          fecha_nacimiento, password_hash, imagen_url)
-    VALUES ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = $7), $1, $2, $3, $4, $5, $6, $8, $9)
+    VALUES ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = $7), $1, TRUE, $2, $3, $4, $5, $6, $8, $9)
     RETURNING usuario_id, usuario_rol_id, estado, institucion_id, nombre, apellido,
               email, dni, fecha_nacimiento, imagen_url
   )
@@ -123,6 +134,7 @@ const LOCK_FOR_UPDATE_SQL = `
 
 // Solo modifica a un usuario vigente de la institución. password_hash cambia solo si llega uno:
 // con $9 null se conserva el actual. imagen_url cambia a $11 (null quita la foto) solo con $10 true.
+// estado es $12: true = activo, false = suspendido.
 // Devuelve la fila como quedó, con el nombre del rol.
 const UPDATE_SQL = `
   WITH updated AS (
@@ -134,7 +146,8 @@ const UPDATE_SQL = `
            fecha_nacimiento = $7,
            usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = $8),
            password_hash = COALESCE($9, password_hash),
-           imagen_url = CASE WHEN $10 THEN $11 ELSE imagen_url END
+           imagen_url = CASE WHEN $10 THEN $11 ELSE imagen_url END,
+           estado = $12
      WHERE usuario_id = $1
        AND institucion_id = $2
        AND fecha_eliminacion IS NULL
@@ -192,7 +205,8 @@ async function findByInstitution(institutionId, excludedUserId) {
   return rows.map(toUser);
 }
 
-// Devuelve true si dio de baja al usuario; false si no existe en la institución o ya estaba dado de baja.
+// Da de baja al usuario, que queda además suspendido. Devuelve true si lo hizo; false si no existe en
+// la institución o ya estaba dado de baja.
 async function markAsDeleted(userId, institutionId) {
   const { rowCount } = await query(MARK_AS_DELETED_SQL, [userId, institutionId]);
   return rowCount > 0;
@@ -207,6 +221,12 @@ async function existsInInstitution(userId, institutionId) {
 // true si el usuario pertenece a la institución y no está dado de baja.
 async function existsNotDeleted(userId, institutionId) {
   const { rows } = await query(EXISTS_NOT_DELETED_SQL, [userId, institutionId]);
+  return rows.length > 0;
+}
+
+// true si el usuario está activo y no está dado de baja: es la cuenta que puede usar el sistema.
+async function existsActive(userId) {
+  const { rows } = await query(EXISTS_ACTIVE_SQL, [userId]);
   return rows.length > 0;
 }
 
@@ -244,8 +264,9 @@ async function create(
 }
 
 // Reemplaza los datos de un usuario vigente de la institución. `birthDate` es 'AAAA-MM-DD', `role`
-// un valor de usuario_rol.nombre y `passwordHash` null para conservar la contraseña actual. Con
-// `setImage` true, la foto pasa a ser `imageFileName` (null la quita); con false se conserva.
+// un valor de usuario_rol.nombre, `isActive` false para suspenderlo y `passwordHash` null para
+// conservar la contraseña actual. Con `setImage` true, la foto pasa a ser `imageFileName` (null la
+// quita); con false se conserva.
 // Devuelve { user, previousImageFileName }: el usuario como quedó, sin password_hash, y el archivo de
 // la foto que tenía antes del cambio (null si no tenía). Devuelve null si no hay uno vigente con ese
 // id en la institución. Si el dni o el email ya son de otro usuario de la institución, PostgreSQL
@@ -253,7 +274,7 @@ async function create(
 async function update(
   userId,
   institutionId,
-  { firstName, lastName, dni, email, birthDate, role, passwordHash, setImage, imageFileName }
+  { firstName, lastName, dni, email, birthDate, role, isActive, passwordHash, setImage, imageFileName }
 ) {
   // En una transacción, y no con RETURNING OLD (PostgreSQL 18), para funcionar con cualquier versión.
   return runInTransaction(async (transactionQuery) => {
@@ -272,6 +293,7 @@ async function update(
       passwordHash,
       setImage,
       imageFileName,
+      isActive,
     ]);
     return { user: toUser(rows[0]), previousImageFileName: locked.rows[0].imagen_url };
   });
@@ -290,6 +312,7 @@ module.exports = {
   markAsDeleted,
   existsInInstitution,
   existsNotDeleted,
+  existsActive,
   findTakenFields,
   create,
   update,

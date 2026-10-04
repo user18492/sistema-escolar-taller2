@@ -4,7 +4,7 @@
 -- Convenciones:
 --   - Claves primarias INT GENERATED ALWAYS AS IDENTITY: un INSERT no puede fijar el id.
 --   - Todas las restricciones llevan nombre: pk_<tabla>, fk_<tabla>_<tabla referenciada>,
---     uq_<tabla>_<columnas>.
+--     uq_<tabla>_<columnas>, ck_<tabla>_<regla>.
 
 BEGIN;
 
@@ -39,7 +39,7 @@ CREATE TABLE usuario (
     institucion_id     INT           NOT NULL,
     usuario_rol_id     INT           NOT NULL,
     estado             BOOLEAN       NOT NULL DEFAULT TRUE,
-    -- true = Activo, false = Suspendido
+    -- true = Activo, false = Suspendido: no puede iniciar sesión, pero se sigue listando
     nombre             VARCHAR(100)  NOT NULL,
     apellido           VARCHAR(100)  NOT NULL,
     dni                VARCHAR(8)    NOT NULL,
@@ -58,7 +58,9 @@ CREATE TABLE usuario (
     CONSTRAINT fk_usuario_institucion FOREIGN KEY (institucion_id) REFERENCES institucion(institucion_id),
     CONSTRAINT fk_usuario_usuario_rol FOREIGN KEY (usuario_rol_id) REFERENCES usuario_rol(usuario_rol_id),
     CONSTRAINT uq_usuario_institucion_dni UNIQUE (institucion_id, dni),
-    CONSTRAINT uq_usuario_institucion_email UNIQUE (institucion_id, email)
+    CONSTRAINT uq_usuario_institucion_email UNIQUE (institucion_id, email),
+    -- Todo dado de baja queda suspendido; un suspendido no necesariamente está dado de baja
+    CONSTRAINT ck_usuario_baja_suspendido CHECK (fecha_eliminacion IS NULL OR estado = FALSE)
 );
 
 -- Indice porque sino no se hace solo. institucion_id no necesita uno propio: ya es la primera

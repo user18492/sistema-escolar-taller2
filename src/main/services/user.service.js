@@ -235,10 +235,10 @@ async function listUsers(currentUser) {
   return users.map(toListedUser);
 }
 
-// Baja lógica de un usuario de la institución de `currentUser`: la fila queda con su fecha de baja,
-// deja de listarse y no puede iniciar sesión. Lanza un UserError si es el propio usuario de la sesión
-// (CANNOT_DELETE_SELF), si no existe en la institución (USER_NOT_FOUND) o si ya estaba dado de baja
-// (USER_ALREADY_DELETED).
+// Baja lógica de un usuario de la institución de `currentUser`: la fila queda con su fecha de baja y
+// suspendida, deja de listarse y no puede iniciar sesión. Lanza un UserError si es el propio usuario
+// de la sesión (CANNOT_DELETE_SELF), si no existe en la institución (USER_NOT_FOUND) o si ya estaba
+// dado de baja (USER_ALREADY_DELETED).
 async function deleteUser(currentUser, userId) {
   // La tabla no ofrece al usuario de la sesión, pero el id llega del renderer: se vuelve a comprobar.
   if (userId === currentUser.id) {
@@ -255,8 +255,9 @@ async function deleteUser(currentUser, userId) {
 
 // Guarda los datos de un usuario vigente de la institución de `currentUser` y lo devuelve como
 // quedó, con los campos de listUsers. `data` trae firstName, lastName, dni, email, birthDate
-// ('AAAA-MM-DD'), role, password (una contraseña nueva, o null para conservar la actual), image (el
-// PNG del recorte de una foto nueva, o null para no cambiarla) y removeImage (true quita la foto).
+// ('AAAA-MM-DD'), role, isActive (false lo suspende: sigue en el listado, pero no puede iniciar
+// sesión), password (una contraseña nueva, o null para conservar la actual), image (el PNG del
+// recorte de una foto nueva, o null para no cambiarla) y removeImage (true quita la foto).
 // La foto anterior se borra recién cuando la base confirma el cambio.
 // Lanza un UserError si es el propio usuario de la sesión (CANNOT_EDIT_SELF), si algún dato no es
 // válido (INVALID_INPUT), si el usuario no existe en la institución o fue dado de baja
@@ -282,6 +283,7 @@ async function updateUser(currentUser, userId, data) {
   const result = await saveWithImage(jpeg, (imageFileName) => saveUnique(
     () => userRepository.update(userId, currentUser.institutionId, {
       ...values,
+      isActive: data.isActive,
       passwordHash,
       setImage,
       imageFileName,
@@ -294,12 +296,13 @@ async function updateUser(currentUser, userId, data) {
   return toListedUser(result.user);
 }
 
-// Crea un usuario activo en la institución de `currentUser` y lo devuelve con los campos de
-// listUsers. `data` trae los mismos campos que en updateUser, con `password` obligatoria: llega en
-// texto plano y solo se guarda su hash. `image` null crea al usuario sin foto; `removeImage` no
-// quita nada, pero tampoco puede venir en true junto con una foto. Lanza un UserError si algún dato
-// no es válido o falta la contraseña (INVALID_INPUT) o si el dni o el email ya son de otro usuario
-// de la institución, aunque esté dado de baja (DUPLICATE_VALUE, con fieldErrors).
+// Crea un usuario en la institución de `currentUser`, siempre activo, y lo devuelve con los campos
+// de listUsers. `data` trae los mismos campos que en updateUser, sin isActive (si llega, no se usa)
+// y con `password` obligatoria: llega en texto plano y solo se guarda su hash. `image` null crea al
+// usuario sin foto; `removeImage` no quita nada, pero tampoco puede venir en true junto con una
+// foto. Lanza un UserError si algún dato no es válido o falta la contraseña (INVALID_INPUT) o si el
+// dni o el email ya son de otro usuario de la institución, aunque esté dado de baja
+// (DUPLICATE_VALUE, con fieldErrors).
 async function createUser(currentUser, data) {
   const values = parseUserData(data);
   // parseUserData acepta null porque al editar conserva la contraseña actual; un alta la necesita.

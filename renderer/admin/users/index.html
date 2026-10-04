@@ -252,6 +252,22 @@
                 </ul>
               </div>
             </div>
+            <!-- Solo al editar: users.js lo muestra. Un alta crea siempre un usuario activo -->
+            <div class="form-field" id="editUserStatusField" hidden>
+              <label>Estado</label>
+              <div class="field field-select dropdown" data-filter="edit-user-status">
+                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dropdown-label text-truncate placeholder">Seleccionar estado</span>
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" hidden>
+                  <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activo</li>
+                  <li class="dropdown-option" role="option" data-value="SUSPENDED" aria-selected="false">Suspendido</li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           <password-generator></password-generator>

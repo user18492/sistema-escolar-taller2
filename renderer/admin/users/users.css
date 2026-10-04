@@ -254,6 +254,11 @@
   gap: 6px;
 }
 
+/* Estado solo se muestra al editar */
+.form-field[hidden] {
+  display: none;
+}
+
 .form-field label {
   font-size: 13px;
   font-weight: 600;

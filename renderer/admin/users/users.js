@@ -1,8 +1,9 @@
 // Vista Usuarios del Administrador: la tabla muestra los demás usuarios de la institución, que
 // llegan del proceso principal (window.api.users.list), y los filtros de columna los filtran en
 // memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
-// Nuevo usuario lo crea (window.api.users.create), Editar guarda los cambios
-// (window.api.users.update) y Eliminar da de baja al usuario (baja lógica, window.api.users.delete).
+// Nuevo usuario lo crea, siempre activo (window.api.users.create), Editar guarda los cambios, entre
+// ellos el estado (window.api.users.update), y Eliminar da de baja al usuario (baja lógica,
+// window.api.users.delete).
 // El resultado de las tres operaciones se avisa con un toast (toast.component.js), salvo los errores
 // de un campo, que se marcan en el formulario.
 // La foto de perfil viaja con los datos del modal (el recorte, no el archivo original) y las filas y
@@ -263,9 +264,31 @@ document.addEventListener('DOMContentLoaded', () => {
   const createBtn = document.getElementById('createUserBtn');
 
   const textInputs = overlay.querySelectorAll('.modal-body input[type="text"], .modal-body input[type="email"]');
-  const roleDropdown = overlay.querySelector('.dropdown');
+  const roleDropdown = overlay.querySelector('[data-filter="new-user-role"]');
   const roleLabel = roleDropdown.querySelector('.dropdown-label');
   const roleOptions = roleDropdown.querySelectorAll('.dropdown-option');
+  // Estado: el campo solo se muestra al editar; un alta crea siempre un usuario activo. Sus opciones
+  // usan los mismos valores que el filtro de la columna (statusCode).
+  const statusField = document.getElementById('editUserStatusField');
+  const statusDropdown = statusField.querySelector('.dropdown');
+
+  const selectedValue = (dropdown) => dropdown.querySelector('.dropdown-option.selected')?.dataset.value;
+
+  // Marca en `dropdown` la opción con ese data-value y la muestra en su etiqueta. Sin una opción con
+  // ese valor (null lo restablece) queda sin selección y con el texto inicial de la etiqueta, que
+  // dropdown.component.js guarda en data-placeholder.
+  const selectDropdownValue = (dropdown, value) => {
+    const label = dropdown.querySelector('.dropdown-label');
+    let selectedOption = null;
+    dropdown.querySelectorAll('.dropdown-option').forEach((option) => {
+      const selected = option.dataset.value === value;
+      option.classList.toggle('selected', selected);
+      option.setAttribute('aria-selected', String(selected));
+      if (selected) selectedOption = option;
+    });
+    label.textContent = selectedOption ? selectedOption.textContent.trim() : label.dataset.placeholder;
+    label.classList.toggle('placeholder', !selectedOption);
+  };
 
   // Máscaras, formato y errores de los campos de texto: componente compartido
   // field-validation.component.js, según el data-validate de cada campo.
@@ -481,8 +504,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateCreateButtonState() {
     const hasAllTextInputs = Array.from(textInputs).every((input) => !input.required || input.value.trim().length > 0);
-    const hasRole = Boolean(roleDropdown.querySelector('.dropdown-option.selected'));
-    createBtn.disabled = !(hasAllTextInputs && hasRole);
+    const hasRole = Boolean(selectedValue(roleDropdown));
+    // Al editar llega elegido el estado actual del usuario; en el alta no se elige
+    const hasStatus = !isEditing || Boolean(selectedValue(statusDropdown));
+    createBtn.disabled = !(hasAllTextInputs && hasRole && hasStatus);
   }
 
   // Mientras se espera la respuesta, el cuerpo del modal queda inerte, así lo enviado coincide con
@@ -499,12 +524,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetForm() {
     textInputs.forEach((input) => (input.value = ''));
     clearFieldErrors(overlay);
-    roleOptions.forEach((o) => {
-      o.classList.remove('selected');
-      o.setAttribute('aria-selected', 'false');
-    });
-    roleLabel.textContent = 'Seleccionar rol';
-    roleLabel.classList.add('placeholder');
+    selectDropdownValue(roleDropdown, null);
+    selectDropdownValue(statusDropdown, null);
 
     setAvatarPreview(null);
     avatarInput.value = '';
@@ -537,6 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Modifica los datos del usuario.'
       : 'Completa los datos para crear una nueva cuenta de usuario.';
     createBtn.textContent = modalTexts().submit;
+    statusField.hidden = !isEditing;
     if (user) {
       firstNameInput.value = user.firstName ?? '';
       lastNameInput.value = user.lastName ?? '';
@@ -550,15 +572,8 @@ document.addEventListener('DOMContentLoaded', () => {
         removeAvatarBtn.hidden = false;
         showCurrentImage();
       }
-      roleOptions.forEach((option) => {
-        const selected = option.dataset.value === user.role;
-        option.classList.toggle('selected', selected);
-        option.setAttribute('aria-selected', String(selected));
-        if (selected) {
-          roleLabel.textContent = option.textContent.trim();
-          roleLabel.classList.remove('placeholder');
-        }
-      });
+      selectDropdownValue(roleDropdown, user.role);
+      selectDropdownValue(statusDropdown, statusCode(user));
     }
     updateCreateButtonState();
     closeAllDropdowns();
@@ -583,15 +598,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Solo los datos del formulario: el id va aparte, tomado al abrir el modal. El DNI se envía solo
-  // con dígitos, como se guarda.
+  // con dígitos, como se guarda. El estado (isActive) va solo al editar.
   const readFormData = () => ({
     firstName: firstNameInput.value,
     lastName: lastNameInput.value,
     dni: dniInput.value.replace(/\D/g, ''),
     email: emailInput.value,
     birthDate: toIsoDate(birthdateInput.value),
-    role: roleDropdown.querySelector('.dropdown-option.selected')?.dataset.value ?? '',
+    role: selectedValue(roleDropdown) ?? '',
     password: passwordGenerator.value,
+    ...(isEditing && { isActive: selectedValue(statusDropdown) === 'ACTIVE' }),
   });
 
   // Marca los campos que rechazó el proceso principal (DNI o email de otro usuario, datos
