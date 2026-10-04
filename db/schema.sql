@@ -68,4 +68,43 @@ CREATE TABLE usuario (
 -- columna de los índices de las restricciones UNIQUE
 CREATE INDEX idx_usuario_usuario_rol_id ON usuario(usuario_rol_id);
 
+-- Materias: catálogo global, común a todas las instituciones
+CREATE TABLE materia (
+    materia_id  INT           GENERATED ALWAYS AS IDENTITY,
+    nombre      VARCHAR(100)  NOT NULL,
+
+    CONSTRAINT pk_materia PRIMARY KEY (materia_id),
+    CONSTRAINT uq_materia_nombre UNIQUE (nombre)
+);
+
+-- Grados: catálogo global, común a todas las instituciones. Un grado es el año de cursado dentro
+-- de un nivel educativo, no una división concreta: eso es un curso
+CREATE TABLE grado (
+    grado_id         INT          GENERATED ALWAYS AS IDENTITY,
+    nombre           VARCHAR(50)  NOT NULL,
+    -- 1°, 2°, ... 6°
+    nivel_educativo  VARCHAR(10)  NOT NULL,
+    -- PRIMARIA, SECUNDARIA
+
+    CONSTRAINT pk_grado PRIMARY KEY (grado_id),
+    -- El nombre se repite entre niveles: hay un 1° de primaria y un 1° de secundaria
+    CONSTRAINT uq_grado_nombre_nivel_educativo UNIQUE (nombre, nivel_educativo),
+    CONSTRAINT ck_grado_nivel_educativo CHECK (nivel_educativo IN ('PRIMARIA', 'SECUNDARIA'))
+);
+
+-- Materias que se dictan en cada grado
+CREATE TABLE grado_materia (
+    grado_materia_id  INT  GENERATED ALWAYS AS IDENTITY,
+    grado_id          INT  NOT NULL,
+    materia_id        INT  NOT NULL,
+
+    CONSTRAINT pk_grado_materia PRIMARY KEY (grado_materia_id),
+    CONSTRAINT fk_grado_materia_grado FOREIGN KEY (grado_id) REFERENCES grado(grado_id),
+    CONSTRAINT fk_grado_materia_materia FOREIGN KEY (materia_id) REFERENCES materia(materia_id),
+    CONSTRAINT uq_grado_materia_grado_materia UNIQUE (grado_id, materia_id)
+);
+
+-- Igual que en usuario: grado_id ya es la primera columna del índice de la restricción UNIQUE
+CREATE INDEX idx_grado_materia_materia_id ON grado_materia(materia_id);
+
 COMMIT;
