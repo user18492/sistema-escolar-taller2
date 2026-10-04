@@ -65,11 +65,11 @@ contextBridge.exposeInMainWorld('api', {
     // deletedAt) o { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_ALREADY_DELETED indican
     // que ya no está vigente.
     delete: (userId) => ipcRenderer.invoke('users:delete', userId),
-    // Solo ADMIN. Reactiva al usuario dado de baja con ese id (usuario_id) de su institución: vuelve a
+    // Solo ADMIN. Restaura al usuario dado de baja con ese id (usuario_id) de su institución: vuelve a
     // estar vigente y queda activo, con la contraseña que tenía. Resuelve { ok: true, user } con el
     // usuario como quedó (mismos campos que list, con deletedAt null) o
     // { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_NOT_DELETED indican que ya no está
     // dado de baja.
-    reactivate: (userId) => ipcRenderer.invoke('users:reactivate', userId),
+    restore: (userId) => ipcRenderer.invoke('users:restore', userId),
   },
 });

@@ -1,4 +1,5 @@
-/* Componente reutilizable: modal de confirmación para acciones destructivas (Eliminar) */
+/* Componente reutilizable: modal de confirmación para acciones destructivas (Eliminar) y para
+   restaurar un registro dado de baja */
 
 confirm-modal {
   display: contents;
@@ -29,6 +30,13 @@ confirm-modal {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Restaurar no es destructivo: círculo celeste e ícono azul. Su botón de confirmación es
+   .btn-primary (buttons.css). */
+.confirm-icon-blue {
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
 }
 
 .confirm-icon svg {

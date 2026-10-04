@@ -52,7 +52,7 @@ CREATE TABLE usuario (
     fecha_eliminacion  TIMESTAMPTZ,
     -- NULL = vigente; con fecha = dado de baja (baja lógica): se lista aparte, como eliminado, y no
     -- puede iniciar sesión.
-    -- La fila se conserva con su dni y su email, así que la baja y la reactivación son un UPDATE
+    -- La fila se conserva con su dni y su email, así que la baja y la restauración son un UPDATE
     -- de esta columna y no un INSERT: las restricciones UNIQUE también cuentan a los dados de baja
 
     CONSTRAINT pk_usuario PRIMARY KEY (usuario_id),

@@ -144,7 +144,7 @@
 
             <!-- Plantillas: users.js las completa con los usuarios que devuelve el proceso principal.
                  En Eliminados, la fila muestra la fecha de baja en lugar del estado. Cada fila lleva
-                 solo las acciones de su pestaña (data-tab): Editar y Eliminar, o Reactivar -->
+                 solo las acciones de su pestaña (data-tab): Editar y Eliminar, o Restaurar -->
             <template id="userRowTemplate">
               <tr>
                 <td class="col-user col-truncate">
@@ -161,7 +161,7 @@
                 <td></td>
                 <td>
                   <row-actions variant="user" data-tab="current" edit-label="Editar usuario" delete-label="Borrar usuario"></row-actions>
-                  <row-actions variant="user" data-tab="deleted" reactivate-label="Reactivar usuario"></row-actions>
+                  <row-actions variant="user" data-tab="deleted" restore-label="Restaurar usuario"></row-actions>
                 </td>
               </tr>
             </template>
@@ -300,6 +300,8 @@
     </div>
     <!-- Modal: Eliminar usuario -->
     <confirm-modal entity="User" heading="Eliminar usuario" description="¿Quieres eliminar este usuario?"></confirm-modal>
+    <!-- Modal: Restaurar usuario -->
+    <confirm-modal entity="User" action="restore" heading="Restaurar usuario" description="¿Quieres restaurar este usuario?"></confirm-modal>
     <dialog class="avatar-crop-dialog" id="avatarCropDialog" aria-labelledby="avatarCropTitle" aria-describedby="avatarCropHelp">
       <div class="modal-header">
         <h2 id="avatarCropTitle">Ajustar foto de perfil</h2>

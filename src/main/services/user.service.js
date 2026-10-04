@@ -216,7 +216,7 @@ function toIsoDate(date) {
 // y el modal de edición, y el id para identificar la fila. `role` es el valor de usuario_rol.nombre,
 // `imageUrl` la URL de su foto (null si no tiene) y `deletedAt` el instante de su baja en ISO 8601
 // (null si está vigente, también cuando la consulta no trae la columna: el alta, la edición y la
-// reactivación solo devuelven usuarios vigentes).
+// restauración solo devuelven usuarios vigentes).
 function toListedUser(user) {
   return {
     id: user.id,
@@ -259,18 +259,18 @@ async function deleteUser(currentUser, userId) {
   throw userNotFoundError();
 }
 
-// Reactivación de un usuario dado de baja de la institución de `currentUser`: la fila queda sin fecha
+// Restauración de un usuario dado de baja de la institución de `currentUser`: la fila queda sin fecha
 // de baja y activa (la baja la había suspendido), vuelve a listarse como vigente y puede iniciar
 // sesión con la contraseña que tenía. Devuelve al usuario como quedó, con los campos de listUsers.
 // Lanza un UserError si no existe en la institución (USER_NOT_FOUND) o si no estaba dado de baja
 // (USER_NOT_DELETED).
-async function reactivateUser(currentUser, userId) {
-  const reactivatedUser = await userRepository.reactivate(userId, currentUser.institutionId);
-  if (reactivatedUser) return toListedUser(reactivatedUser);
+async function restoreUser(currentUser, userId) {
+  const restoredUser = await userRepository.restore(userId, currentUser.institutionId);
+  if (restoredUser) return toListedUser(restoredUser);
 
-  // No se reactivó: si existe en la institución es porque ya estaba vigente.
+  // No se restauró: si existe en la institución es porque ya estaba vigente.
   if (await userRepository.existsInInstitution(userId, currentUser.institutionId)) {
-    throw new UserError('USER_NOT_DELETED', 'El usuario ya había sido reactivado.');
+    throw new UserError('USER_NOT_DELETED', 'El usuario ya había sido restaurado.');
   }
   throw userNotFoundError();
 }
@@ -342,4 +342,4 @@ async function createUser(currentUser, data) {
   return toListedUser(user);
 }
 
-module.exports = { listUsers, deleteUser, reactivateUser, updateUser, createUser, UserError };
+module.exports = { listUsers, deleteUser, restoreUser, updateUser, createUser, UserError };

@@ -76,12 +76,12 @@ const MARK_AS_DELETED_SQL = `
     JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
-// Reactivación: la fila vuelve a estar vigente (sin fecha de baja) y activa, porque la baja la había
+// Restauración: la fila vuelve a estar vigente (sin fecha de baja) y activa, porque la baja la había
 // dejado suspendida. Solo modifica a un usuario dado de baja de la institución, así no le cambia el
 // estado a uno vigente que está suspendido.
 // Devuelve la fila como quedó, con el nombre del rol.
-const REACTIVATE_SQL = `
-  WITH reactivated AS (
+const RESTORE_SQL = `
+  WITH restored AS (
     UPDATE usuario
        SET fecha_eliminacion = NULL,
            estado = TRUE
@@ -101,7 +101,7 @@ const REACTIVATE_SQL = `
          u.fecha_nacimiento,
          u.imagen_url,
          r.nombre AS rol
-    FROM reactivated u
+    FROM restored u
     JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
@@ -261,10 +261,10 @@ async function markAsDeleted(userId, institutionId) {
   return rows.length > 0 ? toUser(rows[0]) : null;
 }
 
-// Reactiva al usuario dado de baja, que queda vigente y activo. Devuelve el usuario como quedó, sin
+// Restaura al usuario dado de baja, que queda vigente y activo. Devuelve el usuario como quedó, sin
 // password_hash; null si no existe en la institución o no estaba dado de baja.
-async function reactivate(userId, institutionId) {
-  const { rows } = await query(REACTIVATE_SQL, [userId, institutionId]);
+async function restore(userId, institutionId) {
+  const { rows } = await query(RESTORE_SQL, [userId, institutionId]);
   return rows.length > 0 ? toUser(rows[0]) : null;
 }
 
@@ -366,7 +366,7 @@ module.exports = {
   findAllByEmail,
   findByInstitution,
   markAsDeleted,
-  reactivate,
+  restore,
   existsInInstitution,
   existsNotDeleted,
   existsActive,

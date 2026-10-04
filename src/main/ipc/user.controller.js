@@ -61,18 +61,18 @@ async function deleteUser(currentUser, userId) {
 }
 
 // Nunca rechaza, como deleteUser.
-async function reactivateUser(currentUser, userId) {
+async function restoreUser(currentUser, userId) {
   if (!isUserId(userId)) {
     return failure('INVALID_INPUT', 'No se pudo identificar al usuario.');
   }
   try {
-    return { ok: true, user: await userService.reactivateUser(currentUser, userId) };
+    return { ok: true, user: await userService.restoreUser(currentUser, userId) };
   } catch (error) {
     if (error instanceof UserError) {
       return failure(error.code, error.message);
     }
-    console.error('Error al reactivar el usuario:', error);
-    return failure('UNEXPECTED_ERROR', 'No se pudo reactivar el usuario. Intentá nuevamente.');
+    console.error('Error al restaurar el usuario:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo restaurar el usuario. Intentá nuevamente.');
   }
 }
 
@@ -120,7 +120,7 @@ function registerUserHandlers(browserWindow) {
   handleProtected(browserWindow, 'users:create', ['ADMIN'], createUser);
   handleProtected(browserWindow, 'users:update', ['ADMIN'], updateUser);
   handleProtected(browserWindow, 'users:delete', ['ADMIN'], deleteUser);
-  handleProtected(browserWindow, 'users:reactivate', ['ADMIN'], reactivateUser);
+  handleProtected(browserWindow, 'users:restore', ['ADMIN'], restoreUser);
 }
 
 module.exports = { registerUserHandlers };

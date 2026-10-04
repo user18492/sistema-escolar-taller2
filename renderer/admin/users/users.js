@@ -3,11 +3,12 @@
 // memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
 // Las pestañas (tab-list.component.js) eligen qué usuarios se listan: los vigentes o los dados de
 // baja, que llegan en la misma lista con su deletedAt. Los eliminados muestran la fecha de baja en
-// lugar del estado y su única acción es Reactivar.
+// lugar del estado y su única acción es Restaurar.
 // Nuevo usuario lo crea, siempre activo (window.api.users.create), Editar guarda los cambios, entre
 // ellos el estado (window.api.users.update), Eliminar da de baja al usuario (baja lógica,
-// window.api.users.delete) y Reactivar devuelve a los vigentes, activo, a uno dado de baja
-// (window.api.users.reactivate).
+// window.api.users.delete) y Restaurar devuelve a los vigentes, activo, a uno dado de baja
+// (window.api.users.restore). Las dos últimas se confirman antes en un modal
+// (confirm-modal.component.js).
 // El resultado de las cuatro operaciones se avisa con un toast (toast.component.js), salvo los
 // errores de un campo, que se marcan en el formulario.
 // La foto de perfil viaja con los datos del modal (el recorte, no el archivo original) y las filas y
@@ -253,12 +254,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadUsers();
 
-  // ---------- Tabla: cambios después de crear, editar, eliminar o reactivar ----------
+  // ---------- Tabla: cambios después de crear, editar, eliminar o restaurar ----------
 
   // Sin recargar la lista: se conservan los filtros y, salvo al crear, la página (el componente la
   // acota si la última quedó vacía). Los contadores de las pestañas se actualizan con cada cambio.
   // Solo se vuelve a pedir la lista (loadUsers) si el proceso principal avisa que el usuario ya no
-  // está en la pestaña donde se lo ve: otra sesión lo dio de baja o lo reactivó y la lista en
+  // está en la pestaña donde se lo ve: otra sesión lo dio de baja o lo restauró y la lista en
   // memoria quedó vieja.
 
   // Orden aproximado al de la base (apellido, nombre, id): el exacto depende de su intercalación y
@@ -295,16 +296,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
   };
 
-  // Pasa a la otra pestaña al usuario dado de baja o reactivado (`movedUser`, como quedó): lo
+  // Pasa a la otra pestaña al usuario dado de baja o restaurado (`movedUser`, como quedó): lo
   // reemplaza en la lista en memoria, donde conserva su lugar, y actualiza los contadores. Sale de
-  // la pestaña elegida (las bajas se hacen desde Vigentes y las reactivaciones desde Eliminados),
+  // la pestaña elegida (las bajas se hacen desde Vigentes y las restauraciones desde Eliminados),
   // así que también lo quita de las opciones de Usuario, DNI y Email, sin tocar a los demás ni los
   // otros filtros, y su fila deja de mostrarse.
   const moveToOtherTab = (movedUser) => {
     const id = String(movedUser.id);
     users = users.map((user) => (String(user.id) === id ? movedUser : user));
     if (tabOf(movedUser) === activeTab) {
-      // Se cambió de pestaña mientras se esperaba la reactivación: el usuario llega a la elegida y
+      // Se cambió de pestaña mientras se esperaba la restauración: el usuario llega a la elegida y
       // las opciones de Usuario, DNI y Email se vuelven a armar con él
       fillFilterOptions();
     } else {
@@ -345,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // foco a la que ocupe su lugar si esa fila ya no se muestra
   let triggerRowIndex = 0;
 
-  // El botón de `action` (edit, delete o reactivate) de la fila que quedó en su lugar (o de la
+  // El botón de `action` (edit, delete o restore) de la fila que quedó en su lugar (o de la
   // última de la página), o "Nuevo usuario" si la tabla quedó sin usuarios
   const focusAfterRemoval = (action) => {
     const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
@@ -837,60 +838,44 @@ document.addEventListener('DOMContentLoaded', () => {
     fallbackFocus: () => focusAfterRemoval('delete'),
   });
 
-  // ---------- Reactivar usuario ----------
+  // ---------- Modal: Restaurar usuario ----------
 
   // El usuario ya no está dado de baja: la lista en memoria quedó vieja y se vuelve a pedir
   const NO_LONGER_DELETED_CODES = ['USER_NOT_FOUND', 'USER_NOT_DELETED'];
-  // Una reactivación por vez: mientras se espera la respuesta, Reactivar no responde en ninguna fila
-  let isReactivating = false;
 
-  // Sin modal de confirmación: no es destructiva y se deshace con Eliminar. Como en la baja, el id
-  // sale del data-user-id de la fila del botón y el resultado se avisa con un toast.
-  const reactivateUser = async (trigger) => {
-    if (isReactivating) return;
-    isReactivating = true;
+  // Como en la baja: el id sale del data-user-id de la fila del botón, el resultado se avisa con un
+  // toast y no se resuelve ningún mensaje, así el modal se cierra siempre.
+  const restoreUser = async (trigger) => {
     const row = trigger.closest('tr');
-    // aria-disabled y no disabled: el botón conserva el foco mientras espera
-    trigger.setAttribute('aria-disabled', 'true');
+    const userId = Number(row?.dataset.userId);
     let response;
     try {
-      response = await window.api?.users?.reactivate(Number(row.dataset.userId));
+      response = await window.api?.users?.restore(userId);
     } catch (error) {
-      console.error('Error al reactivar el usuario:', error);
+      console.error('Error al restaurar el usuario:', error);
     }
-    isReactivating = false;
-    trigger.removeAttribute('aria-disabled');
-
     const isStale = NO_LONGER_DELETED_CODES.includes(response?.error?.code);
-    if (response?.ok || isStale) {
-      // La fila va a dejar de mostrarse: su posición y el foco se toman antes de volver a dibujar
-      // la tabla, y el foco pasa a Reactivar en la fila que quedó en su lugar
-      const hadFocus = document.activeElement === trigger;
-      triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
-      if (response.ok) moveToOtherTab(response.user);
-      else await loadUsers();
-      if (hadFocus) focusAfterRemoval('reactivate').focus();
-    }
+    // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
+    if (response?.ok || isStale) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
     if (response?.ok) {
+      moveToOtherTab(response.user);
       showToast({
         type: 'success',
-        title: 'Usuario reactivado',
+        title: 'Usuario restaurado',
         description: `La cuenta de ${displayName(response.user)} volvió a Vigentes como activa.`,
       });
       return;
     }
-    showToast({ type: 'error', title: 'No se pudo reactivar el usuario', description: errorDescription(response?.error) });
+    if (isStale) await loadUsers();
+    showToast({ type: 'error', title: 'No se pudo restaurar el usuario', description: errorDescription(response?.error) });
   };
 
-  // Por delegación, como Editar. La fila reactivada sale de la tabla y Reactivar de la siguiente
-  // queda bajo el puntero y con el foco: el segundo clic de un doble clic y las repeticiones de
-  // Enter sostenido no cuentan, así no reactivan también a ese usuario.
-  tbody.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-action="reactivate"]');
-    if (button && event.detail < 2) reactivateUser(button);
-  });
-  tbody.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && event.repeat && event.target.closest('[data-action="reactivate"]')) event.preventDefault();
+  // El mismo componente que Eliminar, con action="restore" en su marcado: lo abre Restaurar. Si
+  // la fila ya no está, el foco pasa a Restaurar en la que quedó en su lugar.
+  setupConfirmModal(document.getElementById('restoreUserOverlay'), {
+    beforeOpen: closeAllDropdowns,
+    onConfirm: restoreUser,
+    fallbackFocus: () => focusAfterRemoval('restore'),
   });
 
   roleOptions.forEach((option) => {

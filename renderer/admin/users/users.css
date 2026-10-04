@@ -71,13 +71,6 @@
   color: var(--color-accent-blue);
 }
 
-/* Reactivar mientras espera la respuesta (aria-disabled: el botón conserva el foco): sin el cambio
-   de color al pasar el mouse, como .btn[aria-disabled="true"] (buttons.css). */
-.users-card .user-action[aria-disabled="true"] {
-  color: var(--color-text-tertiary);
-  cursor: progress;
-}
-
 /* ---------- Modal: Nuevo usuario ---------- */
 
 /* Este modal es algo más ancho que el estándar compartido. */
@@ -298,7 +291,8 @@
   outline-offset: 2px;
 }
 
-/* El modal "Eliminar usuario" usa el componente compartido confirm-modal.css. */
+/* Los modales "Eliminar usuario" y "Restaurar usuario" usan el componente compartido
+   confirm-modal.css. */
 
 @media (max-width: 600px) {
   .modal-overlay { padding: calc(16px + var(--window-titlebar-height)) 16px 16px; }
