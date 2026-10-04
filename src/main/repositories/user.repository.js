@@ -76,6 +76,35 @@ const MARK_AS_DELETED_SQL = `
     JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
+// Reactivación: la fila vuelve a estar vigente (sin fecha de baja) y activa, porque la baja la había
+// dejado suspendida. Solo modifica a un usuario dado de baja de la institución, así no le cambia el
+// estado a uno vigente que está suspendido.
+// Devuelve la fila como quedó, con el nombre del rol.
+const REACTIVATE_SQL = `
+  WITH reactivated AS (
+    UPDATE usuario
+       SET fecha_eliminacion = NULL,
+           estado = TRUE
+     WHERE usuario_id = $1
+       AND institucion_id = $2
+       AND fecha_eliminacion IS NOT NULL
+    RETURNING usuario_id, usuario_rol_id, estado, institucion_id, nombre, apellido,
+              email, dni, fecha_nacimiento, imagen_url
+  )
+  SELECT u.usuario_id,
+         u.estado,
+         u.institucion_id,
+         u.nombre,
+         u.apellido,
+         u.email,
+         u.dni,
+         u.fecha_nacimiento,
+         u.imagen_url,
+         r.nombre AS rol
+    FROM reactivated u
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
+`;
+
 // Cuenta también a los dados de baja.
 const EXISTS_IN_INSTITUTION_SQL = `
   SELECT 1
@@ -232,6 +261,13 @@ async function markAsDeleted(userId, institutionId) {
   return rows.length > 0 ? toUser(rows[0]) : null;
 }
 
+// Reactiva al usuario dado de baja, que queda vigente y activo. Devuelve el usuario como quedó, sin
+// password_hash; null si no existe en la institución o no estaba dado de baja.
+async function reactivate(userId, institutionId) {
+  const { rows } = await query(REACTIVATE_SQL, [userId, institutionId]);
+  return rows.length > 0 ? toUser(rows[0]) : null;
+}
+
 // true si el usuario pertenece a la institución, esté vigente o dado de baja.
 async function existsInInstitution(userId, institutionId) {
   const { rows } = await query(EXISTS_IN_INSTITUTION_SQL, [userId, institutionId]);
@@ -330,6 +366,7 @@ module.exports = {
   findAllByEmail,
   findByInstitution,
   markAsDeleted,
+  reactivate,
   existsInInstitution,
   existsNotDeleted,
   existsActive,

@@ -108,7 +108,7 @@
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
-                    <!-- data-tab: columnas de una sola pestaña. Estado y Acciones van en Vigentes; Fecha de baja, en Eliminados -->
+                    <!-- data-tab: columnas de una sola pestaña. Estado va en Vigentes; Fecha de baja, en Eliminados -->
                     <th scope="col" class="column-filter" data-filter="status" data-tab="current">
                       <column-filter-toggle target="statusFilter" heading="Estado" label="Filtrar por estado"></column-filter-toggle>
                       <div id="statusFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por estado">
@@ -133,7 +133,7 @@
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
-                    <th data-tab="current">Acciones</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -143,7 +143,8 @@
             <table-pagination results="" label="Paginación de usuarios" pages="1"></table-pagination>
 
             <!-- Plantillas: users.js las completa con los usuarios que devuelve el proceso principal.
-                 En Eliminados, la fila muestra la fecha de baja en lugar del estado y no lleva acciones -->
+                 En Eliminados, la fila muestra la fecha de baja en lugar del estado. Cada fila lleva
+                 solo las acciones de su pestaña (data-tab): Editar y Eliminar, o Reactivar -->
             <template id="userRowTemplate">
               <tr>
                 <td class="col-user col-truncate">
@@ -159,7 +160,8 @@
                 </td>
                 <td></td>
                 <td>
-                  <row-actions variant="user" edit-label="Editar usuario" delete-label="Borrar usuario"></row-actions>
+                  <row-actions variant="user" data-tab="current" edit-label="Editar usuario" delete-label="Borrar usuario"></row-actions>
+                  <row-actions variant="user" data-tab="deleted" reactivate-label="Reactivar usuario"></row-actions>
                 </td>
               </tr>
             </template>

@@ -71,6 +71,13 @@
   color: var(--color-accent-blue);
 }
 
+/* Reactivar mientras espera la respuesta (aria-disabled: el botón conserva el foco): sin el cambio
+   de color al pasar el mouse, como .btn[aria-disabled="true"] (buttons.css). */
+.users-card .user-action[aria-disabled="true"] {
+  color: var(--color-text-tertiary);
+  cursor: progress;
+}
+
 /* ---------- Modal: Nuevo usuario ---------- */
 
 /* Este modal es algo más ancho que el estándar compartido. */
