@@ -212,4 +212,95 @@ INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, e
      -- Email: silvia.gomez@institucion.edu.ar / Contraseña: 5i#aTSG@#u!y@NZF
      '$2b$10$oA/cHInu9hbZeEDoGTjRFeAC/EeGLt982QphE64ytc1qnJcVxUGym', '20473158', '1968-09-28');
 
+-- Materias: catálogo global. Ninguna depende de un grado ni de un nivel educativo: en cuáles se
+-- dicta cada una lo define grado_materia
+INSERT INTO materia (nombre) VALUES
+    ('Lengua'),
+    ('Matemática'),
+    ('Ciencias Sociales'),
+    ('Ciencias Naturales'),
+    ('Inglés'),
+    ('Educación Física'),
+    ('Educación Artística'),
+    ('Educación Tecnológica'),
+    ('Formación Ética y Ciudadana'),
+    ('Literatura'),
+    ('Historia'),
+    ('Geografía'),
+    ('Biología'),
+    ('Fisicoquímica'),
+    ('Física'),
+    ('Química'),
+    ('Filosofía'),
+    ('Psicología'),
+    ('Economía');
+
+-- Grados: de 1° a 6° en cada nivel educativo
+INSERT INTO grado (nombre, nivel_educativo) VALUES
+    ('1°', 'PRIMARIA'),
+    ('2°', 'PRIMARIA'),
+    ('3°', 'PRIMARIA'),
+    ('4°', 'PRIMARIA'),
+    ('5°', 'PRIMARIA'),
+    ('6°', 'PRIMARIA'),
+    ('1°', 'SECUNDARIA'),
+    ('2°', 'SECUNDARIA'),
+    ('3°', 'SECUNDARIA'),
+    ('4°', 'SECUNDARIA'),
+    ('5°', 'SECUNDARIA'),
+    ('6°', 'SECUNDARIA');
+
+-- Plan de estudios: las materias de cada grado. Los grados de un mismo ciclo comparten el plan,
+-- así que cada INSERT cruza los grados de un ciclo con sus materias: 123 asociaciones en total.
+
+-- Primaria, primer ciclo (1° a 3°): 8 materias por grado
+INSERT INTO grado_materia (grado_id, materia_id)
+SELECT g.grado_id, m.materia_id
+FROM grado g
+CROSS JOIN materia m
+WHERE g.nivel_educativo = 'PRIMARIA'
+  AND g.nombre IN ('1°', '2°', '3°')
+  AND m.nombre IN ('Lengua', 'Matemática', 'Ciencias Sociales', 'Ciencias Naturales',
+                   'Educación Física', 'Educación Artística', 'Educación Tecnológica',
+                   'Formación Ética y Ciudadana')
+ORDER BY g.grado_id, m.materia_id;
+
+-- Primaria, segundo ciclo (4° a 6°): 9 materias por grado. Se suma Inglés
+INSERT INTO grado_materia (grado_id, materia_id)
+SELECT g.grado_id, m.materia_id
+FROM grado g
+CROSS JOIN materia m
+WHERE g.nivel_educativo = 'PRIMARIA'
+  AND g.nombre IN ('4°', '5°', '6°')
+  AND m.nombre IN ('Lengua', 'Matemática', 'Ciencias Sociales', 'Ciencias Naturales', 'Inglés',
+                   'Educación Física', 'Educación Artística', 'Educación Tecnológica',
+                   'Formación Ética y Ciudadana')
+ORDER BY g.grado_id, m.materia_id;
+
+-- Secundaria, ciclo básico (1° a 3°): 11 materias por grado. Las ciencias sociales y naturales
+-- de primaria se abren en Historia, Geografía, Biología y Fisicoquímica
+INSERT INTO grado_materia (grado_id, materia_id)
+SELECT g.grado_id, m.materia_id
+FROM grado g
+CROSS JOIN materia m
+WHERE g.nivel_educativo = 'SECUNDARIA'
+  AND g.nombre IN ('1°', '2°', '3°')
+  AND m.nombre IN ('Lengua', 'Matemática', 'Inglés', 'Educación Física', 'Educación Artística',
+                   'Educación Tecnológica', 'Formación Ética y Ciudadana', 'Historia',
+                   'Geografía', 'Biología', 'Fisicoquímica')
+ORDER BY g.grado_id, m.materia_id;
+
+-- Secundaria, ciclo orientado (4° a 6°): 13 materias por grado. Literatura reemplaza a Lengua,
+-- Fisicoquímica se separa en Física y Química, y se suman Filosofía, Psicología y Economía
+INSERT INTO grado_materia (grado_id, materia_id)
+SELECT g.grado_id, m.materia_id
+FROM grado g
+CROSS JOIN materia m
+WHERE g.nivel_educativo = 'SECUNDARIA'
+  AND g.nombre IN ('4°', '5°', '6°')
+  AND m.nombre IN ('Matemática', 'Inglés', 'Educación Física', 'Formación Ética y Ciudadana',
+                   'Literatura', 'Historia', 'Geografía', 'Biología', 'Física', 'Química',
+                   'Filosofía', 'Psicología', 'Economía')
+ORDER BY g.grado_id, m.materia_id;
+
 COMMIT;
