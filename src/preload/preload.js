@@ -73,11 +73,11 @@ contextBridge.exposeInMainWorld('api', {
     restore: (userId) => ipcRenderer.invoke('users:restore', userId),
   },
   courses: {
-    // Solo ADMIN. Resuelve { ok: true, courses } con los cursos de su institución, de todos los ciclos
-    // lectivos ({ id, gradeName, educationLevel, division, shift, schoolYear }, con gradeName el nombre
-    // del grado, 1° a 6°, educationLevel 'PRIMARY' o 'SECONDARY', division una letra mayúscula, shift
-    // 'MORNING' o 'AFTERNOON' y schoolYear el año del ciclo lectivo), o
-    // { ok: false, error: { code, message } }. Llegan siempre en el mismo orden: ciclo lectivo (el más
+    // Solo ADMIN. Resuelve { ok: true, courses } con los cursos vigentes de su institución (sin los dados
+    // de baja), de todos los ciclos lectivos ({ id, gradeName, educationLevel, division, shift,
+    // schoolYear }, con gradeName el nombre del grado, 1° a 6°, educationLevel 'PRIMARY' o 'SECONDARY',
+    // division una letra mayúscula, shift 'MORNING' o 'AFTERNOON' y schoolYear el año del ciclo lectivo),
+    // o { ok: false, error: { code, message } }. Llegan siempre en el mismo orden: ciclo lectivo (el más
     // reciente primero), nivel educativo (primaria antes que secundaria), grado, división y turno.
     list: () => ipcRenderer.invoke('courses:list'),
     // Solo ADMIN. Crea un curso en su institución, para el ciclo lectivo del año en curso. `data` es
@@ -85,9 +85,15 @@ contextBridge.exposeInMainWorld('api', {
     // nivel educativo), division una letra (se guarda en mayúscula) y shift 'MORNING' o 'AFTERNOON'.
     // Resuelve { ok: true, course } con el curso creado (mismos campos que list) o
     // { ok: false, error: { code, message, fieldErrors } }: fieldErrors ({ campo: mensaje }) llega si
-    // la división no es válida, DUPLICATE_VALUE indica que la institución ya tiene ese curso en el
-    // ciclo lectivo y GRADE_NOT_FOUND, que el grado no está en el catálogo.
+    // la división no es válida, DUPLICATE_VALUE indica que la institución ya tiene ese curso vigente
+    // en el ciclo lectivo y GRADE_NOT_FOUND, que el grado no está en el catálogo.
     create: (data) => ipcRenderer.invoke('courses:create', data),
+    // Solo ADMIN. Baja lógica del curso con ese id (curso_id) de su institución: deja de listarse y su
+    // grado, división y turno se pueden volver a crear en ese ciclo lectivo. Resuelve
+    // { ok: true, course } con el curso dado de baja (mismos campos que list) o
+    // { ok: false, error: { code, message } }; COURSE_NOT_FOUND y COURSE_ALREADY_DELETED indican que ya
+    // no está vigente.
+    delete: (courseId) => ipcRenderer.invoke('courses:delete', courseId),
   },
   grades: {
     // Solo ADMIN. Resuelve { ok: true, grades } con el catálogo de grados, común a todas las

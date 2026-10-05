@@ -118,19 +118,27 @@ CREATE TABLE curso (
     -- MAÑANA, TARDE
     anio_ciclo_lectivo  INT         NOT NULL,
     -- Solo el año: 2026
+    fecha_eliminacion   TIMESTAMPTZ,
+    -- NULL = vigente; con fecha = dado de baja (baja lógica): la fila se conserva, pero no se lista
 
     CONSTRAINT pk_curso PRIMARY KEY (curso_id),
     CONSTRAINT fk_curso_institucion FOREIGN KEY (institucion_id) REFERENCES institucion(institucion_id),
     CONSTRAINT fk_curso_grado FOREIGN KEY (grado_id) REFERENCES grado(grado_id),
-    -- Un curso no se repite dentro de una institución: lo identifican todas sus columnas juntas
-    CONSTRAINT uq_curso_institucion_grado_division_turno_anio_ciclo_lectivo
-        UNIQUE (institucion_id, grado_id, division, turno, anio_ciclo_lectivo),
     CONSTRAINT ck_curso_division CHECK (division ~ '^[A-Z]$'),
     CONSTRAINT ck_curso_turno CHECK (turno IN ('MAÑANA', 'TARDE')),
     CONSTRAINT ck_curso_anio_ciclo_lectivo CHECK (anio_ciclo_lectivo BETWEEN 2000 AND 2100)
 );
 
--- Igual que en usuario: institucion_id ya es la primera columna del índice de la restricción UNIQUE
+-- Un curso vigente no se repite dentro de una institución: lo identifican estas columnas juntas.
+-- Los dados de baja no cuentan, así que el mismo curso se puede volver a crear después de una
+-- baja. Por eso es un índice único parcial y no una restricción UNIQUE, que no admite WHERE;
+-- conserva el nombre uq_ porque cumple la misma función
+CREATE UNIQUE INDEX uq_curso_institucion_grado_division_turno_anio_ciclo_lectivo
+    ON curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+    WHERE fecha_eliminacion IS NULL;
+
+-- institucion_id no necesita un índice propio: ya es la primera columna del índice único, que
+-- abarca a los cursos vigentes, los únicos que se listan
 CREATE INDEX idx_curso_grado_id ON curso(grado_id);
 
 COMMIT;

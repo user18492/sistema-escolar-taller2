@@ -57,8 +57,8 @@ function toListedCourse(course) {
   };
 }
 
-// Cursos de la institución de `currentUser` (el de la sesión), de todos los ciclos lectivos, en el
-// orden del repositorio.
+// Cursos vigentes de la institución de `currentUser` (el de la sesión), de todos los ciclos
+// lectivos, en el orden del repositorio.
 async function listCourses(currentUser) {
   const courses = await courseRepository.findByInstitution(currentUser.institutionId);
   return courses.map(toListedCourse);
@@ -70,7 +70,8 @@ async function listCourses(currentUser) {
 // es siempre el año en curso, el mismo que anuncia el formulario.
 // Lanza un CourseError si algún dato no es válido (INVALID_INPUT, con fieldErrors si es la
 // división), si el grado no está en el catálogo (GRADE_NOT_FOUND) o si la institución ya tiene un
-// curso con ese grado, división y turno en el ciclo lectivo (DUPLICATE_VALUE).
+// curso vigente con ese grado, división y turno en el ciclo lectivo (DUPLICATE_VALUE): uno dado de
+// baja no cuenta.
 async function createCourse(currentUser, data) {
   const values = parseCourseData(data);
   const schoolYear = new Date().getFullYear();
@@ -91,4 +92,19 @@ async function createCourse(currentUser, data) {
   }
 }
 
-module.exports = { listCourses, createCourse, CourseError };
+// Baja lógica de un curso de la institución de `currentUser`: la fila queda con su fecha de baja,
+// deja de listarse y su grado, división y turno se pueden volver a crear en ese ciclo lectivo.
+// Devuelve el curso dado de baja, con los campos de listCourses. Lanza un CourseError si no existe
+// en la institución (COURSE_NOT_FOUND) o si ya estaba dado de baja (COURSE_ALREADY_DELETED).
+async function deleteCourse(currentUser, courseId) {
+  const deletedCourse = await courseRepository.markAsDeleted(courseId, currentUser.institutionId);
+  if (deletedCourse) return toListedCourse(deletedCourse);
+
+  // No se marcó: si existe en la institución es porque ya estaba dado de baja.
+  if (await courseRepository.existsInInstitution(courseId, currentUser.institutionId)) {
+    throw new CourseError('COURSE_ALREADY_DELETED', 'El curso ya había sido eliminado.');
+  }
+  throw new CourseError('COURSE_NOT_FOUND', 'El curso ya no existe.');
+}
+
+module.exports = { listCourses, createCourse, deleteCourse, CourseError };

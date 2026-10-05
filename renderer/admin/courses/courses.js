@@ -1,11 +1,13 @@
-// Vista Cursos del Administrador: la tabla muestra los cursos de la institución, de todos los
-// ciclos lectivos, que llegan del proceso principal (window.api.courses.list), y los filtros de
+// Vista Cursos del Administrador: la tabla muestra los cursos vigentes de la institución, de todos
+// los ciclos lectivos, que llegan del proceso principal (window.api.courses.list), y los filtros de
 // columna los filtran en memoria. La lista filtrada se pagina en memoria, 10 por página, con
 // <table-pagination>.
 // Nuevo curso lo crea para el ciclo lectivo del año en curso (window.api.courses.create), con los
-// grados del catálogo (window.api.grades.list). El resultado se avisa con un toast
-// (toast.component.js), salvo el error de la división, que se marca en el formulario.
-// Editar y Eliminar siguen siendo visuales: no modifican datos persistidos.
+// grados del catálogo (window.api.grades.list), y Eliminar da de baja el curso (baja lógica,
+// window.api.courses.delete) después de confirmarlo en un modal (confirm-modal.component.js).
+// El resultado de las dos operaciones se avisa con un toast (toast.component.js), salvo el error de
+// la división, que se marca en el formulario.
+// Editar sigue siendo visual: no modifica datos persistidos.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -145,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadCourses();
 
-  // ---------- Tabla: cambios después de crear ----------
+  // ---------- Tabla: cambios después de crear o eliminar ----------
 
   // Mismo orden que el del listado (FIND_BY_INSTITUTION_SQL, course.repository.js): ciclo lectivo
   // (el más reciente primero), nivel educativo, grado, división y turno; el id desempata.
@@ -172,6 +174,24 @@ document.addEventListener('DOMContentLoaded', () => {
     courses = courses.toSpliced(index === -1 ? courses.length : index, 0, newCourse);
     const visibleIndex = courses.filter(matchesFilters).indexOf(newCourse);
     renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
+  };
+
+  // Quita de la lista en memoria el curso dado de baja, sin recargarla ni tocar los filtros. La
+  // página se conserva; si era la última y quedó vacía, el componente pasa a la anterior.
+  const removeCourse = (courseId) => {
+    courses = courses.filter((course) => course.id !== courseId);
+    renderRows();
+  };
+
+  // Posición en la página de la fila del botón que abrió el modal de Eliminar, solo para devolver
+  // el foco a la que ocupe su lugar si esa fila ya no se muestra
+  let triggerRowIndex = 0;
+
+  // Eliminar de la fila que quedó en su lugar (o de la última de la página), o "Nuevo curso" si la
+  // tabla quedó sin cursos
+  const focusAfterRemoval = () => {
+    const buttons = tbody.querySelectorAll('[data-action="delete"]');
+    return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openCourseModalBtn;
   };
 
   // Descripción de los toasts de error: el mensaje del proceso principal. Sin respuesta, o con
@@ -383,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const CREATE_ERROR_TITLE = 'No se pudo crear el curso';
 
-  // "3° A de Secundaria, turno Mañana", como lo nombra el toast del alta
+  // "3° A de Secundaria, turno Mañana", como lo nombran los toasts del alta y de la baja
   const courseName = (course) =>
     `${course.gradeName} ${course.division} de ${levelLabels[course.educationLevel]}, turno ${shiftLabels[course.shift]}`;
 
@@ -466,7 +486,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar curso ----------
 
-  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
-  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
-  setupConfirmModal(document.getElementById('deleteCourseOverlay'), { beforeOpen: closeAllDropdowns });
+  // El curso ya no está vigente: la lista en memoria quedó vieja y se vuelve a pedir
+  const NO_LONGER_ACTIVE_CODES = ['COURSE_NOT_FOUND', 'COURSE_ALREADY_DELETED'];
+
+  // El id sale del data-course-id de la fila del botón (el curso_id, fijado al crearla), no de su
+  // posición en la tabla. Avisa el resultado con un toast y no resuelve ningún mensaje, así el
+  // modal se cierra siempre.
+  const deleteCourse = async (trigger) => {
+    const row = trigger.closest('tr');
+    const courseId = Number(row?.dataset.courseId);
+    let response;
+    try {
+      response = await window.api?.courses?.delete(courseId);
+    } catch (error) {
+      console.error('Error al eliminar el curso:', error);
+    }
+    const isGone = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
+    // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
+    if (response?.ok || isGone) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+    if (response?.ok) {
+      removeCourse(response.course.id);
+      showToast({
+        type: 'success',
+        title: 'Curso eliminado',
+        description: `Se eliminó ${courseName(response.course)}, del ciclo lectivo ${response.course.schoolYear}.`,
+      });
+      return;
+    }
+    if (isGone) await loadCourses();
+    showToast({ type: 'error', title: 'No se pudo eliminar el curso', description: errorDescription(response?.error) });
+  };
+
+  // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
+  // cierra. Si la fila ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
+  setupConfirmModal(document.getElementById('deleteCourseOverlay'), {
+    beforeOpen: closeAllDropdowns,
+    onConfirm: deleteCourse,
+    fallbackFocus: focusAfterRemoval,
+  });
 });
