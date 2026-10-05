@@ -5,6 +5,9 @@
 --   - Claves primarias INT GENERATED ALWAYS AS IDENTITY: un INSERT no puede fijar el id.
 --   - Todas las restricciones llevan nombre: pk_<tabla>, fk_<tabla>_<tabla referenciada>,
 --     uq_<tabla>_<columnas>, ck_<tabla>_<regla>.
+--   - Las reglas que dependen de otra tabla las validan triggers, porque un CHECK no puede
+--     consultarla: trg_<tabla>_<regla>, con su función fn_<tabla>_<regla>. Fallan como un CHECK
+--     (código 23514) e informan un nombre ck_<tabla>_<regla> como el de la restricción incumplida.
 
 BEGIN;
 
@@ -140,5 +143,154 @@ CREATE UNIQUE INDEX uq_curso_institucion_grado_division_turno_anio_ciclo_lectivo
 -- institucion_id no necesita un índice propio: ya es la primera columna del índice único, que
 -- abarca a los cursos vigentes, los únicos que se listan
 CREATE INDEX idx_curso_grado_id ON curso(grado_id);
+
+-- Asignaciones docentes: un profesor dicta en un curso una materia del plan de estudios de su grado
+CREATE TABLE asignacion_docente (
+    asignacion_docente_id  INT  GENERATED ALWAYS AS IDENTITY,
+    usuario_id             INT  NOT NULL,
+    -- El profesor
+    curso_id               INT  NOT NULL,
+    grado_materia_id       INT  NOT NULL,
+    -- La materia, tomada del plan de estudios del grado del curso
+    fecha_eliminacion      TIMESTAMPTZ,
+    -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva, pero deja de
+    -- contar para las reglas de esta tabla
+
+    CONSTRAINT pk_asignacion_docente PRIMARY KEY (asignacion_docente_id),
+    CONSTRAINT fk_asignacion_docente_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(usuario_id),
+    CONSTRAINT fk_asignacion_docente_curso FOREIGN KEY (curso_id) REFERENCES curso(curso_id),
+    CONSTRAINT fk_asignacion_docente_grado_materia FOREIGN KEY (grado_materia_id) REFERENCES grado_materia(grado_materia_id)
+);
+
+-- Una materia de un curso tiene un solo profesor vigente. Con eso tampoco se repite una misma
+-- asignación (profesor, curso y materia), y no hace falta la institución: el curso es de una sola.
+-- Las dadas de baja no cuentan, así que la materia se puede volver a asignar después de una baja;
+-- por eso es un índice único parcial, como el de curso
+CREATE UNIQUE INDEX uq_asignacion_docente_curso_grado_materia
+    ON asignacion_docente (curso_id, grado_materia_id)
+    WHERE fecha_eliminacion IS NULL;
+
+-- curso_id no necesita un índice propio: ya es la primera columna del índice único, que abarca a
+-- las asignaciones vigentes
+CREATE INDEX idx_asignacion_docente_usuario_id ON asignacion_docente(usuario_id);
+CREATE INDEX idx_asignacion_docente_grado_materia_id ON asignacion_docente(grado_materia_id);
+
+-- Coherencia de una asignación vigente con las filas que referencia: el usuario es un profesor, es
+-- de la misma institución que el curso y la materia es del grado del curso. Las dadas de baja no se
+-- validan. FOR SHARE retiene las filas del usuario y del curso hasta el fin de la transacción: un
+-- cambio simultáneo de rol o de grado espera y, al seguir, su trigger (más abajo) ya ve esta
+-- asignación. Si una fila referenciada no existe, las comparaciones dan NULL y no fallan: la
+-- rechaza después su clave foránea
+CREATE FUNCTION fn_asignacion_docente_coherencia() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_usuario_rol_id          INT;
+    v_usuario_institucion_id  INT;
+    v_rol                     VARCHAR(50);
+    v_curso_institucion_id    INT;
+    v_curso_grado_id          INT;
+    v_materia_grado_id        INT;
+BEGIN
+    -- Sin JOIN con usuario_rol: si la fila cambió mientras esperaba el bloqueo, PostgreSQL vuelve a
+    -- evaluar la consulta con la fila nueva del usuario pero con el rol anterior, y no devolvería
+    -- nada
+    SELECT u.usuario_rol_id, u.institucion_id
+      INTO v_usuario_rol_id, v_usuario_institucion_id
+      FROM usuario u
+     WHERE u.usuario_id = NEW.usuario_id
+       FOR SHARE;
+
+    SELECT r.nombre
+      INTO v_rol
+      FROM usuario_rol r
+     WHERE r.usuario_rol_id = v_usuario_rol_id;
+
+    SELECT c.institucion_id, c.grado_id
+      INTO v_curso_institucion_id, v_curso_grado_id
+      FROM curso c
+     WHERE c.curso_id = NEW.curso_id
+       FOR SHARE;
+
+    SELECT gm.grado_id
+      INTO v_materia_grado_id
+      FROM grado_materia gm
+     WHERE gm.grado_materia_id = NEW.grado_materia_id;
+
+    IF v_rol <> 'PROFESOR' THEN
+        RAISE EXCEPTION 'El usuario % no es un profesor', NEW.usuario_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_asignacion_docente_usuario_profesor';
+    END IF;
+
+    IF v_usuario_institucion_id <> v_curso_institucion_id THEN
+        RAISE EXCEPTION 'El usuario % y el curso % son de instituciones distintas',
+                        NEW.usuario_id, NEW.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_asignacion_docente_misma_institucion';
+    END IF;
+
+    IF v_materia_grado_id <> v_curso_grado_id THEN
+        RAISE EXCEPTION 'La materia de grado % no es del grado del curso %',
+                        NEW.grado_materia_id, NEW.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_asignacion_docente_materia_del_grado';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_asignacion_docente_coherencia
+    BEFORE INSERT OR UPDATE ON asignacion_docente
+    FOR EACH ROW
+    WHEN (NEW.fecha_eliminacion IS NULL)
+    EXECUTE FUNCTION fn_asignacion_docente_coherencia();
+
+-- Un curso con asignaciones vigentes conserva su grado y su institución: cambiarlos las dejaría
+-- con materias de otro grado o con profesores de otra institución
+CREATE FUNCTION fn_curso_asignaciones_vigentes() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF EXISTS (SELECT 1
+                 FROM asignacion_docente a
+                WHERE a.curso_id = OLD.curso_id
+                  AND a.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'El curso % tiene asignaciones docentes vigentes', OLD.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_curso_asignaciones_vigentes';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_curso_asignaciones_vigentes
+    BEFORE UPDATE ON curso
+    FOR EACH ROW
+    WHEN (NEW.grado_id <> OLD.grado_id OR NEW.institucion_id <> OLD.institucion_id)
+    EXECUTE FUNCTION fn_curso_asignaciones_vigentes();
+
+-- Un usuario con asignaciones vigentes conserva su rol (que es PROFESOR) y su institución
+CREATE FUNCTION fn_usuario_asignaciones_vigentes() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF EXISTS (SELECT 1
+                 FROM asignacion_docente a
+                WHERE a.usuario_id = OLD.usuario_id
+                  AND a.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'El usuario % tiene asignaciones docentes vigentes', OLD.usuario_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_usuario_asignaciones_vigentes';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_usuario_asignaciones_vigentes
+    BEFORE UPDATE ON usuario
+    FOR EACH ROW
+    WHEN (NEW.usuario_rol_id <> OLD.usuario_rol_id OR NEW.institucion_id <> OLD.institucion_id)
+    EXECUTE FUNCTION fn_usuario_asignaciones_vigentes();
 
 COMMIT;
