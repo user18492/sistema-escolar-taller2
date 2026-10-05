@@ -3,6 +3,7 @@ const { BrowserWindow } = require('electron');
 const { registerWindowControls } = require('./ipc/window.controller');
 const { registerAuthHandlers } = require('./ipc/auth.controller');
 const { registerUserHandlers } = require('./ipc/user.controller');
+const { registerCourseHandlers } = require('./ipc/course.controller');
 const { guardNavigation, showEntryView } = require('./navigation-guard');
 
 const PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'preload.js');
@@ -27,6 +28,7 @@ function createMainWindow() {
   registerWindowControls(mainWindow);
   registerAuthHandlers(mainWindow);
   registerUserHandlers(mainWindow);
+  registerCourseHandlers(mainWindow);
   guardNavigation(mainWindow);
   showEntryView(mainWindow);
 

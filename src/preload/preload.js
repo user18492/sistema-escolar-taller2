@@ -32,9 +32,9 @@ contextBridge.exposeInMainWorld('api', {
     getRememberedEmail: () => ipcRenderer.invoke('auth:get-remembered-email'),
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
-  // Si la cuenta de la sesión fue suspendida o dada de baja, estas operaciones resuelven
-  // { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal cierra la
-  // sesión y vuelve al login.
+  // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de users y de courses
+  // resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal
+  // cierra la sesión y vuelve al login.
   users: {
     // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, vigentes y dados de
     // baja, ordenados por apellido y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role,
@@ -71,5 +71,14 @@ contextBridge.exposeInMainWorld('api', {
     // { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_NOT_DELETED indican que ya no está
     // dado de baja.
     restore: (userId) => ipcRenderer.invoke('users:restore', userId),
+  },
+  courses: {
+    // Solo ADMIN. Resuelve { ok: true, courses } con los cursos de su institución, de todos los ciclos
+    // lectivos ({ id, gradeName, educationLevel, division, shift, schoolYear }, con gradeName el nombre
+    // del grado, 1° a 6°, educationLevel 'PRIMARY' o 'SECONDARY', division una letra mayúscula, shift
+    // 'MORNING' o 'AFTERNOON' y schoolYear el año del ciclo lectivo), o
+    // { ok: false, error: { code, message } }. Llegan siempre en el mismo orden: ciclo lectivo (el más
+    // reciente primero), nivel educativo (primaria antes que secundaria), grado, división y turno.
+    list: () => ipcRenderer.invoke('courses:list'),
   },
 });

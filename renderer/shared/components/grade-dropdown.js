@@ -4,6 +4,7 @@
 // contenedor que ya se encarga de desplegarlo (el filtro del encabezado de la tabla).
 // Selección múltiple con checkboxes tri-estado (Todos / por nivel educativo / por grado individual).
 // API para el contenedor: `hasSelection` indica si hay grados elegidos y `clear()` los restablece.
+// API para la vista: `selectedGrades` da los grados elegidos, para filtrar sus filas.
 // Sin shadow DOM a propósito: así los estilos de grade-dropdown.css (selectores .dropdown-menu-grade, .grade-card, etc.) siguen aplicando tal cual,
 // y el botón .dropdown-toggle sigue siendo detectado por la lógica genérica de apertura/cierre de dropdowns de cada vista.
 
@@ -101,6 +102,15 @@
     // Grados seleccionados: lo consulta el contenedor para marcar el filtro como activo
     get hasSelection() {
       return this.querySelector('.grade-card.selected') !== null;
+    }
+
+    // Grados seleccionados, como { level, name }: el nivel educativo (PRIMARY o SECONDARY) y el
+    // nombre que muestra su tarjeta (1°, 2°, ... 6°). Vacío equivale a todos los grados.
+    get selectedGrades() {
+      return Array.from(this.querySelectorAll('.grade-card.selected'), (card) => ({
+        level: card.dataset.level,
+        name: card.textContent.trim(),
+      }));
     }
 
     setupGradeDropdown() {

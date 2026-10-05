@@ -99,112 +99,25 @@
                     <th>Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr>
-                    <td>1°</td>
-                    <td>A</td>
-                    <td>Mañana</td>
-                    <td>Primaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>1°</td>
-                    <td>B</td>
-                    <td>Tarde</td>
-                    <td>Primaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>2°</td>
-                    <td>A</td>
-                    <td>Mañana</td>
-                    <td>Primaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>3°</td>
-                    <td>A</td>
-                    <td>Tarde</td>
-                    <td>Primaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>5°</td>
-                    <td>B</td>
-                    <td>Mañana</td>
-                    <td>Primaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>6°</td>
-                    <td>A</td>
-                    <td>Tarde</td>
-                    <td>Primaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>1°</td>
-                    <td>A</td>
-                    <td>Mañana</td>
-                    <td>Secundaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>2°</td>
-                    <td>B</td>
-                    <td>Tarde</td>
-                    <td>Secundaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>4°</td>
-                    <td>A</td>
-                    <td>Mañana</td>
-                    <td>Secundaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>6°</td>
-                    <td>B</td>
-                    <td>Tarde</td>
-                    <td>Secundaria</td>
-                    <td>2026</td>
-                    <td>
-                      <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
-                    </td>
-                  </tr>
-                </tbody>
+                <tbody></tbody>
               </table>
             </div>
 
-            <table-pagination results="Mostrando 1-10 de 48" label="Paginación de cursos" pages="1 2 3 … 5"></table-pagination>
+            <table-pagination results="" label="Paginación de cursos" pages="1"></table-pagination>
+
+            <!-- Plantilla: courses.js la completa con los cursos que devuelve el proceso principal -->
+            <template id="courseRowTemplate">
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>
+                  <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions>
+                </td>
+              </tr>
+            </template>
           </section>
         </main>
       </div>
