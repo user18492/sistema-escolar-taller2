@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const createCourseBtn = document.getElementById('createCourseBtn');
   const courseTitle = document.getElementById('newCourseTitle');
   const courseSubtitle = courseOverlay.querySelector('.modal-header p');
-  const cycleDescription = courseOverlay.querySelector('.info-box-text p');
+  const cycleDescription = courseOverlay.querySelector('.info-box-text span');
   let modalTrigger = null;
 
   // Formato y error de la división: componente compartido field-validation.component.js.
@@ -160,8 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const gradeLabel = gradeDropdown.querySelector('.dropdown-label');
   const gradeCards = gradeDropdown.querySelectorAll('.grade-card');
 
-  const yearBadge = document.getElementById('newCourseYearBadge');
-  yearBadge.textContent = String(new Date().getFullYear());
+  const cycleYear = document.getElementById('newCourseYear');
+  cycleYear.textContent = String(new Date().getFullYear());
 
   const courseSelectDropdowns = courseOverlay.querySelectorAll(
     '[data-filter="new-course-shift"], [data-filter="new-course-level"]'
@@ -240,10 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Modifica los datos del curso'
       : 'Completa los datos para crear un nuevo curso';
     cycleDescription.textContent = isEditing
-      ? 'El curso pertenece al ciclo lectivo actual.'
-      : 'El curso se creará para el ciclo lectivo actual.';
+      ? 'Pertenece al ciclo lectivo:'
+      : 'Se creará para el ciclo lectivo:';
     createCourseBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear curso';
-    yearBadge.textContent = String(new Date().getFullYear());
+    cycleYear.textContent = String(new Date().getFullYear());
 
     if (row) {
       const [grade, division, shift, level, year] = Array.from(row.cells, (cell) => cell.textContent.trim());
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Array.from(dropdown.querySelectorAll('.dropdown-option'))
           .find((option) => option.textContent.trim() === value)?.click();
       });
-      yearBadge.textContent = year;
+      cycleYear.textContent = year;
       updateCreateButtonState();
     }
     courseOverlay.classList.add('is-open');

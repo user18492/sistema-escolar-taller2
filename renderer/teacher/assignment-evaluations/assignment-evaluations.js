@@ -57,8 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveEvaluationBtn = document.getElementById('saveEvaluationBtn');
   const evaluationModalTitle = document.getElementById('evaluationModalTitle');
   const evaluationModalSubtitle = evaluationOverlay.querySelector('.modal-header p');
-  const cycleDescription = document.getElementById('evaluationCycleDescription');
-  const yearBadge = document.getElementById('evaluationYearBadge');
+  const cycleDescription = evaluationOverlay.querySelector('.info-box-text span');
+  const cycleYear = document.getElementById('evaluationYear');
 
   const titleInput = document.getElementById('evaluationTitleInput');
   const dateInput = document.getElementById('evaluationDateInput');
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let modalTrigger = openEvaluationModalBtn;
 
   // Máscara DD/MM de la fecha, formato del título y errores: componente compartido
-  // field-validation.component.js. La fecha se valida contra el año del ciclo (yearBadge).
+  // field-validation.component.js. La fecha se valida contra el año del ciclo (cycleYear).
 
   function updateSaveButtonState() {
     const hasTitle = titleInput.value.trim().length > 0;
@@ -102,10 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Modifica los datos de la evaluación'
       : 'Completa los datos para crear una nueva evaluación';
     cycleDescription.textContent = isEditing
-      ? 'La fecha conserva el año del ciclo lectivo actual.'
-      : 'La fecha tomará el año del ciclo lectivo actual.';
+      ? 'Pertenece al ciclo lectivo:'
+      : 'Se creará para el ciclo lectivo:';
     saveEvaluationBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear evaluación';
-    yearBadge.textContent = String(new Date().getFullYear());
+    cycleYear.textContent = String(new Date().getFullYear());
 
     if (row) {
       const [title, type, date] = Array.from(row.cells, (cell) => cell.textContent.trim());
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const [day, month, year] = date.split(' ');
       const monthNumber = String(MONTH_ABBREVIATIONS.indexOf(month) + 1).padStart(2, '0');
       dateInput.value = `${day}/${monthNumber}`;
-      yearBadge.textContent = year;
+      cycleYear.textContent = year;
     }
 
     updateSaveButtonState();

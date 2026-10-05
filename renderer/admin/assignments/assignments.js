@@ -22,11 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const createAssignmentBtn = document.getElementById('createAssignmentBtn');
   const assignmentTitle = document.getElementById('newAssignmentTitle');
   const assignmentSubtitle = assignmentOverlay.querySelector('.modal-header p');
-  const cycleDescription = assignmentOverlay.querySelector('.info-box-text p');
+  const cycleDescription = assignmentOverlay.querySelector('.info-box-text span');
   let modalTrigger = null;
 
-  const assignmentYearBadge = document.getElementById('newAssignmentYearBadge');
-  assignmentYearBadge.textContent = String(new Date().getFullYear());
+  const assignmentCycleYear = document.getElementById('newAssignmentYear');
+  assignmentCycleYear.textContent = String(new Date().getFullYear());
 
   const teacherRoot = assignmentOverlay.querySelector('[data-role="teacher-select"]');
   const courseRoot = assignmentOverlay.querySelector('[data-role="course-select"]');
@@ -140,10 +140,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Modifica los datos de la asignación'
       : 'Completa los datos para crear una nueva asignación docente';
     cycleDescription.textContent = isEditing
-      ? 'La asignación pertenece al ciclo lectivo actual.'
-      : 'La asignación se creará para el ciclo lectivo actual.';
+      ? 'Pertenece al ciclo lectivo:'
+      : 'Se creará para el ciclo lectivo:';
     createAssignmentBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear asignación';
-    assignmentYearBadge.textContent = String(new Date().getFullYear());
+    assignmentCycleYear.textContent = String(new Date().getFullYear());
 
     if (row) {
       const email = row.querySelector('.teacher-email').textContent.trim();
@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         subjectOption.dataset.label = subject;
         subjectOption.click();
       }
-      assignmentYearBadge.textContent = year;
+      assignmentCycleYear.textContent = year;
       updateCreateButtonState();
     }
     assignmentOverlay.classList.add('is-open');

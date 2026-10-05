@@ -238,7 +238,7 @@
                 <line x1="8" y1="3" x2="8" y2="7" />
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
-              <input type="text" id="evaluationDateInput" placeholder="DD/MM" inputmode="numeric" autocomplete="off" aria-describedby="evaluationCycleDescription" data-validate="day-month" data-year-source="evaluationYearBadge" required />
+              <input type="text" id="evaluationDateInput" placeholder="DD/MM" inputmode="numeric" autocomplete="off" aria-describedby="evaluationCycleDescription" data-validate="day-month" data-year-source="evaluationYear" required />
             </div>
           </div>
 
@@ -251,10 +251,8 @@
               </svg>
             </span>
             <div class="info-box-text">
-              <span class="info-box-title">Ciclo lectivo actual</span>
-              <p id="evaluationCycleDescription">La fecha tomará el año del ciclo lectivo actual.</p>
+              <p id="evaluationCycleDescription"><span>Se creará para el ciclo lectivo:</span> <strong id="evaluationYear">2026</strong></p>
             </div>
-            <span class="info-box-badge" id="evaluationYearBadge">2026</span>
           </div>
         </div>
 

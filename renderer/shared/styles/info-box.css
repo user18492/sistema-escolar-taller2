@@ -33,24 +33,13 @@
   min-width: 0;
 }
 
-.info-box-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-accent-blue);
-}
-
 .info-box-text p {
-  margin-top: 2px;
   font-size: 13px;
   color: var(--color-text-secondary);
 }
 
-.info-box-badge {
-  flex-shrink: 0;
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent-blue-bg);
-  color: var(--color-accent-blue);
-  font-size: 15px;
+/* Dato resaltado dentro del texto (el año del ciclo lectivo). */
+.info-box-text strong {
   font-weight: 700;
+  color: #2563eb;
 }
