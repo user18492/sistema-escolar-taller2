@@ -303,4 +303,47 @@ WHERE g.nivel_educativo = 'SECUNDARIA'
                    'Filosofía', 'Psicología', 'Economía')
 ORDER BY g.grado_id, m.materia_id;
 
+-- Cursos: 20 por institución, 40 en total. Cada institución tiene 8 del ciclo lectivo 2025 y 12
+-- del 2026, y cada INSERT cruza los grados de un ciclo lectivo con sus divisiones.
+
+-- Instituto San Martin, ciclo lectivo 2025: 1° y 2° de cada nivel, con dos divisiones. La A cursa
+-- a la mañana y la B a la tarde
+INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
+       g.grado_id, d.division, d.turno, 2025
+FROM grado g
+CROSS JOIN (VALUES ('A', 'MAÑANA'), ('B', 'TARDE')) AS d(division, turno)
+WHERE g.nombre IN ('1°', '2°')
+ORDER BY g.grado_id, d.division;
+
+-- Instituto San Martin, ciclo lectivo 2026: los 12 grados, con una división. Primaria cursa a la
+-- mañana y secundaria a la tarde
+INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
+       g.grado_id, 'A',
+       CASE g.nivel_educativo WHEN 'PRIMARIA' THEN 'MAÑANA' ELSE 'TARDE' END,
+       2026
+FROM grado g
+ORDER BY g.grado_id;
+
+-- Colegio Manuel Belgrano, ciclo lectivo 2025: 5° y 6° de cada nivel, con dos divisiones. La A
+-- cursa a la mañana y la B a la tarde
+INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+       g.grado_id, d.division, d.turno, 2025
+FROM grado g
+CROSS JOIN (VALUES ('A', 'MAÑANA'), ('B', 'TARDE')) AS d(division, turno)
+WHERE g.nombre IN ('5°', '6°')
+ORDER BY g.grado_id, d.division;
+
+-- Colegio Manuel Belgrano, ciclo lectivo 2026: los 12 grados, con una división. Al revés que en
+-- el Instituto San Martin, primaria cursa a la tarde y secundaria a la mañana
+INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+       g.grado_id, 'A',
+       CASE g.nivel_educativo WHEN 'PRIMARIA' THEN 'TARDE' ELSE 'MAÑANA' END,
+       2026
+FROM grado g
+ORDER BY g.grado_id;
+
 COMMIT;

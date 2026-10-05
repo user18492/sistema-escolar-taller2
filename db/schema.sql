@@ -107,4 +107,30 @@ CREATE TABLE grado_materia (
 -- Igual que en usuario: grado_id ya es la primera columna del índice de la restricción UNIQUE
 CREATE INDEX idx_grado_materia_materia_id ON grado_materia(materia_id);
 
+-- Cursos: una división de un grado, en un turno y un ciclo lectivo, dentro de una institución
+CREATE TABLE curso (
+    curso_id            INT         GENERATED ALWAYS AS IDENTITY,
+    institucion_id      INT         NOT NULL,
+    grado_id            INT         NOT NULL,
+    division            VARCHAR(1)  NOT NULL,
+    -- Una letra mayúscula: A, B, C...
+    turno               VARCHAR(6)  NOT NULL,
+    -- MAÑANA, TARDE
+    anio_ciclo_lectivo  INT         NOT NULL,
+    -- Solo el año: 2026
+
+    CONSTRAINT pk_curso PRIMARY KEY (curso_id),
+    CONSTRAINT fk_curso_institucion FOREIGN KEY (institucion_id) REFERENCES institucion(institucion_id),
+    CONSTRAINT fk_curso_grado FOREIGN KEY (grado_id) REFERENCES grado(grado_id),
+    -- Un curso no se repite dentro de una institución: lo identifican todas sus columnas juntas
+    CONSTRAINT uq_curso_institucion_grado_division_turno_anio_ciclo_lectivo
+        UNIQUE (institucion_id, grado_id, division, turno, anio_ciclo_lectivo),
+    CONSTRAINT ck_curso_division CHECK (division ~ '^[A-Z]$'),
+    CONSTRAINT ck_curso_turno CHECK (turno IN ('MAÑANA', 'TARDE')),
+    CONSTRAINT ck_curso_anio_ciclo_lectivo CHECK (anio_ciclo_lectivo BETWEEN 2000 AND 2100)
+);
+
+-- Igual que en usuario: institucion_id ya es la primera columna del índice de la restricción UNIQUE
+CREATE INDEX idx_curso_grado_id ON curso(grado_id);
+
 COMMIT;
