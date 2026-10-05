@@ -2,7 +2,10 @@
 // ciclos lectivos, que llegan del proceso principal (window.api.courses.list), y los filtros de
 // columna los filtran en memoria. La lista filtrada se pagina en memoria, 10 por página, con
 // <table-pagination>.
-// Nuevo curso, Editar y Eliminar siguen siendo visuales: no modifican datos persistidos.
+// Nuevo curso lo crea para el ciclo lectivo del año en curso (window.api.courses.create), con los
+// grados del catálogo (window.api.grades.list). El resultado se avisa con un toast
+// (toast.component.js), salvo el error de la división, que se marca en el formulario.
+// Editar y Eliminar siguen siendo visuales: no modifican datos persistidos.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -142,9 +145,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadCourses();
 
+  // ---------- Tabla: cambios después de crear ----------
+
+  // Mismo orden que el del listado (FIND_BY_INSTITUTION_SQL, course.repository.js): ciclo lectivo
+  // (el más reciente primero), nivel educativo, grado, división y turno; el id desempata.
+  const LEVEL_ORDER = ['PRIMARY', 'SECONDARY'];
+  const SHIFT_ORDER = ['MORNING', 'AFTERNOON'];
+  const compareCourses = (a, b) =>
+    b.schoolYear - a.schoolYear ||
+    LEVEL_ORDER.indexOf(a.educationLevel) - LEVEL_ORDER.indexOf(b.educationLevel) ||
+    a.gradeName.localeCompare(b.gradeName) ||
+    a.division.localeCompare(b.division) ||
+    SHIFT_ORDER.indexOf(a.shift) - SHIFT_ORDER.indexOf(b.shift) ||
+    a.id - b.id;
+
+  // Agrega el curso creado a la lista en memoria, en su lugar, sin recargarla ni tocar los filtros:
+  // si coincide con los activos, la tabla pasa a la página donde quedó; si no, no se muestra. Si la
+  // lista no se había podido cargar, se vuelve a pedir: mostrar solo el curso nuevo taparía el
+  // error.
+  const insertCourse = (newCourse) => {
+    if (!isLoaded) {
+      loadCourses();
+      return;
+    }
+    const index = courses.findIndex((course) => compareCourses(newCourse, course) < 0);
+    courses = courses.toSpliced(index === -1 ? courses.length : index, 0, newCourse);
+    const visibleIndex = courses.filter(matchesFilters).indexOf(newCourse);
+    renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
+  };
+
+  // Descripción de los toasts de error: el mensaje del proceso principal. Sin respuesta, o con
+  // UNEXPECTED_ERROR (su mensaje repite el título del toast), queda la genérica.
+  const errorDescription = (error) =>
+    (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
+
   // ---------- Modal compartido: Nuevo curso / Editar curso ----------
 
   const courseOverlay = document.getElementById('newCourseOverlay');
+  const courseModal = courseOverlay.querySelector('.modal');
+  const courseModalBody = courseOverlay.querySelector('.modal-body');
   const openCourseModalBtn = document.getElementById('openNewCourseModalBtn');
   const cancelCourseBtn = document.getElementById('cancelNewCourseBtn');
   const createCourseBtn = document.getElementById('createCourseBtn');
@@ -152,46 +191,113 @@ document.addEventListener('DOMContentLoaded', () => {
   const courseSubtitle = courseOverlay.querySelector('.modal-header p');
   const cycleDescription = courseOverlay.querySelector('.info-box-text span');
   let modalTrigger = null;
+  let isEditing = false;
+  let isSaving = false;
 
   // Formato y error de la división: componente compartido field-validation.component.js.
   const divisionInput = document.getElementById('newCourseDivision');
 
   const gradeDropdown = courseOverlay.querySelector('[data-filter="new-course-grade"]');
   const gradeLabel = gradeDropdown.querySelector('.dropdown-label');
-  const gradeCards = gradeDropdown.querySelectorAll('.grade-card');
+  const gradeGrid = gradeDropdown.querySelector('.grade-grid');
+  const gradeMessage = document.getElementById('newCourseGradeMessage');
+  const gradeCardTemplate = document.getElementById('gradeCardTemplate');
 
   const cycleYear = document.getElementById('newCourseYear');
   cycleYear.textContent = String(new Date().getFullYear());
 
-  const courseSelectDropdowns = courseOverlay.querySelectorAll(
-    '[data-filter="new-course-shift"], [data-filter="new-course-level"]'
-  );
+  const shiftDropdown = courseOverlay.querySelector('[data-filter="new-course-shift"]');
+  const levelDropdown = courseOverlay.querySelector('[data-filter="new-course-level"]');
+  const courseSelectDropdowns = [shiftDropdown, levelDropdown];
+
+  const selectedValue = (dropdown) => dropdown.querySelector('.dropdown-option.selected')?.dataset.value;
+  // Nombre del grado elegido (1°, 2°, ... 6°): el data-value de su tarjeta
+  const selectedGradeName = () => gradeGrid.querySelector('.grade-card.selected')?.dataset.value;
+
+  // ---------- Modal: grados del catálogo ----------
+
+  const GENERIC_GRADES_ERROR = 'No se pudieron cargar los grados. Intentá nuevamente.';
+
+  // Catálogo de grados, en el orden en que llega del proceso principal: primaria antes que
+  // secundaria y, dentro de cada nivel, de 1° a 6°. Un grado es un nombre en un nivel educativo, y
+  // el formulario los elige por separado: el nombre en Grado y el nivel en Nivel educativo.
+  let grades = [];
+  let isLoadingGrades = false;
+
+  // Grado del catálogo con ese nombre en ese nivel educativo, o undefined
+  const findGrade = (name, level) => grades.find((grade) => grade.name === name && grade.educationLevel === level);
+
+  // Grado: una tarjeta por nombre, en el orden del catálogo. Nivel educativo: de las opciones del
+  // formulario quedan a la vista las que tienen algún grado. Los datos de la base se asignan con
+  // textContent, nunca como HTML.
+  const renderGradeOptions = () => {
+    const names = [...new Set(grades.map((grade) => grade.name))];
+    gradeGrid.replaceChildren(...names.map((name) => {
+      const card = gradeCardTemplate.content.firstElementChild.cloneNode(true);
+      card.dataset.value = name;
+      card.textContent = name;
+      return card;
+    }));
+    levelDropdown.querySelectorAll('.dropdown-option').forEach((option) => {
+      option.hidden = !grades.some((grade) => grade.educationLevel === option.dataset.value);
+    });
+    gradeMessage.textContent = 'No hay grados registrados.';
+    gradeMessage.hidden = names.length > 0;
+  };
+
+  // Punto de entrada también para volver a pedir el catálogo al abrir el modal, si no había
+  // cargado. Mientras no llega, el desplegable de Grado muestra el motivo en lugar de las tarjetas.
+  async function loadGrades() {
+    if (isLoadingGrades) return;
+    isLoadingGrades = true;
+    gradeMessage.textContent = 'Cargando grados…';
+    gradeMessage.hidden = false;
+    let response;
+    try {
+      response = await window.api?.grades?.list();
+    } catch (error) {
+      console.error('Error al cargar los grados:', error);
+    }
+    isLoadingGrades = false;
+    if (!response?.ok) {
+      gradeMessage.textContent = response?.error?.message || GENERIC_GRADES_ERROR;
+      return;
+    }
+    grades = response.grades;
+    renderGradeOptions();
+  }
+
+  loadGrades();
+
+  // ---------- Modal: formulario ----------
 
   function updateCreateButtonState() {
-    const hasGrade = Boolean(gradeDropdown.querySelector('.grade-card.selected'));
+    const hasGrade = Boolean(selectedGradeName());
     const hasDivision = divisionInput.value.trim().length > 0;
-    const hasShift = Boolean(
-      courseOverlay.querySelector('[data-filter="new-course-shift"] .dropdown-option.selected')
-    );
-    const hasLevel = Boolean(
-      courseOverlay.querySelector('[data-filter="new-course-level"] .dropdown-option.selected')
-    );
+    const hasShift = Boolean(selectedValue(shiftDropdown));
+    const hasLevel = Boolean(selectedValue(levelDropdown));
     createCourseBtn.disabled = !(hasGrade && hasDivision && hasShift && hasLevel);
   }
 
-  gradeCards.forEach((card) => {
-    card.addEventListener('click', () => {
-      gradeCards.forEach((c) => {
-        c.classList.remove('selected');
-        c.setAttribute('aria-selected', 'false');
-      });
-      card.classList.add('selected');
-      card.setAttribute('aria-selected', 'true');
-      gradeLabel.textContent = `${card.dataset.value}°`;
-      gradeLabel.classList.remove('placeholder');
-      closeDropdown(gradeDropdown);
-      updateCreateButtonState();
+  // Marca la tarjeta elegida y la muestra en la etiqueta del desplegable. Con null queda sin
+  // selección y con el texto inicial de la etiqueta.
+  const selectGradeCard = (selectedCard) => {
+    gradeGrid.querySelectorAll('.grade-card').forEach((card) => {
+      const selected = card === selectedCard;
+      card.classList.toggle('selected', selected);
+      card.setAttribute('aria-selected', String(selected));
     });
+    gradeLabel.textContent = selectedCard ? selectedCard.textContent : gradeLabel.dataset.placeholder;
+    gradeLabel.classList.toggle('placeholder', !selectedCard);
+  };
+
+  // Por delegación: las tarjetas se generan al llegar el catálogo
+  gradeGrid.addEventListener('click', (event) => {
+    const card = event.target.closest('.grade-card');
+    if (!card) return;
+    selectGradeCard(card);
+    closeDropdown(gradeDropdown);
+    updateCreateButtonState();
   });
 
   divisionInput.addEventListener('input', updateCreateButtonState);
@@ -202,16 +308,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Mientras se espera la respuesta del alta, el cuerpo del modal queda inerte, así lo enviado
+  // coincide con lo que se ve. Los botones del pie quedan con aria-disabled y no con disabled:
+  // conservan el foco, como en confirm-modal.component.js.
+  const setSaving = (saving) => {
+    isSaving = saving;
+    courseModalBody.inert = saving;
+    courseModal.setAttribute('aria-busy', String(saving));
+    [cancelCourseBtn, createCourseBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
+    createCourseBtn.textContent = saving ? 'Creando…' : 'Crear curso';
+  };
+
   function resetCourseForm() {
     divisionInput.value = '';
     clearFieldErrors(courseOverlay);
 
-    gradeCards.forEach((card) => {
-      card.classList.remove('selected');
-      card.setAttribute('aria-selected', 'false');
-    });
-    gradeLabel.textContent = gradeLabel.dataset.placeholder;
-    gradeLabel.classList.add('placeholder');
+    selectGradeCard(null);
 
     courseSelectDropdowns.forEach((dropdown) => {
       const label = dropdown.querySelector('.dropdown-label');
@@ -234,7 +346,9 @@ document.addEventListener('DOMContentLoaded', () => {
     closeAllDropdowns();
     document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     modalTrigger = trigger;
-    const isEditing = Boolean(row);
+    isEditing = Boolean(row);
+    // El catálogo no llegó al cargar la vista: se vuelve a pedir
+    if (!grades.length) loadGrades();
     courseTitle.textContent = isEditing ? 'Editar curso' : 'Nuevo curso';
     courseSubtitle.textContent = isEditing
       ? 'Modifica los datos del curso'
@@ -248,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (row) {
       const [grade, division, shift, level, year] = Array.from(row.cells, (cell) => cell.textContent.trim());
       divisionInput.value = division;
-      Array.from(gradeCards).find((card) => card.textContent.trim() === grade)?.click();
+      Array.from(gradeGrid.querySelectorAll('.grade-card')).find((card) => card.textContent.trim() === grade)?.click();
       courseSelectDropdowns.forEach((dropdown, index) => {
         const value = index === 0 ? shift : level;
         Array.from(dropdown.querySelectorAll('.dropdown-option'))
@@ -267,8 +381,61 @@ document.addEventListener('DOMContentLoaded', () => {
     modalTrigger?.focus();
   }
 
+  const CREATE_ERROR_TITLE = 'No se pudo crear el curso';
+
+  // "3° A de Secundaria, turno Mañana", como lo nombra el toast del alta
+  const courseName = (course) =>
+    `${course.gradeName} ${course.division} de ${levelLabels[course.educationLevel]}, turno ${shiftLabels[course.shift]}`;
+
+  // Crea el curso; al terminar cierra el modal y lo avisa con un toast. El error de la división se
+  // marca en el formulario y los demás salen en un toast: en ambos casos el modal sigue abierto con
+  // lo que se eligió.
+  const createCourse = async () => {
+    const gradeName = selectedGradeName();
+    const level = selectedValue(levelDropdown);
+    const grade = findGrade(gradeName, level);
+    // El catálogo no tiene ese grado en el nivel elegido: no hay un grado_id que enviar
+    if (!grade) {
+      showToast({ type: 'error', title: CREATE_ERROR_TITLE, description: `No existe ${gradeName} de ${levelLabels[level]}.` });
+      return;
+    }
+    setSaving(true);
+    let response;
+    try {
+      // El ciclo lectivo no se envía: el proceso principal usa el año en curso, el que anuncia el modal
+      response = await window.api?.courses?.create({
+        gradeId: grade.id,
+        division: divisionInput.value,
+        shift: selectedValue(shiftDropdown),
+      });
+    } catch (error) {
+      console.error('Error al crear el curso:', error);
+    }
+    setSaving(false);
+
+    if (response?.ok) {
+      insertCourse(response.course);
+      closeCourseModal();
+      showToast({
+        type: 'success',
+        title: 'Curso creado',
+        description: `Se registró ${courseName(response.course)}, para el ciclo lectivo ${response.course.schoolYear}.`,
+      });
+      return;
+    }
+    const error = response?.error;
+    if (error?.fieldErrors?.division) {
+      setFieldError(divisionInput, error.fieldErrors.division);
+      divisionInput.focus();
+      return;
+    }
+    showToast({ type: 'error', title: CREATE_ERROR_TITLE, description: errorDescription(error) });
+  };
+
   openCourseModalBtn.addEventListener('click', () => openCourseModal(openCourseModalBtn));
-  cancelCourseBtn.addEventListener('click', closeCourseModal);
+  cancelCourseBtn.addEventListener('click', () => {
+    if (!isSaving) closeCourseModal();
+  });
   // Por delegación: las filas se generan al cargar los cursos, al filtrar y al cambiar de página
   tbody.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action="edit"]');
@@ -277,18 +444,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
   // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
-  // quedado fuera de un control.
+  // quedado fuera de un control. Mientras se crea el curso, ni Escape ni Cancelar lo cierran.
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && courseOverlay.classList.contains('is-open')) closeCourseModal();
+    if (event.key === 'Escape' && courseOverlay.classList.contains('is-open') && !isSaving) closeCourseModal();
   });
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   createCourseBtn.addEventListener('click', () => {
+    if (isSaving) return;
     // Con la división inválida, el modal sigue abierto con el foco en ella.
     if (validateFields(courseOverlay)) return;
-    // Vista puramente visual: crear y guardar no modifican datos persistidos.
-    closeCourseModal();
+    // Editar sigue siendo visual: guardar no modifica datos persistidos.
+    if (isEditing) {
+      closeCourseModal();
+      return;
+    }
+    // El proceso principal vuelve a validar todo antes de guardar el curso.
+    createCourse();
   });
 
   // ---------- Modal: Eliminar curso ----------

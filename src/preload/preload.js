@@ -32,9 +32,9 @@ contextBridge.exposeInMainWorld('api', {
     getRememberedEmail: () => ipcRenderer.invoke('auth:get-remembered-email'),
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
-  // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de users y de courses
-  // resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal
-  // cierra la sesión y vuelve al login.
+  // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de users, de courses y
+  // de grades resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso
+  // principal cierra la sesión y vuelve al login.
   users: {
     // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, vigentes y dados de
     // baja, ordenados por apellido y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role,
@@ -80,5 +80,20 @@ contextBridge.exposeInMainWorld('api', {
     // { ok: false, error: { code, message } }. Llegan siempre en el mismo orden: ciclo lectivo (el más
     // reciente primero), nivel educativo (primaria antes que secundaria), grado, división y turno.
     list: () => ipcRenderer.invoke('courses:list'),
+    // Solo ADMIN. Crea un curso en su institución, para el ciclo lectivo del año en curso. `data` es
+    // { gradeId, division, shift }, con gradeId el id de un grado de grades.list (define también el
+    // nivel educativo), division una letra (se guarda en mayúscula) y shift 'MORNING' o 'AFTERNOON'.
+    // Resuelve { ok: true, course } con el curso creado (mismos campos que list) o
+    // { ok: false, error: { code, message, fieldErrors } }: fieldErrors ({ campo: mensaje }) llega si
+    // la división no es válida, DUPLICATE_VALUE indica que la institución ya tiene ese curso en el
+    // ciclo lectivo y GRADE_NOT_FOUND, que el grado no está en el catálogo.
+    create: (data) => ipcRenderer.invoke('courses:create', data),
+  },
+  grades: {
+    // Solo ADMIN. Resuelve { ok: true, grades } con el catálogo de grados, común a todas las
+    // instituciones ({ id, name, educationLevel }, con name el nombre del grado, 1° a 6°, que se repite
+    // entre niveles, y educationLevel 'PRIMARY' o 'SECONDARY'), o { ok: false, error: { code, message } }.
+    // Llegan siempre en el mismo orden: nivel educativo (primaria antes que secundaria) y grado.
+    list: () => ipcRenderer.invoke('grades:list'),
   },
 });
