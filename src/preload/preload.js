@@ -88,6 +88,14 @@ contextBridge.exposeInMainWorld('api', {
     // la división no es válida, DUPLICATE_VALUE indica que la institución ya tiene ese curso vigente
     // en el ciclo lectivo y GRADE_NOT_FOUND, que el grado no está en el catálogo.
     create: (data) => ipcRenderer.invoke('courses:create', data),
+    // Solo ADMIN. Guarda el grado, la división y el turno del curso vigente con ese id (curso_id) de su
+    // institución; el ciclo lectivo no cambia. `data` es { gradeId, division, shift }, como en create.
+    // Resuelve { ok: true, course } con el curso como quedó (mismos campos que list) o
+    // { ok: false, error: { code, message, fieldErrors } }: fieldErrors llega si la división no es
+    // válida, DUPLICATE_VALUE indica que la institución ya tiene otro curso vigente igual en ese ciclo
+    // lectivo, GRADE_NOT_FOUND, que el grado no está en el catálogo, y COURSE_NOT_FOUND y
+    // COURSE_ALREADY_DELETED, que el curso ya no está vigente.
+    update: (courseId, data) => ipcRenderer.invoke('courses:update', courseId, data),
     // Solo ADMIN. Baja lógica del curso con ese id (curso_id) de su institución: deja de listarse y su
     // grado, división y turno se pueden volver a crear en ese ciclo lectivo. Resuelve
     // { ok: true, course } con el curso dado de baja (mismos campos que list) o

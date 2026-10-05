@@ -52,6 +52,25 @@ async function createCourse(currentUser, data) {
 }
 
 // Nunca rechaza, como createCourse.
+async function updateCourse(currentUser, courseId, data) {
+  if (!isId(courseId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar el curso.');
+  }
+  if (!isCourseData(data)) {
+    return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');
+  }
+  try {
+    return { ok: true, course: await courseService.updateCourse(currentUser, courseId, data) };
+  } catch (error) {
+    if (error instanceof CourseError) {
+      return failure(error.code, error.message, error.fieldErrors);
+    }
+    console.error('Error al guardar el curso:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudieron guardar los cambios. Intentá nuevamente.');
+  }
+}
+
+// Nunca rechaza, como createCourse.
 async function deleteCourse(currentUser, courseId) {
   if (!isId(courseId)) {
     return failure('INVALID_INPUT', 'No se pudo identificar el curso.');
@@ -72,6 +91,7 @@ async function deleteCourse(currentUser, courseId) {
 function registerCourseHandlers(browserWindow) {
   handleProtected(browserWindow, 'courses:list', ['ADMIN'], listCourses);
   handleProtected(browserWindow, 'courses:create', ['ADMIN'], createCourse);
+  handleProtected(browserWindow, 'courses:update', ['ADMIN'], updateCourse);
   handleProtected(browserWindow, 'courses:delete', ['ADMIN'], deleteCourse);
 }
 

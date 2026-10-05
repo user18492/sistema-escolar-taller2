@@ -3,11 +3,11 @@
 // columna los filtran en memoria. La lista filtrada se pagina en memoria, 10 por página, con
 // <table-pagination>.
 // Nuevo curso lo crea para el ciclo lectivo del año en curso (window.api.courses.create), con los
-// grados del catálogo (window.api.grades.list), y Eliminar da de baja el curso (baja lógica,
-// window.api.courses.delete) después de confirmarlo en un modal (confirm-modal.component.js).
-// El resultado de las dos operaciones se avisa con un toast (toast.component.js), salvo el error de
+// grados del catálogo (window.api.grades.list); Editar guarda el grado, la división y el turno de un
+// curso, que conserva su ciclo lectivo (window.api.courses.update), y Eliminar lo da de baja (baja
+// lógica, window.api.courses.delete) después de confirmarlo en un modal (confirm-modal.component.js).
+// El resultado de las tres operaciones se avisa con un toast (toast.component.js), salvo el error de
 // la división, que se marca en el formulario.
-// Editar sigue siendo visual: no modifica datos persistidos.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadCourses();
 
-  // ---------- Tabla: cambios después de crear o eliminar ----------
+  // ---------- Tabla: cambios después de crear, editar o eliminar ----------
 
   // Mismo orden que el del listado (FIND_BY_INSTITUTION_SQL, course.repository.js): ciclo lectivo
   // (el más reciente primero), nivel educativo, grado, división y turno; el id desempata.
@@ -176,6 +176,14 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
   };
 
+  // Reemplaza en la lista en memoria el curso editado, que pasa al lugar que le toca con sus datos
+  // nuevos, como uno recién creado: si coincide con los filtros activos, la tabla pasa a la página
+  // donde quedó; si no, su fila deja de mostrarse.
+  const replaceCourse = (updatedCourse) => {
+    courses = courses.filter((course) => course.id !== updatedCourse.id);
+    insertCourse(updatedCourse);
+  };
+
   // Quita de la lista en memoria el curso dado de baja, sin recargarla ni tocar los filtros. La
   // página se conserva; si era la última y quedó vacía, el componente pasa a la anterior.
   const removeCourse = (courseId) => {
@@ -183,14 +191,14 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows();
   };
 
-  // Posición en la página de la fila del botón que abrió el modal de Eliminar, solo para devolver
-  // el foco a la que ocupe su lugar si esa fila ya no se muestra
+  // Posición en la página de la fila del botón que abrió el último modal, solo para devolver el
+  // foco a la que ocupe su lugar si esa fila ya no se muestra
   let triggerRowIndex = 0;
 
-  // Eliminar de la fila que quedó en su lugar (o de la última de la página), o "Nuevo curso" si la
-  // tabla quedó sin cursos
-  const focusAfterRemoval = () => {
-    const buttons = tbody.querySelectorAll('[data-action="delete"]');
+  // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
+  // página), o "Nuevo curso" si la tabla quedó sin cursos
+  const focusAfterRemoval = (action) => {
+    const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
     return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openCourseModalBtn;
   };
 
@@ -198,6 +206,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // UNEXPECTED_ERROR (su mensaje repite el título del toast), queda la genérica.
   const errorDescription = (error) =>
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
+
+  // El curso ya no está vigente: la lista en memoria quedó vieja y se vuelve a pedir
+  const NO_LONGER_ACTIVE_CODES = ['COURSE_NOT_FOUND', 'COURSE_ALREADY_DELETED'];
+
+  // "3° A de Secundaria, turno Mañana", como lo nombran los toasts del alta, la edición y la baja
+  const courseName = (course) =>
+    `${course.gradeName} ${course.division} de ${levelLabels[course.educationLevel]}, turno ${shiftLabels[course.shift]}`;
 
   // ---------- Modal compartido: Nuevo curso / Editar curso ----------
 
@@ -212,7 +227,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const cycleDescription = courseOverlay.querySelector('.info-box-text span');
   let modalTrigger = null;
   let isEditing = false;
+  // Curso que se edita, el de la lista en memoria al abrir el modal desde su fila: su id es el único
+  // que se envía al guardar
+  let editingCourse = null;
   let isSaving = false;
+
+  // Texto del botón principal, en reposo y mientras se espera la respuesta, y de los toasts de
+  // éxito y de error, según el modo del modal
+  const MODAL_TEXTS = {
+    create: {
+      submit: 'Crear curso',
+      saving: 'Creando…',
+      successTitle: 'Curso creado',
+      successDescription: (course) => `Se registró ${courseName(course)}, para el ciclo lectivo ${course.schoolYear}.`,
+      errorTitle: 'No se pudo crear el curso',
+    },
+    edit: {
+      submit: 'Guardar cambios',
+      saving: 'Guardando…',
+      successTitle: 'Curso actualizado',
+      successDescription: (course) => `Se guardaron los cambios de ${courseName(course)}, del ciclo lectivo ${course.schoolYear}.`,
+      errorTitle: 'No se pudieron guardar los cambios',
+    },
+  };
+  const modalTexts = () => MODAL_TEXTS[isEditing ? 'edit' : 'create'];
 
   // Formato y error de la división: componente compartido field-validation.component.js.
   const divisionInput = document.getElementById('newCourseDivision');
@@ -285,6 +323,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     grades = response.grades;
     renderGradeOptions();
+    // El modal se abrió para editar antes de que llegara el catálogo: recién ahora hay una tarjeta
+    // que marcar con el grado del curso
+    if (isEditing && courseOverlay.classList.contains('is-open')) {
+      selectGrade(editingCourse.gradeName);
+      updateCreateButtonState();
+    }
   }
 
   loadGrades();
@@ -311,6 +355,15 @@ document.addEventListener('DOMContentLoaded', () => {
     gradeLabel.classList.toggle('placeholder', !selectedCard);
   };
 
+  // Marca la tarjeta del grado con ese nombre; si el catálogo no la tiene, queda sin selección
+  const selectGrade = (name) =>
+    selectGradeCard(Array.from(gradeGrid.children).find((card) => card.dataset.value === name) ?? null);
+
+  // Elige en `dropdown` la opción con ese data-value, como si se la pulsara: dropdown.component.js
+  // la marca y la muestra en la etiqueta
+  const selectOption = (dropdown, value) =>
+    Array.from(dropdown.querySelectorAll('.dropdown-option')).find((option) => option.dataset.value === value)?.click();
+
   // Por delegación: las tarjetas se generan al llegar el catálogo
   gradeGrid.addEventListener('click', (event) => {
     const card = event.target.closest('.grade-card');
@@ -328,15 +381,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Mientras se espera la respuesta del alta, el cuerpo del modal queda inerte, así lo enviado
-  // coincide con lo que se ve. Los botones del pie quedan con aria-disabled y no con disabled:
-  // conservan el foco, como en confirm-modal.component.js.
+  // Mientras se espera la respuesta, el cuerpo del modal queda inerte, así lo enviado coincide con
+  // lo que se ve. Los botones del pie quedan con aria-disabled y no con disabled: conservan el foco,
+  // como en confirm-modal.component.js.
   const setSaving = (saving) => {
     isSaving = saving;
     courseModalBody.inert = saving;
     courseModal.setAttribute('aria-busy', String(saving));
     [cancelCourseBtn, createCourseBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
-    createCourseBtn.textContent = saving ? 'Creando…' : 'Crear curso';
+    createCourseBtn.textContent = saving ? modalTexts().saving : modalTexts().submit;
   };
 
   function resetCourseForm() {
@@ -360,13 +413,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // `trigger` es el botón que lo abre, al que vuelve el foco al cerrarlo; `row`, la fila del curso
-  // que se edita
+  // que se edita. La fila identifica al curso solo por su data-course-id (el curso_id): los datos
+  // del formulario salen del curso cargado de la base, no del texto de las celdas.
   function openCourseModal(trigger, row = null) {
+    const course = row ? courses.find((candidate) => String(candidate.id) === row.dataset.courseId) : null;
+    if (row && !course) return;
     resetCourseForm();
     closeAllDropdowns();
     document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     modalTrigger = trigger;
-    isEditing = Boolean(row);
+    triggerRowIndex = row ? Math.max(0, Array.from(tbody.rows).indexOf(row)) : 0;
+    isEditing = Boolean(course);
+    editingCourse = course;
     // El catálogo no llegó al cargar la vista: se vuelve a pedir
     if (!grades.length) loadGrades();
     courseTitle.textContent = isEditing ? 'Editar curso' : 'Nuevo curso';
@@ -376,19 +434,15 @@ document.addEventListener('DOMContentLoaded', () => {
     cycleDescription.textContent = isEditing
       ? 'Pertenece al ciclo lectivo:'
       : 'Se creará para el ciclo lectivo:';
-    createCourseBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear curso';
-    cycleYear.textContent = String(new Date().getFullYear());
+    createCourseBtn.textContent = modalTexts().submit;
+    // Un curso conserva su ciclo lectivo; uno nuevo es del año en curso
+    cycleYear.textContent = String(course?.schoolYear ?? new Date().getFullYear());
 
-    if (row) {
-      const [grade, division, shift, level, year] = Array.from(row.cells, (cell) => cell.textContent.trim());
-      divisionInput.value = division;
-      Array.from(gradeGrid.querySelectorAll('.grade-card')).find((card) => card.textContent.trim() === grade)?.click();
-      courseSelectDropdowns.forEach((dropdown, index) => {
-        const value = index === 0 ? shift : level;
-        Array.from(dropdown.querySelectorAll('.dropdown-option'))
-          .find((option) => option.textContent.trim() === value)?.click();
-      });
-      cycleYear.textContent = year;
+    if (course) {
+      divisionInput.value = course.division;
+      selectGrade(course.gradeName);
+      selectOption(shiftDropdown, course.shift);
+      selectOption(levelDropdown, course.educationLevel);
       updateCreateButtonState();
     }
     courseOverlay.classList.add('is-open');
@@ -398,48 +452,53 @@ document.addEventListener('DOMContentLoaded', () => {
   function closeCourseModal() {
     courseOverlay.classList.remove('is-open');
     closeAllDropdowns();
-    modalTrigger?.focus();
+    // Después de guardar, o si el curso ya no está vigente, la tabla se volvió a dibujar: el foco
+    // pasa a Editar en la fila del curso o, si ya no se muestra, en la que quedó en su lugar
+    const focusTarget = modalTrigger.isConnected
+      ? modalTrigger
+      : tbody.querySelector(`tr[data-course-id="${editingCourse?.id}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
+    focusTarget.focus();
   }
 
-  const CREATE_ERROR_TITLE = 'No se pudo crear el curso';
-
-  // "3° A de Secundaria, turno Mañana", como lo nombran los toasts del alta y de la baja
-  const courseName = (course) =>
-    `${course.gradeName} ${course.division} de ${levelLabels[course.educationLevel]}, turno ${shiftLabels[course.shift]}`;
-
-  // Crea el curso; al terminar cierra el modal y lo avisa con un toast. El error de la división se
-  // marca en el formulario y los demás salen en un toast: en ambos casos el modal sigue abierto con
-  // lo que se eligió.
-  const createCourse = async () => {
+  // Crea el curso o guarda sus cambios, según el modo; al terminar cierra el modal y lo avisa con un
+  // toast. El error de la división se marca en el formulario y los demás salen en un toast: en ambos
+  // casos el modal sigue abierto con lo que se eligió. Solo se cierra si el curso que se editaba ya
+  // no está vigente.
+  const saveCourse = async () => {
     const gradeName = selectedGradeName();
     const level = selectedValue(levelDropdown);
     const grade = findGrade(gradeName, level);
     // El catálogo no tiene ese grado en el nivel elegido: no hay un grado_id que enviar
     if (!grade) {
-      showToast({ type: 'error', title: CREATE_ERROR_TITLE, description: `No existe ${gradeName} de ${levelLabels[level]}.` });
+      showToast({ type: 'error', title: modalTexts().errorTitle, description: `No existe ${gradeName} de ${levelLabels[level]}.` });
       return;
     }
+    // El ciclo lectivo no se envía: un curso nuevo es del año en curso, el que anuncia el modal, y
+    // uno editado conserva el suyo
+    const data = { gradeId: grade.id, division: divisionInput.value, shift: selectedValue(shiftDropdown) };
     setSaving(true);
     let response;
     try {
-      // El ciclo lectivo no se envía: el proceso principal usa el año en curso, el que anuncia el modal
-      response = await window.api?.courses?.create({
-        gradeId: grade.id,
-        division: divisionInput.value,
-        shift: selectedValue(shiftDropdown),
-      });
+      response = await (isEditing
+        ? window.api?.courses?.update(editingCourse.id, data)
+        : window.api?.courses?.create(data));
     } catch (error) {
-      console.error('Error al crear el curso:', error);
+      console.error('Error al guardar el curso:', error);
     }
+    // El curso que se editaba ya no está vigente: la lista se vuelve a pedir antes de liberar el
+    // modal, que se cierra más abajo
+    const isGone = isEditing && NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
+    if (isGone) await loadCourses();
     setSaving(false);
 
     if (response?.ok) {
-      insertCourse(response.course);
+      if (isEditing) replaceCourse(response.course);
+      else insertCourse(response.course);
       closeCourseModal();
       showToast({
         type: 'success',
-        title: 'Curso creado',
-        description: `Se registró ${courseName(response.course)}, para el ciclo lectivo ${response.course.schoolYear}.`,
+        title: modalTexts().successTitle,
+        description: modalTexts().successDescription(response.course),
       });
       return;
     }
@@ -449,7 +508,8 @@ document.addEventListener('DOMContentLoaded', () => {
       divisionInput.focus();
       return;
     }
-    showToast({ type: 'error', title: CREATE_ERROR_TITLE, description: errorDescription(error) });
+    if (isGone) closeCourseModal();
+    showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
   };
 
   openCourseModalBtn.addEventListener('click', () => openCourseModal(openCourseModalBtn));
@@ -464,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
   // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
-  // quedado fuera de un control. Mientras se crea el curso, ni Escape ni Cancelar lo cierran.
+  // quedado fuera de un control. Mientras se guarda, ni Escape ni Cancelar lo cierran.
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && courseOverlay.classList.contains('is-open') && !isSaving) closeCourseModal();
   });
@@ -475,19 +535,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isSaving) return;
     // Con la división inválida, el modal sigue abierto con el foco en ella.
     if (validateFields(courseOverlay)) return;
-    // Editar sigue siendo visual: guardar no modifica datos persistidos.
-    if (isEditing) {
-      closeCourseModal();
-      return;
-    }
     // El proceso principal vuelve a validar todo antes de guardar el curso.
-    createCourse();
+    saveCourse();
   });
 
   // ---------- Modal: Eliminar curso ----------
-
-  // El curso ya no está vigente: la lista en memoria quedó vieja y se vuelve a pedir
-  const NO_LONGER_ACTIVE_CODES = ['COURSE_NOT_FOUND', 'COURSE_ALREADY_DELETED'];
 
   // El id sale del data-course-id de la fila del botón (el curso_id, fijado al crearla), no de su
   // posición en la tabla. Avisa el resultado con un toast y no resuelve ningún mensaje, así el
@@ -522,6 +574,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupConfirmModal(document.getElementById('deleteCourseOverlay'), {
     beforeOpen: closeAllDropdowns,
     onConfirm: deleteCourse,
-    fallbackFocus: focusAfterRemoval,
+    fallbackFocus: () => focusAfterRemoval('delete'),
   });
 });

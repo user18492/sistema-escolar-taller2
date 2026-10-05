@@ -42,6 +42,33 @@ function parseCourseData(data) {
   return { gradeId: data.gradeId, division: division.toUpperCase(), shift: data.shift };
 }
 
+// Llama a `save` (el INSERT o el UPDATE) y devuelve su resultado. Si PostgreSQL lo rechaza por un
+// motivo previsto, lanza un CourseError: GRADE_NOT_FOUND si el grado no está en el catálogo y
+// DUPLICATE_VALUE, con `duplicateMessage`, si la institución ya tiene otro curso vigente igual en
+// ese ciclo lectivo.
+async function saveCourse(save, duplicateMessage) {
+  try {
+    return await save();
+  } catch (error) {
+    if (courseRepository.isUnknownGradeError(error)) {
+      throw new CourseError('GRADE_NOT_FOUND', 'El grado elegido no existe.');
+    }
+    if (courseRepository.isDuplicateError(error)) {
+      throw new CourseError('DUPLICATE_VALUE', duplicateMessage);
+    }
+    throw error;
+  }
+}
+
+// Error de una edición o una baja que no encontró el curso vigente: si existe en la institución es
+// porque ya estaba dado de baja (COURSE_ALREADY_DELETED); si no, COURSE_NOT_FOUND.
+async function notActiveError(courseId, institutionId) {
+  if (await courseRepository.existsInInstitution(courseId, institutionId)) {
+    return new CourseError('COURSE_ALREADY_DELETED', 'El curso ya había sido eliminado.');
+  }
+  return new CourseError('COURSE_NOT_FOUND', 'El curso ya no existe.');
+}
+
 // Lista explícita de campos, como toListedUser (user.service.js): lo que muestra la tabla de Cursos
 // y el id para identificar la fila. `gradeName` es el valor de grado.nombre (1°, 2°, ... 6°),
 // `educationLevel` PRIMARY o SECONDARY, `shift` MORNING o AFTERNOON y `schoolYear` el año del ciclo
@@ -75,21 +102,29 @@ async function listCourses(currentUser) {
 async function createCourse(currentUser, data) {
   const values = parseCourseData(data);
   const schoolYear = new Date().getFullYear();
-  try {
-    const course = await courseRepository.create(currentUser.institutionId, { ...values, schoolYear });
-    return toListedCourse(course);
-  } catch (error) {
-    if (courseRepository.isUnknownGradeError(error)) {
-      throw new CourseError('GRADE_NOT_FOUND', 'El grado elegido no existe.');
-    }
-    if (courseRepository.isDuplicateError(error)) {
-      throw new CourseError(
-        'DUPLICATE_VALUE',
-        `Ya existe un curso con ese grado, división y turno en el ciclo lectivo ${schoolYear}.`
-      );
-    }
-    throw error;
-  }
+  const course = await saveCourse(
+    () => courseRepository.create(currentUser.institutionId, { ...values, schoolYear }),
+    `Ya existe un curso con ese grado, división y turno en el ciclo lectivo ${schoolYear}.`
+  );
+  return toListedCourse(course);
+}
+
+// Guarda el grado, la división y el turno de un curso vigente de la institución de `currentUser` y
+// lo devuelve como quedó, con los campos de listCourses. `data` trae los mismos campos que en
+// createCourse. El ciclo lectivo no se edita: el curso conserva el suyo.
+// Lanza un CourseError si algún dato no es válido (INVALID_INPUT, con fieldErrors si es la
+// división), si el curso no existe en la institución (COURSE_NOT_FOUND) o fue dado de baja
+// (COURSE_ALREADY_DELETED), si el grado no está en el catálogo (GRADE_NOT_FOUND) o si la
+// institución ya tiene otro curso vigente con ese grado, división y turno en el mismo ciclo lectivo
+// (DUPLICATE_VALUE): guardarlo sin cambios no es un duplicado y uno dado de baja no cuenta.
+async function updateCourse(currentUser, courseId, data) {
+  const values = parseCourseData(data);
+  const course = await saveCourse(
+    () => courseRepository.update(courseId, currentUser.institutionId, values),
+    'Ya existe otro curso con ese grado, división y turno en el mismo ciclo lectivo.'
+  );
+  if (course) return toListedCourse(course);
+  throw await notActiveError(courseId, currentUser.institutionId);
 }
 
 // Baja lógica de un curso de la institución de `currentUser`: la fila queda con su fecha de baja,
@@ -99,12 +134,7 @@ async function createCourse(currentUser, data) {
 async function deleteCourse(currentUser, courseId) {
   const deletedCourse = await courseRepository.markAsDeleted(courseId, currentUser.institutionId);
   if (deletedCourse) return toListedCourse(deletedCourse);
-
-  // No se marcó: si existe en la institución es porque ya estaba dado de baja.
-  if (await courseRepository.existsInInstitution(courseId, currentUser.institutionId)) {
-    throw new CourseError('COURSE_ALREADY_DELETED', 'El curso ya había sido eliminado.');
-  }
-  throw new CourseError('COURSE_NOT_FOUND', 'El curso ya no existe.');
+  throw await notActiveError(courseId, currentUser.institutionId);
 }
 
-module.exports = { listCourses, createCourse, deleteCourse, CourseError };
+module.exports = { listCourses, createCourse, updateCourse, deleteCourse, CourseError };
