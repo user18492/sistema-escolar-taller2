@@ -203,4 +203,5 @@ module.exports = {
   isDuplicateError,
   isUnknownGradeError,
   SHIFTS,
+  SHIFT_BY_COLUMN_VALUE,
 };

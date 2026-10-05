@@ -7,6 +7,8 @@
 //     comas y descarta las repetidas.
 //   - Turno: dos botones toggle no excluyentes; ambos activos equivale a no filtrar por turno.
 // API para el contenedor: `hasSelection` indica si alguna categoría filtra y `clear()` las restablece.
+// API para la vista: `selectedGrades`, `selectedDivisions` y `selectedShifts` dan lo elegido en cada
+// categoría, para filtrar sus filas.
 // Sin shadow DOM, igual que <grade-dropdown>: reutiliza los estilos de la grilla de grados y de .field.
 
 (() => {
@@ -70,6 +72,22 @@
       return Boolean(this.querySelector('grade-dropdown')?.hasSelection)
         || Boolean(this.querySelector('.course-filter-division')?.value)
         || filtersShift;
+    }
+
+    // Grados elegidos, como los da <grade-dropdown>: { level, name }. Vacío equivale a todos.
+    get selectedGrades() {
+      return this.querySelector('grade-dropdown')?.selectedGrades ?? [];
+    }
+
+    // Divisiones escritas, en mayúscula y sin repetir: el campo siempre las muestra así. Vacío
+    // equivale a todas.
+    get selectedDivisions() {
+      return lettersOf(this.querySelector('.course-filter-division')?.value ?? '');
+    }
+
+    // Turnos activos (MORNING, AFTERNOON). Ninguno o los dos equivale a todos.
+    get selectedShifts() {
+      return Array.from(this.querySelectorAll('.course-filter-shift.selected'), (button) => button.dataset.value);
     }
 
     setupCourseFilter() {

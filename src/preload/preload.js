@@ -32,9 +32,9 @@ contextBridge.exposeInMainWorld('api', {
     getRememberedEmail: () => ipcRenderer.invoke('auth:get-remembered-email'),
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
-  // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de users, de courses y
-  // de grades resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso
-  // principal cierra la sesión y vuelve al login.
+  // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de users, de courses, de
+  // grades y de teacherAssignments resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } }
+  // y el proceso principal cierra la sesión y vuelve al login.
   users: {
     // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, vigentes y dados de
     // baja, ordenados por apellido y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role,
@@ -109,5 +109,16 @@ contextBridge.exposeInMainWorld('api', {
     // entre niveles, y educationLevel 'PRIMARY' o 'SECONDARY'), o { ok: false, error: { code, message } }.
     // Llegan siempre en el mismo orden: nivel educativo (primaria antes que secundaria) y grado.
     list: () => ipcRenderer.invoke('grades:list'),
+  },
+  teacherAssignments: {
+    // Solo ADMIN. Resuelve { ok: true, teacherAssignments } con las asignaciones docentes vigentes de su
+    // institución (sin las dadas de baja), de todos los ciclos lectivos ({ id, teacher, course, subject },
+    // con teacher { id, firstName, lastName, email, imageUrl }, el profesor, e imageUrl la URL de su foto,
+    // profile-image://avatars/<archivo>, o null; course { id, gradeName, educationLevel, division, shift,
+    // schoolYear }, con los mismos valores que en courses.list, y subject { id, name }, la materia), o
+    // { ok: false, error: { code, message } }. Llegan siempre en el mismo orden: ciclo lectivo (el más
+    // reciente primero), profesor (por apellido y nombre), curso (nivel educativo, grado, división y
+    // turno) y materia.
+    list: () => ipcRenderer.invoke('teacher-assignments:list'),
   },
 });
