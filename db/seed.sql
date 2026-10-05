@@ -346,4 +346,73 @@ SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
 FROM grado g
 ORDER BY g.grado_id;
 
+-- Asignaciones docentes: 10 por institución, 20 en total, todas vigentes y de profesores activos.
+-- Cada fila de VALUES nombra al profesor por su email, al curso por los datos que lo identifican
+-- dentro de la institución y a la materia por su nombre; los LEFT JOIN los traducen a sus ids. Son
+-- LEFT JOIN para que un dato que no existe (por ejemplo, una materia que no es del plan de estudios
+-- del grado) deje su id en NULL y el INSERT falle por NOT NULL: con un JOIN, la fila se saltearía
+-- sin avisar.
+
+-- Instituto San Martin: 8 profesores. Pablo Fernández tiene dos materias de un mismo curso y Diego
+-- González, una misma materia en dos cursos
+INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
+SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
+FROM (VALUES
+    -- Ciclo lectivo 2026, primaria
+    ('pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, 'Lengua'),
+    ('pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, 'Matemática'),
+    ('lorena.martinez@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 2026, 'Ciencias Naturales'),
+    ('diego.gonzalez@institucion.edu.ar', 'PRIMARIA', '5°', 'A', 'MAÑANA', 2026, 'Inglés'),
+    ('diego.gonzalez@institucion.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, 'Inglés'),
+
+    -- Ciclo lectivo 2026, secundaria
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'TARDE', 2026, 'Matemática'),
+    ('maria.gonzalez@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'TARDE', 2026, 'Historia'),
+    ('federico.ruizdiaz@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'TARDE', 2026, 'Física'),
+    ('gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'TARDE', 2026, 'Literatura'),
+
+    -- Ciclo lectivo 2025
+    ('nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2025, 'Biología')
+) AS a(email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, materia)
+LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
+LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
+LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = a.division AND c.turno = a.turno
+                 AND c.anio_ciclo_lectivo = a.anio_ciclo_lectivo
+LEFT JOIN materia m ON m.nombre = a.materia
+LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
+ORDER BY c.curso_id, gm.grado_materia_id;
+
+-- Colegio Manuel Belgrano: todas de Silvia Gómez, la única profesora de la institución. Dicta
+-- Matemática hasta 3° de secundaria y Física en el ciclo orientado
+INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
+SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
+FROM (VALUES
+    -- Ciclo lectivo 2026, primaria
+    ('silvia.gomez@institucion.edu.ar', 'PRIMARIA', '5°', 'A', 'TARDE', 2026, 'Matemática'),
+    ('silvia.gomez@institucion.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, 'Matemática'),
+
+    -- Ciclo lectivo 2026, secundaria
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, 'Matemática'),
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, 'Matemática'),
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'MAÑANA', 2026, 'Matemática'),
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'MAÑANA', 2026, 'Física'),
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, 'Física'),
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, 'Física'),
+
+    -- Ciclo lectivo 2025
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, 'Física'),
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2025, 'Física')
+) AS a(email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, materia)
+LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
+LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
+LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = a.division AND c.turno = a.turno
+                 AND c.anio_ciclo_lectivo = a.anio_ciclo_lectivo
+LEFT JOIN materia m ON m.nombre = a.materia
+LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
+ORDER BY c.curso_id, gm.grado_materia_id;
+
 COMMIT;
