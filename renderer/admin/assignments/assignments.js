@@ -9,10 +9,13 @@
 // (listAssignableTeachers, listAssignableCourses) y, al elegir el curso, las materias que todavía
 // no tienen un profesor en él (listAssignableSubjects). El resultado se avisa con un toast
 // (toast.component.js), salvo el rechazo de la materia, que se marca en el formulario.
+// Editar guarda el profesor, el curso y la materia de una asignación
+// (window.api.teacherAssignments.update) con el mismo formulario, que ofrece además el profesor y
+// el curso que la asignación ya tiene, aunque el alta no los ofrezca, y su materia. El resultado
+// se avisa con un toast; el rechazo de la materia, además, se marca en el formulario.
 // Eliminar la da de baja (baja lógica, window.api.teacherAssignments.delete) después de confirmarlo
 // en un modal (confirm-modal.component.js) y también lo avisa con un toast: su materia vuelve a
 // ofrecerse en ese curso.
-// Editar sigue siendo visual: no modifica datos persistidos.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -223,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadAssignments();
 
-  // ---------- Tabla: cambios después de crear o eliminar ----------
+  // ---------- Tabla: cambios después de crear, editar o eliminar ----------
 
   // Orden aproximado al del listado (FIND_BY_INSTITUTION_SQL, teacher-assignment.repository.js):
   // ciclo lectivo (el más reciente primero), profesor, curso (nivel educativo, grado, división y
@@ -244,6 +247,12 @@ document.addEventListener('DOMContentLoaded', () => {
     compareSubjects(a.subject, b.subject) ||
     a.id - b.id;
 
+  // `items`, ya ordenados, con `item` en el lugar que le toca según `compare`
+  const insertSorted = (items, item, compare) => {
+    const index = items.findIndex((other) => compare(item, other) < 0);
+    return items.toSpliced(index === -1 ? items.length : index, 0, item);
+  };
+
   // Agrega al filtro de `header` la opción de `item` (un profesor o una materia) si no la tenía,
   // antes de la del que lo sigue en `items` (los de las asignaciones cargadas, ya ordenados) y sin
   // tocar las marcadas
@@ -255,22 +264,31 @@ document.addEventListener('DOMContentLoaded', () => {
     list.insertBefore(createOption(item), (nextItem && optionOf(nextItem)) ?? list.querySelector('.dropdown-empty'));
   };
 
-  // Agrega la asignación creada a la lista en memoria, en su lugar, sin recargarla ni tocar los
-  // filtros; su profesor y su materia pasan a ser opciones de los filtros si todavía no lo eran. Si
-  // coincide con los filtros activos, la tabla pasa a la página donde quedó; si no, no se muestra.
-  // Si la lista no se había podido cargar, se vuelve a pedir: mostrar solo la asignación nueva
-  // taparía el error.
+  // Agrega la asignación a la lista en memoria, en su lugar, sin recargarla ni tocar los filtros;
+  // su profesor y su materia pasan a ser opciones de los filtros si todavía no lo eran.
+  const addAssignment = (newAssignment) => {
+    assignments = insertSorted(assignments, newAssignment, compareAssignments);
+    addFilterOption(teacherHeader, listedTeachers(), newAssignment.teacher, createTeacherOption);
+    addFilterOption(subjectHeader, listedSubjects(), newAssignment.subject, createSubjectOption);
+  };
+
+  // Si la asignación coincide con los filtros activos, la tabla pasa a la página donde quedó; si
+  // no, no se muestra y la página se conserva.
+  const showAssignment = (assignment) => {
+    const visibleIndex = assignments.filter(matchesFilters).indexOf(assignment);
+    renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
+  };
+
+  // Agrega la asignación creada a la lista en memoria (addAssignment) y la muestra
+  // (showAssignment). Si la lista no se había podido cargar, se vuelve a pedir: mostrar solo la
+  // asignación nueva taparía el error.
   const insertAssignment = (newAssignment) => {
     if (!isLoaded) {
       loadAssignments();
       return;
     }
-    const index = assignments.findIndex((assignment) => compareAssignments(newAssignment, assignment) < 0);
-    assignments = assignments.toSpliced(index === -1 ? assignments.length : index, 0, newAssignment);
-    addFilterOption(teacherHeader, listedTeachers(), newAssignment.teacher, createTeacherOption);
-    addFilterOption(subjectHeader, listedSubjects(), newAssignment.subject, createSubjectOption);
-    const visibleIndex = assignments.filter(matchesFilters).indexOf(newAssignment);
-    renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
+    addAssignment(newAssignment);
+    showAssignment(newAssignment);
   };
 
   // Quita del filtro de `header` la opción de `item` (un profesor o una materia) si ya no está en
@@ -287,13 +305,31 @@ document.addEventListener('DOMContentLoaded', () => {
     header.dispatchEvent(new Event('column-filter-refresh'));
   };
 
-  // Quita de la lista en memoria la asignación dada de baja, sin recargarla; su profesor y su
-  // materia dejan de ser opciones de los filtros si no les queda otra asignación, sin tocar las
-  // demás. La página se conserva; si era la última y quedó vacía, el componente pasa a la anterior.
-  const removeAssignment = ({ id, teacher, subject }) => {
-    assignments = assignments.filter((assignment) => assignment.id !== id);
+  // El profesor y la materia de una asignación que salió de la lista en memoria dejan de ser
+  // opciones de los filtros si no les queda otra asignación, sin tocar las demás.
+  const removeUnusedFilterOptions = ({ teacher, subject }) => {
     removeFilterOption(teacherHeader, 'teacher', listedTeachers(), teacher);
     removeFilterOption(subjectHeader, 'subject', listedSubjects(), subject);
+  };
+
+  // Reemplaza en la lista en memoria la asignación editada, que pasa al lugar que le toca con sus
+  // datos nuevos, como una recién creada: si coincide con los filtros activos, la tabla pasa a la
+  // página donde quedó; si no, su fila deja de mostrarse. Las opciones de los filtros se ajustan
+  // después de sumarla: así el profesor y la materia que conserva no pierden su marca.
+  const replaceAssignment = (updatedAssignment) => {
+    const previousAssignment = assignments.find(({ id }) => id === updatedAssignment.id);
+    assignments = assignments.filter((assignment) => assignment !== previousAssignment);
+    addAssignment(updatedAssignment);
+    if (previousAssignment) removeUnusedFilterOptions(previousAssignment);
+    showAssignment(updatedAssignment);
+  };
+
+  // Quita de la lista en memoria la asignación dada de baja, sin recargarla, y ajusta las opciones
+  // de los filtros (removeUnusedFilterOptions). La página se conserva; si era la última y quedó
+  // vacía, el componente pasa a la anterior.
+  const removeAssignment = (deletedAssignment) => {
+    assignments = assignments.filter((assignment) => assignment.id !== deletedAssignment.id);
+    removeUnusedFilterOptions(deletedAssignment);
     renderRows();
   };
 
@@ -316,7 +352,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // La asignación ya no está vigente: la lista en memoria quedó vieja y se vuelve a pedir
   const NO_LONGER_ACTIVE_CODES = ['TEACHER_ASSIGNMENT_NOT_FOUND', 'TEACHER_ASSIGNMENT_ALREADY_DELETED'];
 
-  // "Lengua en 1° A de Primaria, turno Mañana", como lo nombran los toasts del alta y de la baja
+  // "Lengua en 1° A de Primaria, turno Mañana", como lo nombran los toasts del alta, la edición y la
+  // baja
   const subjectInCourse = ({ course, subject }) =>
     `${subject.name} en ${course.gradeName} ${course.division} de ${levelLabels[course.educationLevel]}, turno ${shiftLabels[course.shift]}`;
 
@@ -338,8 +375,39 @@ document.addEventListener('DOMContentLoaded', () => {
   let editingAssignment = null;
   let isSaving = false;
 
+  // Texto del botón principal, en reposo y mientras se espera la respuesta, y de los toasts de
+  // éxito y de error, según el modo del modal
+  const MODAL_TEXTS = {
+    create: {
+      submit: 'Crear asignación',
+      saving: 'Creando…',
+      successTitle: 'Asignación creada',
+      // "Pablo Fernández dictará Lengua en 1° A de Primaria, turno Mañana."
+      successDescription: (assignment) =>
+        `${assignment.teacher.firstName} ${assignment.teacher.lastName} dictará ${subjectInCourse(assignment)}.`,
+      errorTitle: 'No se pudo crear la asignación',
+    },
+    edit: {
+      submit: 'Guardar cambios',
+      saving: 'Guardando…',
+      successTitle: 'Asignación actualizada',
+      // "Pablo Fernández dicta Lengua en 1° A de Primaria, turno Mañana, en el ciclo lectivo 2026."
+      successDescription: (assignment) =>
+        `${assignment.teacher.firstName} ${assignment.teacher.lastName} dicta ${subjectInCourse(assignment)}, en el ciclo lectivo ${assignment.course.schoolYear}.`,
+      errorTitle: 'No se pudieron guardar los cambios',
+    },
+  };
+  const modalTexts = () => MODAL_TEXTS[editingAssignment ? 'edit' : 'create'];
+
   const assignmentCycleYear = document.getElementById('newAssignmentYear');
-  assignmentCycleYear.textContent = String(new Date().getFullYear());
+
+  // Ciclo lectivo que anuncia el modal: el del curso elegido (`courseOption`); sin curso, el de la
+  // asignación que se edita o, en un alta, el año en curso
+  const showCycleYear = (courseOption = null) => {
+    assignmentCycleYear.textContent = courseOption?.dataset.schoolYear
+      ?? String(editingAssignment?.course.schoolYear ?? new Date().getFullYear());
+  };
+  showCycleYear();
 
   const teacherRoot = assignmentOverlay.querySelector('[data-role="teacher-select"]');
   const courseRoot = assignmentOverlay.querySelector('[data-role="course-select"]');
@@ -352,7 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const subjectLabel = subjectDropdown.querySelector('.dropdown-label');
   const subjectMenu = subjectDropdown.querySelector('.dropdown-menu');
 
-  const SUBMIT_TEXT = 'Crear asignación';
   // dropdown.component.js guardó el texto inicial de la etiqueta
   const LEVEL_PLACEHOLDER = levelDropdown.querySelector('.dropdown-label').dataset.placeholder;
   const COURSE_LOCKED_PLACEHOLDER = 'Selecciona primero un nivel educativo';
@@ -445,14 +512,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Pide las materias que se pueden asignar en el curso elegido: las de su grado que todavía no
   // tienen un profesor en él. Mientras llegan, si no queda ninguna o si la consulta falla, Materia
-  // sigue bloqueada con el motivo. Al editar se ofrece además la materia de la asignación, que no
-  // llega porque ya tiene un profesor: el de esa misma asignación.
+  // sigue bloqueada con el motivo. Al editar se envía también el id de la asignación: con su curso
+  // llega además su materia, que queda elegida.
   async function loadSubjects(courseId) {
     lockSubject('Cargando materias…');
     const requestId = subjectsRequestId;
     let response;
     try {
-      response = await window.api?.teacherAssignments?.listAssignableSubjects(courseId);
+      response = await window.api?.teacherAssignments?.listAssignableSubjects(courseId, editingAssignment?.id ?? null);
     } catch (error) {
       console.error('Error al cargar las materias:', error);
     }
@@ -460,22 +527,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (requestId !== subjectsRequestId) return;
     if (!response?.ok) {
       lockSubject('No se pudieron cargar las materias');
+      const error = response?.error;
+      const isStale = STALE_OPTION_CODES.includes(error?.code);
+      const isGone = NO_LONGER_ACTIVE_CODES.includes(error?.code);
+      if (!isStale && !isGone) return;
+      showToast({ type: 'error', title: 'No se pudieron cargar las materias', description: error.message });
       // El curso ya no se puede elegir: las listas del formulario quedaron viejas
-      if (STALE_OPTION_CODES.includes(response?.error?.code)) {
-        showToast({ type: 'error', title: 'No se pudieron cargar las materias', description: response.error.message });
-        loadFormOptions();
+      if (isStale) loadFormOptions();
+      // La asignación que se editaba ya no está vigente: no hay nada que guardar
+      if (isGone) {
+        await loadAssignments();
+        closeAssignmentModal();
       }
       return;
     }
-    const ownSubject = editingAssignment?.course.id === courseId ? editingAssignment.subject : null;
-    const subjects = ownSubject ? [...response.subjects, ownSubject].sort(compareSubjects) : response.subjects;
-    if (!subjects.length) {
+    if (!response.subjects.length) {
       lockSubject(NO_SUBJECTS_LEFT);
       return;
     }
-    subjectMenu.replaceChildren(...subjects.map(createSubjectOption));
+    subjectMenu.replaceChildren(...response.subjects.map(createSubjectOption));
     unlockDropdown(subjectDropdown, SUBJECT_UNLOCKED_PLACEHOLDER);
-    if (ownSubject) selectSubject(subjectMenu.querySelector(`.dropdown-option[data-value="${ownSubject.id}"]`));
+    if (editingAssignment?.course.id !== courseId) return;
+    const ownOption = subjectMenu.querySelector(`.dropdown-option[data-value="${editingAssignment.subject.id}"]`);
+    if (ownOption) selectSubject(ownOption);
   }
 
   // El proceso principal rechazó la materia elegida (otra sesión la asignó en ese curso con el
@@ -497,15 +571,25 @@ document.addEventListener('DOMContentLoaded', () => {
   let teacherLockText = null;
   let levelLockText = null;
   let isLoadingFormOptions = false;
+  // Profesores y cursos que ofrece el alta, como llegaron del proceso principal; null si no
+  // llegaron
+  let assignableTeachers = null;
+  let assignableCourses = null;
   // Llegaron las dos listas: si no, se vuelven a pedir al abrir el modal
   let hasFormOptions = false;
 
-  // El curso se busca dentro de un nivel educativo (data-level), que elige el campo anterior
+  // El curso se busca dentro de un nivel educativo (data-level), que elige el campo anterior, y
+  // lleva su ciclo lectivo (data-school-year), que el modal anuncia al elegirlo. Uno de otro ciclo
+  // (el de la asignación que se edita) se muestra con su año: puede haber otro igual en el ciclo
+  // en curso.
   const createCourseOption = (course) => {
     const option = courseOptionTemplate.content.firstElementChild.cloneNode(true);
     option.dataset.value = String(course.id);
     option.dataset.level = course.educationLevel;
-    option.querySelector('.option-name').textContent = courseName(course);
+    option.dataset.schoolYear = String(course.schoolYear);
+    option.querySelector('.option-name').textContent = course.schoolYear === new Date().getFullYear()
+      ? courseName(course)
+      : `${courseName(course)} · ${course.schoolYear}`;
     return option;
   };
 
@@ -536,6 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     courseSelect.reset();
     courseSelect.lock(COURSE_LOCKED_PLACEHOLDER);
+    showCycleYear();
 
     lockSubject();
   }
@@ -546,10 +631,31 @@ document.addEventListener('DOMContentLoaded', () => {
     (chevron.disabled ? cancelAssignmentBtn : chevron).focus();
   };
 
-  // Editar sigue siendo visual: el formulario llega con el profesor, el nivel educativo y el curso
-  // de la asignación si el alta los ofrece (no ofrece a un profesor suspendido ni un curso de otro
-  // ciclo lectivo); con el curso llegan sus materias, y entre ellas la de la asignación
-  // (loadSubjects).
+  // `items` (los profesores o los cursos del alta) con `ownItem`, el de la asignación que se edita,
+  // si no estaba; sin él, o si la lista no llegó, queda como está
+  const withOwnItem = (items, ownItem, compare) =>
+    (!items || !ownItem || items.some(({ id }) => id === ownItem.id) ? items : insertSorted(items, ownItem, compare));
+
+  // Arma las opciones de Profesor y de Curso con las listas del alta. Al editar se suman el
+  // profesor y el curso de la asignación si el alta no los ofrece (un profesor suspendido o dado de
+  // baja, un curso de otro ciclo lectivo o dado de baja): la asignación los puede conservar. Los
+  // dos campos quedan sin valor.
+  const fillFormOptions = () => {
+    const teachers = withOwnItem(assignableTeachers, editingAssignment?.teacher, compareTeachers);
+    const courses = withOwnItem(assignableCourses, editingAssignment?.course, compareCourses);
+    teacherSelect.setOptions((teachers ?? []).map(createTeacherOption));
+    courseSelect.setOptions((courses ?? []).map(createCourseOption));
+    // De los niveles educativos quedan a la vista los que tienen algún curso
+    levelOptions.forEach((option) => {
+      option.hidden = !courses?.some((course) => course.educationLevel === option.dataset.value);
+    });
+    teacherLockText = lockTextOf(teachers, 'No se pudieron cargar los profesores', 'No hay profesores activos');
+    levelLockText = lockTextOf(courses, 'No se pudieron cargar los cursos', `No hay cursos del ciclo lectivo ${new Date().getFullYear()}`);
+  };
+
+  // Al editar, el formulario llega con el profesor, el nivel educativo y el curso de la asignación
+  // (fillFormOptions los ofrece siempre); con el curso llegan sus materias, y entre ellas la de la
+  // asignación, que queda elegida (loadSubjects).
   const fillEditForm = () => {
     const { teacher, course } = editingAssignment;
     const clickOption = (root, value) => {
@@ -565,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pide los profesores activos de la institución y sus cursos vigentes del ciclo lectivo en curso:
   // las opciones de Profesor y de Curso. Punto de entrada también para volver a pedirlos al abrir
   // el modal, si no habían llegado, y cuando el proceso principal avisa que quedaron viejos. El
-  // formulario vuelve a quedar vacío: lo elegido puede no estar en las listas nuevas.
+  // formulario vuelve a quedar como al abrirlo: lo elegido puede no estar en las listas nuevas.
   async function loadFormOptions() {
     if (isLoadingFormOptions) return;
     isLoadingFormOptions = true;
@@ -573,22 +679,16 @@ document.addEventListener('DOMContentLoaded', () => {
     teacherLockText = 'Cargando profesores…';
     levelLockText = 'Cargando cursos…';
     resetAssignmentForm();
-    const [teachers, courses] = await Promise.all([
+    [assignableTeachers, assignableCourses] = await Promise.all([
       requestOptions(() => window.api?.teacherAssignments?.listAssignableTeachers(), 'teachers'),
       requestOptions(() => window.api?.teacherAssignments?.listAssignableCourses(), 'courses'),
     ]);
     isLoadingFormOptions = false;
-    hasFormOptions = Boolean(teachers && courses);
-    teacherSelect.setOptions((teachers ?? []).map(createTeacherOption));
-    courseSelect.setOptions((courses ?? []).map(createCourseOption));
-    // De los niveles educativos quedan a la vista los que tienen algún curso
-    levelOptions.forEach((option) => {
-      option.hidden = !courses?.some((course) => course.educationLevel === option.dataset.value);
-    });
-    teacherLockText = lockTextOf(teachers, 'No se pudieron cargar los profesores', 'No hay profesores activos');
-    levelLockText = lockTextOf(courses, 'No se pudieron cargar los cursos', `No hay cursos del ciclo lectivo ${new Date().getFullYear()}`);
+    hasFormOptions = Boolean(assignableTeachers && assignableCourses);
+    fillFormOptions();
     resetAssignmentForm();
-    // El modal se abrió para editar antes de que llegaran las listas
+    // El modal está abierto para editar: se abrió antes de que llegaran las listas, o quedaron
+    // viejas con él a la vista
     if (editingAssignment && assignmentOverlay.classList.contains('is-open')) fillEditForm();
   }
 
@@ -596,13 +696,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   teacherSelect.onSelect(updateCreateButtonState);
 
-  courseSelect.onSelect((option) => loadSubjects(Number(option.dataset.value)));
+  courseSelect.onSelect((option) => {
+    showCycleYear(option);
+    loadSubjects(Number(option.dataset.value));
+  });
 
   levelOptions.forEach((option) => {
     option.addEventListener('click', () => {
       courseSelect.reset();
       courseSelect.setGroupFilter(option.dataset.value);
       courseSelect.unlock(COURSE_UNLOCKED_PLACEHOLDER);
+      showCycleYear();
       lockSubject();
     });
   });
@@ -615,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
     assignmentModalBody.inert = saving;
     assignmentModal.setAttribute('aria-busy', String(saving));
     [cancelAssignmentBtn, createAssignmentBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
-    createAssignmentBtn.textContent = saving ? 'Creando…' : SUBMIT_TEXT;
+    createAssignmentBtn.textContent = saving ? modalTexts().saving : modalTexts().submit;
   };
 
   // `trigger` es el botón que lo abre, al que vuelve el foco al cerrarlo; `row`, la fila de la
@@ -626,21 +730,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const assignment = row ? assignments.find((candidate) => String(candidate.id) === row.dataset.assignmentId) : null;
     if (row && !assignment) return;
     editingAssignment = assignment;
+    // Las opciones de Profesor y de Curso dependen de la asignación que se edita
+    if (hasFormOptions) fillFormOptions();
     resetAssignmentForm();
     closeAllDropdowns();
     closeAllSearchableMenus();
     modalTrigger = trigger;
+    triggerRowIndex = row ? Math.max(0, Array.from(tbody.rows).indexOf(row)) : 0;
     const isEditing = Boolean(assignment);
     assignmentTitle.textContent = isEditing ? 'Editar asignación' : 'Nueva asignación';
     assignmentSubtitle.textContent = isEditing
       ? 'Modifica los datos de la asignación'
       : 'Completa los datos para crear una nueva asignación docente';
+    // Una asignación es del ciclo lectivo de su curso; una nueva, del año en curso (showCycleYear)
     cycleDescription.textContent = isEditing
       ? 'Pertenece al ciclo lectivo:'
       : 'Se creará para el ciclo lectivo:';
-    createAssignmentBtn.textContent = isEditing ? 'Guardar cambios' : SUBMIT_TEXT;
-    // Una asignación es del ciclo lectivo de su curso; una nueva, del año en curso
-    assignmentCycleYear.textContent = String(assignment?.course.schoolYear ?? new Date().getFullYear());
+    createAssignmentBtn.textContent = modalTexts().submit;
 
     // Las listas no llegaron al cargar la vista: se vuelven a pedir
     if (!hasFormOptions) loadFormOptions();
@@ -653,17 +759,21 @@ document.addEventListener('DOMContentLoaded', () => {
     assignmentOverlay.classList.remove('is-open');
     closeAllDropdowns();
     closeAllSearchableMenus();
-    modalTrigger?.focus();
+    // Después de guardar, o si la asignación ya no está vigente, la tabla se volvió a dibujar: el
+    // foco pasa a Editar en la fila de la asignación o, si ya no se muestra, en la que quedó en su
+    // lugar
+    const focusTarget = modalTrigger?.isConnected
+      ? modalTrigger
+      : tbody.querySelector(`tr[data-assignment-id="${editingAssignment?.id}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
+    focusTarget.focus();
   }
 
-  // "Pablo Fernández dictará Lengua en 1° A de Primaria, turno Mañana."
-  const successDescription = (assignment) =>
-    `${assignment.teacher.firstName} ${assignment.teacher.lastName} dictará ${subjectInCourse(assignment)}.`;
-
-  // Crea la asignación; al terminar cierra el modal y lo avisa con un toast. Si el proceso
-  // principal rechaza la materia (ya tiene un profesor en ese curso), el error se marca en el campo
-  // y los demás salen en un toast: en ambos casos el modal sigue abierto. Si el profesor o el curso
-  // ya no se pueden elegir, las listas se vuelven a pedir antes de liberar el modal.
+  // Crea la asignación o guarda sus cambios, según el modo; al terminar cierra el modal y lo avisa
+  // con un toast. Si el proceso principal rechaza la materia (ya tiene un profesor en ese curso),
+  // el error se marca en el campo y los demás salen en un toast: en ambos casos el modal sigue
+  // abierto. Al editar, el rechazo de la materia sale además en el toast. Si el profesor o el curso
+  // ya no se pueden elegir, las listas se vuelven a pedir antes de liberar el modal, que solo se
+  // cierra si la asignación que se editaba ya no está vigente.
   const saveAssignment = async () => {
     const data = {
       teacherId: Number(teacherSelect.getValue()),
@@ -673,32 +783,40 @@ document.addEventListener('DOMContentLoaded', () => {
     setSaving(true);
     let response;
     try {
-      response = await window.api?.teacherAssignments?.create(data);
+      response = await (editingAssignment
+        ? window.api?.teacherAssignments?.update(editingAssignment.id, data)
+        : window.api?.teacherAssignments?.create(data));
     } catch (error) {
-      console.error('Error al crear la asignación docente:', error);
+      console.error('Error al guardar la asignación docente:', error);
     }
     const error = response?.error;
     const isStale = STALE_OPTION_CODES.includes(error?.code);
+    // La asignación que se editaba ya no está vigente: la lista se vuelve a pedir antes de liberar
+    // el modal, que se cierra más abajo
+    const isGone = NO_LONGER_ACTIVE_CODES.includes(error?.code);
     if (isStale) await loadFormOptions();
+    if (isGone) await loadAssignments();
     setSaving(false);
 
     if (response?.ok) {
-      insertAssignment(response.teacherAssignment);
+      if (editingAssignment) replaceAssignment(response.teacherAssignment);
+      else insertAssignment(response.teacherAssignment);
       closeAssignmentModal();
       showToast({
         type: 'success',
-        title: 'Asignación creada',
-        description: successDescription(response.teacherAssignment),
+        title: modalTexts().successTitle,
+        description: modalTexts().successDescription(response.teacherAssignment),
       });
       return;
     }
     if (error?.fieldErrors?.subject) {
       rejectSubject(error.fieldErrors.subject);
-      return;
+      if (!editingAssignment) return;
     }
-    // El formulario quedó vacío y "Crear asignación", deshabilitado
+    // El formulario volvió a quedar como al abrirlo
     if (isStale) focusForm();
-    showToast({ type: 'error', title: 'No se pudo crear la asignación', description: errorDescription(error) });
+    if (isGone) closeAssignmentModal();
+    showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
   };
 
   openAssignmentModalBtn.addEventListener('click', () => openAssignmentModal(openAssignmentModalBtn));
@@ -723,11 +841,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   createAssignmentBtn.addEventListener('click', () => {
     if (isSaving) return;
-    // Editar sigue siendo visual: guardar no modifica datos persistidos.
-    if (editingAssignment) {
-      closeAssignmentModal();
-      return;
-    }
     // El proceso principal vuelve a validar todo antes de guardar la asignación.
     saveAssignment();
   });

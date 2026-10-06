@@ -129,12 +129,16 @@ contextBridge.exposeInMainWorld('api', {
     // cursos vigentes de su institución en el ciclo lectivo del año en curso (mismos campos y orden que
     // courses.list), o { ok: false, error: { code, message } }.
     listAssignableCourses: () => ipcRenderer.invoke('teacher-assignments:list-assignable-courses'),
-    // Solo ADMIN. Lo que ofrece el formulario de alta en Materia para el curso con ese id (uno de
+    // Solo ADMIN. Lo que ofrece el formulario en Materia para el curso con ese id (uno de
     // listAssignableCourses): resuelve { ok: true, subjects } con las materias del plan de estudios de
     // su grado que todavía no tienen un profesor en ese curso, por nombre ({ id, name }, como subject en
     // list; vacía si ya están todas asignadas), o { ok: false, error: { code, message } }:
-    // COURSE_NOT_AVAILABLE indica que el curso ya no se puede elegir.
-    listAssignableSubjects: (courseId) => ipcRenderer.invoke('teacher-assignments:list-assignable-subjects', courseId),
+    // COURSE_NOT_AVAILABLE indica que el curso ya no se puede elegir. Al editar, `teacherAssignmentId`
+    // es el id de la asignación: su materia sigue entre las de su curso, que se acepta aunque no sea
+    // uno de listAssignableCourses; TEACHER_ASSIGNMENT_NOT_FOUND y TEACHER_ASSIGNMENT_ALREADY_DELETED
+    // indican que esa asignación ya no está vigente.
+    listAssignableSubjects: (courseId, teacherAssignmentId = null) =>
+      ipcRenderer.invoke('teacher-assignments:list-assignable-subjects', courseId, teacherAssignmentId),
     // Solo ADMIN. Crea una asignación docente vigente. `data` es { teacherId, courseId, subjectId }: los
     // ids de un profesor de listAssignableTeachers, de un curso de listAssignableCourses y de una materia
     // de listAssignableSubjects para ese curso. Resuelve { ok: true, teacherAssignment } con la
@@ -144,6 +148,16 @@ contextBridge.exposeInMainWorld('api', {
     // mensaje para el campo Materia); TEACHER_NOT_AVAILABLE y COURSE_NOT_AVAILABLE, que el profesor o el
     // curso ya no se pueden elegir.
     create: (data) => ipcRenderer.invoke('teacher-assignments:create', data),
+    // Solo ADMIN. Guarda el profesor, el curso y la materia de la asignación docente vigente con ese id
+    // (asignacion_docente_id) de su institución. `data` es { teacherId, courseId, subjectId }, como en
+    // create; el profesor y el curso que la asignación ya tiene se pueden conservar aunque no estén en
+    // listAssignableTeachers ni en listAssignableCourses, y la materia es una de listAssignableSubjects
+    // para ese curso y esa asignación. Resuelve { ok: true, teacherAssignment } con la asignación como
+    // quedó (mismos campos que list) o { ok: false, error: { code, message, fieldErrors } }, sin
+    // guardar nada, con los códigos de create: DUPLICATE_VALUE indica que la materia ya tiene un
+    // profesor en ese curso con otra asignación (guardarla sin cambios no es un duplicado). Además,
+    // TEACHER_ASSIGNMENT_NOT_FOUND y TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente.
+    update: (teacherAssignmentId, data) => ipcRenderer.invoke('teacher-assignments:update', teacherAssignmentId, data),
     // Solo ADMIN. Baja lógica de la asignación docente con ese id (asignacion_docente_id) de su
     // institución: deja de listarse y su materia vuelve a estar entre las de listAssignableSubjects
     // para ese curso. Resuelve { ok: true, teacherAssignment } con la asignación dada de baja (mismos

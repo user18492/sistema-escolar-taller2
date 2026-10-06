@@ -58,7 +58,26 @@ async function listTeacherAssignments(currentUser) {
   return teacherAssignments.map(toListedTeacherAssignment);
 }
 
-// ---------- Alta: qué se puede asignar ----------
+// ---------- Asignación que se edita o se da de baja ----------
+
+// Error de una edición o una baja que no encontró la asignación vigente: si existe en la
+// institución es porque ya estaba dada de baja (TEACHER_ASSIGNMENT_ALREADY_DELETED); si no,
+// TEACHER_ASSIGNMENT_NOT_FOUND.
+async function notActiveError(teacherAssignmentId, institutionId) {
+  if (await teacherAssignmentRepository.existsInInstitution(teacherAssignmentId, institutionId)) {
+    return new TeacherAssignmentError('TEACHER_ASSIGNMENT_ALREADY_DELETED', 'La asignación ya había sido eliminada.');
+  }
+  return new TeacherAssignmentError('TEACHER_ASSIGNMENT_NOT_FOUND', 'La asignación ya no existe.');
+}
+
+// La asignación vigente con ese id de la institución, o el error de notActiveError.
+async function findActiveTeacherAssignment(teacherAssignmentId, institutionId) {
+  const teacherAssignment = await teacherAssignmentRepository.findActiveById(teacherAssignmentId, institutionId);
+  if (teacherAssignment) return teacherAssignment;
+  throw await notActiveError(teacherAssignmentId, institutionId);
+}
+
+// ---------- Alta y edición: qué se puede asignar ----------
 
 // Las asignaciones se crean para el ciclo lectivo del año en curso, el mismo que anuncia el
 // formulario y el de un curso nuevo (createCourse, course.service.js).
@@ -78,9 +97,10 @@ function findAssignableCourses(institutionId) {
   return courseRepository.findByInstitution(institutionId, currentSchoolYear());
 }
 
-// El alta y las materias de un curso solo aceptan lo que ofrecen findAssignableTeachers y
-// findAssignableCourses: los ids llegan del renderer y la lista que tiene a la vista puede haber
-// quedado vieja (otra sesión suspendió al profesor o dio de baja el curso).
+// El alta, la edición y las materias de un curso solo aceptan lo que ofrecen findAssignableTeachers
+// y findAssignableCourses: los ids llegan del renderer y la lista que tiene a la vista puede haber
+// quedado vieja (otra sesión suspendió al profesor o dio de baja el curso). La excepción es la
+// asignación que se edita, que puede conservar el profesor y el curso que ya tiene.
 async function assertAssignableTeacher(institutionId, teacherId) {
   const teachers = await findAssignableTeachers(institutionId);
   if (!teachers.some((teacher) => teacher.id === teacherId)) {
@@ -109,13 +129,43 @@ async function listAssignableCourses(currentUser) {
   return courses.map(toListedCourse);
 }
 
-// Materias que ofrece el formulario de alta para un curso: las del plan de estudios de su grado que
-// todavía no tienen un profesor en él, por nombre. Lanza un TeacherAssignmentError
-// COURSE_NOT_AVAILABLE si el curso no es uno de listAssignableCourses.
-async function listAssignableSubjects(currentUser, courseId) {
-  await assertAssignableCourse(currentUser.institutionId, courseId);
-  const subjects = await subjectRepository.findUnassignedByCourse(courseId);
+// Materias que ofrece el formulario para un curso: las del plan de estudios de su grado que todavía
+// no tienen un profesor en él, por nombre. Al editar, `teacherAssignmentId` es el id de la
+// asignación (null en un alta): esa asignación no cuenta, así que su materia sigue entre las de su
+// curso, y su curso se acepta aunque no sea uno de listAssignableCourses.
+// Lanza un TeacherAssignmentError COURSE_NOT_AVAILABLE si el curso no se puede elegir y, si la
+// asignación que se edita ya no está vigente, el de notActiveError.
+async function listAssignableSubjects(currentUser, courseId, teacherAssignmentId = null) {
+  const { institutionId } = currentUser;
+  const editedAssignment =
+    teacherAssignmentId === null ? null : await findActiveTeacherAssignment(teacherAssignmentId, institutionId);
+  if (courseId !== editedAssignment?.course.id) await assertAssignableCourse(institutionId, courseId);
+  const subjects = await subjectRepository.findUnassignedByCourse(courseId, teacherAssignmentId);
   return subjects.map(toListedSubject);
+}
+
+// ---------- Alta y edición ----------
+
+// Llama a `save` (el INSERT o el UPDATE) y devuelve su resultado. Una materia la dicta un solo
+// profesor en cada curso: si PostgreSQL rechaza el cambio porque ya tiene uno con otra asignación
+// vigente, lanza un TeacherAssignmentError DUPLICATE_VALUE con fieldErrors.subject.
+async function saveTeacherAssignment(save) {
+  try {
+    return await save();
+  } catch (error) {
+    if (teacherAssignmentRepository.isDuplicateError(error)) {
+      throw new TeacherAssignmentError('DUPLICATE_VALUE', 'La materia ya tiene un profesor asignado en ese curso.', {
+        subject: 'Esta materia ya tiene un profesor asignado en el curso.',
+      });
+    }
+    throw error;
+  }
+}
+
+function subjectNotInGradeError() {
+  return new TeacherAssignmentError('SUBJECT_NOT_IN_GRADE', 'La materia no es del plan de estudios del curso.', {
+    subject: 'Esta materia no es del plan de estudios del curso.',
+  });
 }
 
 // Crea una asignación docente vigente y la devuelve con los campos de listTeacherAssignments.
@@ -133,35 +183,45 @@ async function createTeacherAssignment(currentUser, { teacherId, courseId, subje
   await assertAssignableTeacher(institutionId, teacherId);
   await assertAssignableCourse(institutionId, courseId);
 
-  let teacherAssignment;
-  try {
-    teacherAssignment = await teacherAssignmentRepository.create({ teacherId, courseId, subjectId });
-  } catch (error) {
-    if (teacherAssignmentRepository.isDuplicateError(error)) {
-      throw new TeacherAssignmentError('DUPLICATE_VALUE', 'La materia ya tiene un profesor asignado en ese curso.', {
-        subject: 'Esta materia ya tiene un profesor asignado en el curso.',
-      });
-    }
-    throw error;
-  }
-  if (!teacherAssignment) {
-    throw new TeacherAssignmentError('SUBJECT_NOT_IN_GRADE', 'La materia no es del plan de estudios del curso.', {
-      subject: 'Esta materia no es del plan de estudios del curso.',
-    });
-  }
+  const teacherAssignment = await saveTeacherAssignment(() =>
+    teacherAssignmentRepository.create({ teacherId, courseId, subjectId })
+  );
+  if (!teacherAssignment) throw subjectNotInGradeError();
   return toListedTeacherAssignment(teacherAssignment);
 }
 
-// ---------- Baja ----------
+// Guarda el profesor, el curso y la materia de una asignación docente vigente de la institución de
+// `currentUser` y la devuelve como quedó, con los campos de listTeacherAssignments. `data` trae los
+// mismos campos que en createTeacherAssignment. La asignación puede conservar el profesor y el
+// curso que ya tiene aunque el alta no los ofrezca (un profesor suspendido o dado de baja, un curso
+// de otro ciclo lectivo o dado de baja); si cambian, el nuevo tiene que ser uno de
+// listAssignableTeachers o de listAssignableCourses.
+// La unicidad es la del alta, sin contar a la propia asignación: si la materia ya tiene un profesor
+// en ese curso con otra asignación vigente, no se guarda nada y se lanza un TeacherAssignmentError
+// DUPLICATE_VALUE con fieldErrors.subject. La aplica el mismo índice único al modificar la fila,
+// que no choca consigo misma: guardarla sin cambios, o cambiarle solo el profesor, no es un
+// duplicado, y tampoco pasan dos ediciones simultáneas.
+// También lanza un TeacherAssignmentError si la asignación no existe en la institución
+// (TEACHER_ASSIGNMENT_NOT_FOUND) o fue dada de baja (TEACHER_ASSIGNMENT_ALREADY_DELETED), si el
+// profesor o el curso nuevos no se pueden elegir (TEACHER_NOT_AVAILABLE, COURSE_NOT_AVAILABLE) o si
+// la materia no es del grado del curso (SUBJECT_NOT_IN_GRADE, con fieldErrors.subject).
+async function updateTeacherAssignment(currentUser, teacherAssignmentId, { teacherId, courseId, subjectId }) {
+  const { institutionId } = currentUser;
+  const currentAssignment = await findActiveTeacherAssignment(teacherAssignmentId, institutionId);
+  if (teacherId !== currentAssignment.teacher.id) await assertAssignableTeacher(institutionId, teacherId);
+  if (courseId !== currentAssignment.course.id) await assertAssignableCourse(institutionId, courseId);
 
-// Error de una baja que no encontró la asignación vigente: si existe en la institución es porque ya
-// estaba dada de baja (TEACHER_ASSIGNMENT_ALREADY_DELETED); si no, TEACHER_ASSIGNMENT_NOT_FOUND.
-async function notActiveError(teacherAssignmentId, institutionId) {
-  if (await teacherAssignmentRepository.existsInInstitution(teacherAssignmentId, institutionId)) {
-    return new TeacherAssignmentError('TEACHER_ASSIGNMENT_ALREADY_DELETED', 'La asignación ya había sido eliminada.');
-  }
-  return new TeacherAssignmentError('TEACHER_ASSIGNMENT_NOT_FOUND', 'La asignación ya no existe.');
+  const updatedAssignment = await saveTeacherAssignment(() =>
+    teacherAssignmentRepository.update(teacherAssignmentId, institutionId, { teacherId, courseId, subjectId })
+  );
+  if (updatedAssignment) return toListedTeacherAssignment(updatedAssignment);
+  // El UPDATE no modificó nada: otra sesión dio de baja la asignación después de consultarla (lo
+  // informa findActiveTeacherAssignment) o la materia no es del grado del curso.
+  await findActiveTeacherAssignment(teacherAssignmentId, institutionId);
+  throw subjectNotInGradeError();
 }
+
+// ---------- Baja ----------
 
 // Baja lógica de una asignación docente de la institución de `currentUser`: la fila queda con su
 // fecha de baja, deja de listarse y su materia vuelve a estar entre las de listAssignableSubjects
@@ -184,6 +244,7 @@ module.exports = {
   listAssignableCourses,
   listAssignableSubjects,
   createTeacherAssignment,
+  updateTeacherAssignment,
   deleteTeacherAssignment,
   TeacherAssignmentError,
 };

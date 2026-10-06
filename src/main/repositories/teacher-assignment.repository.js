@@ -7,7 +7,8 @@ const { EDUCATION_LEVEL_BY_COLUMN_VALUE } = require('./grade.repository');
 const { SHIFT_BY_COLUMN_VALUE } = require('./course.repository');
 
 // Asignaciones docentes con su profesor, su curso y su materia. `source` es de dónde salen las
-// filas de asignacion_docente: la tabla o el CTE con la fila de un alta o de una baja.
+// filas de asignacion_docente: la tabla o el CTE con la fila de un alta, de una edición o de una
+// baja.
 const selectFrom = (source) => `
   SELECT a.asignacion_docente_id,
          a.grado_materia_id,
@@ -52,6 +53,14 @@ const FIND_BY_INSTITUTION_SQL = `${selectFrom('asignacion_docente')}
             m.nombre, a.asignacion_docente_id
 `;
 
+// Una asignación vigente de un curso de la institución (la del curso: la asignación no la guarda),
+// con su profesor, su curso y su materia.
+const FIND_ACTIVE_BY_ID_SQL = `${selectFrom('asignacion_docente')}
+   WHERE a.asignacion_docente_id = $1
+     AND c.institucion_id = $2
+     AND a.fecha_eliminacion IS NULL
+`;
+
 // Alta. La materia ($3, un materia_id) se busca en el plan de estudios del grado del curso: si no
 // es de ese grado, o si el curso no existe, no se inserta nada. Devuelve la fila creada, con su
 // profesor, su curso y su materia.
@@ -65,6 +74,29 @@ const CREATE_SQL = `
        AND gm.materia_id = $3
     RETURNING asignacion_docente_id, usuario_id, curso_id, grado_materia_id
   )${selectFrom('created')}
+`;
+
+// Edición: solo modifica una asignación vigente de un curso de la institución (`previous_course`,
+// el que tiene antes del cambio). La materia ($5, un materia_id) se busca en el plan de estudios
+// del grado del curso que se guarda ($4), como en el alta: si no es de ese grado, o si el curso no
+// existe, no se modifica nada. Devuelve la fila como quedó, con su profesor, su curso y su materia.
+const UPDATE_SQL = `
+  WITH updated AS (
+    UPDATE asignacion_docente a
+       SET usuario_id = $3,
+           curso_id = c.curso_id,
+           grado_materia_id = gm.grado_materia_id
+      FROM curso previous_course,
+           curso c
+      JOIN grado_materia gm ON gm.grado_id = c.grado_id
+     WHERE a.asignacion_docente_id = $1
+       AND previous_course.curso_id = a.curso_id
+       AND previous_course.institucion_id = $2
+       AND a.fecha_eliminacion IS NULL
+       AND c.curso_id = $4
+       AND gm.materia_id = $5
+    RETURNING a.asignacion_docente_id, a.usuario_id, a.curso_id, a.grado_materia_id
+  )${selectFrom('updated')}
 `;
 
 // Baja lógica: la fila se conserva con la fecha de baja. Solo marca una asignación vigente de un
@@ -133,6 +165,13 @@ async function findByInstitution(institutionId) {
   return rows.map(toTeacherAssignment);
 }
 
+// La asignación vigente con ese id, si es de un curso de la institución; null si no existe en ella
+// o fue dada de baja.
+async function findActiveById(teacherAssignmentId, institutionId) {
+  const { rows } = await query(FIND_ACTIVE_BY_ID_SQL, [teacherAssignmentId, institutionId]);
+  return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
+}
+
 // Crea la asignación vigente del profesor `teacherId` (un usuario_id) en el curso `courseId` para
 // la materia `subjectId` (un materia_id). Devuelve la asignación creada; null si la materia no es
 // del plan de estudios del grado del curso (o el curso no existe). Si esa materia ya tiene un
@@ -140,6 +179,18 @@ async function findByInstitution(institutionId) {
 // el curso se puedan elegir lo comprueba el servicio.
 async function create({ teacherId, courseId, subjectId }) {
   const { rows } = await query(CREATE_SQL, [teacherId, courseId, subjectId]);
+  return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
+}
+
+// Guarda el profesor, el curso y la materia de una asignación vigente de la institución, con los
+// mismos valores que admite create. Devuelve la asignación como quedó; null si no existe en la
+// institución o fue dada de baja, o si la materia no es del plan de estudios del grado del curso (o
+// el curso no existe). Si esa materia ya tiene un profesor vigente en el curso con otra asignación,
+// PostgreSQL rechaza el cambio (ver isDuplicateError): la fila no choca consigo misma, así que
+// guardarla con el curso y la materia que ya tenía no es un duplicado. Que el profesor y el curso
+// se puedan elegir lo comprueba el servicio.
+async function update(teacherAssignmentId, institutionId, { teacherId, courseId, subjectId }) {
+  const { rows } = await query(UPDATE_SQL, [teacherAssignmentId, institutionId, teacherId, courseId, subjectId]);
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
 }
 
@@ -163,4 +214,12 @@ function isDuplicateError(error) {
   return error?.code === '23505' && error.constraint === UNIQUE_INDEX;
 }
 
-module.exports = { findByInstitution, create, markAsDeleted, existsInInstitution, isDuplicateError };
+module.exports = {
+  findByInstitution,
+  findActiveById,
+  create,
+  update,
+  markAsDeleted,
+  existsInInstitution,
+  isDuplicateError,
+};

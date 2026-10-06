@@ -59,16 +59,20 @@ async function listAssignableCourses(currentUser) {
   }
 }
 
+// `teacherAssignmentId` es el id de la asignación que se edita, o null en un alta.
 // Nunca rechaza: los errores previstos llevan su mensaje y el resto, uno genérico con el detalle en
 // la consola.
-async function listAssignableSubjects(currentUser, courseId) {
+async function listAssignableSubjects(currentUser, courseId, teacherAssignmentId = null) {
   if (!isId(courseId)) {
     return failure('INVALID_INPUT', 'No se pudo identificar el curso.');
+  }
+  if (teacherAssignmentId !== null && !isId(teacherAssignmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
   }
   try {
     return {
       ok: true,
-      subjects: await teacherAssignmentService.listAssignableSubjects(currentUser, courseId),
+      subjects: await teacherAssignmentService.listAssignableSubjects(currentUser, courseId, teacherAssignmentId),
     };
   } catch (error) {
     if (error instanceof TeacherAssignmentError) {
@@ -100,6 +104,28 @@ async function createTeacherAssignment(currentUser, data) {
 }
 
 // Nunca rechaza, como createTeacherAssignment.
+async function updateTeacherAssignment(currentUser, teacherAssignmentId, data) {
+  if (!isId(teacherAssignmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
+  }
+  if (!isTeacherAssignmentData(data)) {
+    return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');
+  }
+  try {
+    return {
+      ok: true,
+      teacherAssignment: await teacherAssignmentService.updateTeacherAssignment(currentUser, teacherAssignmentId, data),
+    };
+  } catch (error) {
+    if (error instanceof TeacherAssignmentError) {
+      return failure(error.code, error.message, error.fieldErrors);
+    }
+    console.error('Error al guardar la asignación docente:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudieron guardar los cambios. Intentá nuevamente.');
+  }
+}
+
+// Nunca rechaza, como createTeacherAssignment.
 async function deleteTeacherAssignment(currentUser, teacherAssignmentId) {
   if (!isId(teacherAssignmentId)) {
     return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
@@ -126,6 +152,7 @@ function registerTeacherAssignmentHandlers(browserWindow) {
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-courses', ['ADMIN'], listAssignableCourses);
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-subjects', ['ADMIN'], listAssignableSubjects);
   handleProtected(browserWindow, 'teacher-assignments:create', ['ADMIN'], createTeacherAssignment);
+  handleProtected(browserWindow, 'teacher-assignments:update', ['ADMIN'], updateTeacherAssignment);
   handleProtected(browserWindow, 'teacher-assignments:delete', ['ADMIN'], deleteTeacherAssignment);
 }
 
