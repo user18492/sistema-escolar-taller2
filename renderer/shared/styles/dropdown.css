@@ -36,6 +36,14 @@
   border-color: var(--color-accent-blue);
 }
 
+/* Con un error (setFieldError, field-validation.component.js), el borde rojo se mantiene con el
+   foco y con la lista abierta, hasta que se elige otra opción: como .field input de form-field.css. */
+.dropdown-toggle[aria-invalid="true"],
+.dropdown-toggle[aria-invalid="true"]:focus-visible,
+.dropdown.open .dropdown-toggle[aria-invalid="true"] {
+  border-color: var(--color-accent-red);
+}
+
 .dropdown-toggle .chevron {
   width: 13px;
   height: 13px;

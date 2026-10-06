@@ -137,4 +137,4 @@ async function deleteCourse(currentUser, courseId) {
   throw await notActiveError(courseId, currentUser.institutionId);
 }
 
-module.exports = { listCourses, createCourse, updateCourse, deleteCourse, CourseError };
+module.exports = { listCourses, createCourse, updateCourse, deleteCourse, toListedCourse, CourseError };

@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/confirm-modal.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/buttons.css" />
@@ -30,9 +31,11 @@
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
     <script src="../../shared/components/dropdown.component.js"></script>
     <script src="../../shared/components/searchable-select.component.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
     <script src="../../shared/components/search-bar.component.js"></script>
     <script src="../../shared/components/table-pagination.component.js"></script>
@@ -108,9 +111,10 @@
 
             <table-pagination results="" label="Paginación de asignaciones docentes" pages="1"></table-pagination>
 
-            <!-- Plantillas: assignments.js las completa con las asignaciones docentes que devuelve el
-                 proceso principal: una fila por asignación y, en los filtros Profesor y Materia, una
-                 opción por cada profesor y por cada materia que tienen alguna -->
+            <!-- Plantillas: assignments.js las completa con lo que devuelve el proceso principal: una
+                 fila por asignación docente y, en los filtros Profesor y Materia, una opción por cada
+                 profesor y por cada materia que tienen alguna. El formulario de alta usa las mismas
+                 opciones en Profesor y Materia, y la de curso en Curso -->
             <template id="assignmentRowTemplate">
               <tr>
                 <td class="col-teacher col-truncate">
@@ -142,6 +146,9 @@
             </template>
             <template id="subjectOptionTemplate">
               <li class="dropdown-option" role="option" aria-selected="false"></li>
+            </template>
+            <template id="courseOptionTemplate">
+              <li class="dropdown-option" role="option" aria-selected="false"><span class="option-name text-truncate"></span></li>
             </template>
           </section>
         </main>
@@ -176,76 +183,6 @@
                 </button>
               </div>
               <ul class="dropdown-menu dropdown-menu-teacher" role="listbox" hidden>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t1" aria-selected="false">
-                  <span class="option-avatar">MG</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">González, María</span>
-                    <span class="option-email text-truncate">maria.gonzalez@escuela.edu.ar</span>
-                  </span>
-                </li>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t2" aria-selected="false">
-                  <span class="option-avatar">CF</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">Fernández, Carlos</span>
-                    <span class="option-email text-truncate">carlos.fernandez@escuela.edu.ar</span>
-                  </span>
-                </li>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t3" aria-selected="false">
-                  <span class="option-avatar">LR</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">Romero, Lucía</span>
-                    <span class="option-email text-truncate">lucia.romero@escuela.edu.ar</span>
-                  </span>
-                </li>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t4" aria-selected="false">
-                  <span class="option-avatar">DL</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">López, Diego</span>
-                    <span class="option-email text-truncate">diego.lopez@escuela.edu.ar</span>
-                  </span>
-                </li>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t5" aria-selected="false">
-                  <span class="option-avatar">VP</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">Pérez, Valeria</span>
-                    <span class="option-email text-truncate">valeria.perez@escuela.edu.ar</span>
-                  </span>
-                </li>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t6" aria-selected="false">
-                  <span class="option-avatar">SA</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">Acosta, Sofía</span>
-                    <span class="option-email text-truncate">sofia.acosta@escuela.edu.ar</span>
-                  </span>
-                </li>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t7" aria-selected="false">
-                  <span class="option-avatar">JR</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">Ruiz, Julián</span>
-                    <span class="option-email text-truncate">julian.ruiz@escuela.edu.ar</span>
-                  </span>
-                </li>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t8" aria-selected="false">
-                  <span class="option-avatar">CT</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">Torres, Camila</span>
-                    <span class="option-email text-truncate">camila.torres@escuela.edu.ar</span>
-                  </span>
-                </li>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t9" aria-selected="false">
-                  <span class="option-avatar">MS</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">Silva, Martín</span>
-                    <span class="option-email text-truncate">martin.silva@escuela.edu.ar</span>
-                  </span>
-                </li>
-                <li class="dropdown-option option-teacher avatar-item" role="option" data-value="t10" aria-selected="false">
-                  <span class="option-avatar">PM</span>
-                  <span class="avatar-item-text">
-                    <span class="option-name text-truncate">Medina, Paula</span>
-                    <span class="option-email text-truncate">paula.medina@escuela.edu.ar</span>
-                  </span>
-                </li>
                 <li class="dropdown-empty" hidden>Sin resultados</li>
               </ul>
             </div>
@@ -286,23 +223,6 @@
                 </button>
               </div>
               <ul class="dropdown-menu dropdown-menu-course" role="listbox" hidden>
-                <li class="dropdown-option" role="option" data-value="c1" data-level="PRIMARY" aria-selected="false"><span class="option-name text-truncate">1° A · Mañana</span></li>
-                <li class="dropdown-option" role="option" data-value="c2" data-level="PRIMARY" aria-selected="false"><span class="option-name text-truncate">1° B · Tarde</span></li>
-                <li class="dropdown-option" role="option" data-value="c3" data-level="PRIMARY" aria-selected="false"><span class="option-name text-truncate">2° A · Mañana</span></li>
-                <li class="dropdown-option" role="option" data-value="c4" data-level="PRIMARY" aria-selected="false"><span class="option-name text-truncate">3° A · Tarde</span></li>
-                <li class="dropdown-option" role="option" data-value="c5" data-level="PRIMARY" aria-selected="false"><span class="option-name text-truncate">5° B · Mañana</span></li>
-                <li class="dropdown-option" role="option" data-value="c6" data-level="PRIMARY" aria-selected="false"><span class="option-name text-truncate">6° A · Tarde</span></li>
-                <li class="dropdown-option" role="option" data-value="c7" data-level="SECONDARY" aria-selected="false"><span class="option-name text-truncate">1° A · Mañana</span></li>
-                <li class="dropdown-option" role="option" data-value="c8" data-level="SECONDARY" aria-selected="false"><span class="option-name text-truncate">2° B · Tarde</span></li>
-                <li class="dropdown-option" role="option" data-value="c9" data-level="SECONDARY" aria-selected="false"><span class="option-name text-truncate">4° A · Mañana</span></li>
-                <li class="dropdown-option" role="option" data-value="c10" data-level="SECONDARY" aria-selected="false"><span class="option-name text-truncate">6° B · Tarde</span></li>
-                <li class="dropdown-option" role="option" data-value="c11" data-level="PRIMARY" aria-selected="false"><span class="option-name text-truncate">2° B · Tarde</span></li>
-                <li class="dropdown-option" role="option" data-value="c12" data-level="PRIMARY" aria-selected="false"><span class="option-name text-truncate">3° A · Mañana</span></li>
-                <li class="dropdown-option" role="option" data-value="c13" data-level="SECONDARY" aria-selected="false"><span class="option-name text-truncate">1° A · Tarde</span></li>
-                <li class="dropdown-option" role="option" data-value="c14" data-level="SECONDARY" aria-selected="false"><span class="option-name text-truncate">4° B · Mañana</span></li>
-                <li class="dropdown-option" role="option" data-value="c15" data-level="SECONDARY" aria-selected="false"><span class="option-name text-truncate">2° A · Mañana</span></li>
-                <li class="dropdown-option" role="option" data-value="c16" data-level="SECONDARY" aria-selected="false"><span class="option-name text-truncate">3° B · Tarde</span></li>
-                <li class="dropdown-option" role="option" data-value="c17" data-level="PRIMARY" aria-selected="false"><span class="option-name text-truncate">1° B · Mañana</span></li>
                 <li class="dropdown-empty" hidden>Sin resultados</li>
               </ul>
             </div>
@@ -311,28 +231,15 @@
           <div class="form-field">
             <label>Materia</label>
             <div class="field field-select dropdown is-locked" data-filter="new-assignment-subject">
-              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false" disabled>
+              <button type="button" class="dropdown-toggle" id="newAssignmentSubject" aria-haspopup="listbox" aria-expanded="false" aria-describedby="newAssignmentSubjectError" disabled>
                 <span class="dropdown-label text-truncate placeholder">Selecciona primero un curso</span>
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
-              <ul class="dropdown-menu" role="listbox" hidden>
-                <li class="dropdown-option disabled" role="option" data-value="LANGUAGE" aria-disabled="true">
-                  <span class="option-name text-truncate">Lengua</span>
-                  <span class="option-badge">Ya asignada</span>
-                </li>
-                <li class="dropdown-option" role="option" data-value="MATH" aria-selected="false">Matemática</li>
-                <li class="dropdown-option" role="option" data-value="NATURAL_SCIENCES" aria-selected="false">Ciencias Naturales</li>
-                <li class="dropdown-option disabled" role="option" data-value="PHYSICS" aria-disabled="true">
-                  <span class="option-name text-truncate">Física</span>
-                  <span class="option-badge">Ya asignada</span>
-                </li>
-                <li class="dropdown-option" role="option" data-value="HISTORY" aria-selected="false">Historia</li>
-                <li class="dropdown-option" role="option" data-value="GEOGRAPHY" aria-selected="false">Geografía</li>
-                <li class="dropdown-option" role="option" data-value="ENGLISH" aria-selected="false">Inglés</li>
-              </ul>
+              <ul class="dropdown-menu" role="listbox" hidden></ul>
             </div>
+            <p class="field-error" id="newAssignmentSubjectError" hidden></p>
           </div>
 
           <div class="info-box">

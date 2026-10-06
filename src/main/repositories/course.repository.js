@@ -3,10 +3,10 @@ const { Course } = require('../models/course.model');
 const { EDUCATION_LEVEL_BY_COLUMN_VALUE } = require('./grade.repository');
 
 // Listado de los cursos vigentes de una institución (los dados de baja no se listan), de todos los
-// ciclos lectivos, con el nombre y el nivel educativo de su grado. El orden es total: primero el
-// ciclo lectivo más reciente y, dentro de cada uno, primaria antes que secundaria, el grado (del
-// catálogo, de 1° a 6°), la división y el turno; curso_id desempata, así dos consultas sobre los
-// mismos datos dan siempre el mismo orden.
+// ciclos lectivos o, si $2 no es null, solo de ese, con el nombre y el nivel educativo de su grado.
+// El orden es total: primero el ciclo lectivo más reciente y, dentro de cada uno, primaria antes
+// que secundaria, el grado (del catálogo, de 1° a 6°), la división y el turno; curso_id desempata,
+// así dos consultas sobre los mismos datos dan siempre el mismo orden.
 const FIND_BY_INSTITUTION_SQL = `
   SELECT c.curso_id,
          c.institucion_id,
@@ -20,6 +20,7 @@ const FIND_BY_INSTITUTION_SQL = `
     JOIN grado g ON g.grado_id = c.grado_id
    WHERE c.institucion_id = $1
      AND c.fecha_eliminacion IS NULL
+     AND ($2::INT IS NULL OR c.anio_ciclo_lectivo = $2)
    ORDER BY c.anio_ciclo_lectivo DESC, g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id
 `;
 
@@ -132,10 +133,11 @@ function toCourse(row) {
   });
 }
 
-// Cursos vigentes de la institución, de todos los ciclos lectivos, ordenados por ciclo lectivo (el
-// más reciente primero), nivel educativo, grado, división y turno.
-async function findByInstitution(institutionId) {
-  const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId]);
+// Cursos vigentes de la institución, de todos los ciclos lectivos o, con `schoolYear` (un año), solo
+// de ese, ordenados por ciclo lectivo (el más reciente primero), nivel educativo, grado, división y
+// turno.
+async function findByInstitution(institutionId, schoolYear = null) {
+  const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId, schoolYear]);
   return rows.map(toCourse);
 }
 

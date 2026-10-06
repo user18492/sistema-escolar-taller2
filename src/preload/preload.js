@@ -120,5 +120,29 @@ contextBridge.exposeInMainWorld('api', {
     // reciente primero), profesor (por apellido y nombre), curso (nivel educativo, grado, división y
     // turno) y materia.
     list: () => ipcRenderer.invoke('teacher-assignments:list'),
+    // Solo ADMIN. Lo que ofrece el formulario de alta en Profesor: resuelve { ok: true, teachers } con
+    // los profesores activos de su institución (sin los suspendidos ni los dados de baja), por apellido
+    // y nombre ({ id, firstName, lastName, email, imageUrl }, como teacher en list), o
+    // { ok: false, error: { code, message } }.
+    listAssignableTeachers: () => ipcRenderer.invoke('teacher-assignments:list-assignable-teachers'),
+    // Solo ADMIN. Lo que ofrece el formulario de alta en Curso: resuelve { ok: true, courses } con los
+    // cursos vigentes de su institución en el ciclo lectivo del año en curso (mismos campos y orden que
+    // courses.list), o { ok: false, error: { code, message } }.
+    listAssignableCourses: () => ipcRenderer.invoke('teacher-assignments:list-assignable-courses'),
+    // Solo ADMIN. Lo que ofrece el formulario de alta en Materia para el curso con ese id (uno de
+    // listAssignableCourses): resuelve { ok: true, subjects } con las materias del plan de estudios de
+    // su grado que todavía no tienen un profesor en ese curso, por nombre ({ id, name }, como subject en
+    // list; vacía si ya están todas asignadas), o { ok: false, error: { code, message } }:
+    // COURSE_NOT_AVAILABLE indica que el curso ya no se puede elegir.
+    listAssignableSubjects: (courseId) => ipcRenderer.invoke('teacher-assignments:list-assignable-subjects', courseId),
+    // Solo ADMIN. Crea una asignación docente vigente. `data` es { teacherId, courseId, subjectId }: los
+    // ids de un profesor de listAssignableTeachers, de un curso de listAssignableCourses y de una materia
+    // de listAssignableSubjects para ese curso. Resuelve { ok: true, teacherAssignment } con la
+    // asignación creada (mismos campos que list) o { ok: false, error: { code, message, fieldErrors } },
+    // sin guardar nada: DUPLICATE_VALUE indica que la materia ya tiene un profesor en ese curso y
+    // SUBJECT_NOT_IN_GRADE, que no es de su plan de estudios (los dos traen fieldErrors.subject, el
+    // mensaje para el campo Materia); TEACHER_NOT_AVAILABLE y COURSE_NOT_AVAILABLE, que el profesor o el
+    // curso ya no se pueden elegir.
+    create: (data) => ipcRenderer.invoke('teacher-assignments:create', data),
   },
 });

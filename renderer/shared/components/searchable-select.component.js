@@ -16,8 +16,10 @@
 //     todas las opciones.
 //   - filterOnGroupChange: setGroupFilter() vuelve a filtrar la lista en el momento.
 // API de cada campo: `root`, `close()`, `onSelect(callback)`, `reset()`, `getValue()`;
-// `setGroupFilter(nivel)` restringe las opciones visibles a un nivel educativo (data-level) y
-// `lock(placeholder)`/`unlock(placeholder)` deshabilitan el campo mientras ese nivel no esté elegido.
+// `setOptions(opciones)` reemplaza las .dropdown-option de la lista (p. ej., con los datos de la
+// base) y deja el campo sin valor; `setGroupFilter(nivel)` restringe las opciones visibles a un
+// nivel educativo (data-level) y `lock(placeholder)`/`unlock(placeholder)` deshabilitan el campo
+// mientras ese nivel no esté elegido.
 
 (() => {
   const searchableSelects = [];
@@ -47,7 +49,7 @@
     const valueBox = bar.querySelector('.searchable-value');
     const chevronBtn = bar.querySelector('.searchable-chevron');
     const menu = root.querySelector('.dropdown-menu');
-    const options = Array.from(menu.querySelectorAll('.dropdown-option'));
+    let options = Array.from(menu.querySelectorAll('.dropdown-option'));
     const emptyState = menu.querySelector('.dropdown-empty');
     const defaultPlaceholder = input.placeholder;
 
@@ -114,7 +116,7 @@
 
     valueBox.addEventListener('click', openMenu);
 
-    options.forEach((option) => {
+    const bindOption = (option) => {
       option.addEventListener('click', () => {
         options.forEach((o) => {
           o.classList.remove('selected');
@@ -130,7 +132,9 @@
         closeMenu();
         if (typeof onSelectCallback === 'function') onSelectCallback(option);
       });
-    });
+    };
+
+    options.forEach(bindOption);
 
     const select = {
       root,
@@ -169,6 +173,15 @@
       },
       getValue() {
         return selectedOption ? selectedOption.dataset.value : '';
+      },
+      // Las opciones nuevas van antes de .dropdown-empty, que sigue siendo el último de la lista
+      setOptions(newOptions) {
+        options.forEach((option) => option.remove());
+        options = Array.from(newOptions);
+        options.forEach(bindOption);
+        if (emptyState) emptyState.before(...options);
+        else menu.append(...options);
+        select.reset();
       },
     };
 

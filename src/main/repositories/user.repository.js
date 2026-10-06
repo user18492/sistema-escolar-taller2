@@ -46,6 +46,24 @@ const FIND_BY_INSTITUTION_SQL = `
    ORDER BY u.apellido, u.nombre, u.usuario_id
 `;
 
+// Usuarios de una institución con un rol que pueden usar el sistema: activos y vigentes, sin los
+// suspendidos ni los dados de baja. Solo trae los datos para mostrarlos en una lista: los demás
+// campos quedan undefined.
+const FIND_ACTIVE_BY_ROLE_SQL = `
+  SELECT u.usuario_id,
+         u.nombre,
+         u.apellido,
+         u.email,
+         u.imagen_url
+    FROM usuario u
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
+   WHERE u.institucion_id = $1
+     AND r.nombre = $2
+     AND u.estado
+     AND u.fecha_eliminacion IS NULL
+   ORDER BY u.apellido, u.nombre, u.usuario_id
+`;
+
 // Baja lógica: la fila se conserva con la fecha de baja y queda suspendida, como exige
 // ck_usuario_baja_suspendido (db/schema.sql). Solo marca a un usuario vigente de la institución, así
 // una segunda baja (repetida o simultánea) no pisa la fecha de la primera.
@@ -254,6 +272,13 @@ async function findByInstitution(institutionId, excludedUserId) {
   return rows.map(toUser);
 }
 
+// Usuarios activos y vigentes de la institución con ese rol (un valor de usuario_rol.nombre),
+// ordenados por apellido y nombre. Solo traen id, nombre, apellido, email y foto.
+async function findActiveByRole(institutionId, role) {
+  const { rows } = await query(FIND_ACTIVE_BY_ROLE_SQL, [institutionId, role]);
+  return rows.map(toUser);
+}
+
 // Da de baja al usuario, que queda además suspendido. Devuelve el usuario como quedó, sin
 // password_hash; null si no existe en la institución o ya estaba dado de baja.
 async function markAsDeleted(userId, institutionId) {
@@ -365,6 +390,7 @@ function duplicateFieldOf(error) {
 module.exports = {
   findAllByEmail,
   findByInstitution,
+  findActiveByRole,
   markAsDeleted,
   restore,
   existsInInstitution,
