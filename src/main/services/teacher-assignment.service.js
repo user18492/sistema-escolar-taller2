@@ -152,11 +152,38 @@ async function createTeacherAssignment(currentUser, { teacherId, courseId, subje
   return toListedTeacherAssignment(teacherAssignment);
 }
 
+// ---------- Baja ----------
+
+// Error de una baja que no encontró la asignación vigente: si existe en la institución es porque ya
+// estaba dada de baja (TEACHER_ASSIGNMENT_ALREADY_DELETED); si no, TEACHER_ASSIGNMENT_NOT_FOUND.
+async function notActiveError(teacherAssignmentId, institutionId) {
+  if (await teacherAssignmentRepository.existsInInstitution(teacherAssignmentId, institutionId)) {
+    return new TeacherAssignmentError('TEACHER_ASSIGNMENT_ALREADY_DELETED', 'La asignación ya había sido eliminada.');
+  }
+  return new TeacherAssignmentError('TEACHER_ASSIGNMENT_NOT_FOUND', 'La asignación ya no existe.');
+}
+
+// Baja lógica de una asignación docente de la institución de `currentUser`: la fila queda con su
+// fecha de baja, deja de listarse y su materia vuelve a estar entre las de listAssignableSubjects
+// para ese curso, así que se puede asignar a otro profesor. Se puede dar de baja cualquiera de las
+// de listTeacherAssignments, también las de otro ciclo lectivo, las de un profesor suspendido y las
+// de un curso dado de baja.
+// Devuelve la asignación dada de baja, con los campos de listTeacherAssignments. Lanza un
+// TeacherAssignmentError si no existe en la institución (TEACHER_ASSIGNMENT_NOT_FOUND) o si ya
+// estaba dada de baja (TEACHER_ASSIGNMENT_ALREADY_DELETED).
+async function deleteTeacherAssignment(currentUser, teacherAssignmentId) {
+  const { institutionId } = currentUser;
+  const deletedAssignment = await teacherAssignmentRepository.markAsDeleted(teacherAssignmentId, institutionId);
+  if (deletedAssignment) return toListedTeacherAssignment(deletedAssignment);
+  throw await notActiveError(teacherAssignmentId, institutionId);
+}
+
 module.exports = {
   listTeacherAssignments,
   listAssignableTeachers,
   listAssignableCourses,
   listAssignableSubjects,
   createTeacherAssignment,
+  deleteTeacherAssignment,
   TeacherAssignmentError,
 };

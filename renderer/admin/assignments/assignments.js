@@ -9,7 +9,10 @@
 // (listAssignableTeachers, listAssignableCourses) y, al elegir el curso, las materias que todavía
 // no tienen un profesor en él (listAssignableSubjects). El resultado se avisa con un toast
 // (toast.component.js), salvo el rechazo de la materia, que se marca en el formulario.
-// Editar y Eliminar siguen siendo visuales: no modifican datos persistidos.
+// Eliminar la da de baja (baja lógica, window.api.teacherAssignments.delete) después de confirmarlo
+// en un modal (confirm-modal.component.js) y también lo avisa con un toast: su materia vuelve a
+// ofrecerse en ese curso.
+// Editar sigue siendo visual: no modifica datos persistidos.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -220,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadAssignments();
 
-  // ---------- Tabla: cambios después de crear ----------
+  // ---------- Tabla: cambios después de crear o eliminar ----------
 
   // Orden aproximado al del listado (FIND_BY_INSTITUTION_SQL, teacher-assignment.repository.js):
   // ciclo lectivo (el más reciente primero), profesor, curso (nivel educativo, grado, división y
@@ -270,10 +273,52 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
   };
 
+  // Quita del filtro de `header` la opción de `item` (un profesor o una materia) si ya no está en
+  // `items` (los de las asignaciones cargadas). Si estaba marcada, `filter` deja de filtrar por
+  // ella y el embudo se actualiza.
+  const removeFilterOption = (header, filter, items, item) => {
+    if (items.some(({ id }) => id === item.id)) return;
+    const option = header.querySelector(`.dropdown-option[data-value="${item.id}"]`);
+    if (!option) return;
+    const wasSelected = option.classList.contains('selected');
+    option.remove();
+    if (!wasSelected) return;
+    activeFilters[filter] = activeFilters[filter].filter((value) => value !== String(item.id));
+    header.dispatchEvent(new Event('column-filter-refresh'));
+  };
+
+  // Quita de la lista en memoria la asignación dada de baja, sin recargarla; su profesor y su
+  // materia dejan de ser opciones de los filtros si no les queda otra asignación, sin tocar las
+  // demás. La página se conserva; si era la última y quedó vacía, el componente pasa a la anterior.
+  const removeAssignment = ({ id, teacher, subject }) => {
+    assignments = assignments.filter((assignment) => assignment.id !== id);
+    removeFilterOption(teacherHeader, 'teacher', listedTeachers(), teacher);
+    removeFilterOption(subjectHeader, 'subject', listedSubjects(), subject);
+    renderRows();
+  };
+
+  // Posición en la página de la fila del botón que abrió el último modal, solo para devolver el
+  // foco a la que ocupe su lugar si esa fila ya no se muestra
+  let triggerRowIndex = 0;
+
+  // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
+  // página), o "Nueva asignación" si la tabla quedó sin asignaciones
+  const focusAfterRemoval = (action) => {
+    const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
+    return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openAssignmentModalBtn;
+  };
+
   // Descripción de los toasts de error: el mensaje del proceso principal. Sin respuesta, o con
   // UNEXPECTED_ERROR (su mensaje repite el título del toast), queda la genérica.
   const errorDescription = (error) =>
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
+
+  // La asignación ya no está vigente: la lista en memoria quedó vieja y se vuelve a pedir
+  const NO_LONGER_ACTIVE_CODES = ['TEACHER_ASSIGNMENT_NOT_FOUND', 'TEACHER_ASSIGNMENT_ALREADY_DELETED'];
+
+  // "Lengua en 1° A de Primaria, turno Mañana", como lo nombran los toasts del alta y de la baja
+  const subjectInCourse = ({ course, subject }) =>
+    `${subject.name} en ${course.gradeName} ${course.division} de ${levelLabels[course.educationLevel]}, turno ${shiftLabels[course.shift]}`;
 
   // ---------- Modal compartido: Nueva asignación / Editar asignación ----------
 
@@ -612,8 +657,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // "Pablo Fernández dictará Lengua en 1° A de Primaria, turno Mañana."
-  const successDescription = ({ teacher, course, subject }) =>
-    `${teacher.firstName} ${teacher.lastName} dictará ${subject.name} en ${course.gradeName} ${course.division} de ${levelLabels[course.educationLevel]}, turno ${shiftLabels[course.shift]}.`;
+  const successDescription = (assignment) =>
+    `${assignment.teacher.firstName} ${assignment.teacher.lastName} dictará ${subjectInCourse(assignment)}.`;
 
   // Crea la asignación; al terminar cierra el modal y lo avisa con un toast. Si el proceso
   // principal rechaza la materia (ya tiene un profesor en ese curso), el error se marca en el campo
@@ -691,12 +736,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar asignación ----------
 
-  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
-  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
+  // El id sale del data-assignment-id de la fila del botón (el asignacion_docente_id, fijado al
+  // crearla), no de su posición en la tabla. Avisa el resultado con un toast y no resuelve ningún
+  // mensaje, así el modal se cierra siempre.
+  const deleteAssignment = async (trigger) => {
+    const row = trigger.closest('tr');
+    const assignmentId = Number(row?.dataset.assignmentId);
+    let response;
+    try {
+      response = await window.api?.teacherAssignments?.delete(assignmentId);
+    } catch (error) {
+      console.error('Error al eliminar la asignación docente:', error);
+    }
+    const isGone = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
+    // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
+    if (response?.ok || isGone) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+    if (response?.ok) {
+      const { teacher, course } = response.teacherAssignment;
+      removeAssignment(response.teacherAssignment);
+      showToast({
+        type: 'success',
+        title: 'Asignación eliminada',
+        description: `${teacher.firstName} ${teacher.lastName} ya no dicta ${subjectInCourse(response.teacherAssignment)}, en el ciclo lectivo ${course.schoolYear}.`,
+      });
+      return;
+    }
+    if (isGone) await loadAssignments();
+    showToast({ type: 'error', title: 'No se pudo eliminar la asignación', description: errorDescription(response?.error) });
+  };
+
+  // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
+  // cierra. Si la fila ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
   setupConfirmModal(document.getElementById('deleteAssignmentOverlay'), {
     beforeOpen: () => {
       closeAllDropdowns();
       closeAllSearchableMenus();
     },
+    onConfirm: deleteAssignment,
+    fallbackFocus: () => focusAfterRemoval('delete'),
   });
 });

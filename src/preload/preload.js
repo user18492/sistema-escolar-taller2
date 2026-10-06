@@ -144,5 +144,11 @@ contextBridge.exposeInMainWorld('api', {
     // mensaje para el campo Materia); TEACHER_NOT_AVAILABLE y COURSE_NOT_AVAILABLE, que el profesor o el
     // curso ya no se pueden elegir.
     create: (data) => ipcRenderer.invoke('teacher-assignments:create', data),
+    // Solo ADMIN. Baja lógica de la asignación docente con ese id (asignacion_docente_id) de su
+    // institución: deja de listarse y su materia vuelve a estar entre las de listAssignableSubjects
+    // para ese curso. Resuelve { ok: true, teacherAssignment } con la asignación dada de baja (mismos
+    // campos que list) o { ok: false, error: { code, message } }; TEACHER_ASSIGNMENT_NOT_FOUND y
+    // TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente.
+    delete: (teacherAssignmentId) => ipcRenderer.invoke('teacher-assignments:delete', teacherAssignmentId),
   },
 });

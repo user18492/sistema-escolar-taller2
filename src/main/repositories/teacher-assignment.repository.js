@@ -7,7 +7,7 @@ const { EDUCATION_LEVEL_BY_COLUMN_VALUE } = require('./grade.repository');
 const { SHIFT_BY_COLUMN_VALUE } = require('./course.repository');
 
 // Asignaciones docentes con su profesor, su curso y su materia. `source` es de dónde salen las
-// filas de asignacion_docente: la tabla o el CTE con la fila de un alta.
+// filas de asignacion_docente: la tabla o el CTE con la fila de un alta o de una baja.
 const selectFrom = (source) => `
   SELECT a.asignacion_docente_id,
          a.grado_materia_id,
@@ -67,6 +67,32 @@ const CREATE_SQL = `
   )${selectFrom('created')}
 `;
 
+// Baja lógica: la fila se conserva con la fecha de baja. Solo marca una asignación vigente de un
+// curso de la institución (la del curso: la asignación no la guarda), así una segunda baja
+// (repetida o simultánea) no pisa la fecha de la primera. Devuelve la fila, con su profesor, su
+// curso y su materia.
+const MARK_AS_DELETED_SQL = `
+  WITH deleted AS (
+    UPDATE asignacion_docente a
+       SET fecha_eliminacion = NOW()
+      FROM curso c
+     WHERE a.asignacion_docente_id = $1
+       AND c.curso_id = a.curso_id
+       AND c.institucion_id = $2
+       AND a.fecha_eliminacion IS NULL
+    RETURNING a.asignacion_docente_id, a.usuario_id, a.curso_id, a.grado_materia_id
+  )${selectFrom('deleted')}
+`;
+
+// Cuenta también a las dadas de baja.
+const EXISTS_IN_INSTITUTION_SQL = `
+  SELECT 1
+    FROM asignacion_docente a
+    JOIN curso c ON c.curso_id = a.curso_id
+   WHERE a.asignacion_docente_id = $1
+     AND c.institucion_id = $2
+`;
+
 // Índice único de asignacion_docente (con el nombre que le da db/schema.sql): una materia de un
 // curso tiene un solo profesor vigente. PostgreSQL informa el nombre del índice como el de una
 // restricción.
@@ -117,10 +143,24 @@ async function create({ teacherId, courseId, subjectId }) {
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
 }
 
+// Da de baja la asignación, que deja de listarse y de contar para el índice único: su materia se
+// puede volver a asignar en ese curso. Devuelve la asignación dada de baja; null si no existe en la
+// institución o ya estaba dada de baja.
+async function markAsDeleted(teacherAssignmentId, institutionId) {
+  const { rows } = await query(MARK_AS_DELETED_SQL, [teacherAssignmentId, institutionId]);
+  return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
+}
+
+// true si la asignación es de un curso de la institución, esté vigente o dada de baja.
+async function existsInInstitution(teacherAssignmentId, institutionId) {
+  const { rows } = await query(EXISTS_IN_INSTITUTION_SQL, [teacherAssignmentId, institutionId]);
+  return rows.length > 0;
+}
+
 // true si `error` es la violación del índice único de asignacion_docente: la materia ya tiene un
 // profesor vigente en ese curso.
 function isDuplicateError(error) {
   return error?.code === '23505' && error.constraint === UNIQUE_INDEX;
 }
 
-module.exports = { findByInstitution, create, isDuplicateError };
+module.exports = { findByInstitution, create, markAsDeleted, existsInInstitution, isDuplicateError };

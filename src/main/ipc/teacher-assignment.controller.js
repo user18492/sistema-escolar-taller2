@@ -4,8 +4,8 @@ const teacherAssignmentService = require('../services/teacher-assignment.service
 
 const { TeacherAssignmentError } = teacherAssignmentService;
 
-// Rango de usuario.usuario_id, curso.curso_id y materia.materia_id (INT): fuera de él, PostgreSQL
-// rechazaría el parámetro.
+// Rango de asignacion_docente.asignacion_docente_id, usuario.usuario_id, curso.curso_id y
+// materia.materia_id (INT): fuera de él, PostgreSQL rechazaría el parámetro.
 const MAX_ID = 2 ** 31 - 1;
 
 function isId(value) {
@@ -99,6 +99,25 @@ async function createTeacherAssignment(currentUser, data) {
   }
 }
 
+// Nunca rechaza, como createTeacherAssignment.
+async function deleteTeacherAssignment(currentUser, teacherAssignmentId) {
+  if (!isId(teacherAssignmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
+  }
+  try {
+    return {
+      ok: true,
+      teacherAssignment: await teacherAssignmentService.deleteTeacherAssignment(currentUser, teacherAssignmentId),
+    };
+  } catch (error) {
+    if (error instanceof TeacherAssignmentError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al eliminar la asignación docente:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo eliminar la asignación. Intentá nuevamente.');
+  }
+}
+
 // Sin sesión, con otro rol o con la cuenta suspendida, handleProtected responde UNAUTHENTICATED,
 // FORBIDDEN o ACCOUNT_SUSPENDED sin llamar a la acción.
 function registerTeacherAssignmentHandlers(browserWindow) {
@@ -107,6 +126,7 @@ function registerTeacherAssignmentHandlers(browserWindow) {
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-courses', ['ADMIN'], listAssignableCourses);
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-subjects', ['ADMIN'], listAssignableSubjects);
   handleProtected(browserWindow, 'teacher-assignments:create', ['ADMIN'], createTeacherAssignment);
+  handleProtected(browserWindow, 'teacher-assignments:delete', ['ADMIN'], deleteTeacherAssignment);
 }
 
 module.exports = { registerTeacherAssignmentHandlers };
