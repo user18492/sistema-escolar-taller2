@@ -33,8 +33,9 @@ contextBridge.exposeInMainWorld('api', {
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
   // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de users, de courses, de
-  // grades y de teacherAssignments resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } }
-  // y el proceso principal cierra la sesión y vuelve al login.
+  // grades, de teacherAssignments y de dashboard resuelven
+  // { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal cierra la
+  // sesión y vuelve al login.
   users: {
     // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, vigentes y dados de
     // baja, ordenados por apellido y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role,
@@ -164,5 +165,14 @@ contextBridge.exposeInMainWorld('api', {
     // campos que list) o { ok: false, error: { code, message } }; TEACHER_ASSIGNMENT_NOT_FOUND y
     // TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente.
     delete: (teacherAssignmentId) => ipcRenderer.invoke('teacher-assignments:delete', teacherAssignmentId),
+  },
+  dashboard: {
+    // Solo ADMIN. Resuelve { ok: true, summary } con los indicadores de la vista Inicio para su
+    // institución ({ userCount, courseCount, assignedTeacherCount, teacherAssignmentCount }, todos
+    // enteros: los usuarios vigentes, activos o suspendidos y con el propio administrador; los cursos
+    // vigentes y las asignaciones docentes vigentes, de todos los ciclos lectivos, y los profesores
+    // distintos que tienen al menos una de esas asignaciones), o
+    // { ok: false, error: { code, message } }.
+    getAdminSummary: () => ipcRenderer.invoke('dashboard:get-admin-summary'),
   },
 });

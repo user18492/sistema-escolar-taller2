@@ -53,6 +53,18 @@ const FIND_BY_INSTITUTION_SQL = `${selectFrom('asignacion_docente')}
             m.nombre, a.asignacion_docente_id
 `;
 
+// Cantidad de asignaciones docentes vigentes de una institución, de todos los ciclos lectivos (las
+// que lista FIND_BY_INSTITUTION_SQL, con el mismo criterio: solo cuenta la baja de la asignación),
+// y de profesores distintos que tienen al menos una.
+const COUNT_BY_INSTITUTION_SQL = `
+  SELECT COUNT(*)::INT AS total,
+         COUNT(DISTINCT a.usuario_id)::INT AS teacher_total
+    FROM asignacion_docente a
+    JOIN curso c ON c.curso_id = a.curso_id
+   WHERE c.institucion_id = $1
+     AND a.fecha_eliminacion IS NULL
+`;
+
 // Una asignación vigente de un curso de la institución (la del curso: la asignación no la guarda),
 // con su profesor, su curso y su materia.
 const FIND_ACTIVE_BY_ID_SQL = `${selectFrom('asignacion_docente')}
@@ -165,6 +177,14 @@ async function findByInstitution(institutionId) {
   return rows.map(toTeacherAssignment);
 }
 
+// Cuenta las asignaciones docentes vigentes de la institución, de todos los ciclos lectivos (las de
+// findByInstitution). Devuelve { total, teacherTotal }: cuántas son y cuántos profesores distintos
+// tienen al menos una.
+async function countByInstitution(institutionId) {
+  const { rows } = await query(COUNT_BY_INSTITUTION_SQL, [institutionId]);
+  return { total: rows[0].total, teacherTotal: rows[0].teacher_total };
+}
+
 // La asignación vigente con ese id, si es de un curso de la institución; null si no existe en ella
 // o fue dada de baja.
 async function findActiveById(teacherAssignmentId, institutionId) {
@@ -216,6 +236,7 @@ function isDuplicateError(error) {
 
 module.exports = {
   findByInstitution,
+  countByInstitution,
   findActiveById,
   create,
   update,

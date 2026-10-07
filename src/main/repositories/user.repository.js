@@ -64,6 +64,16 @@ const FIND_ACTIVE_BY_ROLE_SQL = `
    ORDER BY u.apellido, u.nombre, u.usuario_id
 `;
 
+// Cantidad de usuarios vigentes de una institución: los activos y los suspendidos, sin los dados de
+// baja. No excluye a nadie: cuenta también al usuario de la sesión, que FIND_BY_INSTITUTION_SQL no
+// lista.
+const COUNT_NOT_DELETED_SQL = `
+  SELECT COUNT(*)::INT AS total
+    FROM usuario
+   WHERE institucion_id = $1
+     AND fecha_eliminacion IS NULL
+`;
+
 // Baja lógica: la fila se conserva con la fecha de baja y queda suspendida, como exige
 // ck_usuario_baja_suspendido (db/schema.sql). Solo marca a un usuario vigente de la institución, así
 // una segunda baja (repetida o simultánea) no pisa la fecha de la primera.
@@ -279,6 +289,13 @@ async function findActiveByRole(institutionId, role) {
   return rows.map(toUser);
 }
 
+// Cantidad de usuarios vigentes de la institución (activos y suspendidos, sin los dados de baja),
+// con el de la sesión incluido.
+async function countNotDeleted(institutionId) {
+  const { rows } = await query(COUNT_NOT_DELETED_SQL, [institutionId]);
+  return rows[0].total;
+}
+
 // Da de baja al usuario, que queda además suspendido. Devuelve el usuario como quedó, sin
 // password_hash; null si no existe en la institución o ya estaba dado de baja.
 async function markAsDeleted(userId, institutionId) {
@@ -391,6 +408,7 @@ module.exports = {
   findAllByEmail,
   findByInstitution,
   findActiveByRole,
+  countNotDeleted,
   markAsDeleted,
   restore,
   existsInInstitution,

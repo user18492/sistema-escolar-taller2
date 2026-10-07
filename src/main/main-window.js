@@ -6,6 +6,7 @@ const { registerUserHandlers } = require('./ipc/user.controller');
 const { registerCourseHandlers } = require('./ipc/course.controller');
 const { registerGradeHandlers } = require('./ipc/grade.controller');
 const { registerTeacherAssignmentHandlers } = require('./ipc/teacher-assignment.controller');
+const { registerDashboardHandlers } = require('./ipc/dashboard.controller');
 const { guardNavigation, showEntryView } = require('./navigation-guard');
 
 const PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'preload.js');
@@ -33,6 +34,7 @@ function createMainWindow() {
   registerCourseHandlers(mainWindow);
   registerGradeHandlers(mainWindow);
   registerTeacherAssignmentHandlers(mainWindow);
+  registerDashboardHandlers(mainWindow);
   guardNavigation(mainWindow);
   showEntryView(mainWindow);
 

@@ -24,6 +24,15 @@ const FIND_BY_INSTITUTION_SQL = `
    ORDER BY c.anio_ciclo_lectivo DESC, g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id
 `;
 
+// Cantidad de cursos vigentes de una institución (sin los dados de baja), de todos los ciclos
+// lectivos: los que lista FIND_BY_INSTITUTION_SQL sin filtrar por ciclo.
+const COUNT_BY_INSTITUTION_SQL = `
+  SELECT COUNT(*)::INT AS total
+    FROM curso
+   WHERE institucion_id = $1
+     AND fecha_eliminacion IS NULL
+`;
+
 // Alta en la institución. Devuelve la fila creada, con el nombre y el nivel educativo de su grado.
 const CREATE_SQL = `
   WITH created AS (
@@ -141,6 +150,12 @@ async function findByInstitution(institutionId, schoolYear = null) {
   return rows.map(toCourse);
 }
 
+// Cantidad de cursos vigentes de la institución, de todos los ciclos lectivos.
+async function countByInstitution(institutionId) {
+  const { rows } = await query(COUNT_BY_INSTITUTION_SQL, [institutionId]);
+  return rows[0].total;
+}
+
 // Crea un curso en la institución. `gradeId` es un grado_id del catálogo, `division` una letra
 // mayúscula, `shift` uno de SHIFTS y `schoolYear` el año del ciclo lectivo. Devuelve el curso
 // creado. Si ya hay uno igual vigente en la institución o el grado no existe, PostgreSQL rechaza
@@ -198,6 +213,7 @@ function isUnknownGradeError(error) {
 
 module.exports = {
   findByInstitution,
+  countByInstitution,
   create,
   update,
   markAsDeleted,

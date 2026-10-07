@@ -7,12 +7,15 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
     <link rel="stylesheet" href="../../shared/styles/dashboard.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/user-avatar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/stat-card.component.js"></script>
+    <script src="./dashboard.js" defer></script>
   </head>
   <body>
     <app-titlebar></app-titlebar>
@@ -24,19 +27,21 @@
         <main class="content">
           <div class="page-header">
             <div>
-              <h1>¡Bienvenida, Ana!</h1>
+              <!-- dashboard.js le agrega el nombre del usuario de la sesión -->
+              <h1 id="welcomeTitle">¡Te damos la bienvenida!</h1>
               <p>Resumen general de la institución</p>
             </div>
           </div>
 
           <section class="stat-grid">
-            <stat-card icon="users" label="Usuarios activos" value="1,248"></stat-card>
+            <!-- "value" lo completa dashboard.js con el dato de data-stat; hasta entonces, una raya -->
+            <stat-card icon="users" label="Usuarios vigentes" value="—" data-stat="userCount"></stat-card>
 
-            <stat-card icon="rectangle-stack" label="Cursos activos" value="48"></stat-card>
+            <stat-card icon="rectangle-stack" label="Cursos vigentes" value="—" data-stat="courseCount"></stat-card>
 
-            <stat-card icon="academic-cap" label="Docentes asignados" value="86"></stat-card>
+            <stat-card icon="academic-cap" label="Docentes asignados" value="—" data-stat="assignedTeacherCount"></stat-card>
 
-            <stat-card icon="clipboard-document-list" label="Asignaciones" value="124"></stat-card>
+            <stat-card icon="clipboard-document-list" label="Asignaciones" value="—" data-stat="teacherAssignmentCount"></stat-card>
           </section>
 
           <section class="card attention-card">
