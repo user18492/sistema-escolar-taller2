@@ -52,6 +52,15 @@ function getCurrentUser() {
   return currentUser;
 }
 
+// Reemplaza en la sesión los datos de `changes` (los que el usuario guardó en su perfil), para que las
+// vistas muestren los nuevos sin volver a iniciar sesión. `user` es el usuario que devolvió
+// getCurrentUser: si la sesión terminó o pasó a ser de otra cuenta mientras se guardaba, no cambia nada.
+// La sesión sigue siendo la misma, pero getCurrentUser devuelve otro objeto.
+function updateCurrentUser(user, changes) {
+  if (currentUser !== user) return;
+  currentUser = Object.freeze({ ...user, ...changes });
+}
+
 // También descarta un login que quedó a la espera de elegir la institución.
 function logout() {
   sessionVersion += 1;
@@ -59,4 +68,4 @@ function logout() {
   pendingAccounts = null;
 }
 
-module.exports = { login, selectInstitution, getCurrentUser, logout };
+module.exports = { login, selectInstitution, getCurrentUser, updateCurrentUser, logout };

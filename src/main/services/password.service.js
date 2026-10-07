@@ -1,9 +1,11 @@
 const bcrypt = require('bcrypt');
 
 // Único lugar que hashea contraseñas. No genera contraseñas: las genera el renderer
-// (password-generator.component.js) y llegan acá en texto plano por IPC, desde el alta y la edición de usuarios.
-// Si cambian estas reglas, revisar las del generador: toda contraseña que genera tiene que cumplirlas.
-// El renderer no puede importar este archivo, así que las reglas están escritas en los dos.
+// (password-generator.component.js) o las escribe el usuario (Configuración de perfil) y llegan acá en
+// texto plano por IPC, desde el alta y la edición de usuarios y desde el perfil propio.
+// Si cambian estas reglas, revisar las del generador (toda contraseña que genera tiene que cumplirlas)
+// y la regla `password` de field-validation.component.js, que las anticipa con los mismos mensajes.
+// El renderer no puede importar este archivo, así que las reglas están escritas en los tres.
 
 // El mismo costo de db/seed.sql y de DUMMY_PASSWORD_HASH (auth.service.js).
 const BCRYPT_COST = 10;
@@ -15,16 +17,25 @@ const PASSWORD_MAX_BYTES = 72;
 
 // Más amplia que el generador, para servir también a contraseñas escritas a mano: 12 caracteres o más,
 // 72 bytes UTF-8 o menos, y al menos una mayúscula, una minúscula, un dígito y un símbolo.
-function isValidPassword(password) {
-  return (
-    typeof password === 'string' &&
-    [...password].length >= PASSWORD_MIN_LENGTH &&
-    Buffer.byteLength(password, 'utf8') <= PASSWORD_MAX_BYTES &&
+// Recibe un string y devuelve el mensaje, apto para la UI, del primer requisito que no cumple, o ''
+// si los cumple todos.
+function checkPassword(password) {
+  if ([...password].length < PASSWORD_MIN_LENGTH) {
+    return `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`;
+  }
+  if (Buffer.byteLength(password, 'utf8') > PASSWORD_MAX_BYTES) {
+    return `La contraseña admite hasta ${PASSWORD_MAX_BYTES} caracteres.`;
+  }
+  const hasEveryKind =
     /[A-Z]/.test(password) &&
     /[a-z]/.test(password) &&
     /[0-9]/.test(password) &&
-    /[^A-Za-z0-9]/.test(password)
-  );
+    /[^A-Za-z0-9]/.test(password);
+  return hasEveryKind ? '' : 'La contraseña debe incluir una mayúscula, una minúscula, un número y un símbolo.';
+}
+
+function isValidPassword(password) {
+  return typeof password === 'string' && checkPassword(password) === '';
 }
 
 // Quien llama valida antes con isValidPassword y responde con su propio error previsto: una contraseña
@@ -36,4 +47,4 @@ async function hashPassword(password) {
   return bcrypt.hash(password, BCRYPT_COST);
 }
 
-module.exports = { isValidPassword, hashPassword };
+module.exports = { checkPassword, isValidPassword, hashPassword };

@@ -3,6 +3,7 @@ const { BrowserWindow } = require('electron');
 const { registerWindowControls } = require('./ipc/window.controller');
 const { registerAuthHandlers } = require('./ipc/auth.controller');
 const { registerUserHandlers } = require('./ipc/user.controller');
+const { registerProfileHandlers } = require('./ipc/profile.controller');
 const { registerCourseHandlers } = require('./ipc/course.controller');
 const { registerGradeHandlers } = require('./ipc/grade.controller');
 const { registerTeacherAssignmentHandlers } = require('./ipc/teacher-assignment.controller');
@@ -31,6 +32,7 @@ function createMainWindow() {
   registerWindowControls(mainWindow);
   registerAuthHandlers(mainWindow);
   registerUserHandlers(mainWindow);
+  registerProfileHandlers(mainWindow);
   registerCourseHandlers(mainWindow);
   registerGradeHandlers(mainWindow);
   registerTeacherAssignmentHandlers(mainWindow);

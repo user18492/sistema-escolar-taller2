@@ -243,6 +243,41 @@ const UPDATE_SQL = `
     JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
+// Datos del perfil de un usuario vigente de la institución, sin password_hash ni el rol: los campos
+// que no se seleccionan quedan undefined.
+const FIND_NOT_DELETED_BY_ID_SQL = `
+  SELECT usuario_id,
+         institucion_id,
+         nombre,
+         apellido,
+         email,
+         dni,
+         fecha_nacimiento,
+         imagen_url
+    FROM usuario
+   WHERE usuario_id = $1
+     AND institucion_id = $2
+     AND fecha_eliminacion IS NULL
+`;
+
+// Como UPDATE_SQL, pero sin el rol ni el estado: son los datos que un usuario cambia en su propio
+// perfil. password_hash cambia solo si llega uno ($8) e imagen_url pasa a $10 solo con $9 true.
+// Devuelve la fila como quedó, con los campos de FIND_NOT_DELETED_BY_ID_SQL.
+const UPDATE_PROFILE_SQL = `
+  UPDATE usuario
+     SET nombre = $3,
+         apellido = $4,
+         dni = $5,
+         email = $6,
+         fecha_nacimiento = $7,
+         password_hash = COALESCE($8, password_hash),
+         imagen_url = CASE WHEN $9 THEN $10 ELSE imagen_url END
+   WHERE usuario_id = $1
+     AND institucion_id = $2
+     AND fecha_eliminacion IS NULL
+  RETURNING usuario_id, institucion_id, nombre, apellido, email, dni, fecha_nacimiento, imagen_url
+`;
+
 // Restricciones UNIQUE de usuario (con los nombres que les da db/schema.sql) y el campo que protege
 // cada una.
 const UNIQUE_CONSTRAINT_FIELDS = {
@@ -397,6 +432,44 @@ async function update(
   });
 }
 
+// Usuario vigente con ese id en la institución, con los datos de su perfil (nombre, apellido, dni,
+// email, fecha de nacimiento y foto), o null si no existe o fue dado de baja.
+async function findNotDeletedById(userId, institutionId) {
+  const { rows } = await query(FIND_NOT_DELETED_BY_ID_SQL, [userId, institutionId]);
+  return rows.length > 0 ? toUser(rows[0]) : null;
+}
+
+// Reemplaza los datos del perfil de un usuario vigente de la institución, sin tocar su rol ni su
+// estado. Recibe los datos como update, sin `role` ni `isActive`, y devuelve lo mismo:
+// { user, previousImageFileName }, con los campos de findNotDeletedById en `user`, o null si no hay
+// uno vigente con ese id en la institución. Si el dni o el email ya son de otro usuario de la
+// institución, PostgreSQL rechaza el cambio: ver duplicateFieldOf.
+async function updateProfile(
+  userId,
+  institutionId,
+  { firstName, lastName, dni, email, birthDate, passwordHash, setImage, imageFileName }
+) {
+  // En una transacción, como update: la foto anterior se lee con la fila bloqueada.
+  return runInTransaction(async (transactionQuery) => {
+    const locked = await transactionQuery(LOCK_FOR_UPDATE_SQL, [userId, institutionId]);
+    if (locked.rows.length === 0) return null;
+
+    const { rows } = await transactionQuery(UPDATE_PROFILE_SQL, [
+      userId,
+      institutionId,
+      firstName,
+      lastName,
+      dni,
+      email,
+      birthDate,
+      passwordHash,
+      setImage,
+      imageFileName,
+    ]);
+    return { user: toUser(rows[0]), previousImageFileName: locked.rows[0].imagen_url };
+  });
+}
+
 // Campo ('dni' o 'email') cuyo valor repetido causó `error`, si es una violación de una restricción
 // UNIQUE de usuario; si no, null.
 function duplicateFieldOf(error) {
@@ -417,5 +490,7 @@ module.exports = {
   findTakenFields,
   create,
   update,
+  findNotDeletedById,
+  updateProfile,
   duplicateFieldOf,
 };

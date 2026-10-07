@@ -15,7 +15,8 @@
 // modifica una fecha completa), así que las vistas no necesitan enterarse de él.
 // Reglas: person-name, dni, birth-date (edad con data-min-age y data-max-age), day-month
 // (año tomado del texto del elemento cuyo id indica data-year-source), email, phone, street,
-// street-number, division y title.
+// street-number, division, title, password y password-repeat (igual al valor del campo cuyo id
+// indica data-password-source).
 // También expone setFieldError(input, mensaje), isValidEmail(email), que usa el login, y
 // formatDni(valor), que da a los dígitos de un DNI el formato de la máscara (35.678.901) para
 // mostrarlo en las tablas.
@@ -40,6 +41,12 @@
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const PHONE_PATTERN = /^\+?([\d -]|\(\d+\))+$/;
+
+  // Mismas reglas y mensajes que password.service.js, que el renderer no puede importar: 12
+  // caracteres o más, 72 bytes UTF-8 o menos (lo que admite bcrypt) y al menos una mayúscula,
+  // una minúscula, un dígito y un símbolo.
+  const PASSWORD_MIN_LENGTH = 12;
+  const PASSWORD_MAX_BYTES = 72;
 
   const isDigit = (character) => character >= '0' && character <= '9';
   const digitsOf = (value) => value.replace(/\D/g, '');
@@ -150,6 +157,23 @@
   // Puntos de miles sobre los dígitos: "35678901" → "35.678.901"
   const formatDni = (digits) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
+  // ---------- Contraseñas ----------
+
+  const validatePassword = (value) => {
+    if ([...value].length < PASSWORD_MIN_LENGTH) {
+      return `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`;
+    }
+    if (new TextEncoder().encode(value).length > PASSWORD_MAX_BYTES) {
+      return `La contraseña admite hasta ${PASSWORD_MAX_BYTES} caracteres.`;
+    }
+    const hasEveryKind = /[A-Z]/.test(value) && /[a-z]/.test(value) && /[0-9]/.test(value) && /[^A-Za-z0-9]/.test(value);
+    return hasEveryKind ? '' : 'La contraseña debe incluir una mayúscula, una minúscula, un número y un símbolo.';
+  };
+
+  // Se compara tal cual se escribió, con sus espacios y mayúsculas
+  const validatePasswordRepeat = (value, input) =>
+    (value === document.getElementById(input.dataset.passwordSource)?.value ? '' : 'Las contraseñas no coinciden.');
+
   // ---------- Reglas ----------
 
   // Cada regla define, según corresponda:
@@ -218,6 +242,13 @@
       sanitize: (value) => value.replace(/\p{Cc}/gu, ''),
       format: collapseSpaces,
       validate: (value) => (/[\p{L}\d]/u.test(value) ? '' : 'El título debe incluir letras o números.'),
+    },
+    // Sin limpieza ni formato: una contraseña se guarda tal cual se escribió
+    password: {
+      validate: validatePassword,
+    },
+    'password-repeat': {
+      validate: validatePasswordRepeat,
     },
   };
 
@@ -380,11 +411,15 @@
 
   // Pulsar un botón del pie del modal (Cancelar, Guardar) le quita el foco al campo antes del
   // clic: ese focusout se omite para que su error no aparezca un instante antes de cerrar.
+  // Lo mismo con el botón que envía un formulario fuera de un modal (Configuración de perfil):
+  // el error correría el botón antes de soltar el mouse y el clic se perdería.
   // Guardar valida todos los campos de todas formas.
   let skipNextFocusout = false;
 
   document.addEventListener('pointerdown', (event) => {
-    skipNextFocusout = Boolean(event.target.closest?.('.modal-footer button:not(:disabled)'));
+    skipNextFocusout = Boolean(
+      event.target.closest?.('.modal-footer button:not(:disabled), button[type="submit"]:not(:disabled)')
+    );
   }, true);
 
   document.addEventListener('click', () => {

@@ -32,10 +32,28 @@ contextBridge.exposeInMainWorld('api', {
     getRememberedEmail: () => ipcRenderer.invoke('auth:get-remembered-email'),
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
-  // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de users, de courses, de
-  // grades, de teacherAssignments y de dashboard resuelven
+  // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de profile, de users, de
+  // courses, de grades, de teacherAssignments y de dashboard resuelven
   // { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal cierra la
   // sesión y vuelve al login.
+  profile: {
+    // Cualquier rol. Resuelve { ok: true, profile } con los datos del usuario de la sesión, leídos de
+    // la base ({ firstName, lastName, dni, email, birthDate, imageUrl }, con dni solo los dígitos,
+    // birthDate 'AAAA-MM-DD' o null e imageUrl la URL de su foto, profile-image://avatars/<archivo>, o
+    // null), o { ok: false, error: { code, message } }.
+    get: () => ipcRenderer.invoke('profile:get'),
+    // Cualquier rol. Guarda los datos del usuario de la sesión, sin cambiar su rol ni su estado.
+    // `data` es { firstName, lastName, dni, email, birthDate, newPassword, repeatPassword, image,
+    // removeImage }, con birthDate 'AAAA-MM-DD' y con image y removeImage como en users.update.
+    // newPassword y repeatPassword viajan en texto plano, tal cual se escribieron: vacíos los dos
+    // conservan la contraseña actual; si no, tienen que coincidir y el proceso principal guarda solo
+    // el hash. Resuelve { ok: true, profile } con los datos como quedaron (mismos campos que get), y
+    // getCurrentUser pasa a informar el nombre, el apellido y la foto nuevos, o
+    // { ok: false, error: { code, message, fieldErrors } }: fieldErrors ({ campo: mensaje }, con los
+    // nombres de `data`) llega con DUPLICATE_VALUE (dni o email de otro usuario) y con los campos
+    // inválidos, también los de la contraseña; una foto inválida da INVALID_INPUT sin fieldErrors.
+    update: (data) => ipcRenderer.invoke('profile:update', data),
+  },
   users: {
     // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, vigentes y dados de
     // baja, ordenados por apellido y nombre ({ id, firstName, lastName, dni, email, birthDate, isActive, role,

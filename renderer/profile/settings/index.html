@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
     <link rel="stylesheet" href="../../shared/styles/buttons.css" />
     <link rel="stylesheet" href="../../shared/styles/avatar-editor.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
     <link rel="stylesheet" href="./settings.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/user-avatar.component.js"></script>
@@ -20,6 +21,7 @@
     <script src="../../shared/components/field-validation.component.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
     <script src="../../shared/components/avatar-editor.component.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
     <script src="./settings.js" defer></script>
   </head>
   <body>
@@ -39,6 +41,9 @@
           </div>
 
           <form class="card settings-card" id="profileForm" novalidate>
+            <!-- Solo si no se pudieron cargar los datos del usuario -->
+            <p class="form-error" id="profileLoadError" role="alert" hidden></p>
+
             <avatar-editor heading="Foto de perfil"></avatar-editor>
 
             <div class="form-grid">
@@ -80,18 +85,18 @@
               </div>
             </div>
 
-            <!-- Cambio de contraseña -->
+            <!-- Cambio de contraseña: opcional, con los dos campos vacíos se conserva la actual -->
             <div class="form-grid password-fields">
               <div class="form-field">
                 <label for="profileNewPassword">Nueva contraseña</label>
                 <div class="field">
-                  <input type="password" id="profileNewPassword" autocomplete="new-password" />
+                  <input type="password" id="profileNewPassword" autocomplete="new-password" data-validate="password" />
                 </div>
               </div>
               <div class="form-field">
                 <label for="profileRepeatPassword">Repetir nueva contraseña</label>
                 <div class="field">
-                  <input type="password" id="profileRepeatPassword" autocomplete="new-password" />
+                  <input type="password" id="profileRepeatPassword" autocomplete="new-password" data-validate="password-repeat" data-password-source="profileNewPassword" />
                 </div>
               </div>
             </div>

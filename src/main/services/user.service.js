@@ -1,7 +1,8 @@
 const userRepository = require('../repositories/user.repository');
 const { normalizeEmail, isValidEmail, RECOGNIZED_ROLES } = require('./auth.service');
-const { isValidPassword, hashPassword } = require('./password.service');
+const { checkPassword, isValidPassword, hashPassword } = require('./password.service');
 const profileImageService = require('./profile-image.service');
+const sessionService = require('./session.service');
 
 // Error previsto, con un mensaje apto para la UI (como AccessError en access.service.js).
 // `fieldErrors` ({ campo: mensaje }), si llega, indica qué campos del formulario están mal.
@@ -16,10 +17,11 @@ class UserError extends Error {
 
 // ---------- Validación de los datos del formulario ----------
 
-// Mismas reglas que field-validation.component.js (person-name, dni, email y birth-date) y que los
-// data-min-age y data-max-age del modal de usuario, que el proceso principal no puede importar: si
-// cambian allá, hay que cambiarlas acá.
+// Mismas reglas que field-validation.component.js (person-name, dni, email, birth-date y
+// password-repeat) y que los data-min-age y data-max-age del modal de usuario y de Configuración de
+// perfil, que el proceso principal no puede importar: si cambian allá, hay que cambiarlas acá.
 const REQUIRED_MESSAGE = 'Campo obligatorio.';
+const PASSWORD_MISMATCH_MESSAGE = 'Las contraseñas no coinciden.';
 
 // Largo de las columnas usuario.nombre y usuario.apellido.
 const NAME_MAX_LENGTH = 100;
@@ -107,11 +109,10 @@ const FIELD_CHECKS = {
   birthDate: checkBirthDate,
 };
 
-// Normaliza los datos del formulario (el controlador ya verificó que sean strings) y devuelve solo
-// los campos que se guardan, sin la contraseña. Lanza un UserError INVALID_INPUT: con fieldErrors si
-// algún campo no es válido, y sin ellos si no lo son el rol o la contraseña, que no tienen un campo
-// de texto donde mostrar el error.
-function parseUserData(data) {
+// Normaliza los datos personales del formulario (el controlador ya verificó que sean strings).
+// Devuelve { values, fieldErrors }: los campos como se guardan y el mensaje de cada uno que no es
+// válido ({ campo: mensaje }, vacío si lo son todos).
+function parsePersonalData(data) {
   const values = {
     firstName: normalizeText(data.firstName),
     lastName: normalizeText(data.lastName),
@@ -119,7 +120,6 @@ function parseUserData(data) {
     dni: data.dni.replace(/[.\s]/g, ''),
     email: normalizeEmail(data.email),
     birthDate: data.birthDate.trim(),
-    role: data.role,
   };
 
   const fieldErrors = {};
@@ -127,16 +127,56 @@ function parseUserData(data) {
     const message = check(values[field]);
     if (message) fieldErrors[field] = message;
   });
+  return { values, fieldErrors };
+}
+
+function invalidFieldsError(fieldErrors) {
+  return new UserError('INVALID_INPUT', 'Revisá los datos marcados.', fieldErrors);
+}
+
+// Normaliza los datos del formulario de usuario y devuelve solo los campos que se guardan, sin la
+// contraseña. Lanza un UserError INVALID_INPUT: con fieldErrors si algún campo no es válido, y sin
+// ellos si no lo son el rol o la contraseña, que no tienen un campo de texto donde mostrar el error.
+function parseUserData(data) {
+  const { values, fieldErrors } = parsePersonalData(data);
   if (Object.keys(fieldErrors).length > 0) {
-    throw new UserError('INVALID_INPUT', 'Revisá los datos marcados.', fieldErrors);
+    throw invalidFieldsError(fieldErrors);
   }
-  if (!RECOGNIZED_ROLES.includes(values.role)) {
+  if (!RECOGNIZED_ROLES.includes(data.role)) {
     throw new UserError('INVALID_INPUT', 'Elegí un rol válido.');
   }
   if (data.password !== null && !isValidPassword(data.password)) {
     throw new UserError('INVALID_INPUT', 'La contraseña no cumple los requisitos de seguridad.');
   }
-  return values;
+  return { ...values, role: data.role };
+}
+
+// Cambio de contraseña del perfil: los dos campos vacíos conservan la actual; con alguno escrito,
+// la nueva tiene que cumplir las reglas de password.service.js y repetirse igual. Se comparan tal
+// cual llegan, con sus espacios y mayúsculas. Devuelve los fieldErrors de los dos campos.
+function checkPasswordChange(newPassword, repeatPassword) {
+  const fieldErrors = {};
+  if (newPassword === '' && repeatPassword === '') return fieldErrors;
+
+  const newPasswordMessage = newPassword === '' ? REQUIRED_MESSAGE : checkPassword(newPassword);
+  if (newPasswordMessage) fieldErrors.newPassword = newPasswordMessage;
+  if (repeatPassword === '') fieldErrors.repeatPassword = REQUIRED_MESSAGE;
+  else if (repeatPassword !== newPassword) fieldErrors.repeatPassword = PASSWORD_MISMATCH_MESSAGE;
+  return fieldErrors;
+}
+
+// Normaliza los datos del formulario de Configuración de perfil. Devuelve { values, password }: los
+// datos personales como se guardan y la contraseña nueva, o null para conservar la actual. A
+// diferencia de parseUserData, la contraseña tiene sus campos de texto: lanza un UserError
+// INVALID_INPUT con los fieldErrors de todos los campos que no son válidos, también los de la
+// contraseña (newPassword, repeatPassword).
+function parseProfileData(data) {
+  const { values, fieldErrors } = parsePersonalData(data);
+  Object.assign(fieldErrors, checkPasswordChange(data.newPassword, data.repeatPassword));
+  if (Object.keys(fieldErrors).length > 0) {
+    throw invalidFieldsError(fieldErrors);
+  }
+  return { values, password: data.newPassword === '' ? null : data.newPassword };
 }
 
 // Cambio de foto de perfil de `data` (el controlador ya verificó que `image` sea un Uint8Array o
@@ -287,7 +327,7 @@ async function restoreUser(currentUser, userId) {
 // de baja (DUPLICATE_VALUE, con fieldErrors).
 async function updateUser(currentUser, userId, data) {
   // La tabla no ofrece al usuario de la sesión, pero el id llega del renderer: se vuelve a comprobar.
-  // Su sesión guarda sus datos en memoria y no se actualizaría.
+  // Sus datos se guardan con updateProfile, que no toca su rol ni su estado y actualiza la sesión.
   if (userId === currentUser.id) {
     throw new UserError('CANNOT_EDIT_SELF', 'No podés editar tu propia cuenta desde esta vista.');
   }
@@ -342,4 +382,85 @@ async function createUser(currentUser, data) {
   return toListedUser(user);
 }
 
-module.exports = { listUsers, deleteUser, restoreUser, updateUser, createUser, UserError };
+// ---------- Perfil del usuario de la sesión ----------
+
+// La cuenta de la sesión fue dada de baja después de que se comprobó el acceso: la próxima
+// operación protegida cierra la sesión (access.service.js).
+function accountNotFoundError() {
+  return new UserError('USER_NOT_FOUND', 'Tu cuenta ya no está disponible.');
+}
+
+// Lista explícita de campos, como toListedUser: lo que muestra la vista Configuración de perfil.
+// Sin el id, el rol ni el estado, que el usuario no cambia desde su perfil.
+function toProfile(user) {
+  return {
+    firstName: user.firstName,
+    lastName: user.lastName,
+    dni: user.dni,
+    email: user.email,
+    birthDate: toIsoDate(user.birthDate),
+    imageUrl: profileImageService.toImageUrl(user.imageFileName),
+  };
+}
+
+// Datos del perfil de `currentUser` (el de la sesión), leídos de la base: la sesión no guarda el dni
+// ni la fecha de nacimiento y puede tener datos viejos si un administrador los editó. Devuelve
+// { firstName, lastName, dni, email, birthDate ('AAAA-MM-DD' o null), imageUrl (o null) }. Lanza un
+// UserError USER_NOT_FOUND si la cuenta ya no está vigente.
+async function getProfile(currentUser) {
+  const user = await userRepository.findNotDeletedById(currentUser.id, currentUser.institutionId);
+  if (!user) throw accountNotFoundError();
+  return toProfile(user);
+}
+
+// Guarda los datos que `currentUser` (el de la sesión) cambió en su perfil y los devuelve como
+// quedaron, con los campos de getProfile. `data` trae firstName, lastName, dni, email, birthDate
+// ('AAAA-MM-DD'), newPassword y repeatPassword (los dos vacíos conservan la contraseña actual; no se
+// pide la anterior), image y removeImage (como en updateUser). El rol y el estado no se cambian
+// desde el perfil: si llegan, no se usan. Con el cambio guardado, la sesión pasa a tener el nombre, el
+// apellido, el email y la foto nuevos.
+// Lanza un UserError si algún dato no es válido (INVALID_INPUT, con los fieldErrors de los campos,
+// también newPassword y repeatPassword; sin ellos si es la foto), si el dni o el email ya son de otro
+// usuario de la institución, aunque esté dado de baja (DUPLICATE_VALUE, con fieldErrors), o si la
+// cuenta ya no está vigente (USER_NOT_FOUND).
+async function updateProfile(currentUser, data) {
+  const { values, password } = parseProfileData(data);
+  const { jpeg, removeImage } = parseImageChange(data);
+
+  // Excluye al propio usuario: conservar su dni o su email no es un duplicado.
+  await assertNotTaken(currentUser.institutionId, values, currentUser.id, 'update');
+
+  const passwordHash = password === null ? null : await hashPassword(password);
+  const setImage = Boolean(jpeg) || removeImage;
+  const result = await saveWithImage(jpeg, (imageFileName) => saveUnique(
+    () => userRepository.updateProfile(currentUser.id, currentUser.institutionId, {
+      ...values,
+      passwordHash,
+      setImage,
+      imageFileName,
+    }),
+    'update'
+  ));
+  if (!result) throw accountNotFoundError();
+  if (setImage) await profileImageService.discardImage(result.previousImageFileName);
+
+  const { user } = result;
+  sessionService.updateCurrentUser(currentUser, {
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    imageFileName: user.imageFileName,
+  });
+  return toProfile(user);
+}
+
+module.exports = {
+  listUsers,
+  deleteUser,
+  restoreUser,
+  updateUser,
+  createUser,
+  getProfile,
+  updateProfile,
+  UserError,
+};
