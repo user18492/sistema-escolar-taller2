@@ -53,6 +53,12 @@ contextBridge.exposeInMainWorld('api', {
     // nombres de `data`) llega con DUPLICATE_VALUE (dni o email de otro usuario) y con los campos
     // inválidos, también los de la contraseña; una foto inválida da INVALID_INPUT sin fieldErrors.
     update: (data) => ipcRenderer.invoke('profile:update', data),
+    // Cualquier rol. Baja lógica de la cuenta del usuario de la sesión, que queda además suspendida:
+    // no puede volver a ingresar hasta que un administrador la restaure (users.restore). Resuelve
+    // { ok: true } con la sesión ya cerrada (getCurrentUser pasa a informar null) o
+    // { ok: false, error: { code, message } }, sin cambiar nada: LAST_ADMIN indica que es el único
+    // administrador activo y vigente de su institución, que no se puede dar de baja.
+    delete: () => ipcRenderer.invoke('profile:delete'),
   },
   users: {
     // Solo ADMIN. Resuelve { ok: true, users } con los demás usuarios de su institución, vigentes y dados de

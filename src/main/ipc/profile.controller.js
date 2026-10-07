@@ -51,12 +51,27 @@ async function updateProfile(currentUser, data) {
   }
 }
 
+// Nunca rechaza, como getProfile. Con { ok: true }, la sesión ya quedó cerrada.
+async function deleteOwnAccount(currentUser) {
+  try {
+    await userService.deleteOwnAccount(currentUser);
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof UserError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al eliminar la cuenta:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo eliminar tu cuenta. Intentá nuevamente.');
+  }
+}
+
 // Cada usuario opera solo sobre su propia cuenta, la de la sesión: ningún canal recibe un id.
 // Sin sesión o con la cuenta suspendida, handleProtected responde UNAUTHENTICATED o
 // ACCOUNT_SUSPENDED sin llamar a la acción.
 function registerProfileHandlers(browserWindow) {
   handleProtected(browserWindow, 'profile:get', RECOGNIZED_ROLES, getProfile);
   handleProtected(browserWindow, 'profile:update', RECOGNIZED_ROLES, updateProfile);
+  handleProtected(browserWindow, 'profile:delete', RECOGNIZED_ROLES, deleteOwnAccount);
 }
 
 module.exports = { registerProfileHandlers };

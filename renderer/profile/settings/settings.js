@@ -3,7 +3,8 @@
 // proceso principal (window.api.profile.get), y "Guardar cambios" los guarda
 // (window.api.profile.update) junto con la foto de perfil y, si se escribió una, la contraseña
 // nueva. El resultado se avisa con un toast (toast.component.js), salvo los errores de un campo,
-// que se marcan en el formulario. "Eliminar mi cuenta" sigue siendo visual: no da de baja la cuenta.
+// que se marcan en el formulario. "Eliminar mi cuenta" da de baja la cuenta del usuario de la sesión
+// (window.api.profile.delete) después de confirmarlo y vuelve al login, con la sesión ya cerrada.
 // La foto de perfil es el componente compartido avatar-editor.component.js y las máscaras y los
 // errores de los campos, field-validation.component.js.
 
@@ -38,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar tus datos. Intentá nuevamente.';
+  const LOGIN_URL = '../../auth/login/index.html';
 
   let isLoaded = false;
   let isSaving = false;
@@ -182,7 +184,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar cuenta ----------
 
-  // Componente compartido confirm-modal.component.js. Sigue siendo visual: la baja real de la
-  // cuenta se conecta con onConfirm cuando exista en la capa de servicios/IPC.
-  setupConfirmModal(document.getElementById('deleteUserOverlay'), { triggerSelector: '#deleteAccountBtn' });
+  // Da de baja la cuenta. Con la baja hecha, el proceso principal ya cerró la sesión y la vista
+  // vuelve al login, como con "Cerrar sesión" (sidebar.js). Si la rechaza (el único administrador
+  // activo no se puede dar de baja) o falla, lo avisa con un toast y no resuelve ningún mensaje,
+  // así el modal se cierra.
+  const deleteAccount = async () => {
+    let response;
+    try {
+      response = await window.api?.profile?.delete();
+    } catch (error) {
+      console.error('Error al eliminar la cuenta:', error);
+    }
+    if (response?.ok) {
+      window.location.replace(LOGIN_URL);
+      // Sin resolver: el modal sigue en "Eliminando…" hasta que el login reemplaza a la vista
+      return new Promise(() => {});
+    }
+    showToast({ type: 'error', title: 'No se pudo eliminar tu cuenta', description: errorDescription(response?.error) });
+  };
+
+  // Componente compartido confirm-modal.component.js: espera la respuesta abierto.
+  setupConfirmModal(document.getElementById('deleteUserOverlay'), {
+    triggerSelector: '#deleteAccountBtn',
+    onConfirm: deleteAccount,
+  });
 });

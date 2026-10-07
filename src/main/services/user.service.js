@@ -286,6 +286,8 @@ async function listUsers(currentUser) {
 // (USER_ALREADY_DELETED).
 async function deleteUser(currentUser, userId) {
   // La tabla no ofrece al usuario de la sesión, pero el id llega del renderer: se vuelve a comprobar.
+  // Su cuenta se da de baja con deleteOwnAccount, que no deja a la institución sin administradores
+  // y cierra la sesión.
   if (userId === currentUser.id) {
     throw new UserError('CANNOT_DELETE_SELF', 'No podés eliminar tu propia cuenta.');
   }
@@ -384,6 +386,9 @@ async function createUser(currentUser, data) {
 
 // ---------- Perfil del usuario de la sesión ----------
 
+// Valor de usuario_rol.nombre del rol que administra a los usuarios de la institución.
+const ADMIN_ROLE = 'ADMIN';
+
 // La cuenta de la sesión fue dada de baja después de que se comprobó el acceso: la próxima
 // operación protegida cierra la sesión (access.service.js).
 function accountNotFoundError() {
@@ -454,6 +459,33 @@ async function updateProfile(currentUser, data) {
   return toProfile(user);
 }
 
+// Baja lógica de la cuenta de `currentUser` (el de la sesión), como la de deleteUser: la fila queda
+// con su fecha de baja y suspendida, no puede iniciar sesión y un administrador la puede restaurar.
+// Con la baja hecha, la sesión queda cerrada. El único administrador de la institución que puede
+// usar el sistema (activo y vigente) no se puede dar de baja: nadie más podría restaurar su cuenta
+// ni administrar las demás. Se decide con el rol que tiene en la base, no con el de la sesión, que
+// puede ser viejo.
+// Lanza un UserError si es ese administrador (LAST_ADMIN) o si la cuenta ya no está vigente
+// (USER_NOT_FOUND).
+async function deleteOwnAccount(currentUser) {
+  const { user, isLastWithRole } = await userRepository.markAsDeletedUnlessLastWithRole(
+    currentUser.id,
+    currentUser.institutionId,
+    ADMIN_ROLE
+  );
+  if (isLastWithRole) {
+    throw new UserError(
+      'LAST_ADMIN',
+      'Sos el único administrador activo. La institución no puede quedarse sin administradores.'
+    );
+  }
+  if (!user) throw accountNotFoundError();
+
+  // Por id: updateProfile reemplaza el objeto de la sesión. Si la sesión terminó o pasó a ser de otra
+  // cuenta mientras se daba de baja, no se toca.
+  if (sessionService.getCurrentUser()?.id === currentUser.id) sessionService.logout();
+}
+
 module.exports = {
   listUsers,
   deleteUser,
@@ -462,5 +494,6 @@ module.exports = {
   createUser,
   getProfile,
   updateProfile,
+  deleteOwnAccount,
   UserError,
 };

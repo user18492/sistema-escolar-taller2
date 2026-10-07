@@ -104,6 +104,21 @@ const MARK_AS_DELETED_SQL = `
     JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
+// Usuarios de una institución con un rol que pueden usar el sistema (activos y vigentes, como
+// FIND_ACTIVE_BY_ROLE_SQL), con sus filas bloqueadas hasta el fin de la transacción: ninguno puede
+// dejar de serlo mientras tanto. Siempre en el mismo orden, para que dos transacciones no se
+// esperen entre sí.
+const LOCK_ACTIVE_BY_ROLE_SQL = `
+  SELECT usuario_id
+    FROM usuario
+   WHERE institucion_id = $1
+     AND usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = $2)
+     AND estado
+     AND fecha_eliminacion IS NULL
+   ORDER BY usuario_id
+     FOR UPDATE
+`;
+
 // Restauración: la fila vuelve a estar vigente (sin fecha de baja) y activa, porque la baja la había
 // dejado suspendida. Solo modifica a un usuario dado de baja de la institución, así no le cambia el
 // estado a uno vigente que está suspendido.
@@ -338,6 +353,24 @@ async function markAsDeleted(userId, institutionId) {
   return rows.length > 0 ? toUser(rows[0]) : null;
 }
 
+// Como markAsDeleted, salvo que el usuario sea el único de la institución con el rol `role` (un
+// valor de usuario_rol.nombre) que puede usar el sistema, activo y vigente: entonces no lo da de
+// baja. El rol es el que tiene en la base. Devuelve { user, isLastWithRole }: `user` es el usuario
+// como quedó, o null si no se dio de baja, e `isLastWithRole` indica que fue por ser el único.
+async function markAsDeletedUnlessLastWithRole(userId, institutionId, role) {
+  // En una transacción, con los usuarios de ese rol bloqueados: si dos se dan de baja a la vez, el
+  // segundo espera al primero y ya no lo cuenta.
+  return runInTransaction(async (transactionQuery) => {
+    const locked = await transactionQuery(LOCK_ACTIVE_BY_ROLE_SQL, [institutionId, role]);
+    if (locked.rows.length === 1 && locked.rows[0].usuario_id === userId) {
+      return { user: null, isLastWithRole: true };
+    }
+
+    const { rows } = await transactionQuery(MARK_AS_DELETED_SQL, [userId, institutionId]);
+    return { user: rows.length > 0 ? toUser(rows[0]) : null, isLastWithRole: false };
+  });
+}
+
 // Restaura al usuario dado de baja, que queda vigente y activo. Devuelve el usuario como quedó, sin
 // password_hash; null si no existe en la institución o no estaba dado de baja.
 async function restore(userId, institutionId) {
@@ -483,6 +516,7 @@ module.exports = {
   findActiveByRole,
   countNotDeleted,
   markAsDeleted,
+  markAsDeletedUnlessLastWithRole,
   restore,
   existsInInstitution,
   existsNotDeleted,
