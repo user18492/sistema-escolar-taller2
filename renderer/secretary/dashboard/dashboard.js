@@ -1,6 +1,9 @@
-// Vista Inicio (dashboard) del Secretario — interacción puramente visual, sin lógica de negocio
+// Vista Inicio (dashboard) del Secretario: el título saluda al usuario de la sesión
+// (dashboard-greeting.component.js). El resto es una maqueta, con interacción puramente visual.
 
 document.addEventListener('DOMContentLoaded', () => {
+
+  loadGreeting(document.getElementById('welcomeTitle'));
 
   // Apertura, cierre y selección de los dropdowns: componente compartido dropdown.component.js.
   // Al elegir una opción emite "dropdown-change", que escucha el filtro del gráfico.

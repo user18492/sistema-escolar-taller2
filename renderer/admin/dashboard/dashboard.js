@@ -1,28 +1,10 @@
 // Vista Inicio (dashboard) del Administrador: el título saluda al usuario de la sesión
-// (window.api.auth.getCurrentUser) y las tarjetas muestran los indicadores de su institución, que
+// (dashboard-greeting.component.js) y las tarjetas muestran los indicadores de su institución, que
 // llegan del proceso principal (window.api.dashboard.getAdminSummary). Hasta que llegan, cada
 // tarjeta muestra una raya; si la carga falla, la raya queda y el error se avisa con un toast
 // (toast.component.js). "Requiere atención" sigue siendo una maqueta.
 
 document.addEventListener('DOMContentLoaded', () => {
-
-  // ---------- Saludo ----------
-
-  const welcomeTitle = document.getElementById('welcomeTitle');
-
-  // El saludo es neutro, sin "Bienvenida" ni "Bienvenido": la base no guarda el género del usuario.
-  // Sin sesión o sin nombre queda el título del HTML, que no nombra a nadie.
-  async function loadGreeting() {
-    let user;
-    try {
-      user = await window.api?.auth?.getCurrentUser();
-    } catch (error) {
-      console.error('Error al obtener el usuario de la sesión:', error);
-    }
-    const firstName = user?.firstName?.trim();
-    // El nombre viene de la base: se asigna con textContent, nunca como HTML
-    if (firstName) welcomeTitle.textContent = `¡Te damos la bienvenida, ${firstName}!`;
-  }
 
   // ---------- Indicadores ----------
 
@@ -56,6 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  loadGreeting();
+  loadGreeting(document.getElementById('welcomeTitle'));
   loadSummary();
 });

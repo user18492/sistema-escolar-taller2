@@ -15,6 +15,7 @@
     <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="../../shared/components/dropdown.component.js"></script>
     <script src="../../shared/components/stat-card.component.js"></script>
+    <script src="../../shared/components/dashboard-greeting.component.js"></script>
     <script src="./dashboard.js" defer></script>
   </head>
   <body>
@@ -27,7 +28,8 @@
         <main class="content">
           <div class="page-header">
             <div>
-              <h1>¡Bienvenida, Lucía!</h1>
+              <!-- dashboard.js le agrega el nombre del usuario de la sesión -->
+              <h1 id="welcomeTitle">¡Hola!</h1>
               <p>Resumen general de la institución</p>
             </div>
           </div>
