@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentImageUrl = null;
   // Recorte confirmado con "Usar encuadre", que se envía al guardar: promesa del PNG (Uint8Array), o null
   let pendingImage = null;
-  // Se pulsó "Quitar foto" sobre la foto guardada: al guardar se pide quitarla
+  // Se pulsó "Quitar imagen" sobre la foto guardada: al guardar se pide quitarla
   let isImageRemoved = false;
 
   // Vista previa del modal: la foto de `url` o, con null, el ícono
@@ -669,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
       birthdateInput.value = toDisplayDate(user.birthDate);
       if (user.imageUrl) {
         // Sin el archivo original no se puede reencuadrar (sin lápiz), pero sí quitar o reemplazar.
-        // "Quitar foto" se ofrece aunque no cargue la vista previa: la base la tiene registrada.
+        // "Quitar imagen" se ofrece aunque no cargue la vista previa: la base la tiene registrada.
         currentImageUrl = user.imageUrl;
         removeAvatarBtn.hidden = false;
         showCurrentImage();

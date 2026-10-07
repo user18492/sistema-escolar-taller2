@@ -189,32 +189,31 @@
 
         <div class="modal-body">
           <div class="avatar-section">
-            <div class="avatar-preview-wrapper">
-              <div class="avatar-preview" id="newUserAvatarPreview">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-                </svg>
+            <span class="avatar-title">Foto de perfil (opcional)</span>
+            <div class="avatar-row">
+              <div class="avatar-preview-wrapper">
+                <div class="avatar-preview" id="newUserAvatarPreview">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+                  </svg>
+                </div>
+                <button type="button" class="avatar-edit-btn" id="editAvatarBtn" aria-label="Ajustar encuadre" title="Ajustar encuadre" hidden>
+                  <!-- resources/Pencil.svg -->
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                  </svg>
+                </button>
               </div>
-              <button type="button" class="avatar-edit-btn" id="editAvatarBtn" aria-label="Ajustar encuadre" title="Ajustar encuadre" hidden>
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z" />
-                </svg>
-              </button>
-            </div>
-            <div class="avatar-info">
-              <span class="avatar-title">Foto de perfil (opcional)</span>
-              <button type="button" class="btn btn-secondary btn-upload" id="uploadAvatarBtn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 16V4" />
-                  <polyline points="7 9 12 4 17 9" />
-                  <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
-                </svg>
-                Subir imagen
-              </button>
-              <button type="button" class="link-btn" id="removeAvatarBtn" hidden>Quitar foto</button>
-              <input type="file" accept="image/jpeg,image/png,image/webp" id="avatarFileInput" hidden />
-              <p id="avatarError" role="alert" hidden></p>
+              <div class="avatar-info">
+                <!-- users.js muestra "Quitar imagen" cuando el usuario tiene una foto, elegida o guardada -->
+                <div class="avatar-actions">
+                  <button type="button" class="link-btn" id="uploadAvatarBtn">Subir imagen</button>
+                  <button type="button" class="link-btn" id="removeAvatarBtn" hidden>Quitar imagen</button>
+                </div>
+                <input type="file" accept="image/jpeg,image/png,image/webp" id="avatarFileInput" hidden />
+                <p id="avatarError" role="alert" hidden></p>
+              </div>
             </div>
           </div>
 
