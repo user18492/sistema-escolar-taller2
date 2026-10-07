@@ -1,24 +1,37 @@
 // Componente reutilizable: navbar lateral (sidebar), compartido por todas las vistas de la app.
 // Uso: <app-sidebar nav-role="admin" active="dashboard"></app-sidebar>
 // El atributo "nav-role" elige el menú del rol (por defecto "admin") y "active" marca
-// qué item de ese menú se resalta como actual. La institución y el perfil son los del
-// usuario de la sesión, que informa el proceso principal. El avatar del perfil lo completa
-// user-avatar.component.js, que se carga antes que este script.
+// qué item de ese menú se resalta como actual. Las vistas compartidas por los tres roles
+// (renderer/profile) usan nav-role="session": el menú es el del rol del usuario de la sesión.
+// La institución y el perfil son los del usuario de la sesión, que informa el proceso
+// principal. El avatar del perfil lo completa user-avatar.component.js, que se carga antes
+// que este script.
+// El menú del perfil abre la vista Configuración de perfil (active="settings" en esa vista)
+// y cierra la sesión.
 // El menú solo muestra las opciones del rol: qué vistas se pueden abrir lo decide el
 // proceso principal (navigation-guard.js), no este componente.
 // Sin shadow DOM a propósito: así los estilos de sidebar.css (selectores .sidebar, .nav-item, etc.) siguen aplicando tal cual.
 
 (() => {
-  const logoUrl = new URL('../../../resources/logotipo_header.png', document.currentScript.src).href;
-  const loginUrl = new URL('../../auth/login/index.html', document.currentScript.src).href;
+  const scriptUrl = document.currentScript.src;
+  const logoUrl = new URL('../../../resources/logotipo_header.png', scriptUrl).href;
+  const loginUrl = new URL('../../auth/login/index.html', scriptUrl).href;
+  const settingsUrl = new URL('../../profile/settings/index.html', scriptUrl).href;
   // Nombre visible de cada rol (usuario_roles.nombre), igual que en la vista Usuarios.
   const ROLE_LABELS = {
     ADMIN: 'Administrador',
     SECRETARIO: 'Secretario',
     PROFESOR: 'Profesor',
   };
-  // Cada rol tiene su propio menú: las vistas viven en renderer/<rol>/<vista>, así que
-  // los enlaces son relativos a la carpeta hermana dentro del mismo rol.
+  // Menú de cada rol (usuario_roles.nombre), para las vistas con nav-role="session".
+  const NAV_ROLE_BY_USER_ROLE = {
+    ADMIN: 'admin',
+    SECRETARIO: 'secretary',
+    PROFESOR: 'teacher',
+  };
+  // Cada rol tiene su propio menú: las vistas viven en renderer/<rol>/<vista> y los enlaces
+  // son relativos a la carpeta del rol, que se llama igual que su menú. Así sirven también
+  // desde una vista que está fuera de esa carpeta.
   // Atributos del <svg> según el estilo del ícono: "outline" (trazo 1.75) es el
   // predeterminado; "resource" replica los atributos de los íconos outline de resources/
   // (viewBox 24, trazo 1.5). Los trazos se copian en línea para que hereden currentColor.
@@ -36,7 +49,7 @@
         items: [
           {
             key: 'dashboard',
-            href: '../dashboard/index.html',
+            href: 'dashboard/index.html',
             label: 'Inicio',
             // resources/Home.svg
             iconStyle: 'resource',
@@ -57,7 +70,7 @@
         items: [
           {
             key: 'users',
-            href: '../users/index.html',
+            href: 'users/index.html',
             label: 'Usuarios',
             // resources/Users.svg
             iconStyle: 'resource',
@@ -65,7 +78,7 @@
           },
           {
             key: 'courses',
-            href: '../courses/index.html',
+            href: 'courses/index.html',
             label: 'Cursos',
             // resources/RectangleStack.svg
             iconStyle: 'resource',
@@ -73,7 +86,7 @@
           },
           {
             key: 'assignments',
-            href: '../assignments/index.html',
+            href: 'assignments/index.html',
             label: 'Docencia',
             // resources/ClipboardDocumentList.svg
             iconStyle: 'resource',
@@ -87,7 +100,7 @@
         items: [
           {
             key: 'assignments',
-            href: '../assignments/index.html',
+            href: 'assignments/index.html',
             label: 'Asignaciones',
             // resources/ClipboardDocumentList.svg
             iconStyle: 'resource',
@@ -102,7 +115,7 @@
         items: [
           {
             key: 'dashboard',
-            href: '../dashboard/index.html',
+            href: 'dashboard/index.html',
             label: 'Inicio',
             // resources/Home.svg
             iconStyle: 'resource',
@@ -115,7 +128,7 @@
         items: [
           {
             key: 'students',
-            href: '../students/index.html',
+            href: 'students/index.html',
             label: 'Alumnos',
             // resources/UserGroup.svg
             iconStyle: 'resource',
@@ -123,7 +136,7 @@
           },
           {
             key: 'enrollments',
-            href: '../enrollments/index.html',
+            href: 'enrollments/index.html',
             label: 'Inscripciones',
             // resources/ClipboardDocument.svg
             iconStyle: 'resource',
@@ -134,53 +147,58 @@
     ],
   };
 
-  class AppSidebar extends HTMLElement {
-    connectedCallback() {
-      const active = this.getAttribute('active') || '';
-      const requestedRole = this.getAttribute('nav-role') || 'admin';
-      const navRole = Object.hasOwn(NAV_GROUPS_BY_ROLE, requestedRole) ? requestedRole : 'admin';
-      const navGroups = NAV_GROUPS_BY_ROLE[navRole];
-
-      const navHtml = navGroups.map((group, groupIndex) => {
-        const itemsHtml = group.items.map((item) => {
-          const activeClass = item.key === active ? ' active' : '';
-          // Un item sin href es una opción no disponible: se muestra deshabilitada y, al no
-          // ser un enlace navegable, no recibe foco ni se activa con el ratón o el teclado.
-          const atributosEnlace = item.href ? `href="${item.href}"` : 'role="link" aria-disabled="true"';
-          return `
+  // Grupos e items del menú de `navRole`, con `active` resaltado como la vista actual.
+  const renderNav = (navRole, active) => {
+    const roleFolderUrl = new URL(`../../${navRole}/`, scriptUrl);
+    return NAV_GROUPS_BY_ROLE[navRole].map((group, groupIndex) => {
+      const itemsHtml = group.items.map((item) => {
+        const activeClass = item.key === active ? ' active' : '';
+        // Un item sin href es una opción no disponible: se muestra deshabilitada y, al no
+        // ser un enlace navegable, no recibe foco ni se activa con el ratón o el teclado.
+        const atributosEnlace = item.href ? `href="${new URL(item.href, roleFolderUrl).href}"` : 'role="link" aria-disabled="true"';
+        return `
             <a class="nav-item${activeClass}" ${atributosEnlace}${item.key === active ? ' aria-current="page"' : ''}>
               <svg ${ICON_SVG_ATTRS[item.iconStyle] || ICON_SVG_ATTRS.outline}>
                 ${item.icon}
               </svg>
               ${item.label}
             </a>`;
-        }).join('');
-        if (!group.title) return `<div class="nav-group">${itemsHtml}</div>`;
-        const titleId = `navGroupTitle${groupIndex}`;
-        return `
+      }).join('');
+      if (!group.title) return `<div class="nav-group">${itemsHtml}</div>`;
+      const titleId = `navGroupTitle${groupIndex}`;
+      return `
           <div class="nav-group" role="group" aria-labelledby="${titleId}">
             <p class="nav-group-title" id="${titleId}">${group.title}</p>
             ${itemsHtml}
           </div>`;
-      }).join('');
+    }).join('');
+  };
+
+  class AppSidebar extends HTMLElement {
+    connectedCallback() {
+      const active = this.getAttribute('active') || '';
+      const requestedRole = this.getAttribute('nav-role') || 'admin';
+      // Con "session" el menú queda vacío hasta conocer el rol del usuario (loadSessionUser)
+      const isSessionNav = requestedRole === 'session';
+      const navRole = Object.hasOwn(NAV_GROUPS_BY_ROLE, requestedRole) ? requestedRole : 'admin';
 
       this.innerHTML = `
-        <aside class="sidebar" id="sidebar" data-nav-role="${navRole}">
+        <aside class="sidebar" id="sidebar"${isSessionNav ? '' : ` data-nav-role="${navRole}"`}>
           <div class="sidebar-brand">
             <div class="sidebar-logo"><img src="${logoUrl}" alt="Gestión educativa" draggable="false" /></div>
             <p class="sidebar-institution"></p>
           </div>
           <nav class="sidebar-nav" aria-label="Navegación principal">
-            ${navHtml}
+            ${isSessionNav ? '' : renderNav(navRole, active)}
           </nav>
           <div class="sidebar-profile">
             <div class="profile-panel" id="profilePanel" role="group" aria-label="Opciones de usuario">
-              <button class="profile-option" type="button">
+              <a class="profile-option" href="${settingsUrl}"${active === 'settings' ? ' aria-current="page"' : ''}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m9 3-.5 2-2 1-2-.5-2 3 1.5 1.5v3L2.5 15l2 3 2-.5 2 1 .5 2h4l.5-2 2-1 2 .5 2-3-1.5-2v-3l1.5-1.5-2-3-2 .5-2-1-.5-2z" /><circle cx="11" cy="12" r="3" />
                 </svg>
                 Configuración
-              </button>
+              </a>
               <button class="profile-option" type="button" data-action="logout">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M9 12h12m-5-5 5 5-5 5" />
@@ -209,7 +227,7 @@
       const profile = this.querySelector('.sidebar-profile');
       const button = this.querySelector('.profile-button');
       const panel = this.querySelector('.profile-panel');
-      const options = [...panel.querySelectorAll('button')];
+      const options = [...panel.querySelectorAll('.profile-option')];
       // El estado abierto vive en la clase `is-open` y no en el atributo `hidden`: así el
       // panel conserva su `display` mientras dura la transición de salida definida en
       // sidebar.css y solo se oculta (saliendo del foco y del árbol de accesibilidad)
@@ -238,10 +256,12 @@
         }
       }, { signal });
       panel.addEventListener('click', (event) => {
-        if (event.target.closest('button')) {
-          setOpen(false);
-          button.focus();
-        }
+        const option = event.target.closest('.profile-option');
+        if (!option) return;
+        // Como en el menú: volver a pulsar la vista abierta no la recarga.
+        if (option.hasAttribute('aria-current')) event.preventDefault();
+        setOpen(false);
+        button.focus();
       }, { signal });
       panel.querySelector('[data-action="logout"]').addEventListener('click', () => this.logout(), { signal });
       document.addEventListener('click', (event) => {
@@ -256,8 +276,9 @@
       this.profileListeners?.abort();
     }
 
-    // Completa la institución y el perfil con el usuario de la sesión. Sin sesión quedan
-    // vacíos: el proceso principal no deja abrir la vista y vuelve al login.
+    // Completa la institución y el perfil con el usuario de la sesión y, con
+    // nav-role="session", el menú de su rol. Sin sesión quedan vacíos: el proceso principal
+    // no deja abrir la vista y vuelve al login.
     async loadSessionUser() {
       const auth = window.api?.auth;
       if (!auth) return;
@@ -277,6 +298,11 @@
       this.querySelector('.profile-role').textContent = ROLE_LABELS[user.role] ?? '';
       // Iniciales y, si tiene, la foto: user-avatar.component.js
       fillAvatar(this.querySelector('.profile-avatar'), user);
+
+      const navRole = NAV_ROLE_BY_USER_ROLE[user.role];
+      if (this.getAttribute('nav-role') !== 'session' || !navRole) return;
+      this.querySelector('.sidebar').dataset.navRole = navRole;
+      this.querySelector('.sidebar-nav').innerHTML = renderNav(navRole, this.getAttribute('active') || '');
     }
 
     // Vuelve al login recién cuando el proceso principal eliminó la sesión.

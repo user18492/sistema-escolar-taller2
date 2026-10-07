@@ -11,8 +11,9 @@
 // (confirm-modal.component.js).
 // El resultado de las cuatro operaciones se avisa con un toast (toast.component.js), salvo los
 // errores de un campo, que se marcan en el formulario.
-// La foto de perfil viaja con los datos del modal (el recorte, no el archivo original) y las filas y
-// los filtros la muestran con fillAvatar (user-avatar.component.js).
+// La foto de perfil se elige y se encuadra con el componente compartido avatar-editor.component.js;
+// viaja con los datos del modal (el recorte, no el archivo original) y las filas y los filtros la
+// muestran con fillAvatar (user-avatar.component.js).
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -428,169 +429,8 @@ document.addEventListener('DOMContentLoaded', () => {
     },
   };
 
-  // Mismos tipos que admite el atributo accept del selector de archivos.
-  const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-  // Tamaño máximo del archivo elegido. Solo se envía el recorte, que es más liviano.
-  const AVATAR_MAX_FILE_BYTES = 5 * 1024 * 1024;
-
-  const avatarInput = document.getElementById('avatarFileInput');
-  const avatarPreview = document.getElementById('newUserAvatarPreview');
-  const uploadAvatarBtn = document.getElementById('uploadAvatarBtn');
-  const editAvatarBtn = document.getElementById('editAvatarBtn');
-  const removeAvatarBtn = document.getElementById('removeAvatarBtn');
-  const avatarError = document.getElementById('avatarError');
-  const cropDialog = document.getElementById('avatarCropDialog');
-  const cropCanvas = document.getElementById('avatarCropCanvas');
-  const cropContext = cropCanvas.getContext('2d');
-  const avatarZoom = document.getElementById('avatarZoom');
-  const avatarZoomValue = document.getElementById('avatarZoomValue');
-  let savedCrop = null;
-  let draftCrop = null;
-  let avatarLoadId = 0;
-  let drag = null;
-  // Foto guardada del usuario que se edita (su imageUrl al abrir el modal), o null
-  let currentImageUrl = null;
-  // Recorte confirmado con "Usar encuadre", que se envía al guardar: promesa del PNG (Uint8Array), o null
-  let pendingImage = null;
-  // Se pulsó "Quitar imagen" sobre la foto guardada: al guardar se pide quitarla
-  let isImageRemoved = false;
-
-  // Vista previa del modal: la foto de `url` o, con null, el ícono
-  const setAvatarPreview = (url) => {
-    avatarPreview.style.backgroundImage = url ? `url("${url}")` : '';
-    avatarPreview.classList.toggle('has-image', Boolean(url));
-  };
-
-  const showAvatarError = (message) => {
-    avatarError.textContent = message;
-    avatarError.hidden = false;
-  };
-
-  // Vista previa de la foto guardada del usuario que se edita. Si no carga (p. ej., se subió desde
-  // otra PC), queda el ícono.
-  async function showCurrentImage() {
-    const loadId = ++avatarLoadId;
-    const image = new Image();
-    image.src = currentImageUrl;
-    try {
-      await image.decode();
-    } catch {
-      return;
-    }
-    if (loadId === avatarLoadId) setAvatarPreview(currentImageUrl);
-  }
-
-  // PNG del recorte, del tamaño de #avatarCropCanvas: su width y su height deben coincidir con
-  // PROFILE_IMAGE_SIZE (profile-image.service.js), que rechaza otro tamaño. El proceso principal lo
-  // guarda como JPEG, sin transparencia: el fondo blanco evita que lo transparente quede negro.
-  const exportCrop = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = cropCanvas.width;
-    canvas.height = cropCanvas.height;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#fff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(cropCanvas, 0, 0);
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('No se pudo exportar el recorte.'))), 'image/png');
-    }).then(async (blob) => new Uint8Array(await blob.arrayBuffer()));
-  };
-
-  function renderCrop() {
-    if (!draftCrop) return;
-    const { image, zoom } = draftCrop;
-    const size = cropCanvas.width;
-    const scale = Math.max(size / image.naturalWidth, size / image.naturalHeight) * zoom;
-    const width = image.naturalWidth * scale;
-    const height = image.naturalHeight * scale;
-    // Limitar el movimiento para que nunca queden espacios vacíos en el avatar.
-    draftCrop.x = Math.max((size - width) / 2, Math.min((width - size) / 2, draftCrop.x));
-    draftCrop.y = Math.max((size - height) / 2, Math.min((height - size) / 2, draftCrop.y));
-    cropContext.clearRect(0, 0, size, size);
-    cropContext.drawImage(image, (size - width) / 2 + draftCrop.x, (size - height) / 2 + draftCrop.y, width, height);
-    avatarZoom.value = String(zoom);
-    avatarZoomValue.value = `${Math.round(zoom * 100)}%`;
-  }
-
-  function openCrop(crop) {
-    draftCrop = { ...crop };
-    renderCrop();
-    cropDialog.showModal();
-    cropCanvas.focus();
-  }
-
-  avatarZoom.addEventListener('input', () => {
-    if (!draftCrop) return;
-    const zoom = Number(avatarZoom.value);
-    const ratio = zoom / draftCrop.zoom;
-    draftCrop.x *= ratio;
-    draftCrop.y *= ratio;
-    draftCrop.zoom = zoom;
-    renderCrop();
-  });
-
-  cropCanvas.addEventListener('pointerdown', (event) => {
-    if (!draftCrop || !event.isPrimary || event.button !== 0) return;
-    cropCanvas.focus();
-    cropCanvas.setPointerCapture(event.pointerId);
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
-  });
-  cropCanvas.addEventListener('pointermove', (event) => {
-    if (!drag || event.pointerId !== drag.id || !draftCrop) return;
-    const ratio = cropCanvas.width / cropCanvas.getBoundingClientRect().width;
-    draftCrop.x += (event.clientX - drag.x) * ratio;
-    draftCrop.y += (event.clientY - drag.y) * ratio;
-    drag.x = event.clientX;
-    drag.y = event.clientY;
-    renderCrop();
-  });
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((type) => {
-    cropCanvas.addEventListener(type, () => { drag = null; });
-  });
-  cropCanvas.addEventListener('keydown', (event) => {
-    const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
-    const direction = directions[event.key];
-    if (!direction || !draftCrop) return;
-    event.preventDefault();
-    const step = event.shiftKey ? 24 : 6;
-    draftCrop.x += direction[0] * step;
-    draftCrop.y += direction[1] * step;
-    renderCrop();
-  });
-  document.getElementById('resetAvatarCropBtn').addEventListener('click', () => {
-    Object.assign(draftCrop, { zoom: 1, x: 0, y: 0 });
-    renderCrop();
-  });
-  document.getElementById('cancelAvatarCropBtn').addEventListener('click', () => cropDialog.close());
-  cropDialog.addEventListener('close', () => {
-    if (cropDialog.open) return;
-    draftCrop = null;
-    drag = null;
-  });
-  document.getElementById('saveAvatarCropBtn').addEventListener('click', () => {
-    savedCrop = { ...draftCrop };
-    pendingImage = exportCrop();
-    isImageRemoved = false;
-    setAvatarPreview(cropCanvas.toDataURL('image/png'));
-    editAvatarBtn.hidden = false;
-    removeAvatarBtn.hidden = false;
-    cropDialog.close();
-  });
-  editAvatarBtn.addEventListener('click', () => openCrop(savedCrop));
-
-  // Vuelve al ícono: descarta el recorte elegido y, si el usuario tenía una foto guardada, la quita
-  // al guardar. El foco pasa a "Subir imagen", porque este botón se oculta.
-  removeAvatarBtn.addEventListener('click', () => {
-    avatarLoadId += 1;
-    pendingImage = null;
-    savedCrop = null;
-    isImageRemoved = Boolean(currentImageUrl);
-    setAvatarPreview(null);
-    avatarError.hidden = true;
-    uploadAvatarBtn.focus();
-    editAvatarBtn.hidden = true;
-    removeAvatarBtn.hidden = true;
-  });
+  // Foto de perfil (subir, encuadrar y quitar): componente compartido avatar-editor.component.js.
+  const avatarEditor = overlay.querySelector('avatar-editor');
 
   // Generación, Mostrar/Ocultar, Copiar y Descartar: componente compartido password-generator.component.js.
   const passwordGenerator = overlay.querySelector('password-generator');
@@ -629,16 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectDropdownValue(roleDropdown, null);
     selectDropdownValue(statusDropdown, null);
 
-    setAvatarPreview(null);
-    avatarInput.value = '';
-    avatarLoadId += 1;
-    savedCrop = null;
-    currentImageUrl = null;
-    pendingImage = null;
-    isImageRemoved = false;
-    editAvatarBtn.hidden = true;
-    removeAvatarBtn.hidden = true;
-    avatarError.hidden = true;
+    avatarEditor.reset();
 
     passwordGenerator.reset(isEditing ? 'edit' : 'create');
 
@@ -667,13 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dniInput.value = formatDni(user.dni ?? '');
       emailInput.value = user.email ?? '';
       birthdateInput.value = toDisplayDate(user.birthDate);
-      if (user.imageUrl) {
-        // Sin el archivo original no se puede reencuadrar (sin lápiz), pero sí quitar o reemplazar.
-        // "Quitar imagen" se ofrece aunque no cargue la vista previa: la base la tiene registrada.
-        currentImageUrl = user.imageUrl;
-        removeAvatarBtn.hidden = false;
-        showCurrentImage();
-      }
+      if (user.imageUrl) avatarEditor.showSavedImage(user.imageUrl);
       selectDropdownValue(roleDropdown, user.role);
       selectDropdownValue(statusDropdown, statusCode(user));
     }
@@ -686,8 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function closeModal() {
-    avatarLoadId += 1;
-    if (cropDialog.open) cropDialog.close();
+    avatarEditor.cancel();
     passwordGenerator.clear();
     overlay.classList.remove('is-open');
     // Después de guardar, o si el usuario ya no existe, la tabla se volvió a dibujar: el foco pasa
@@ -731,8 +555,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let response;
     try {
       // image null no cambia la foto (en el alta, crea al usuario sin foto)
-      const image = pendingImage ? await pendingImage : null;
-      const data = { ...readFormData(), image, removeImage: isImageRemoved };
+      const imageChange = await avatarEditor.readChange();
+      const data = { ...readFormData(), ...imageChange };
       response = await (isEditing
         ? window.api?.users?.update(userId, data)
         : window.api?.users?.create(data));
@@ -779,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // quedado fuera de un control; el diálogo de recorte cierra solo con su propio Escape. Mientras
   // se guarda, ni Escape ni Cancelar lo cierran.
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && overlay.classList.contains('is-open') && !cropDialog.open && !isSaving) closeModal();
+    if (event.key === 'Escape' && overlay.classList.contains('is-open') && !avatarEditor.isCropOpen && !isSaving) closeModal();
   });
   cancelBtn.addEventListener('click', () => {
     if (!isSaving) closeModal();
@@ -883,33 +707,5 @@ document.addEventListener('DOMContentLoaded', () => {
       roleLabel.classList.remove('placeholder');
       updateCreateButtonState();
     });
-  });
-
-  uploadAvatarBtn.addEventListener('click', () => avatarInput.click());
-
-  avatarInput.addEventListener('change', async () => {
-    const file = avatarInput.files[0];
-    avatarInput.value = '';
-    if (!file) return;
-    const loadId = ++avatarLoadId;
-    avatarError.hidden = true;
-    if (file.size > AVATAR_MAX_FILE_BYTES) {
-      showAvatarError('La imagen supera los 5 MB. Selecciona una más liviana.');
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    try {
-      if (!AVATAR_TYPES.includes(file.type)) throw new Error('Formato inválido');
-      const image = new Image();
-      image.src = url;
-      await image.decode();
-      if (loadId !== avatarLoadId || !overlay.classList.contains('is-open')) return;
-      openCrop({ image, zoom: 1, x: 0, y: 0 });
-    } catch (error) {
-      if (loadId !== avatarLoadId) return;
-      showAvatarError('No se pudo abrir la imagen. Selecciona un archivo JPG, PNG o WebP válido.');
-    } finally {
-      URL.revokeObjectURL(url);
-    }
   });
 });

@@ -1,0 +1,89 @@
+/* Vista Configuración de perfil, compartida por los tres roles — puramente visual, sin lógica */
+
+/* ---------- Content ---------- */
+
+/* El formulario se ve demasiado ancho con el límite general de base.css (1280px): se baja
+   apenas el tope, con la misma fórmula de base.css. Al aplicarse al contenedor de la vista,
+   el encabezado, la card del formulario y "Eliminar cuenta" siguen alineados. */
+.main > .content {
+  width: min(calc(100vw - var(--sidebar-width)), 1256px);
+}
+
+/* Con el menú cerrado conserva los 64 px que recupera el contenido en base.css. */
+.app-shell:has(.sidebar.collapsed) .main > .content {
+  width: min(1320px, calc(100vw - var(--sidebar-width) + 64px));
+}
+
+/* ---------- Datos del perfil ---------- */
+
+/* Mismo espaciado que el cuerpo del modal de alta/edición de usuario: la foto de perfil
+   (avatar-editor.css) trae su línea divisoria. */
+.settings-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 20px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Cambio de contraseña: separado de los datos personales por una línea, como la foto. */
+.password-fields {
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ---------- Eliminar cuenta ---------- */
+
+/* El título va fuera de la card; dentro, las consecuencias y, a su lado, el botón. */
+.delete-account {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.delete-account h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.delete-account-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 24px;
+}
+
+.delete-account-card p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.settings-card :focus-visible,
+.delete-account-card :focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 2px;
+}

@@ -19,6 +19,8 @@
 //     (p. ej., el registro ya no existe). Con cualquier otro resultado se cierra.
 //   - fallbackFocus(): al cerrar, si el botón que lo abrió ya no está en el documento (su fila se
 //     eliminó), el foco pasa al elemento que devuelva.
+//   - triggerSelector: selector de los botones que lo abren, para las vistas donde la acción no
+//     está en las filas de una tabla ("Eliminar mi cuenta" en Configuración de perfil).
 // Marcado: <confirm-modal entity="User" heading="Eliminar usuario" description="¿Quieres eliminar
 // este usuario?"></confirm-modal> genera el .modal-overlay con los ids delete{entity}Overlay,
 // delete{entity}Title, delete{entity}Description, delete{entity}Message, cancelDelete{entity}Btn
@@ -97,11 +99,12 @@
 
   customElements.define('confirm-modal', ConfirmModal);
 
-  window.setupConfirmModal = (overlay, { beforeOpen, onConfirm, fallbackFocus } = {}) => {
+  window.setupConfirmModal = (overlay, { beforeOpen, onConfirm, fallbackFocus, triggerSelector } = {}) => {
     // La acción del modal la fija su marcado (atributo "action" de <confirm-modal>)
     const action = overlay.dataset.confirmAction;
     const { confirmClass, pendingLabel } = ACTIONS[action];
-    const triggerSelector = `.data-table tbody [data-action="${action}"]`;
+    // Sin triggerSelector lo abren los botones de las filas de la tabla
+    const openerSelector = triggerSelector ?? `.data-table tbody [data-action="${action}"]`;
     const dialog = overlay.querySelector('.modal-confirm');
     const message = overlay.querySelector('.confirm-message');
     const cancelButton = overlay.querySelector('.confirm-actions .btn-neutral');
@@ -153,7 +156,7 @@
 
     // Por delegación, para abarcar también las filas que la vista genera después de cargar
     document.addEventListener('click', (event) => {
-      const button = event.target.closest?.(triggerSelector);
+      const button = event.target.closest?.(openerSelector);
       if (button) openModal(button);
     });
     document.addEventListener('keydown', (event) => {

@@ -282,6 +282,11 @@ app-sidebar {
   background: #f0f5fc;
 }
 
+/* Como el item activo del menú: volver a pulsar la vista abierta no navega (ver sidebar.js). */
+.profile-option[aria-current="page"] {
+  cursor: default;
+}
+
 .profile-button:focus-visible,
 .profile-option:focus-visible {
   outline: 2px solid var(--color-accent-blue);

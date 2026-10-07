@@ -9,6 +9,8 @@ const ROLES_BY_AREA = {
   admin: ['ADMIN'],
   secretary: ['SECRETARIO'],
   teacher: ['PROFESOR'],
+  // Vistas compartidas por los tres roles (Configuración de perfil).
+  profile: ['ADMIN', 'SECRETARIO', 'PROFESOR'],
 };
 
 const LOGIN_VIEW = 'auth/login/index.html';

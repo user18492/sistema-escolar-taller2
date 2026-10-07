@@ -1,0 +1,203 @@
+/* Componente reutilizable: campo "Foto de perfil" y su diálogo de encuadre
+   (avatar-editor.component.js). Usa los botones con aspecto de enlace (.link-btn) y los de acción
+   (.btn) de buttons.css. */
+
+avatar-editor {
+  display: block;
+}
+
+/* El título va arriba; debajo, el círculo y, a su lado, las acciones. */
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.avatar-preview-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.avatar-edit-btn {
+  position: absolute;
+  right: -4px;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-accent-blue);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.avatar-edit-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.avatar-edit-btn:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 2px;
+}
+
+.avatar-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #eef1f5;
+  color: #9aa4b2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avatar-preview svg {
+  width: 32px;
+  height: 32px;
+}
+
+.avatar-preview.has-image {
+  background-size: cover;
+  background-position: center;
+}
+
+.avatar-preview.has-image svg {
+  display: none;
+}
+
+.avatar-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.avatar-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.avatar-info p {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+/* "Subir imagen" y, debajo, "Quitar imagen": enlaces de texto (.link-btn de buttons.css), separados
+   entre sí y con más alto para que sean fáciles de cliquear. */
+.avatar-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.avatar-actions .link-btn {
+  padding: 6px 0;
+}
+
+/* "Quitar imagen" es la acción secundaria: en gris neutro, el azul queda para "Subir imagen". */
+.avatar-actions #removeAvatarBtn {
+  color: var(--color-text-secondary);
+}
+
+.avatar-actions #removeAvatarBtn:hover {
+  color: var(--color-text-primary);
+}
+
+/* Editor local: el círculo muestra el mismo recorte que se confirma. */
+.avatar-section [hidden] {
+  display: none;
+}
+
+.avatar-info #avatarError {
+  color: var(--color-accent-red);
+}
+
+/* ---------- Diálogo: Ajustar foto de perfil ---------- */
+
+.avatar-crop-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: 90vh;
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  box-shadow: 0 24px 60px -12px rgba(16, 24, 40, 0.35);
+}
+
+.avatar-crop-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+/* El encabezado y el pie usan las clases de los modales de formulario (base.css). Su espaciado, que
+   cada vista define para sus modales, acá lo fija el componente: así no depende de la vista. */
+.avatar-crop-dialog .modal-header {
+  padding: 28px 32px 20px;
+}
+
+.avatar-crop-dialog .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px 32px 28px;
+}
+
+.avatar-crop-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding: 0 32px;
+}
+
+#avatarCropCanvas {
+  display: block;
+  width: min(280px, 100%);
+  aspect-ratio: 1;
+  align-self: center;
+  border-radius: 50%;
+  background: #eef1f5;
+  cursor: grab;
+  touch-action: none;
+}
+
+#avatarCropCanvas:active {
+  cursor: grabbing;
+}
+
+.avatar-crop-dialog :focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 4px;
+}
+
+.avatar-zoom-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#avatarZoom {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--color-accent-blue);
+}

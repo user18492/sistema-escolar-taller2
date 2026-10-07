@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="../../shared/styles/badge.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/password-generator.css" />
+    <link rel="stylesheet" href="../../shared/styles/avatar-editor.css" />
     <link rel="stylesheet" href="./users.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/user-avatar.component.js"></script>
@@ -40,6 +41,7 @@
     <script src="../../shared/components/row-actions.component.js"></script>
     <script src="../../shared/components/status-badge.component.js"></script>
     <script src="../../shared/components/password-generator.component.js"></script>
+    <script src="../../shared/components/avatar-editor.component.js"></script>
     <script src="./users.js" defer></script>
   </head>
   <body>
@@ -188,34 +190,7 @@
         </div>
 
         <div class="modal-body">
-          <div class="avatar-section">
-            <span class="avatar-title">Foto de perfil (opcional)</span>
-            <div class="avatar-row">
-              <div class="avatar-preview-wrapper">
-                <div class="avatar-preview" id="newUserAvatarPreview">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="8" r="4" />
-                    <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-                  </svg>
-                </div>
-                <button type="button" class="avatar-edit-btn" id="editAvatarBtn" aria-label="Ajustar encuadre" title="Ajustar encuadre" hidden>
-                  <!-- resources/Pencil.svg -->
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                  </svg>
-                </button>
-              </div>
-              <div class="avatar-info">
-                <!-- users.js muestra "Quitar imagen" cuando el usuario tiene una foto, elegida o guardada -->
-                <div class="avatar-actions">
-                  <button type="button" class="link-btn" id="uploadAvatarBtn">Subir imagen</button>
-                  <button type="button" class="link-btn" id="removeAvatarBtn" hidden>Quitar imagen</button>
-                </div>
-                <input type="file" accept="image/jpeg,image/png,image/webp" id="avatarFileInput" hidden />
-                <p id="avatarError" role="alert" hidden></p>
-              </div>
-            </div>
-          </div>
+          <avatar-editor heading="Foto de perfil (opcional)"></avatar-editor>
 
           <div class="form-grid">
             <div class="form-field">
@@ -301,21 +276,5 @@
     <confirm-modal entity="User" heading="Eliminar usuario" description="¿Quieres eliminar este usuario?"></confirm-modal>
     <!-- Modal: Restaurar usuario -->
     <confirm-modal entity="User" action="restore" heading="Restaurar usuario" description="¿Quieres restaurar este usuario?"></confirm-modal>
-    <dialog class="avatar-crop-dialog" id="avatarCropDialog" aria-labelledby="avatarCropTitle" aria-describedby="avatarCropHelp">
-      <div class="modal-header">
-        <h2 id="avatarCropTitle">Ajustar foto de perfil</h2>
-        <p id="avatarCropHelp">Mueve la imagen para elegir el encuadre y utiliza la barra para ajustar el zoom.</p>
-      </div>
-      <div class="avatar-crop-body">
-        <canvas id="avatarCropCanvas" width="512" height="512" tabindex="0" role="img" aria-label="Encuadre del avatar. Usa las flechas para mover la foto."></canvas>
-        <label class="avatar-zoom-label" for="avatarZoom">Zoom <output id="avatarZoomValue" for="avatarZoom">100%</output></label>
-        <input id="avatarZoom" type="range" min="1" max="4" step="0.01" value="1" />
-        <button type="button" class="link-btn" id="resetAvatarCropBtn">Restablecer encuadre</button>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="cancelAvatarCropBtn">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="saveAvatarCropBtn">Usar encuadre</button>
-      </div>
-    </dialog>
   </body>
 </html>

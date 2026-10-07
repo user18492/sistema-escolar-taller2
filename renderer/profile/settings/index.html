@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Configuración de perfil - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/confirm-modal.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
+    <link rel="stylesheet" href="../../shared/styles/avatar-editor.css" />
+    <link rel="stylesheet" href="./settings.css" />
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
+    <script src="../../shared/components/confirm-modal.component.js"></script>
+    <script src="../../shared/components/avatar-editor.component.js"></script>
+    <script src="./settings.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <!-- Vista compartida por los tres roles: el menú es el del rol del usuario de la sesión -->
+      <app-sidebar nav-role="session" active="settings"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Configuración de perfil</h1>
+              <p>Configura tu nombre, apellido, etc.</p>
+            </div>
+          </div>
+
+          <form class="card settings-card" id="profileForm" novalidate>
+            <avatar-editor heading="Foto de perfil"></avatar-editor>
+
+            <div class="form-grid">
+              <div class="form-field">
+                <label for="profileFirstName">Nombre</label>
+                <div class="field">
+                  <input type="text" id="profileFirstName" data-validate="person-name" required />
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="profileLastName">Apellido</label>
+                <div class="field">
+                  <input type="text" id="profileLastName" data-validate="person-name" required />
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="profileDni">DNI</label>
+                <div class="field">
+                  <input type="text" id="profileDni" inputmode="numeric" data-validate="dni" required />
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="profileEmail">Email</label>
+                <div class="field">
+                  <input type="email" id="profileEmail" data-validate="email" required />
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="profileBirthdate">Fecha de nacimiento</label>
+                <div class="field field-date">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <line x1="16" y1="3" x2="16" y2="7" />
+                    <line x1="8" y1="3" x2="8" y2="7" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <input type="text" id="profileBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" autocomplete="off" data-validate="birth-date" data-min-age="18" data-max-age="80" required />
+                </div>
+              </div>
+            </div>
+
+            <!-- Cambio de contraseña -->
+            <div class="form-grid password-fields">
+              <div class="form-field">
+                <label for="profileNewPassword">Nueva contraseña</label>
+                <div class="field">
+                  <input type="password" id="profileNewPassword" autocomplete="new-password" />
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="profileRepeatPassword">Repetir nueva contraseña</label>
+                <div class="field">
+                  <input type="password" id="profileRepeatPassword" autocomplete="new-password" />
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-actions">
+              <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            </div>
+          </form>
+
+          <section class="delete-account" aria-labelledby="deleteAccountTitle">
+            <h2 id="deleteAccountTitle">Eliminar cuenta</h2>
+            <div class="card delete-account-card">
+              <p>Al eliminar tu cuenta se cerrará tu sesión y ya no podrás ingresar al sistema. Solo un administrador puede restaurarla.</p>
+              <button type="button" class="btn btn-danger" id="deleteAccountBtn">Eliminar mi cuenta</button>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Modal: Eliminar cuenta (el mismo componente que elimina un usuario en la vista Usuarios) -->
+    <confirm-modal entity="User" heading="Eliminar cuenta" description="¿Quieres eliminar tu cuenta?"></confirm-modal>
+  </body>
+</html>
