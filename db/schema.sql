@@ -293,4 +293,43 @@ CREATE TRIGGER trg_usuario_asignaciones_vigentes
     WHEN (NEW.usuario_rol_id <> OLD.usuario_rol_id OR NEW.institucion_id <> OLD.institucion_id)
     EXECUTE FUNCTION fn_usuario_asignaciones_vigentes();
 
+-- Estados de alumno
+CREATE TABLE alumno_estado (
+    alumno_estado_id  INT          GENERATED ALWAYS AS IDENTITY,
+    nombre            VARCHAR(50)  NOT NULL,
+    -- ACTIVO, SUSPENDIDO, EGRESADO
+
+    CONSTRAINT pk_alumno_estado PRIMARY KEY (alumno_estado_id),
+    CONSTRAINT uq_alumno_estado_nombre UNIQUE (nombre)
+);
+
+-- Alumnos: una fila por persona e institución, como en usuario. Quien pasa a otra institución
+-- tiene una fila en cada una, con su propio estado.
+-- La institución no se deduce de las inscripciones: el alumno se registra antes de inscribirse en
+-- un curso, y durante ese lapso no tiene ninguna
+CREATE TABLE alumno (
+    alumno_id         INT           GENERATED ALWAYS AS IDENTITY,
+    institucion_id    INT           NOT NULL,
+    alumno_estado_id  INT           NOT NULL,
+    nombre            VARCHAR(100)  NOT NULL,
+    apellido          VARCHAR(100)  NOT NULL,
+    email             VARCHAR(254)  NOT NULL,
+    telefono          VARCHAR(30)   NOT NULL,
+    direccion_calle   VARCHAR(150)  NOT NULL,
+    direccion_altura  VARCHAR(20)   NOT NULL,
+    dni               VARCHAR(8)    NOT NULL,
+    -- Solo los dígitos (7 u 8)
+    fecha_nacimiento  DATE          NOT NULL,
+
+    CONSTRAINT pk_alumno PRIMARY KEY (alumno_id),
+    CONSTRAINT fk_alumno_institucion FOREIGN KEY (institucion_id) REFERENCES institucion(institucion_id),
+    CONSTRAINT fk_alumno_alumno_estado FOREIGN KEY (alumno_estado_id) REFERENCES alumno_estado(alumno_estado_id),
+    CONSTRAINT uq_alumno_institucion_dni UNIQUE (institucion_id, dni),
+    CONSTRAINT uq_alumno_institucion_email UNIQUE (institucion_id, email)
+);
+
+-- Igual que en usuario: institucion_id ya es la primera columna de los índices de las
+-- restricciones UNIQUE
+CREATE INDEX idx_alumno_alumno_estado_id ON alumno(alumno_estado_id);
+
 COMMIT;
