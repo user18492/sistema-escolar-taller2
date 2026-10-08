@@ -656,4 +656,25 @@ LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grad
 LEFT JOIN inscripcion_estado e ON e.nombre = ins.estado
 ORDER BY ins.fecha_inscripcion::date, a.alumno_id;
 
+-- Evaluaciones: 5 por asignación docente, 100 en total, todas vigentes.
+-- El INSERT cruza las asignaciones con las cinco evaluaciones de VALUES, así que todas tienen los
+-- mismos títulos y las mismas fechas. Un título solo no se puede repetir dentro de una asignación
+-- (uq_evaluacion_asignacion_docente_titulo).
+-- VALUES da el día y el mes de cada fecha; el año es el ciclo lectivo del curso de la asignación,
+-- como exige trg_evaluacion_fecha_ciclo_lectivo. Las cinco son días de clase en los dos ciclos
+-- lectivos cargados, 2025 y 2026: no caen en fin de semana ni en feriado.
+-- El ORDER BY deja juntas las de cada asignación, en orden de fecha.
+INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion)
+SELECT a.asignacion_docente_id, e.titulo, make_date(c.anio_ciclo_lectivo, e.mes, e.dia)
+FROM asignacion_docente a
+JOIN curso c ON c.curso_id = a.curso_id
+CROSS JOIN (VALUES
+    ('Evaluación diagnóstica', 3, 18),
+    ('Trabajo práctico 1', 4, 23),
+    ('Evaluación escrita 1', 6, 10),
+    ('Trabajo práctico 2', 9, 2),
+    ('Evaluación escrita 2', 11, 12)
+) AS e(titulo, mes, dia)
+ORDER BY a.asignacion_docente_id, e.mes, e.dia;
+
 COMMIT;
