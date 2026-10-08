@@ -548,4 +548,112 @@ LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
 LEFT JOIN alumno_estado e ON e.nombre = a.estado
 ORDER BY a.apellido, a.nombre;
 
+-- Estados de inscripción
+INSERT INTO inscripcion_estado (nombre) VALUES
+    ('ACTIVA'),
+    ('CANCELADA'),
+    ('FINALIZADA'),
+    ('TRASLADADA');
+
+-- Inscripciones: 20 por institución, 40 en total: 16 activas, 8 canceladas, 10 finalizadas y 6
+-- trasladadas.
+-- Cada fila de VALUES nombra el estado por su nombre, al alumno por su email y al curso por los
+-- datos que lo identifican dentro de la institución; los LEFT JOIN los traducen a sus ids. Como en
+-- las asignaciones docentes, son LEFT JOIN para que un dato que no existe deje su id en NULL y el
+-- INSERT falle por NOT NULL: con un JOIN, la fila se saltearía sin avisar.
+-- Las activas son de alumnos activos y de cursos del ciclo lectivo 2026, y ningún alumno tiene más
+-- de una: lo exige trg_inscripcion_coherencia. Cada trasladada tiene una inscripción posterior del
+-- mismo alumno, la del curso al que pasó.
+-- El ORDER BY las inserta por fecha de inscripción, para que los ids sigan el orden en que se
+-- habrían cargado.
+-- Quedan alumnos sin ninguna inscripción, algunos de ellos activos.
+
+-- Instituto San Martin: 8 activas, 4 canceladas, 5 finalizadas y 3 trasladadas
+INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
+SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, ins.fecha_inscripcion::date
+FROM (VALUES
+    -- Activas
+    ('ACTIVA', 'camila.alvarez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-09'),
+    ('ACTIVA', 'tomas.benitez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-10'),
+    ('ACTIVA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2025-12-09'),
+    ('ACTIVA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2025-12-11'),
+    -- Terminó la primaria en el Colegio Manuel Belgrano
+    ('ACTIVA', 'lucia.maidana@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'TARDE', 2026, '2026-02-20'),
+    ('ACTIVA', 'joaquin.quiroga@institucion.edu.ar', 'PRIMARIA', '4°', 'A', 'MAÑANA', 2026, '2026-03-04'),
+    ('ACTIVA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2025-12-15'),
+    ('ACTIVA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2025-12-16'),
+
+    -- Canceladas: las de los tres alumnos suspendidos y la de Martina Escobar, que sigue activa y
+    -- sin otra inscripción
+    ('CANCELADA', 'martina.escobar@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-11'),
+    ('CANCELADA', 'lautaro.ferreyra@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-12'),
+    ('CANCELADA', 'thiago.juarez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-18'),
+    ('CANCELADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2025-12-18'),
+
+    -- Finalizadas: ciclo lectivo 2025
+    ('FINALIZADA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2025, '2024-12-10'),
+    ('FINALIZADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2025, '2025-05-19'),
+    ('FINALIZADA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2025, '2025-02-17'),
+    ('FINALIZADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'B', 'TARDE', 2025, '2025-04-07'),
+    ('FINALIZADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2025, '2025-02-24'),
+
+    -- Trasladadas: dos cambios de división durante 2025 (de la A a la B) y uno de grado en 2026
+    -- (de 3° a 4°)
+    ('TRASLADADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2025, '2024-12-12'),
+    ('TRASLADADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2025, '2025-02-18'),
+    ('TRASLADADA', 'joaquin.quiroga@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-23')
+) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
+LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
+LEFT JOIN alumno a ON a.institucion_id = i.institucion_id AND a.email = ins.email
+LEFT JOIN grado g ON g.nombre = ins.grado AND g.nivel_educativo = ins.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = ins.division AND c.turno = ins.turno
+                 AND c.anio_ciclo_lectivo = ins.anio_ciclo_lectivo
+LEFT JOIN inscripcion_estado e ON e.nombre = ins.estado
+ORDER BY ins.fecha_inscripcion::date, a.alumno_id;
+
+-- Colegio Manuel Belgrano: 8 activas, 4 canceladas, 5 finalizadas y 3 trasladadas
+INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
+SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, ins.fecha_inscripcion::date
+FROM (VALUES
+    -- Activas
+    ('ACTIVA', 'renata.aguilar@colegiobelgrano.edu.ar', 'SECUNDARIA', '4°', 'A', 'MAÑANA', 2026, '2026-02-09'),
+    ('ACTIVA', 'felipe.barrios@colegiobelgrano.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-03-11'),
+    ('ACTIVA', 'abril.cardozo@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, '2026-02-11'),
+    ('ACTIVA', 'catalina.espinoza@colegiobelgrano.edu.ar', 'PRIMARIA', '4°', 'A', 'TARDE', 2026, '2026-02-24'),
+    ('ACTIVA', 'olivia.gimenez@colegiobelgrano.edu.ar', 'PRIMARIA', '1°', 'A', 'TARDE', 2026, '2026-02-26'),
+    ('ACTIVA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2025-12-10'),
+    ('ACTIVA', 'mia.rojas@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2025-12-17'),
+    ('ACTIVA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2025-12-12'),
+
+    -- Canceladas: las de los cuatro alumnos suspendidos. La de Jazmín Meza es del ciclo lectivo
+    -- 2025
+    ('CANCELADA', 'morena.acuna@colegiobelgrano.edu.ar', 'SECUNDARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-13'),
+    ('CANCELADA', 'simon.gutierrez@colegiobelgrano.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-02-19'),
+    ('CANCELADA', 'jazmin.meza@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2025-02-25'),
+    ('CANCELADA', 'valentin.vargas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, '2026-02-20'),
+
+    -- Finalizadas: ciclo lectivo 2025. Nahuel Correa y Lucía Maidana son egresados; ella cursa la
+    -- secundaria en el Instituto San Martin
+    ('FINALIZADA', 'nahuel.correa@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2025, '2024-12-17'),
+    ('FINALIZADA', 'lucia.maidana@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2025, '2025-02-19'),
+    ('FINALIZADA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2024-12-11'),
+    ('FINALIZADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'B', 'TARDE', 2025, '2025-03-25'),
+    ('FINALIZADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'B', 'TARDE', 2025, '2025-06-02'),
+
+    -- Trasladadas: dos cambios de división durante 2025 (de la A a la B) y uno de grado en 2026
+    -- (de 1° a 2°)
+    ('TRASLADADA', 'felipe.barrios@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-02-27'),
+    ('TRASLADADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2025, '2025-02-20'),
+    ('TRASLADADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2024-12-13')
+) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
+LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
+LEFT JOIN alumno a ON a.institucion_id = i.institucion_id AND a.email = ins.email
+LEFT JOIN grado g ON g.nombre = ins.grado AND g.nivel_educativo = ins.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = ins.division AND c.turno = ins.turno
+                 AND c.anio_ciclo_lectivo = ins.anio_ciclo_lectivo
+LEFT JOIN inscripcion_estado e ON e.nombre = ins.estado
+ORDER BY ins.fecha_inscripcion::date, a.alumno_id;
+
 COMMIT;
