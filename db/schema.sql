@@ -332,4 +332,144 @@ CREATE TABLE alumno (
 -- restricciones UNIQUE
 CREATE INDEX idx_alumno_alumno_estado_id ON alumno(alumno_estado_id);
 
+-- Estados de inscripción
+CREATE TABLE inscripcion_estado (
+    inscripcion_estado_id  INT          GENERATED ALWAYS AS IDENTITY,
+    nombre                 VARCHAR(50)  NOT NULL,
+    -- ACTIVA, CANCELADA, FINALIZADA, TRASLADADA
+    -- FINALIZADA: terminó el cursado del curso. TRASLADADA: el alumno pasó a otro curso
+
+    CONSTRAINT pk_inscripcion_estado PRIMARY KEY (inscripcion_estado_id),
+    CONSTRAINT uq_inscripcion_estado_nombre UNIQUE (nombre)
+);
+
+-- Inscripciones: un alumno cursa un curso. A lo largo del tiempo, un alumno pasa por muchos cursos
+-- y un curso tiene muchos alumnos.
+-- No tiene baja lógica: la fila se conserva y lo que cambia es su estado
+CREATE TABLE inscripcion (
+    inscripcion_id         INT   GENERATED ALWAYS AS IDENTITY,
+    alumno_id              INT   NOT NULL,
+    curso_id               INT   NOT NULL,
+    inscripcion_estado_id  INT   NOT NULL,
+    fecha_inscripcion      DATE  NOT NULL DEFAULT CURRENT_DATE,
+
+    CONSTRAINT pk_inscripcion PRIMARY KEY (inscripcion_id),
+    CONSTRAINT fk_inscripcion_alumno FOREIGN KEY (alumno_id) REFERENCES alumno(alumno_id),
+    CONSTRAINT fk_inscripcion_curso FOREIGN KEY (curso_id) REFERENCES curso(curso_id),
+    CONSTRAINT fk_inscripcion_inscripcion_estado FOREIGN KEY (inscripcion_estado_id) REFERENCES inscripcion_estado(inscripcion_estado_id)
+);
+
+-- Ninguna restricción UNIQUE abarca estas columnas, así que cada una lleva su índice
+CREATE INDEX idx_inscripcion_alumno_id ON inscripcion(alumno_id);
+CREATE INDEX idx_inscripcion_curso_id ON inscripcion(curso_id);
+CREATE INDEX idx_inscripcion_inscripcion_estado_id ON inscripcion(inscripcion_estado_id);
+
+-- Coherencia de una inscripción con las filas que referencia: el alumno y el curso son de la misma
+-- institución y, si la inscripción es activa, el alumno no tiene otra activa. Las demás no cuentan:
+-- un alumno puede tener cualquier cantidad de canceladas, finalizadas y trasladadas. Por eso un
+-- traslado primero pasa la inscripción anterior a TRASLADADA y después crea la nueva.
+-- "Activa" es una fila de inscripcion_estado y no un valor fijo, así que un índice único parcial no
+-- puede expresar la regla. En su lugar, FOR NO KEY UPDATE retiene la fila del alumno hasta el fin
+-- de la transacción: otra inscripción simultánea del mismo alumno espera y, al seguir, ya ve esta.
+-- También espera un cambio simultáneo de institución del alumno o del curso (retenido con
+-- FOR SHARE), cuyos triggers están más abajo. Si una fila referenciada no existe, las comparaciones
+-- dan NULL y no fallan: la rechaza después su clave foránea
+CREATE FUNCTION fn_inscripcion_coherencia() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_alumno_institucion_id  INT;
+    v_curso_institucion_id   INT;
+    v_estado                 VARCHAR(50);
+BEGIN
+    SELECT a.institucion_id
+      INTO v_alumno_institucion_id
+      FROM alumno a
+     WHERE a.alumno_id = NEW.alumno_id
+       FOR NO KEY UPDATE;
+
+    SELECT c.institucion_id
+      INTO v_curso_institucion_id
+      FROM curso c
+     WHERE c.curso_id = NEW.curso_id
+       FOR SHARE;
+
+    SELECT e.nombre
+      INTO v_estado
+      FROM inscripcion_estado e
+     WHERE e.inscripcion_estado_id = NEW.inscripcion_estado_id;
+
+    IF v_alumno_institucion_id <> v_curso_institucion_id THEN
+        RAISE EXCEPTION 'El alumno % y el curso % son de instituciones distintas',
+                        NEW.alumno_id, NEW.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_inscripcion_misma_institucion';
+    END IF;
+
+    IF v_estado = 'ACTIVA'
+       AND EXISTS (SELECT 1
+                     FROM inscripcion i
+                     JOIN inscripcion_estado e ON e.inscripcion_estado_id = i.inscripcion_estado_id
+                    WHERE i.alumno_id = NEW.alumno_id
+                      AND i.inscripcion_id <> NEW.inscripcion_id
+                      AND e.nombre = 'ACTIVA') THEN
+        RAISE EXCEPTION 'El alumno % ya tiene una inscripción activa', NEW.alumno_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_inscripcion_alumno_una_activa';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_inscripcion_coherencia
+    BEFORE INSERT OR UPDATE ON inscripcion
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_inscripcion_coherencia();
+
+-- Un alumno con inscripciones conserva su institución: cambiarla lo dejaría en cursos de otra.
+-- Cuentan todas, no solo las activas: como no hay baja lógica, las demás siguen siendo su historial
+CREATE FUNCTION fn_alumno_inscripciones() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF EXISTS (SELECT 1
+                 FROM inscripcion i
+                WHERE i.alumno_id = OLD.alumno_id) THEN
+        RAISE EXCEPTION 'El alumno % tiene inscripciones', OLD.alumno_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_alumno_inscripciones';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_alumno_inscripciones
+    BEFORE UPDATE ON alumno
+    FOR EACH ROW
+    WHEN (NEW.institucion_id <> OLD.institucion_id)
+    EXECUTE FUNCTION fn_alumno_inscripciones();
+
+-- Un curso con inscripciones conserva su institución. El grado sí puede cambiar: la inscripción no
+-- depende de él
+CREATE FUNCTION fn_curso_inscripciones() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF EXISTS (SELECT 1
+                 FROM inscripcion i
+                WHERE i.curso_id = OLD.curso_id) THEN
+        RAISE EXCEPTION 'El curso % tiene inscripciones', OLD.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_curso_inscripciones';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_curso_inscripciones
+    BEFORE UPDATE ON curso
+    FOR EACH ROW
+    WHEN (NEW.institucion_id <> OLD.institucion_id)
+    EXECUTE FUNCTION fn_curso_inscripciones();
+
 COMMIT;
