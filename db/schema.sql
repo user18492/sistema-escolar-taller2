@@ -472,4 +472,121 @@ CREATE TRIGGER trg_curso_inscripciones
     WHEN (NEW.institucion_id <> OLD.institucion_id)
     EXECUTE FUNCTION fn_curso_inscripciones();
 
+-- Evaluaciones: las que un profesor toma en una asignación docente, es decir, en una materia de un
+-- curso
+CREATE TABLE evaluacion (
+    evaluacion_id          INT           GENERATED ALWAYS AS IDENTITY,
+    asignacion_docente_id  INT           NOT NULL,
+    titulo                 VARCHAR(100)  NOT NULL,
+    fecha_evaluacion       DATE          NOT NULL,
+    -- Su año es el ciclo lectivo del curso de la asignación
+    fecha_eliminacion      TIMESTAMPTZ,
+    -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva, pero deja de
+    -- contar para las reglas de esta tabla
+
+    CONSTRAINT pk_evaluacion PRIMARY KEY (evaluacion_id),
+    CONSTRAINT fk_evaluacion_asignacion_docente FOREIGN KEY (asignacion_docente_id) REFERENCES asignacion_docente(asignacion_docente_id)
+);
+
+-- El título de una evaluación vigente no se repite dentro de una asignación; otra asignación sí
+-- puede usarlo. Las dadas de baja no cuentan, así que el título se puede volver a usar después de
+-- una baja; por eso es un índice único parcial, como el de curso.
+-- asignacion_docente_id no necesita un índice propio: ya es la primera columna de este, que abarca
+-- a las evaluaciones vigentes
+CREATE UNIQUE INDEX uq_evaluacion_asignacion_docente_titulo
+    ON evaluacion (asignacion_docente_id, titulo)
+    WHERE fecha_eliminacion IS NULL;
+
+-- El año de la fecha de una evaluación vigente es el ciclo lectivo del curso de su asignación. Las
+-- dadas de baja no se validan. FOR SHARE retiene las filas de la asignación y del curso hasta el
+-- fin de la transacción: un cambio simultáneo de curso o de ciclo lectivo espera y, al seguir, su
+-- trigger (más abajo) ya ve esta evaluación. Si una fila referenciada no existe, la comparación da
+-- NULL y no falla: la rechaza después su clave foránea
+CREATE FUNCTION fn_evaluacion_fecha_ciclo_lectivo() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_curso_id            INT;
+    v_anio_ciclo_lectivo  INT;
+BEGIN
+    -- Sin JOIN con curso, como en fn_asignacion_docente_coherencia: si la asignación cambió de
+    -- curso mientras esperaba el bloqueo, PostgreSQL vuelve a evaluar la consulta con la fila nueva
+    -- de la asignación pero con el curso anterior, y no devolvería nada
+    SELECT a.curso_id
+      INTO v_curso_id
+      FROM asignacion_docente a
+     WHERE a.asignacion_docente_id = NEW.asignacion_docente_id
+       FOR SHARE;
+
+    SELECT c.anio_ciclo_lectivo
+      INTO v_anio_ciclo_lectivo
+      FROM curso c
+     WHERE c.curso_id = v_curso_id
+       FOR SHARE;
+
+    IF EXTRACT(YEAR FROM NEW.fecha_evaluacion) <> v_anio_ciclo_lectivo THEN
+        RAISE EXCEPTION 'La fecha % no es del ciclo lectivo % del curso %',
+                        NEW.fecha_evaluacion, v_anio_ciclo_lectivo, v_curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_evaluacion_fecha_ciclo_lectivo';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_evaluacion_fecha_ciclo_lectivo
+    BEFORE INSERT OR UPDATE ON evaluacion
+    FOR EACH ROW
+    WHEN (NEW.fecha_eliminacion IS NULL)
+    EXECUTE FUNCTION fn_evaluacion_fecha_ciclo_lectivo();
+
+-- Una asignación con evaluaciones vigentes conserva su curso: se tomaron en ese curso y sus fechas
+-- son de su ciclo lectivo
+CREATE FUNCTION fn_asignacion_docente_evaluaciones_vigentes() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF EXISTS (SELECT 1
+                 FROM evaluacion e
+                WHERE e.asignacion_docente_id = OLD.asignacion_docente_id
+                  AND e.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'La asignación docente % tiene evaluaciones vigentes', OLD.asignacion_docente_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_asignacion_docente_evaluaciones_vigentes';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_asignacion_docente_evaluaciones_vigentes
+    BEFORE UPDATE ON asignacion_docente
+    FOR EACH ROW
+    WHEN (NEW.curso_id <> OLD.curso_id)
+    EXECUTE FUNCTION fn_asignacion_docente_evaluaciones_vigentes();
+
+-- Un curso con evaluaciones vigentes conserva su ciclo lectivo. Cuentan las de todas sus
+-- asignaciones, también las dadas de baja: sus evaluaciones siguen vigentes
+CREATE FUNCTION fn_curso_evaluaciones_vigentes() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF EXISTS (SELECT 1
+                 FROM asignacion_docente a
+                 JOIN evaluacion e ON e.asignacion_docente_id = a.asignacion_docente_id
+                WHERE a.curso_id = OLD.curso_id
+                  AND e.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'El curso % tiene evaluaciones vigentes', OLD.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_curso_evaluaciones_vigentes';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_curso_evaluaciones_vigentes
+    BEFORE UPDATE ON curso
+    FOR EACH ROW
+    WHEN (NEW.anio_ciclo_lectivo <> OLD.anio_ciclo_lectivo)
+    EXECUTE FUNCTION fn_curso_evaluaciones_vigentes();
+
 COMMIT;
