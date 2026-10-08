@@ -415,4 +415,137 @@ LEFT JOIN materia m ON m.nombre = a.materia
 LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
 ORDER BY c.curso_id, gm.grado_materia_id;
 
+-- Estados de alumno
+INSERT INTO alumno_estado (nombre) VALUES
+    ('ACTIVO'),
+    ('SUSPENDIDO'),
+    ('EGRESADO');
+
+-- Alumnos: 20 por institución, 40 en total: 25 activos, 7 suspendidos y 8 egresados.
+-- Cada fila de VALUES nombra el estado por su nombre y el LEFT JOIN lo traduce a su id. Como en las
+-- asignaciones docentes, es LEFT JOIN para que un estado que no existe deje su id en NULL y el
+-- INSERT falle por NOT NULL: con un JOIN, la fila se saltearía sin avisar.
+-- Los datos tienen el formato que deja el formulario de alumnos
+-- (renderer/shared/components/field-validation.component.js): dni de 8 dígitos, teléfono de 10 y
+-- una edad de entre 5 y 25 años.
+-- Lucía Maidana está en las dos instituciones, con el mismo dni: egresó de la primaria del Colegio
+-- Manuel Belgrano y cursa la secundaria en el Instituto San Martin. Lo permite la restricción
+-- UNIQUE (institucion_id, dni), que solo impide repetirlo dentro de una misma institución.
+
+-- Instituto San Martin: 13 activos, 3 suspendidos y 4 egresados
+INSERT INTO alumno (institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
+                    direccion_calle, direccion_altura, dni, fecha_nacimiento)
+SELECT i.institucion_id, e.alumno_estado_id, a.nombre, a.apellido, a.email, a.telefono,
+       a.direccion_calle, a.direccion_altura, a.dni, a.fecha_nacimiento::date
+FROM (VALUES
+    -- Activos
+    ('ACTIVO', 'Camila', 'Álvarez', 'camila.alvarez@institucion.edu.ar',
+     '379 412-3456', 'Av. Belgrano', '1245', '48123456', '2010-03-12'),
+    ('ACTIVO', 'Tomás', 'Benítez', 'tomas.benitez@institucion.edu.ar',
+     '379 415-7821', 'Junín', '830', '47982310', '2009-07-25'),
+    ('ACTIVO', 'Julieta', 'Cabrera', 'julieta.cabrera@institucion.edu.ar',
+     '379 421-9034', 'Rivadavia', '2570', '49204775', '2011-11-08'),
+    ('ACTIVO', 'Martina', 'Escobar', 'martina.escobar@institucion.edu.ar',
+     '379 445-6602', 'Córdoba', '1880', '48556941', '2010-05-17'),
+    ('ACTIVO', 'Valentina', 'Gauna', 'valentina.gauna@institucion.edu.ar',
+     '379 460-7715', 'La Rioja', '1120', '49617882', '2011-12-21'),
+    ('ACTIVO', 'Delfina', 'Ibarra', 'delfina.ibarra@institucion.edu.ar',
+     '379 480-5563', 'Salta', '755', '48998127', '2010-02-09'),
+    -- También en el Colegio Manuel Belgrano, como egresada
+    ('ACTIVO', 'Lucía', 'Maidana', 'lucia.maidana@institucion.edu.ar',
+     '379 427-3184', 'San Juan', '1432', '53412768', '2013-09-14'),
+    ('ACTIVO', 'Benjamín', 'Navarro', 'benjamin.navarro@institucion.edu.ar',
+     '379 438-9105', 'Santa Fe', '968', '54876213', '2014-08-19'),
+    ('ACTIVO', 'Emma', 'Pereyra', 'emma.pereyra@institucion.edu.ar',
+     '379 449-2376', 'Tucumán', '1715', '55930472', '2016-01-27'),
+    ('ACTIVO', 'Joaquín', 'Quiroga', 'joaquin.quiroga@institucion.edu.ar',
+     '379 453-6048', 'Av. Maipú', '2310', '56704189', '2017-06-05'),
+    ('ACTIVO', 'Sofía', 'Ramírez', 'sofia.ramirez@institucion.edu.ar',
+     '379 462-1897', 'Bolívar', '540', '57318642', '2018-10-11'),
+    ('ACTIVO', 'Mateo', 'Sandoval', 'mateo.sandoval@institucion.edu.ar',
+     '379 474-5529', '9 de Julio', '1390', '58260715', '2019-03-30'),
+    ('ACTIVO', 'Isabella', 'Torres', 'isabella.torres@institucion.edu.ar',
+     '379 486-3740', 'Pellegrini', '1127', '59047386', '2020-07-16'),
+
+    -- Suspendidos
+    ('SUSPENDIDO', 'Lautaro', 'Ferreyra', 'lautaro.ferreyra@institucion.edu.ar',
+     '379 452-3388', 'Mendoza', '640', '47331408', '2009-09-02'),
+    ('SUSPENDIDO', 'Thiago', 'Juárez', 'thiago.juarez@institucion.edu.ar',
+     '379 494-8871', 'Catamarca', '1460', '47145690', '2009-10-26'),
+    ('SUSPENDIDO', 'Agustín', 'Vera', 'agustin.vera@institucion.edu.ar',
+     '379 418-6653', 'Hipólito Yrigoyen', '2085', '51539027', '2012-05-23'),
+
+    -- Egresados
+    ('EGRESADO', 'Facundo', 'Duarte', 'facundo.duarte@institucion.edu.ar',
+     '379 433-1120', 'San Martín', '415', '46870223', '2008-01-30'),
+    ('EGRESADO', 'Bautista', 'Herrera', 'bautista.herrera@institucion.edu.ar',
+     '379 471-2049', 'Entre Ríos', '2035', '46204559', '2008-06-14'),
+    ('EGRESADO', 'Ignacio', 'Villalba', 'ignacio.villalba@institucion.edu.ar',
+     '379 429-5071', 'Av. 3 de Abril', '1203', '44917560', '2006-11-19'),
+    ('EGRESADO', 'Milagros', 'Zárate', 'milagros.zarate@institucion.edu.ar',
+     '379 407-9412', '25 de Mayo', '1658', '45382974', '2007-04-08')
+) AS a(estado, nombre, apellido, email, telefono, direccion_calle, direccion_altura, dni,
+       fecha_nacimiento)
+LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
+LEFT JOIN alumno_estado e ON e.nombre = a.estado
+ORDER BY a.apellido, a.nombre;
+
+-- Colegio Manuel Belgrano: 12 activos, 4 suspendidos y 4 egresados
+INSERT INTO alumno (institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
+                    direccion_calle, direccion_altura, dni, fecha_nacimiento)
+SELECT i.institucion_id, e.alumno_estado_id, a.nombre, a.apellido, a.email, a.telefono,
+       a.direccion_calle, a.direccion_altura, a.dni, a.fecha_nacimiento::date
+FROM (VALUES
+    -- Activos
+    ('ACTIVO', 'Renata', 'Aguilar', 'renata.aguilar@colegiobelgrano.edu.ar',
+     '379 431-7742', 'Lavalle', '1175', '50218436', '2011-02-18'),
+    ('ACTIVO', 'Felipe', 'Barrios', 'felipe.barrios@colegiobelgrano.edu.ar',
+     '379 442-8916', 'Av. Independencia', '3240', '52607981', '2013-06-07'),
+    ('ACTIVO', 'Abril', 'Cardozo', 'abril.cardozo@colegiobelgrano.edu.ar',
+     '379 455-3027', 'Quintana', '892', '54139865', '2014-12-02'),
+    ('ACTIVO', 'Bruno', 'Domínguez', 'bruno.dominguez@colegiobelgrano.edu.ar',
+     '379 463-5108', 'Mariano Moreno', '1536', '49873214', '2010-09-29'),
+    ('ACTIVO', 'Catalina', 'Espinoza', 'catalina.espinoza@colegiobelgrano.edu.ar',
+     '379 478-2691', 'Paraguay', '1048', '56381702', '2017-03-15'),
+    ('ACTIVO', 'Dante', 'Franco', 'dante.franco@colegiobelgrano.edu.ar',
+     '379 484-9350', 'Av. Armenia', '2765', '57692043', '2018-08-22'),
+    ('ACTIVO', 'Olivia', 'Giménez', 'olivia.gimenez@colegiobelgrano.edu.ar',
+     '379 492-4673', 'Uruguay', '674', '58945127', '2020-01-10'),
+    ('ACTIVO', 'Francisco', 'López', 'francisco.lopez@colegiobelgrano.edu.ar',
+     '379 409-1835', 'Chaco', '1921', '55406398', '2015-11-04'),
+    ('ACTIVO', 'Guadalupe', 'Molina', 'guadalupe.molina@colegiobelgrano.edu.ar',
+     '379 416-7204', 'Santiago del Estero', '1367', '48735019', '2009-04-26'),
+    ('ACTIVO', 'Ramiro', 'Peralta', 'ramiro.peralta@colegiobelgrano.edu.ar',
+     '379 423-5586', 'Jujuy', '805', '51264870', '2012-07-13'),
+    ('ACTIVO', 'Mía', 'Rojas', 'mia.rojas@colegiobelgrano.edu.ar',
+     '379 437-6419', 'Brasil', '1490', '53850746', '2014-05-31'),
+    ('ACTIVO', 'Lorenzo', 'Silva', 'lorenzo.silva@colegiobelgrano.edu.ar',
+     '379 446-0952', 'San Lorenzo', '2218', '47508263', '2008-10-03'),
+
+    -- Suspendidos
+    ('SUSPENDIDO', 'Morena', 'Acuña', 'morena.acuna@colegiobelgrano.edu.ar',
+     '379 451-8203', 'Perú', '1139', '50794158', '2011-08-25'),
+    ('SUSPENDIDO', 'Simón', 'Gutiérrez', 'simon.gutierrez@colegiobelgrano.edu.ar',
+     '379 467-3945', 'Necochea', '1582', '52093671', '2012-12-09'),
+    ('SUSPENDIDO', 'Jazmín', 'Meza', 'jazmin.meza@colegiobelgrano.edu.ar',
+     '379 473-1068', 'Plácido Martínez', '936', '48371925', '2009-01-20'),
+    ('SUSPENDIDO', 'Valentín', 'Vargas', 'valentin.vargas@colegiobelgrano.edu.ar',
+     '379 488-7531', 'Av. Pujol', '2407', '55183409', '2015-06-18'),
+
+    -- Egresados
+    ('EGRESADO', 'Micaela', 'Bravo', 'micaela.bravo@colegiobelgrano.edu.ar',
+     '379 402-6497', 'Buenos Aires', '1763', '45126834', '2007-02-11'),
+    ('EGRESADO', 'Nahuel', 'Correa', 'nahuel.correa@colegiobelgrano.edu.ar',
+     '379 414-9728', 'Don Bosco', '1294', '45673092', '2007-09-05'),
+    -- También en el Instituto San Martin, como activa
+    ('EGRESADO', 'Lucía', 'Maidana', 'lucia.maidana@colegiobelgrano.edu.ar',
+     '379 427-3184', 'San Juan', '1432', '53412768', '2013-09-14'),
+    ('EGRESADO', 'Aldana', 'Ríos', 'aldana.rios@colegiobelgrano.edu.ar',
+     '379 426-3815', 'Las Heras', '517', '44305718', '2006-03-28')
+) AS a(estado, nombre, apellido, email, telefono, direccion_calle, direccion_altura, dni,
+       fecha_nacimiento)
+LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
+LEFT JOIN alumno_estado e ON e.nombre = a.estado
+ORDER BY a.apellido, a.nombre;
+
 COMMIT;
