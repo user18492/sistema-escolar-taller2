@@ -41,6 +41,12 @@
   justify-content: flex-end;
 }
 
+/* El display del alta y de la card no debe anular el atributo hidden. */
+.evaluations-actions[hidden],
+.evaluations-card[hidden] {
+  display: none;
+}
+
 /* ---------- Table ---------- */
 
 /* El título encabeza la evaluación: mismo destaque que el curso en Asignaciones. */

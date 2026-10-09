@@ -1,19 +1,31 @@
-// Vista Evaluaciones de una asignación (Profesor) — interacción puramente visual, sin lógica de negocio
+// Vista Evaluaciones de una asignación (Profesor): la tarjeta superior muestra el curso, el nivel
+// educativo, la materia y el ciclo lectivo de la asignación elegida en Asignaciones, que
+// <assignment-summary> le pide al proceso principal con el id que trae la URL (?assignmentId=).
+// Hasta que llegan, cada dato muestra una raya.
+// Si la asignación no existe o no está a cargo del profesor de la sesión, o si la carga falla, la
+// tarjeta, el alta y la tabla se ocultan y queda solo el mensaje de error.
+// La tabla de evaluaciones y sus modales siguen siendo una maqueta: interacción puramente visual,
+// sin lógica de negocio.
 
 document.addEventListener('DOMContentLoaded', () => {
+  const summary = document.querySelector('assignment-summary');
+  const evaluationsActions = document.querySelector('.evaluations-actions');
+  const evaluationsCard = document.querySelector('.evaluations-card');
+  const loadError = document.getElementById('assignmentLoadError');
 
   // ---------- Datos de la asignación seleccionada ----------
 
-  // Gestión abre esta vista pasando los datos de la asignación en la URL; si se
-  // entra directamente se conservan los que ya trae el HTML.
-  const params = new URLSearchParams(window.location.search);
-  document.querySelectorAll('.summary-value[data-field]').forEach((valueEl) => {
-    const value = params.get(valueEl.dataset.field);
-    if (value) valueEl.textContent = value;
+  // Si la asignación no llega, tampoco hay evaluaciones que gestionar.
+  summary.loadAssignment(loadError).then((assignment) => {
+    if (assignment) return;
+    evaluationsActions.hidden = true;
+    evaluationsCard.hidden = true;
   });
 
-  // El enlace de vuelta a Gestión conserva esos mismos datos, con el id que usa para cargarla.
-  const query = params.toString();
+  // El enlace de vuelta a Gestión conserva el id de la asignación, con el que esa vista la carga.
+  const assignmentId = new URLSearchParams(window.location.search).get('assignmentId');
+  const assignmentParams = new URLSearchParams(assignmentId ? { assignmentId } : {});
+  const query = assignmentParams.toString();
   if (query) {
     const managementLink = document.querySelector('.breadcrumb a[href*="assignment-management"]');
     if (managementLink) managementLink.href = `${managementLink.getAttribute('href')}?${query}`;
@@ -26,20 +38,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Navegación a las calificaciones de la evaluación ----------
 
-  // La acción "Gestionar" de cada fila abre las calificaciones de esa evaluación y le
-  // pasa los datos de la asignación junto con los de la evaluación elegida, así esa
-  // vista puede encabezar ambos bloques de contexto.
-  const EVALUATION_FIELDS = ['evaluation', 'type', 'date'];
-
+  // La acción "Gestionar" de cada fila abre las calificaciones de esa evaluación y le pasa el id
+  // de la asignación, con el que esa vista la carga, junto con el título de la fila, que es el
+  // paso de la evaluación en su ruta de navegación.
   document.querySelectorAll('.data-table tbody tr').forEach((row) => {
     const manageLink = row.querySelector('.manage-link');
     if (!manageLink) return;
 
-    const scoresParams = new URLSearchParams(params);
-    EVALUATION_FIELDS.forEach((field, index) => {
-      const cell = row.cells[index];
-      if (cell) scoresParams.set(field, cell.textContent.trim());
-    });
+    const scoresParams = new URLSearchParams(assignmentParams);
+    scoresParams.set('evaluation', row.cells[0].textContent.trim());
     manageLink.href = `${manageLink.getAttribute('href')}?${scoresParams.toString()}`;
   });
 

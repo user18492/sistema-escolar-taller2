@@ -65,9 +65,13 @@
             </div>
           </div>
 
-          <!-- Datos de la asignación seleccionada: assignment-evaluations.js los completa
-               con los valores de la fila elegida en Asignaciones. -->
-          <assignment-summary course="1° A · Mañana" level="Primaria" subject="Matemática" year="2026"></assignment-summary>
+          <!-- Solo si no se pudo cargar la asignación: reemplaza a la tarjeta, al alta y a la tabla -->
+          <p class="form-error" id="assignmentLoadError" role="alert" hidden></p>
+
+          <!-- Datos de la asignación seleccionada: assignment-evaluations.js los completa con los
+               que devuelve el proceso principal para la asignación elegida en Asignaciones; hasta
+               entonces, una raya -->
+          <assignment-summary course="—" level="—" subject="—" year="—"></assignment-summary>
 
           <div class="evaluations-actions">
             <button class="btn btn-primary" type="button" id="openNewEvaluationModalBtn">

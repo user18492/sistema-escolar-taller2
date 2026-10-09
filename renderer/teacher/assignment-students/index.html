@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
     <link rel="stylesheet" href="./assignment-students.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/user-avatar.component.js"></script>
@@ -52,9 +53,13 @@
             </div>
           </div>
 
-          <!-- Datos de la asignación seleccionada: assignment-students.js los completa
-               con los valores de la fila elegida en Asignaciones. -->
-          <assignment-summary course="3° A · Mañana" level="Secundaria" subject="Matemática" year="2026"></assignment-summary>
+          <!-- Solo si no se pudo cargar la asignación: reemplaza a la tarjeta y a la tabla -->
+          <p class="form-error" id="assignmentLoadError" role="alert" hidden></p>
+
+          <!-- Datos de la asignación seleccionada: assignment-students.js los completa con los
+               que devuelve el proceso principal para la asignación elegida en Asignaciones; hasta
+               entonces, una raya -->
+          <assignment-summary course="—" level="—" subject="—" year="—"></assignment-summary>
 
           <section class="card students-card">
             <div class="table-wrap">

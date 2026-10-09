@@ -1,14 +1,34 @@
 // Componente reutilizable: card de contexto con los datos de la asignación seleccionada en las
 // vistas del Profesor que se abren desde Asignaciones.
-// Uso: <assignment-summary course="1° A · Mañana" level="Primaria" subject="Matemática" year="2026"></assignment-summary>
+// Uso: <assignment-summary course="—" level="—" subject="—" year="—"></assignment-summary>
 // Si además recibe "evaluation", "evaluation-type" y "evaluation-date", genera la variante en dos
 // bloques (.assignment-summary-split): asignación a la izquierda y evaluación a la derecha.
-// Cada vista reemplaza los valores con los de la asignación elegida (Gestión, con los que
-// devuelve el proceso principal; las demás, con los que llegan por URL) mediante
-// .summary-value[data-field], así que los data-field se mantienen.
+// Los atributos son el texto de cada dato mientras no llega el real: una raya.
+//   - loadAssignment(loadError): pide al proceso principal (window.api.teacherAssignments.getOwn)
+//     la asignación elegida en Asignaciones, por el id que trae la URL de la vista
+//     (?assignmentId=), y completa con ella los datos de la asignación. Resuelve la asignación, o
+//     null si no existe o no está a cargo del profesor de la sesión, o si la carga falla: en ese
+//     caso la tarjeta se oculta y el mensaje queda en "loadError", el .form-error de la vista.
+// Los datos de la evaluación todavía no tienen de dónde cargarse: conservan su raya.
 // Estilos en assignment-summary.css.
 
 (() => {
+  const GENERIC_LOAD_ERROR = 'No se pudo cargar la asignación. Intentá nuevamente.';
+
+  // Textos de Turno y Nivel educativo, los mismos del filtro Curso de Asignaciones, que estas
+  // vistas no tienen. Llegan como MORNING o AFTERNOON y PRIMARY o SECONDARY.
+  const SHIFT_LABELS = { MORNING: 'Mañana', AFTERNOON: 'Tarde' };
+  const LEVEL_LABELS = { PRIMARY: 'Primaria', SECONDARY: 'Secundaria' };
+
+  // Texto de cada dato de la asignación, por su data-field, como en la fila de Asignaciones: el
+  // curso es "1° A · Mañana"
+  const assignmentTexts = ({ course, subject }) => ({
+    course: `${course.gradeName} ${course.division} · ${SHIFT_LABELS[course.shift] ?? course.shift}`,
+    level: LEVEL_LABELS[course.educationLevel] ?? course.educationLevel,
+    subject: subject.name,
+    year: String(course.schoolYear),
+  });
+
   const ASSIGNMENT_FIELDS = [
     { field: 'course', attribute: 'course', label: 'Curso' },
     { field: 'level', attribute: 'level', label: 'Nivel educativo' },
@@ -50,6 +70,31 @@
       fields.forEach(({ field, attribute }) => {
         this.querySelector(`.summary-value[data-field="${field}"]`).textContent = this.getAttribute(attribute);
       });
+    }
+
+    async loadAssignment(loadError) {
+      // Sin id en la URL, o con uno que no es un número, el proceso principal responde que no pudo
+      // identificar la asignación.
+      const assignmentId = Number(new URLSearchParams(window.location.search).get('assignmentId'));
+      let response;
+      try {
+        response = await window.api?.teacherAssignments?.getOwn(assignmentId);
+      } catch (error) {
+        console.error('Error al cargar la asignación:', error);
+      }
+      if (!response?.ok) {
+        this.hidden = true;
+        loadError.textContent = response?.error?.message || GENERIC_LOAD_ERROR;
+        loadError.hidden = false;
+        return null;
+      }
+
+      // Los datos de la base se asignan siempre con textContent, nunca como HTML.
+      const texts = assignmentTexts(response.teacherAssignment);
+      ASSIGNMENT_FIELDS.forEach(({ field }) => {
+        this.querySelector(`.summary-value[data-field="${field}"]`).textContent = texts[field];
+      });
+      return response.teacherAssignment;
     }
   }
 

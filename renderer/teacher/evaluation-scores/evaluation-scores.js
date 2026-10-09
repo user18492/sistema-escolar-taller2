@@ -1,37 +1,43 @@
-// Vista Calificaciones de una evaluación (Profesor) — interacción puramente visual, sin lógica de negocio
+// Vista Calificaciones de una evaluación (Profesor): en la tarjeta superior, el curso, el nivel
+// educativo, la materia y el ciclo lectivo son los de la asignación elegida en Asignaciones, que
+// <assignment-summary> le pide al proceso principal con el id que trae la URL (?assignmentId=).
+// Hasta que llegan, cada dato muestra una raya. Los datos de la evaluación se quedan con la suya:
+// todavía no hay de dónde cargarlos.
+// Si la asignación no existe o no está a cargo del profesor de la sesión, o si la carga falla, la
+// tarjeta y la tabla se ocultan y queda solo el mensaje de error.
+// La ruta de navegación y la tabla de calificaciones siguen siendo una maqueta: interacción
+// puramente visual, sin lógica de negocio.
 
 document.addEventListener('DOMContentLoaded', () => {
+  const summary = document.querySelector('assignment-summary');
+  const scoresCard = document.querySelector('.scores-card');
+  const loadError = document.getElementById('assignmentLoadError');
 
   // ---------- Datos de la asignación y de la evaluación seleccionada ----------
 
-  // La fila de Evaluaciones abre esta vista pasando los datos de la asignación y de
-  // la evaluación en la URL; si se entra directamente se conservan los que ya trae
+  // Si la asignación no llega, tampoco hay calificaciones que mostrar.
+  summary.loadAssignment(loadError).then((assignment) => {
+    if (!assignment) scoresCard.hidden = true;
+  });
+
+  // La fila de Evaluaciones abre esta vista pasando su título en la URL, para el paso de la
+  // evaluación en la ruta de navegación; si se entra directamente se conserva el que ya trae
   // el HTML.
   const params = new URLSearchParams(window.location.search);
 
-  const applyValue = (element) => {
+  document.querySelectorAll('.breadcrumb-item[data-field]').forEach((element) => {
     const value = params.get(element.dataset.field);
     if (value) element.textContent = value;
-  };
-
-  document.querySelectorAll('.summary-value[data-field]').forEach(applyValue);
-  document.querySelectorAll('.breadcrumb-item[data-field]').forEach(applyValue);
+  });
 
   // ---------- Vuelta por el breadcrumb ----------
 
-  // Las vistas anteriores solo encabezan la asignación, así que los enlaces de vuelta
-  // conservan esos datos, con el id que Gestión usa para cargarla, y descartan los de la
-  // evaluación.
-  const ASSIGNMENT_FIELDS = ['assignmentId', 'course', 'level', 'subject', 'year'];
+  // Las vistas anteriores cargan la asignación con su id, así que los enlaces de vuelta lo
+  // conservan y descartan el título de la evaluación.
+  const assignmentId = params.get('assignmentId');
 
-  const assignmentParams = new URLSearchParams();
-  ASSIGNMENT_FIELDS.forEach((field) => {
-    const value = params.get(field);
-    if (value) assignmentParams.set(field, value);
-  });
-
-  const query = assignmentParams.toString();
-  if (query) {
+  if (assignmentId) {
+    const query = new URLSearchParams({ assignmentId }).toString();
     document
       .querySelectorAll('.breadcrumb a[href*="assignment-management"], .breadcrumb a[href*="assignment-evaluations"]')
       .forEach((link) => {

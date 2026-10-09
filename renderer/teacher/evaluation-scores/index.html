@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
     <link rel="stylesheet" href="./evaluation-scores.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/user-avatar.component.js"></script>
@@ -57,10 +58,15 @@
             </div>
           </div>
 
+          <!-- Solo si no se pudo cargar la asignación: reemplaza a la tarjeta y a la tabla -->
+          <p class="form-error" id="assignmentLoadError" role="alert" hidden></p>
+
           <!-- Contexto completo en una sola card: a la izquierda los datos de la asignación
-               y a la derecha los de la evaluación elegida. evaluation-scores.js completa
-               ambos bloques con los valores que llegan desde Evaluaciones. -->
-          <assignment-summary course="1° A · Mañana" level="Primaria" subject="Matemática" year="2026" evaluation="Evaluación escrita 1" evaluation-type="Escrito" evaluation-date="15 ABR 2026"></assignment-summary>
+               y a la derecha los de la evaluación elegida. evaluation-scores.js completa los
+               de la asignación con los que devuelve el proceso principal para la elegida en
+               Asignaciones; hasta entonces, una raya. Los de la evaluación quedan con su raya
+               hasta que haya de dónde cargarlos. -->
+          <assignment-summary course="—" level="—" subject="—" year="—" evaluation="—" evaluation-type="—" evaluation-date="—"></assignment-summary>
 
           <section class="card scores-card">
             <div class="table-wrap">
