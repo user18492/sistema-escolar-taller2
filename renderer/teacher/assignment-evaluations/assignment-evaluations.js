@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Datos de la asignación seleccionada ----------
 
-  // La fila de Asignaciones abre esta vista pasando sus valores en la URL; si se
+  // Gestión abre esta vista pasando los datos de la asignación en la URL; si se
   // entra directamente se conservan los que ya trae el HTML.
   const params = new URLSearchParams(window.location.search);
   document.querySelectorAll('.summary-value[data-field]').forEach((valueEl) => {
@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (value) valueEl.textContent = value;
   });
 
-  // El enlace de vuelta a Gestión conserva esos mismos datos.
+  // El enlace de vuelta a Gestión conserva esos mismos datos, con el id que usa para cargarla.
   const query = params.toString();
   if (query) {
     const managementLink = document.querySelector('.breadcrumb a[href*="assignment-management"]');

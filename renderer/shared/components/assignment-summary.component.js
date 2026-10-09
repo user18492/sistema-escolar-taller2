@@ -3,7 +3,8 @@
 // Uso: <assignment-summary course="1° A · Mañana" level="Primaria" subject="Matemática" year="2026"></assignment-summary>
 // Si además recibe "evaluation", "evaluation-type" y "evaluation-date", genera la variante en dos
 // bloques (.assignment-summary-split): asignación a la izquierda y evaluación a la derecha.
-// Cada vista reemplaza los valores con los que llegan por URL mediante
+// Cada vista reemplaza los valores con los de la asignación elegida (Gestión, con los que
+// devuelve el proceso principal; las demás, con los que llegan por URL) mediante
 // .summary-value[data-field], así que los data-field se mantienen.
 // Estilos en assignment-summary.css.
 

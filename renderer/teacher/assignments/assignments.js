@@ -3,7 +3,7 @@
 // (window.api.teacherAssignments.listOwn), y los filtros de columna las filtran en memoria. Las
 // opciones del filtro Materia son las materias de esas asignaciones. La lista filtrada se pagina en
 // memoria, 10 por página, con <table-pagination>.
-// "Gestionar" abre la vista de gestión de la asignación con los datos de su fila.
+// "Gestionar" abre la vista de gestión de la asignación con el id de su fila.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -83,10 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // "1° A · Mañana"
   const courseName = (course) => `${course.gradeName} ${course.division} · ${shiftLabels[course.shift] ?? course.shift}`;
 
-  // Datos de la fila que "Gestionar" le pasa por la URL a la vista de gestión de la asignación, en
-  // el orden de las columnas: esa vista se encabeza con ellos y los reenvía a las que abre
-  const SUMMARY_FIELDS = ['course', 'level', 'subject', 'year'];
-
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
   // asignacion_docente_id en data-assignment-id.
   const createRow = ({ id, course, subject }) => {
@@ -98,13 +94,14 @@ document.addEventListener('DOMContentLoaded', () => {
       subject.name,
       String(course.schoolYear),
     ];
-    const params = new URLSearchParams();
     texts.forEach((text, index) => {
       row.cells[index].textContent = text;
-      params.set(SUMMARY_FIELDS[index], text);
     });
-    // El href se asigna antes de conectar el <manage-link>, que lo lee al generarse
+    // "Gestionar" le pasa por la URL a la vista de gestión solo el id de la asignación: esa vista
+    // le pide sus datos al proceso principal. El href se asigna antes de conectar el
+    // <manage-link>, que lo lee al generarse.
     const manageLink = row.querySelector('manage-link');
+    const params = new URLSearchParams({ assignmentId: String(id) });
     manageLink.setAttribute('href', `${manageLink.getAttribute('href')}?${params.toString()}`);
     return row;
   };

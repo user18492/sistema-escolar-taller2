@@ -18,6 +18,11 @@ assignment-summary {
   display: contents;
 }
 
+/* Ese display no debe anular el atributo hidden. */
+assignment-summary[hidden] {
+  display: none;
+}
+
 /* Un dato por fila: etiqueta en una columna de ancho fijo y valor alineado en la segunda. */
 .assignment-summary,
 .summary-group {

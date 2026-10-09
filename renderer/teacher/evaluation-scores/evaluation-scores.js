@@ -20,8 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Vuelta por el breadcrumb ----------
 
   // Las vistas anteriores solo encabezan la asignación, así que los enlaces de vuelta
-  // conservan esos datos y descartan los de la evaluación.
-  const ASSIGNMENT_FIELDS = ['course', 'level', 'subject', 'year'];
+  // conservan esos datos, con el id que Gestión usa para cargarla, y descartan los de la
+  // evaluación.
+  const ASSIGNMENT_FIELDS = ['assignmentId', 'course', 'level', 'subject', 'year'];
 
   const assignmentParams = new URLSearchParams();
   ASSIGNMENT_FIELDS.forEach((field) => {

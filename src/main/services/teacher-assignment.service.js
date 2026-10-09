@@ -58,9 +58,9 @@ async function listTeacherAssignments(currentUser) {
   return teacherAssignments.map(toListedTeacherAssignment);
 }
 
-// Lo que muestra de cada asignación la tabla de Asignaciones del Profesor y sus filtros, y los ids
-// para identificar la fila y la materia: los campos de toListedTeacherAssignment sin el profesor,
-// que es quien las consulta.
+// Lo que muestran de cada asignación la tabla de Asignaciones del Profesor, sus filtros y la
+// tarjeta de la vista Gestión, y los ids para identificar la asignación y la materia: los campos de
+// toListedTeacherAssignment sin el profesor, que es quien las consulta.
 function toOwnTeacherAssignment({ id, course, subject }) {
   return {
     id,
@@ -75,6 +75,23 @@ function toOwnTeacherAssignment({ id, course, subject }) {
 async function listOwnTeacherAssignments(currentUser) {
   const teacherAssignments = await teacherAssignmentRepository.findByTeacher(currentUser.id);
   return teacherAssignments.map(toOwnTeacherAssignment);
+}
+
+// La asignación docente vigente con ese id, si está a cargo de `currentUser` (el profesor de la
+// sesión): una de las de listOwnTeacherAssignments, con sus mismos campos. El id llega del
+// renderer, así que acá se comprueba que sea suya, con el profesor de la sesión.
+// Lanza un TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND si no existe, si fue dada de baja o
+// si es de otro profesor, sin distinguir los casos: quien pide un id ajeno no se entera de si esa
+// asignación existe.
+async function getOwnTeacherAssignment(currentUser, teacherAssignmentId) {
+  const teacherAssignment = await teacherAssignmentRepository.findActiveByIdAndTeacher(
+    teacherAssignmentId,
+    currentUser.id
+  );
+  if (!teacherAssignment) {
+    throw new TeacherAssignmentError('TEACHER_ASSIGNMENT_NOT_FOUND', 'La asignación no existe o no está a tu cargo.');
+  }
+  return toOwnTeacherAssignment(teacherAssignment);
 }
 
 // ---------- Asignación que se edita o se da de baja ----------
@@ -260,6 +277,7 @@ async function deleteTeacherAssignment(currentUser, teacherAssignmentId) {
 module.exports = {
   listTeacherAssignments,
   listOwnTeacherAssignments,
+  getOwnTeacherAssignment,
   listAssignableTeachers,
   listAssignableCourses,
   listAssignableSubjects,

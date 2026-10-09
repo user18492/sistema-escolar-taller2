@@ -151,6 +151,11 @@ contextBridge.exposeInMainWorld('api', {
     // sesión), o { ok: false, error: { code, message } }. Llegan siempre en el mismo orden: ciclo
     // lectivo (el más reciente primero), curso (nivel educativo, grado, división y turno) y materia.
     listOwn: () => ipcRenderer.invoke('teacher-assignments:list-own'),
+    // Solo PROFESOR. Resuelve { ok: true, teacherAssignment } con la asignación docente vigente con ese
+    // id (asignacion_docente_id), si está a su cargo ({ id, course, subject }, como en listOwn), o
+    // { ok: false, error: { code, message } }: TEACHER_ASSIGNMENT_NOT_FOUND indica que no existe, que
+    // fue dada de baja o que es de otro profesor, sin distinguir entre esos casos.
+    getOwn: (teacherAssignmentId) => ipcRenderer.invoke('teacher-assignments:get-own', teacherAssignmentId),
     // Solo ADMIN. Lo que ofrece el formulario de alta en Profesor: resuelve { ok: true, teachers } con
     // los profesores activos de su institución (sin los suspendidos ni los dados de baja), por apellido
     // y nombre ({ id, firstName, lastName, email, imageUrl }, como teacher en list), o

@@ -90,6 +90,15 @@ const FIND_ACTIVE_BY_ID_SQL = `${selectFrom('asignacion_docente')}
      AND a.fecha_eliminacion IS NULL
 `;
 
+// Una asignación vigente de un profesor, con su curso y su materia: una de las que lista
+// FIND_BY_TEACHER_SQL, con su mismo criterio (no hace falta la institución y solo cuenta la baja de
+// la asignación, no la de su curso).
+const FIND_ACTIVE_BY_ID_AND_TEACHER_SQL = `${selectFrom('asignacion_docente')}
+   WHERE a.asignacion_docente_id = $1
+     AND a.usuario_id = $2
+     AND a.fecha_eliminacion IS NULL
+`;
+
 // Alta. La materia ($3, un materia_id) se busca en el plan de estudios del grado del curso: si no
 // es de ese grado, o si el curso no existe, no se inserta nada. Devuelve la fila creada, con su
 // profesor, su curso y su materia.
@@ -216,6 +225,13 @@ async function findActiveById(teacherAssignmentId, institutionId) {
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
 }
 
+// La asignación vigente con ese id, si está a cargo del profesor `teacherId` (un usuario_id); null
+// si no existe, fue dada de baja o es de otro profesor.
+async function findActiveByIdAndTeacher(teacherAssignmentId, teacherId) {
+  const { rows } = await query(FIND_ACTIVE_BY_ID_AND_TEACHER_SQL, [teacherAssignmentId, teacherId]);
+  return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
+}
+
 // Crea la asignación vigente del profesor `teacherId` (un usuario_id) en el curso `courseId` para
 // la materia `subjectId` (un materia_id). Devuelve la asignación creada; null si la materia no es
 // del plan de estudios del grado del curso (o el curso no existe). Si esa materia ya tiene un
@@ -263,6 +279,7 @@ module.exports = {
   findByTeacher,
   countByInstitution,
   findActiveById,
+  findActiveByIdAndTeacher,
   create,
   update,
   markAsDeleted,

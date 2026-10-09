@@ -53,6 +53,28 @@ async function listOwnTeacherAssignments(currentUser) {
   }
 }
 
+// `teacherAssignmentId` es el id de una asignación de listOwnTeacherAssignments: que esté a cargo
+// del profesor de la sesión lo comprueba el servicio.
+// Nunca rechaza: los errores previstos llevan su mensaje y el resto, uno genérico con el detalle en
+// la consola.
+async function getOwnTeacherAssignment(currentUser, teacherAssignmentId) {
+  if (!isId(teacherAssignmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
+  }
+  try {
+    return {
+      ok: true,
+      teacherAssignment: await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId),
+    };
+  } catch (error) {
+    if (error instanceof TeacherAssignmentError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al consultar la asignación del profesor:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo cargar la asignación. Intentá nuevamente.');
+  }
+}
+
 // Nunca rechaza, como listTeacherAssignments.
 async function listAssignableTeachers(currentUser) {
   try {
@@ -163,6 +185,7 @@ async function deleteTeacherAssignment(currentUser, teacherAssignmentId) {
 function registerTeacherAssignmentHandlers(browserWindow) {
   handleProtected(browserWindow, 'teacher-assignments:list', ['ADMIN'], listTeacherAssignments);
   handleProtected(browserWindow, 'teacher-assignments:list-own', ['PROFESOR'], listOwnTeacherAssignments);
+  handleProtected(browserWindow, 'teacher-assignments:get-own', ['PROFESOR'], getOwnTeacherAssignment);
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-teachers', ['ADMIN'], listAssignableTeachers);
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-courses', ['ADMIN'], listAssignableCourses);
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-subjects', ['ADMIN'], listAssignableSubjects);
