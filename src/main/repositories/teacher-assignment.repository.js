@@ -53,6 +53,23 @@ const FIND_BY_INSTITUTION_SQL = `${selectFrom('asignacion_docente')}
             m.nombre, a.asignacion_docente_id
 `;
 
+// Listado de las asignaciones docentes vigentes de un profesor (las dadas de baja no se listan), de
+// todos los ciclos lectivos, con su curso y su materia. No hace falta la institución: la fila de
+// usuario es de una sola y sus asignaciones vigentes son de cursos de esa misma
+// (trg_asignacion_docente_coherencia, db/schema.sql). Como en FIND_BY_INSTITUTION_SQL, solo cuenta
+// la baja de la asignación, no la de su curso: son las que Docencia le muestra al administrador
+// para ese profesor.
+// El orden es total, el de FIND_BY_INSTITUTION_SQL sin el profesor: primero el ciclo lectivo más
+// reciente y, dentro de cada uno, el curso (primaria antes que secundaria, grado, división y turno)
+// y la materia; asignacion_docente_id desempata.
+const FIND_BY_TEACHER_SQL = `${selectFrom('asignacion_docente')}
+   WHERE a.usuario_id = $1
+     AND a.fecha_eliminacion IS NULL
+   ORDER BY c.anio_ciclo_lectivo DESC,
+            g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id,
+            m.nombre, a.asignacion_docente_id
+`;
+
 // Cantidad de asignaciones docentes vigentes de una institución, de todos los ciclos lectivos (las
 // que lista FIND_BY_INSTITUTION_SQL, con el mismo criterio: solo cuenta la baja de la asignación),
 // y de profesores distintos que tienen al menos una.
@@ -177,6 +194,13 @@ async function findByInstitution(institutionId) {
   return rows.map(toTeacherAssignment);
 }
 
+// Asignaciones docentes vigentes del profesor `teacherId` (un usuario_id), de todos los ciclos
+// lectivos, ordenadas por ciclo lectivo (el más reciente primero), curso y materia.
+async function findByTeacher(teacherId) {
+  const { rows } = await query(FIND_BY_TEACHER_SQL, [teacherId]);
+  return rows.map(toTeacherAssignment);
+}
+
 // Cuenta las asignaciones docentes vigentes de la institución, de todos los ciclos lectivos (las de
 // findByInstitution). Devuelve { total, teacherTotal }: cuántas son y cuántos profesores distintos
 // tienen al menos una.
@@ -236,6 +260,7 @@ function isDuplicateError(error) {
 
 module.exports = {
   findByInstitution,
+  findByTeacher,
   countByInstitution,
   findActiveById,
   create,

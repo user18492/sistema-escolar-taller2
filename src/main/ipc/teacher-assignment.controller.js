@@ -39,6 +39,20 @@ async function listTeacherAssignments(currentUser) {
   }
 }
 
+// Nunca rechaza, como listTeacherAssignments. No recibe nada del renderer: el profesor es el de la
+// sesión.
+async function listOwnTeacherAssignments(currentUser) {
+  try {
+    return {
+      ok: true,
+      teacherAssignments: await teacherAssignmentService.listOwnTeacherAssignments(currentUser),
+    };
+  } catch (error) {
+    console.error('Error al listar las asignaciones del profesor:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudieron cargar las asignaciones. Intentá nuevamente.');
+  }
+}
+
 // Nunca rechaza, como listTeacherAssignments.
 async function listAssignableTeachers(currentUser) {
   try {
@@ -148,6 +162,7 @@ async function deleteTeacherAssignment(currentUser, teacherAssignmentId) {
 // FORBIDDEN o ACCOUNT_SUSPENDED sin llamar a la acción.
 function registerTeacherAssignmentHandlers(browserWindow) {
   handleProtected(browserWindow, 'teacher-assignments:list', ['ADMIN'], listTeacherAssignments);
+  handleProtected(browserWindow, 'teacher-assignments:list-own', ['PROFESOR'], listOwnTeacherAssignments);
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-teachers', ['ADMIN'], listAssignableTeachers);
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-courses', ['ADMIN'], listAssignableCourses);
   handleProtected(browserWindow, 'teacher-assignments:list-assignable-subjects', ['ADMIN'], listAssignableSubjects);

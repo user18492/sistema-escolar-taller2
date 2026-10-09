@@ -58,6 +58,25 @@ async function listTeacherAssignments(currentUser) {
   return teacherAssignments.map(toListedTeacherAssignment);
 }
 
+// Lo que muestra de cada asignación la tabla de Asignaciones del Profesor y sus filtros, y los ids
+// para identificar la fila y la materia: los campos de toListedTeacherAssignment sin el profesor,
+// que es quien las consulta.
+function toOwnTeacherAssignment({ id, course, subject }) {
+  return {
+    id,
+    course: toListedCourse(course),
+    subject: toListedSubject(subject),
+  };
+}
+
+// Asignaciones docentes vigentes a cargo de `currentUser` (el profesor de la sesión), de todos los
+// ciclos lectivos, en el orden del repositorio. El profesor sale de la sesión y no de lo que envía
+// el renderer: nunca se listan las de otro docente.
+async function listOwnTeacherAssignments(currentUser) {
+  const teacherAssignments = await teacherAssignmentRepository.findByTeacher(currentUser.id);
+  return teacherAssignments.map(toOwnTeacherAssignment);
+}
+
 // ---------- Asignación que se edita o se da de baja ----------
 
 // Error de una edición o una baja que no encontró la asignación vigente: si existe en la
@@ -240,6 +259,7 @@ async function deleteTeacherAssignment(currentUser, teacherAssignmentId) {
 
 module.exports = {
   listTeacherAssignments,
+  listOwnTeacherAssignments,
   listAssignableTeachers,
   listAssignableCourses,
   listAssignableSubjects,
