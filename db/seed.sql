@@ -677,4 +677,24 @@ CROSS JOIN (VALUES
 ) AS e(titulo, mes, dia)
 ORDER BY a.asignacion_docente_id, e.mes, e.dia;
 
+-- Calificaciones: una por cada evaluación y cada inscripción activa del curso de su asignación,
+-- 35 en total.
+-- El INSERT no las enumera: une cada evaluación con las inscripciones del curso de su asignación,
+-- así que ninguna evaluación queda con un alumno del curso sin calificar.
+-- Solo cuentan las inscripciones activas: trg_calificacion_coherencia rechaza las demás, también
+-- al cargarlas. Por eso quedan sin calificaciones las evaluaciones de los cursos que no tienen
+-- ninguna inscripción activa, entre ellas todas las del ciclo lectivo 2025.
+-- La nota se calcula con los dos ids, para que sea la misma en cada carga: va de 4 a 10 de a 0,25,
+-- así que hay enteras y con decimales.
+-- El ORDER BY deja juntas las de cada evaluación.
+INSERT INTO calificacion (evaluacion_id, inscripcion_id, nota)
+SELECT e.evaluacion_id, i.inscripcion_id,
+       4 + (e.evaluacion_id * 7 + i.inscripcion_id * 3) % 25 * 0.25
+FROM evaluacion e
+JOIN asignacion_docente a ON a.asignacion_docente_id = e.asignacion_docente_id
+JOIN inscripcion i ON i.curso_id = a.curso_id
+JOIN inscripcion_estado s ON s.inscripcion_estado_id = i.inscripcion_estado_id
+WHERE s.nombre = 'ACTIVA'
+ORDER BY e.evaluacion_id, i.inscripcion_id;
+
 COMMIT;
