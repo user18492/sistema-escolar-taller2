@@ -564,6 +564,9 @@ INSERT INTO inscripcion_estado (nombre) VALUES
 -- Las activas son de alumnos activos y de cursos del ciclo lectivo 2026, y ningún alumno tiene más
 -- de una: lo exige trg_inscripcion_coherencia. Cada trasladada tiene una inscripción posterior del
 -- mismo alumno, la del curso al que pasó.
+-- El año de cada fecha de inscripción es el ciclo lectivo de su curso, como exige
+-- trg_inscripcion_fecha_ciclo_lectivo: las inscripciones se hacen durante ese año, a partir de
+-- enero.
 -- El ORDER BY las inserta por fecha de inscripción, para que los ids sigan el orden en que se
 -- habrían cargado.
 -- Quedan alumnos sin ninguna inscripción, algunos de ellos activos.
@@ -575,23 +578,23 @@ FROM (VALUES
     -- Activas
     ('ACTIVA', 'camila.alvarez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-09'),
     ('ACTIVA', 'tomas.benitez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-10'),
-    ('ACTIVA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2025-12-09'),
-    ('ACTIVA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2025-12-11'),
+    ('ACTIVA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2026-01-13'),
+    ('ACTIVA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2026-01-15'),
     -- Terminó la primaria en el Colegio Manuel Belgrano
     ('ACTIVA', 'lucia.maidana@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'TARDE', 2026, '2026-02-20'),
     ('ACTIVA', 'joaquin.quiroga@institucion.edu.ar', 'PRIMARIA', '4°', 'A', 'MAÑANA', 2026, '2026-03-04'),
-    ('ACTIVA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2025-12-15'),
-    ('ACTIVA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2025-12-16'),
+    ('ACTIVA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-19'),
+    ('ACTIVA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-20'),
 
     -- Canceladas: las de los tres alumnos suspendidos y la de Martina Escobar, que sigue activa y
     -- sin otra inscripción
     ('CANCELADA', 'martina.escobar@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-11'),
     ('CANCELADA', 'lautaro.ferreyra@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-12'),
     ('CANCELADA', 'thiago.juarez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-18'),
-    ('CANCELADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2025-12-18'),
+    ('CANCELADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2026-01-22'),
 
     -- Finalizadas: ciclo lectivo 2025
-    ('FINALIZADA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2025, '2024-12-10'),
+    ('FINALIZADA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2025, '2025-01-14'),
     ('FINALIZADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2025, '2025-05-19'),
     ('FINALIZADA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2025, '2025-02-17'),
     ('FINALIZADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'B', 'TARDE', 2025, '2025-04-07'),
@@ -599,7 +602,7 @@ FROM (VALUES
 
     -- Trasladadas: dos cambios de división durante 2025 (de la A a la B) y uno de grado en 2026
     -- (de 3° a 4°)
-    ('TRASLADADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2025, '2024-12-12'),
+    ('TRASLADADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2025, '2025-01-16'),
     ('TRASLADADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2025, '2025-02-18'),
     ('TRASLADADA', 'joaquin.quiroga@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-23')
 ) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
@@ -622,9 +625,9 @@ FROM (VALUES
     ('ACTIVA', 'abril.cardozo@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, '2026-02-11'),
     ('ACTIVA', 'catalina.espinoza@colegiobelgrano.edu.ar', 'PRIMARIA', '4°', 'A', 'TARDE', 2026, '2026-02-24'),
     ('ACTIVA', 'olivia.gimenez@colegiobelgrano.edu.ar', 'PRIMARIA', '1°', 'A', 'TARDE', 2026, '2026-02-26'),
-    ('ACTIVA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2025-12-10'),
-    ('ACTIVA', 'mia.rojas@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2025-12-17'),
-    ('ACTIVA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2025-12-12'),
+    ('ACTIVA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-14'),
+    ('ACTIVA', 'mia.rojas@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-21'),
+    ('ACTIVA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-16'),
 
     -- Canceladas: las de los cuatro alumnos suspendidos. La de Jazmín Meza es del ciclo lectivo
     -- 2025
@@ -635,9 +638,9 @@ FROM (VALUES
 
     -- Finalizadas: ciclo lectivo 2025. Nahuel Correa y Lucía Maidana son egresados; ella cursa la
     -- secundaria en el Instituto San Martin
-    ('FINALIZADA', 'nahuel.correa@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2025, '2024-12-17'),
+    ('FINALIZADA', 'nahuel.correa@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2025, '2025-01-21'),
     ('FINALIZADA', 'lucia.maidana@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2025, '2025-02-19'),
-    ('FINALIZADA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2024-12-11'),
+    ('FINALIZADA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2025-01-15'),
     ('FINALIZADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'B', 'TARDE', 2025, '2025-03-25'),
     ('FINALIZADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'B', 'TARDE', 2025, '2025-06-02'),
 
@@ -645,7 +648,7 @@ FROM (VALUES
     -- (de 1° a 2°)
     ('TRASLADADA', 'felipe.barrios@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-02-27'),
     ('TRASLADADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2025, '2025-02-20'),
-    ('TRASLADADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2024-12-13')
+    ('TRASLADADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2025-01-17')
 ) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
 LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
 LEFT JOIN alumno a ON a.institucion_id = i.institucion_id AND a.email = ins.email

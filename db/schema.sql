@@ -352,6 +352,7 @@ CREATE TABLE inscripcion (
     curso_id               INT   NOT NULL,
     inscripcion_estado_id  INT   NOT NULL,
     fecha_inscripcion      DATE  NOT NULL DEFAULT CURRENT_DATE,
+    -- Su año es el ciclo lectivo del curso
 
     CONSTRAINT pk_inscripcion PRIMARY KEY (inscripcion_id),
     CONSTRAINT fk_inscripcion_alumno FOREIGN KEY (alumno_id) REFERENCES alumno(alumno_id),
@@ -426,6 +427,38 @@ CREATE TRIGGER trg_inscripcion_coherencia
     FOR EACH ROW
     EXECUTE FUNCTION fn_inscripcion_coherencia();
 
+-- El año de la fecha de una inscripción es el ciclo lectivo de su curso: las inscripciones se hacen
+-- durante ese año, a partir de enero. Se validan todas, cualquiera sea su estado. FOR SHARE retiene
+-- la fila del curso hasta el fin de la transacción: un cambio simultáneo de ciclo lectivo espera y,
+-- al seguir, su trigger (más abajo) ya ve esta inscripción. Si el curso no existe, la comparación
+-- da NULL y no falla: la rechaza después su clave foránea
+CREATE FUNCTION fn_inscripcion_fecha_ciclo_lectivo() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_anio_ciclo_lectivo  INT;
+BEGIN
+    SELECT c.anio_ciclo_lectivo
+      INTO v_anio_ciclo_lectivo
+      FROM curso c
+     WHERE c.curso_id = NEW.curso_id
+       FOR SHARE;
+
+    IF EXTRACT(YEAR FROM NEW.fecha_inscripcion) <> v_anio_ciclo_lectivo THEN
+        RAISE EXCEPTION 'La fecha % no es del ciclo lectivo % del curso %',
+                        NEW.fecha_inscripcion, v_anio_ciclo_lectivo, NEW.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_inscripcion_fecha_ciclo_lectivo';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_inscripcion_fecha_ciclo_lectivo
+    BEFORE INSERT OR UPDATE ON inscripcion
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_inscripcion_fecha_ciclo_lectivo();
+
 -- Un alumno con inscripciones conserva su institución: cambiarla lo dejaría en cursos de otra.
 -- Cuentan todas, no solo las activas: como no hay baja lógica, las demás siguen siendo su historial
 CREATE FUNCTION fn_alumno_inscripciones() RETURNS trigger
@@ -449,8 +482,8 @@ CREATE TRIGGER trg_alumno_inscripciones
     WHEN (NEW.institucion_id <> OLD.institucion_id)
     EXECUTE FUNCTION fn_alumno_inscripciones();
 
--- Un curso con inscripciones conserva su institución. El grado sí puede cambiar: la inscripción no
--- depende de él
+-- Un curso con inscripciones conserva su institución y su ciclo lectivo: las fechas de sus
+-- inscripciones son de ese año. El grado sí puede cambiar: la inscripción no depende de él
 CREATE FUNCTION fn_curso_inscripciones() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -469,7 +502,8 @@ $$;
 CREATE TRIGGER trg_curso_inscripciones
     BEFORE UPDATE ON curso
     FOR EACH ROW
-    WHEN (NEW.institucion_id <> OLD.institucion_id)
+    WHEN (NEW.institucion_id <> OLD.institucion_id
+          OR NEW.anio_ciclo_lectivo <> OLD.anio_ciclo_lectivo)
     EXECUTE FUNCTION fn_curso_inscripciones();
 
 -- Evaluaciones: las que un profesor toma en una asignación docente, es decir, en una materia de un
