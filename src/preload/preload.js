@@ -33,7 +33,7 @@ contextBridge.exposeInMainWorld('api', {
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
   // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de profile, de users, de
-  // courses, de grades, de teacherAssignments y de dashboard resuelven
+  // courses, de grades, de teacherAssignments, de enrollments y de dashboard resuelven
   // { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal cierra la
   // sesión y vuelve al login.
   profile: {
@@ -200,6 +200,18 @@ contextBridge.exposeInMainWorld('api', {
     // campos que list) o { ok: false, error: { code, message } }; TEACHER_ASSIGNMENT_NOT_FOUND y
     // TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente.
     delete: (teacherAssignmentId) => ipcRenderer.invoke('teacher-assignments:delete', teacherAssignmentId),
+  },
+  enrollments: {
+    // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la
+    // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo: todas las
+    // del curso, en cualquier estado ({ id, number, enrollmentDate, student }, con number el número
+    // de inscripción, 'INS-' y el id con al menos seis dígitos, INS-000012; enrollmentDate el día de
+    // la inscripción, 'AAAA-MM-DD', y student { firstName, lastName, dni }, el alumno, con dni solo
+    // los dígitos), o { ok: false, error: { code, message } }: TEACHER_ASSIGNMENT_NOT_FOUND indica
+    // que la asignación no existe, que fue dada de baja o que es de otro profesor, sin distinguir
+    // entre esos casos. Llegan siempre en el mismo orden: por alumno (apellido y nombre).
+    listByOwnAssignment: (teacherAssignmentId) =>
+      ipcRenderer.invoke('enrollments:list-by-own-assignment', teacherAssignmentId),
   },
   dashboard: {
     // Solo ADMIN. Resuelve { ok: true, summary } con los indicadores de la vista Inicio para su
