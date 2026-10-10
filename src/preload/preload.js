@@ -234,6 +234,19 @@ contextBridge.exposeInMainWorld('api', {
     // vigente con ese título, en fieldErrors.title); TEACHER_ASSIGNMENT_NOT_FOUND, como en
     // listByOwnAssignment.
     create: (teacherAssignmentId, data) => ipcRenderer.invoke('evaluations:create', teacherAssignmentId, data),
+    // Solo PROFESOR. Guarda el título y la fecha de la evaluación vigente con ese id
+    // (evaluacion_id), si es de la asignación docente vigente con ese id (asignacion_docente_id) y
+    // esa asignación está a su cargo; la evaluación conserva su asignación. `data` es
+    // { title, evaluationDate }, como en create, y se valida igual. Resuelve
+    // { ok: true, evaluation } con la evaluación como quedó (mismos campos que listByOwnAssignment)
+    // o { ok: false, error: { code, message, fieldErrors } }, sin guardar nada: fieldErrors llega
+    // con INVALID_INPUT, como en create, y con DUPLICATE_VALUE (la asignación ya tiene otra
+    // evaluación vigente con ese título, en fieldErrors.title; guardarla sin cambios no es un
+    // duplicado); TEACHER_ASSIGNMENT_NOT_FOUND, como en listByOwnAssignment, y EVALUATION_NOT_FOUND
+    // indica que la evaluación no existe, que fue dada de baja o que es de otra asignación, sin
+    // distinguir entre esos casos.
+    update: (teacherAssignmentId, evaluationId, data) =>
+      ipcRenderer.invoke('evaluations:update', teacherAssignmentId, evaluationId, data),
     // Solo PROFESOR. Baja lógica de la evaluación vigente con ese id (evaluacion_id), si es de la
     // asignación docente vigente con ese id (asignacion_docente_id) y esa asignación está a su
     // cargo: deja de listarse en listByOwnAssignment y su título se puede volver a usar en la

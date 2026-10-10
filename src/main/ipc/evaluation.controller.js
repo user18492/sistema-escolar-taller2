@@ -73,6 +73,39 @@ async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, d
 }
 
 // `teacherAssignmentId` es el id de una asignación del profesor de la sesión y `evaluationId`, el
+// de la evaluación que se edita: que la asignación esté a su cargo y que la evaluación sea de esa
+// asignación lo comprueba el servicio.
+// Nunca rechaza, como createOwnAssignmentEvaluation.
+async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId, data) {
+  if (!isId(teacherAssignmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
+  }
+  if (!isId(evaluationId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la evaluación.');
+  }
+  if (!isEvaluationData(data)) {
+    return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');
+  }
+  try {
+    return {
+      ok: true,
+      evaluation: await evaluationService.updateOwnAssignmentEvaluation(
+        currentUser,
+        teacherAssignmentId,
+        evaluationId,
+        data
+      ),
+    };
+  } catch (error) {
+    if (error instanceof TeacherAssignmentError || error instanceof EvaluationError) {
+      return failure(error.code, error.message, error.fieldErrors);
+    }
+    console.error('Error al guardar la evaluación:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudieron guardar los cambios. Intentá nuevamente.');
+  }
+}
+
+// `teacherAssignmentId` es el id de una asignación del profesor de la sesión y `evaluationId`, el
 // de la evaluación que se da de baja: que la asignación esté a su cargo y que la evaluación sea de
 // esa asignación lo comprueba el servicio.
 // Nunca rechaza, como createOwnAssignmentEvaluation.
@@ -102,6 +135,7 @@ async function deleteOwnAssignmentEvaluation(currentUser, teacherAssignmentId, e
 function registerEvaluationHandlers(browserWindow) {
   handleProtected(browserWindow, 'evaluations:list-by-own-assignment', ['PROFESOR'], listOwnAssignmentEvaluations);
   handleProtected(browserWindow, 'evaluations:create', ['PROFESOR'], createOwnAssignmentEvaluation);
+  handleProtected(browserWindow, 'evaluations:update', ['PROFESOR'], updateOwnAssignmentEvaluation);
   handleProtected(browserWindow, 'evaluations:delete', ['PROFESOR'], deleteOwnAssignmentEvaluation);
 }
 

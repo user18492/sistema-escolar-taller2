@@ -9,13 +9,13 @@
 // por evaluación, las filtra en memoria. La lista filtrada se pagina en memoria, 10 por página, con
 // <table-pagination>.
 // Nueva evaluación la crea en esa asignación (window.api.evaluations.create), con el título y el
-// día y el mes que pide el formulario: el año es el ciclo lectivo de la asignación. El resultado se
-// avisa con un toast (toast.component.js), salvo los errores de un campo, que se marcan en el
-// formulario.
+// día y el mes que pide el formulario: el año es el ciclo lectivo de la asignación. Editar abre el
+// mismo formulario con el título y la fecha de la evaluación de la fila y guarda los cambios en esa
+// evaluación (window.api.evaluations.update), que conserva su ciclo lectivo. El resultado se avisa
+// con un toast (toast.component.js), salvo los errores de un campo, que se marcan en el formulario.
 // Eliminar la da de baja (baja lógica, window.api.evaluations.delete) después de confirmarlo en un
 // modal (confirm-modal.component.js) y también lo avisa con un toast: la evaluación sale de la
 // tabla y del filtro Título, y sus calificaciones se conservan.
-// La edición sigue siendo una maqueta: interacción puramente visual, sin lógica de negocio.
 
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
@@ -95,11 +95,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // El título y, como referencia, su fecha: el buscador del panel encuentra la opción por
   // cualquiera de los dos
-  const createEvaluationOption = ({ id, title, evaluationDate }) => {
-    const option = evaluationOptionTemplate.content.firstElementChild.cloneNode(true);
-    option.dataset.value = String(id);
+  const setEvaluationOptionText = (option, { title, evaluationDate }) => {
     option.querySelector('.option-name').textContent = title;
     option.querySelector('.option-detail').textContent = toDisplayDate(evaluationDate);
+  };
+
+  const createEvaluationOption = (evaluation) => {
+    const option = evaluationOptionTemplate.content.firstElementChild.cloneNode(true);
+    option.dataset.value = String(evaluation.id);
+    setEvaluationOptionText(option, evaluation);
     return option;
   };
 
@@ -113,14 +117,17 @@ document.addEventListener('DOMContentLoaded', () => {
     titleHeader.dispatchEvent(new Event('column-filter-refresh'));
   };
 
+  // Las evaluaciones que pasan el filtro Título
+  const filteredEvaluations = () =>
+    (selectedEvaluationIds.length
+      ? evaluations.filter(({ id }) => selectedEvaluationIds.includes(String(id)))
+      : evaluations);
+
   // Muestra la página `page` (por defecto, la actual) de las evaluaciones que pasan el filtro (10
   // por página, en memoria): el total y los números de página salen de esa lista filtrada. Al
   // cambiar el filtro se vuelve a la página 1.
   const renderRows = ({ page } = {}) => {
-    const visibleEvaluations = selectedEvaluationIds.length
-      ? evaluations.filter(({ id }) => selectedEvaluationIds.includes(String(id)))
-      : evaluations;
-    const pageEvaluations = pagination.slice(visibleEvaluations, { page });
+    const pageEvaluations = pagination.slice(filteredEvaluations(), { page });
     if (pageEvaluations.length) tbody.replaceChildren(...pageEvaluations.map(createRow));
     else showMessage('No hay evaluaciones registradas para esta asignación.');
   };
@@ -128,7 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pide la lista con el id de la URL, a la par de la tarjeta, y al llegar arma las opciones de
   // Título y muestra las evaluaciones. Sin id en la URL, o con uno que no es un número, el proceso
   // principal responde que no pudo identificar la asignación. Punto de entrada también para volver
-  // a pedirla después de un alta, si no había cargado, y cuando una baja avisa que quedó vieja.
+  // a pedirla después de un alta, si no había cargado, y cuando una edición o una baja avisan que
+  // quedó vieja.
   async function loadEvaluations() {
     isLoaded = false;
     showMessage('Cargando evaluaciones…');
@@ -162,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // lista ya cargada, que es cuando deja de ser estático.
   pagination.addEventListener('page-change', () => renderRows());
 
-  // ---------- Tabla: cambios después de crear o eliminar ----------
+  // ---------- Tabla: cambios después de crear, editar o eliminar ----------
 
   // Orden aproximado al del listado (FIND_BY_TEACHER_ASSIGNMENT_SQL, evaluation.repository.js): la
   // fecha (la más antigua primero) y, entre las del mismo día, el título. El orden exacto de los
@@ -170,6 +178,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const titleCollator = new Intl.Collator('es');
   const compareEvaluations = (a, b) =>
     a.evaluationDate.localeCompare(b.evaluationDate) || titleCollator.compare(a.title, b.title);
+
+  // Agrega la evaluación a la lista en memoria, en el lugar que le toca
+  const placeEvaluation = (evaluation) => {
+    const index = evaluations.findIndex((candidate) => compareEvaluations(evaluation, candidate) < 0);
+    evaluations = evaluations.toSpliced(index === -1 ? evaluations.length : index, 0, evaluation);
+  };
+
+  // La opción del filtro Título de la evaluación con ese id
+  const evaluationOption = (evaluationId) => titleHeader.querySelector(`.dropdown-option[data-value="${evaluationId}"]`);
 
   // Agrega la evaluación creada a la lista en memoria, en su lugar, sin recargarla, y la tabla pasa
   // a la página donde quedó. El filtro Título elige una de las evaluaciones que ya estaban, así que
@@ -181,10 +198,26 @@ document.addEventListener('DOMContentLoaded', () => {
       loadEvaluations();
       return;
     }
-    const index = evaluations.findIndex((evaluation) => compareEvaluations(newEvaluation, evaluation) < 0);
-    evaluations = evaluations.toSpliced(index === -1 ? evaluations.length : index, 0, newEvaluation);
+    placeEvaluation(newEvaluation);
     fillFilterOptions();
     renderRows({ page: Math.floor(evaluations.indexOf(newEvaluation) / pagination.pageSize) + 1 });
+  };
+
+  // Reemplaza en la lista en memoria la evaluación editada, que pasa al lugar que le toca con sus
+  // datos nuevos, sin recargarla, y la tabla pasa a la página donde quedó. Su opción del filtro
+  // Título muestra los datos nuevos y cambia de lugar con ella. El filtro elige por id: si estaba
+  // aplicado, la editada es la elegida (es la única fila a la vista) y lo sigue siendo, y el
+  // embudo, que la nombra por su título, se actualiza.
+  const replaceEvaluation = (updatedEvaluation) => {
+    evaluations = evaluations.filter(({ id }) => id !== updatedEvaluation.id);
+    placeEvaluation(updatedEvaluation);
+    const option = evaluationOption(updatedEvaluation.id);
+    setEvaluationOptionText(option, updatedEvaluation);
+    const nextEvaluation = evaluations[evaluations.indexOf(updatedEvaluation) + 1];
+    const nextOption = nextEvaluation ? evaluationOption(nextEvaluation.id) : option.parentNode.querySelector('.dropdown-empty');
+    option.parentNode.insertBefore(option, nextOption);
+    titleHeader.dispatchEvent(new Event('column-filter-refresh'));
+    renderRows({ page: Math.floor(filteredEvaluations().indexOf(updatedEvaluation) / pagination.pageSize) + 1 });
   };
 
   // Quita de la lista en memoria la evaluación dada de baja, sin recargarla, y su opción del filtro
@@ -192,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // conserva; si era la última y quedó vacía, el componente pasa a la anterior.
   const removeEvaluation = (deletedEvaluation) => {
     evaluations = evaluations.filter(({ id }) => id !== deletedEvaluation.id);
-    const option = titleHeader.querySelector(`.dropdown-option[data-value="${deletedEvaluation.id}"]`);
+    const option = evaluationOption(deletedEvaluation.id);
     const wasSelected = option?.classList.contains('selected');
     option?.remove();
     if (wasSelected) {
@@ -202,14 +235,14 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows();
   };
 
-  // Posición en la página de la fila del botón que abrió el modal de eliminación, solo para
-  // devolver el foco a la que ocupe su lugar si esa fila ya no se muestra
+  // Posición en la página de la fila del botón que abrió el último modal, solo para devolver el
+  // foco a la que ocupe su lugar si esa fila ya no se muestra
   let triggerRowIndex = 0;
 
-  // El botón Eliminar de la fila que quedó en su lugar (o de la última de la página), o "Nueva
-  // evaluación" si la tabla quedó sin evaluaciones
-  const focusAfterRemoval = () => {
-    const buttons = tbody.querySelectorAll('[data-action="delete"]');
+  // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
+  // página), o "Nueva evaluación" si la tabla quedó sin evaluaciones
+  const focusAfterRemoval = (action) => {
+    const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
     return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openEvaluationModalBtn;
   };
 
@@ -217,6 +250,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // UNEXPECTED_ERROR (su mensaje repite el título del toast), queda la genérica.
   const errorDescription = (error) =>
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
+
+  // La evaluación o su asignación ya no están vigentes: la lista en memoria quedó vieja y se vuelve
+  // a pedir
+  const NO_LONGER_ACTIVE_CODES = ['EVALUATION_NOT_FOUND', 'TEACHER_ASSIGNMENT_NOT_FOUND'];
 
   // ---------- Modal compartido: Nueva evaluación / Editar evaluación ----------
 
@@ -235,10 +272,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('evaluationDateInput');
 
   let modalTrigger = openEvaluationModalBtn;
-  // Evaluación que se edita, la de la lista en memoria al abrir el modal desde su fila; null en un
-  // alta
+  // Evaluación que se edita, la de la lista en memoria al abrir el modal desde su fila: su id es el
+  // que se envía al guardar; null en un alta
   let editingEvaluation = null;
   let isSaving = false;
+
+  // Texto del botón principal, en reposo y mientras se espera la respuesta, y de los toasts de
+  // éxito y de error, según el modo del modal
+  const MODAL_TEXTS = {
+    create: {
+      submit: 'Crear evaluación',
+      saving: 'Creando…',
+      successTitle: 'Evaluación creada',
+      successDescription: (evaluation) => `Se registró “${evaluation.title}” para el ${toDisplayDate(evaluation.evaluationDate)}.`,
+      errorTitle: 'No se pudo crear la evaluación',
+    },
+    edit: {
+      submit: 'Guardar cambios',
+      saving: 'Guardando…',
+      successTitle: 'Evaluación actualizada',
+      successDescription: (evaluation) => `Se guardaron los cambios de “${evaluation.title}”, del ${toDisplayDate(evaluation.evaluationDate)}.`,
+      errorTitle: 'No se pudieron guardar los cambios',
+    },
+  };
+  const modalTexts = () => MODAL_TEXTS[editingEvaluation ? 'edit' : 'create'];
 
   // Campos que el proceso principal puede marcar (error.fieldErrors), en el orden del formulario
   const FIELD_INPUTS = {
@@ -269,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
     evaluationModalBody.inert = saving;
     evaluationModal.setAttribute('aria-busy', String(saving));
     [cancelEvaluationBtn, saveEvaluationBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
-    saveEvaluationBtn.textContent = saving ? 'Creando…' : 'Crear evaluación';
+    saveEvaluationBtn.textContent = saving ? modalTexts().saving : modalTexts().submit;
   };
 
   // `evaluation` es la evaluación de la fila que se edita; sin ella, el modal es el de alta, que
@@ -287,11 +344,12 @@ document.addEventListener('DOMContentLoaded', () => {
     cycleDescription.textContent = isEditing
       ? 'Pertenece al ciclo lectivo:'
       : 'Se creará para el ciclo lectivo:';
-    saveEvaluationBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear evaluación';
+    saveEvaluationBtn.textContent = modalTexts().submit;
 
     if (evaluation) {
       titleInput.value = evaluation.title;
-      // La fecha llega como 'AAAA-MM-DD'; el campo la espera como DD/MM y el año va aparte.
+      // La fecha llega como 'AAAA-MM-DD'; el campo la espera como DD/MM y el año va aparte: es el
+      // ciclo lectivo de la asignación, que la evaluación conserva.
       const [year, month, day] = evaluation.evaluationDate.split('-');
       dateInput.value = `${day}/${month}`;
       cycleYear.textContent = year;
@@ -309,7 +367,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function closeEvaluationModal() {
     evaluationOverlay.classList.remove('is-open');
-    modalTrigger?.focus();
+    // Después de guardar los cambios, o si la evaluación ya no está vigente, la tabla se volvió a
+    // dibujar: el foco pasa a Editar en la fila de la evaluación o, si ya no se muestra, en la que
+    // quedó en su lugar
+    const focusTarget = modalTrigger.isConnected
+      ? modalTrigger
+      : tbody.querySelector(`tr[data-evaluation-id="${editingEvaluation?.id}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
+    focusTarget.focus();
   }
 
   // Marca los campos que rechazó el proceso principal (título repetido, datos inválidos) y enfoca
@@ -321,40 +385,50 @@ document.addEventListener('DOMContentLoaded', () => {
     return invalidFields.length > 0;
   };
 
-  // Crea la evaluación en la asignación de la vista; al terminar cierra el modal y lo avisa con un
-  // toast. Los errores de un campo se marcan en el formulario y los demás salen en un toast: en
-  // ambos casos el modal sigue abierto con lo que se escribió.
-  const createEvaluation = async () => {
+  // Crea la evaluación en la asignación de la vista o guarda los cambios de la que se edita, según
+  // el modo; al terminar cierra el modal y lo avisa con un toast. Los errores de un campo se marcan
+  // en el formulario y los demás salen en un toast: en ambos casos el modal sigue abierto con lo
+  // que se escribió. Solo se cierra si la evaluación que se editaba ya no está vigente.
+  const saveEvaluation = async () => {
     // El campo ya validado (DD/MM) se envía como 'AAAA-MM-DD', con el año que anuncia el modal: el
     // ciclo lectivo de la asignación
     const [day, month] = dateInput.value.split('/');
     const data = {
       title: titleInput.value,
-      evaluationDate: `${assignment.course.schoolYear}-${month}-${day}`,
+      evaluationDate: `${cycleYear.textContent}-${month}-${day}`,
     };
     setSaving(true);
     let response;
     try {
-      response = await window.api?.evaluations?.create(assignment.id, data);
+      // La evaluación se edita en la asignación con la que se pidió la lista, como en la baja
+      response = await (editingEvaluation
+        ? window.api?.evaluations?.update(Number(assignmentId), editingEvaluation.id, data)
+        : window.api?.evaluations?.create(assignment.id, data));
     } catch (error) {
-      console.error('Error al crear la evaluación:', error);
+      console.error('Error al guardar la evaluación:', error);
     }
+    // La evaluación que se editaba ya no está vigente: la lista se vuelve a pedir antes de liberar
+    // el modal, que se cierra más abajo
+    const isGone = Boolean(editingEvaluation) && NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
+    if (isGone) await loadEvaluations();
     setSaving(false);
 
     if (response?.ok) {
       const { evaluation } = response;
-      insertEvaluation(evaluation);
+      if (editingEvaluation) replaceEvaluation(evaluation);
+      else insertEvaluation(evaluation);
       closeEvaluationModal();
       showToast({
         type: 'success',
-        title: 'Evaluación creada',
-        description: `Se registró “${evaluation.title}” para el ${toDisplayDate(evaluation.evaluationDate)}.`,
+        title: modalTexts().successTitle,
+        description: modalTexts().successDescription(evaluation),
       });
       return;
     }
     const error = response?.error;
     if (showFieldErrors(error?.fieldErrors)) return;
-    showToast({ type: 'error', title: 'No se pudo crear la evaluación', description: errorDescription(error) });
+    if (isGone) closeEvaluationModal();
+    showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
   };
 
   titleInput.addEventListener('input', updateSaveButtonState);
@@ -366,12 +440,17 @@ document.addEventListener('DOMContentLoaded', () => {
     await assignmentRequest;
     if (assignment) openEvaluationModal();
   });
-  // Por delegación: las filas se generan después de cargar y al cambiar de página o de filtro
+  // Por delegación: las filas se generan después de cargar y al cambiar de página o de filtro. La
+  // fila identifica a la evaluación solo por su data-evaluation-id (el evaluacion_id): los datos del
+  // formulario salen de la evaluación cargada de la base, no del texto de las celdas.
   tbody.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action="edit"]');
     if (!button) return;
-    const { evaluationId } = button.closest('tr').dataset;
-    openEvaluationModal(evaluations.find(({ id }) => String(id) === evaluationId), button);
+    const row = button.closest('tr');
+    const evaluation = evaluations.find(({ id }) => String(id) === row.dataset.evaluationId);
+    if (!evaluation) return;
+    triggerRowIndex = Array.from(tbody.rows).indexOf(row);
+    openEvaluationModal(evaluation, button);
   });
 
   // Escape cierra el modal. Se escucha en el documento para que funcione aunque el foco haya
@@ -390,20 +469,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isSaving) return;
     // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
     if (validateFields(evaluationOverlay)) return;
-    // La edición sigue siendo una maqueta: guardar los cambios no modifica datos persistidos.
-    if (editingEvaluation) {
-      closeEvaluationModal();
-      return;
-    }
     // El proceso principal vuelve a validar todo antes de guardar la evaluación.
-    createEvaluation();
+    saveEvaluation();
   });
 
   // ---------- Modal: Eliminar evaluación ----------
-
-  // La evaluación o su asignación ya no están vigentes: la lista en memoria quedó vieja y se vuelve
-  // a pedir
-  const NO_LONGER_ACTIVE_CODES = ['EVALUATION_NOT_FOUND', 'TEACHER_ASSIGNMENT_NOT_FOUND'];
 
   // El id sale del data-evaluation-id de la fila del botón (el evaluacion_id, fijado al crearla),
   // no de su posición en la tabla, y se envía con el de la asignación con el que se pidió la lista.
@@ -438,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // cierra. Si la fila ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
   setupConfirmModal(document.getElementById('deleteEvaluationOverlay'), {
     onConfirm: deleteEvaluation,
-    fallbackFocus: focusAfterRemoval,
+    fallbackFocus: () => focusAfterRemoval('delete'),
   });
 
   loadEvaluations();

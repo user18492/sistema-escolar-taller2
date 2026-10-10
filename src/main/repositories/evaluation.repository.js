@@ -36,6 +36,18 @@ const CREATE_SQL = `
   RETURNING evaluacion_id, asignacion_docente_id, titulo, fecha_evaluacion
 `;
 
+// Edición: solo modifica el título y la fecha de una evaluación vigente de la asignación docente,
+// que conserva su asignación. Devuelve la fila como quedó.
+const UPDATE_SQL = `
+  UPDATE evaluacion
+     SET titulo = $3,
+         fecha_evaluacion = $4
+   WHERE evaluacion_id = $1
+     AND asignacion_docente_id = $2
+     AND fecha_eliminacion IS NULL
+  RETURNING evaluacion_id, asignacion_docente_id, titulo, fecha_evaluacion
+`;
+
 // Baja lógica: la fila se conserva con la fecha de baja, y sus calificaciones (calificacion) no se
 // tocan. Solo marca una evaluación vigente de la asignación docente, así una segunda baja (repetida
 // o simultánea) no pisa la fecha de la primera. Devuelve la fila.
@@ -49,9 +61,10 @@ const MARK_AS_DELETED_SQL = `
 `;
 
 // Índice único y restricción de evaluacion (con los nombres que les da db/schema.sql) que rechazan
-// un alta por un motivo previsto: la asignación ya tiene una evaluación vigente con ese título, o
-// la fecha no es del ciclo lectivo de su curso (la informa trg_evaluacion_fecha_ciclo_lectivo).
-// PostgreSQL informa el nombre del índice como el de una restricción.
+// un alta o una edición por un motivo previsto: la asignación ya tiene otra evaluación vigente con
+// ese título, o la fecha no es del ciclo lectivo de su curso (la informa
+// trg_evaluacion_fecha_ciclo_lectivo). PostgreSQL informa el nombre del índice como el de una
+// restricción.
 const UNIQUE_INDEX = 'uq_evaluacion_asignacion_docente_titulo';
 const SCHOOL_YEAR_CONSTRAINT = 'ck_evaluacion_fecha_ciclo_lectivo';
 
@@ -90,6 +103,18 @@ async function create(teacherAssignmentId, { title, evaluationDate }) {
   return toEvaluation(rows[0]);
 }
 
+// Guarda el título `title` y el día `evaluationDate` ('AAAA-MM-DD') de la evaluación vigente con
+// ese id, si es de la asignación docente `teacherAssignmentId` (un asignacion_docente_id), con los
+// mismos valores que admite create. Devuelve la evaluación como quedó; null si no existe, fue dada
+// de baja o es de otra asignación. PostgreSQL rechaza el cambio si la asignación ya tiene otra
+// vigente con ese título (isDuplicateError) o si la fecha no es del ciclo lectivo de su curso
+// (isDateOutOfSchoolYearError). Que la asignación se pueda usar y que los datos sean válidos lo
+// comprueba el servicio.
+async function update(evaluationId, teacherAssignmentId, { title, evaluationDate }) {
+  const { rows } = await query(UPDATE_SQL, [evaluationId, teacherAssignmentId, title, evaluationDate]);
+  return rows.length > 0 ? toEvaluation(rows[0]) : null;
+}
+
 // Da de baja la evaluación, que deja de listarse y de contar para el índice único: su título se
 // puede volver a usar en la asignación. Sus calificaciones se conservan como están. Devuelve la
 // evaluación dada de baja; null si no existe, ya estaba dada de baja o es de otra asignación. Que
@@ -99,7 +124,7 @@ async function markAsDeleted(evaluationId, teacherAssignmentId) {
   return rows.length > 0 ? toEvaluation(rows[0]) : null;
 }
 
-// true si `error` es la violación del índice único de evaluacion: la asignación ya tiene una
+// true si `error` es la violación del índice único de evaluacion: la asignación ya tiene otra
 // evaluación vigente con ese título.
 function isDuplicateError(error) {
   return error?.code === '23505' && error.constraint === UNIQUE_INDEX;
@@ -114,6 +139,7 @@ module.exports = {
   findByTeacherAssignment,
   findActiveByIdAndTeacherAssignment,
   create,
+  update,
   markAsDeleted,
   isDuplicateError,
   isDateOutOfSchoolYearError,

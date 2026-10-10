@@ -118,6 +118,27 @@ async function getOwnAssignmentEvaluation(currentUser, teacherAssignmentId, eval
   return { teacherAssignment, evaluation: toListedEvaluation(evaluation) };
 }
 
+// Llama a `save` (el INSERT o el UPDATE) y devuelve su resultado. Si PostgreSQL lo rechaza por un
+// motivo previsto, no se guarda nada y lanza un EvaluationError: DUPLICATE_VALUE, con el mensaje
+// `duplicate.message` y `duplicate.title` en fieldErrors.title, si la asignación ya tiene otra
+// evaluación vigente con ese título, e INVALID_INPUT con fieldErrors.evaluationDate si la fecha no
+// es del ciclo lectivo del curso de la asignación.
+async function saveEvaluation(save, duplicate) {
+  try {
+    return await save();
+  } catch (error) {
+    if (evaluationRepository.isDuplicateError(error)) {
+      throw new EvaluationError('DUPLICATE_VALUE', duplicate.message, { title: duplicate.title });
+    }
+    // Otra sesión pasó la asignación a un curso de otro ciclo lectivo después de consultarla: la
+    // fecha ya no es del suyo (trg_evaluacion_fecha_ciclo_lectivo, db/schema.sql).
+    if (evaluationRepository.isDateOutOfSchoolYearError(error)) {
+      throw invalidFieldsError({ evaluationDate: 'La fecha no es del ciclo lectivo de la asignación.' });
+    }
+    throw error;
+  }
+}
+
 // ---------- Alta ----------
 
 // Crea una evaluación vigente en una asignación docente vigente a cargo de `currentUser` (el
@@ -136,23 +157,41 @@ async function getOwnAssignmentEvaluation(currentUser, teacherAssignmentId, eval
 async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, data) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   const values = parseEvaluationData(data, teacherAssignment.course.schoolYear);
+  const evaluation = await saveEvaluation(() => evaluationRepository.create(teacherAssignment.id, values), {
+    message: 'Ya existe una evaluación con ese título en esta asignación.',
+    title: 'Ya existe una evaluación con este título.',
+  });
+  return toListedEvaluation(evaluation);
+}
 
-  let evaluation;
-  try {
-    evaluation = await evaluationRepository.create(teacherAssignment.id, values);
-  } catch (error) {
-    if (evaluationRepository.isDuplicateError(error)) {
-      throw new EvaluationError('DUPLICATE_VALUE', 'Ya existe una evaluación con ese título en esta asignación.', {
-        title: 'Ya existe una evaluación con este título.',
-      });
+// ---------- Edición ----------
+
+// Guarda el título y la fecha de una evaluación vigente de una asignación docente vigente a cargo
+// de `currentUser` (el profesor de la sesión) y la devuelve como quedó, con los campos de
+// listOwnAssignmentEvaluations. `data` trae los mismos campos que en createOwnAssignmentEvaluation
+// y se valida igual: la evaluación conserva su asignación, así que el ciclo lectivo contra el que
+// se valida la fecha es el de esa asignación. Los dos ids llegan del renderer, así que antes se
+// comprueba que la asignación sea suya (getOwnTeacherAssignment) y el cambio solo alcanza a una
+// evaluación de esa asignación.
+// Si algún dato no es válido no se guarda nada y se lanza un EvaluationError INVALID_INPUT con los
+// fieldErrors de parseEvaluationData; si la asignación ya tiene otra evaluación vigente con ese
+// título, un EvaluationError DUPLICATE_VALUE con fieldErrors.title: guardarla sin cambios no es un
+// duplicado y una dada de baja no cuenta.
+// También lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment
+// si la asignación no existe, fue dada de baja o es de otro profesor, y un EvaluationError
+// EVALUATION_NOT_FOUND si la evaluación no existe, fue dada de baja o es de otra asignación, sin
+// distinguir los casos.
+async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId, data) {
+  const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
+  const values = parseEvaluationData(data, teacherAssignment.course.schoolYear);
+  const evaluation = await saveEvaluation(
+    () => evaluationRepository.update(evaluationId, teacherAssignment.id, values),
+    {
+      message: 'Ya existe otra evaluación con ese título en esta asignación.',
+      title: 'Ya existe otra evaluación con este título.',
     }
-    // Otra sesión pasó la asignación a un curso de otro ciclo lectivo después de consultarla: la
-    // fecha ya no es del suyo (trg_evaluacion_fecha_ciclo_lectivo, db/schema.sql).
-    if (evaluationRepository.isDateOutOfSchoolYearError(error)) {
-      throw invalidFieldsError({ evaluationDate: 'La fecha no es del ciclo lectivo de la asignación.' });
-    }
-    throw error;
-  }
+  );
+  if (!evaluation) throw evaluationNotFoundError();
   return toListedEvaluation(evaluation);
 }
 
@@ -180,6 +219,7 @@ module.exports = {
   listOwnAssignmentEvaluations,
   getOwnAssignmentEvaluation,
   createOwnAssignmentEvaluation,
+  updateOwnAssignmentEvaluation,
   deleteOwnAssignmentEvaluation,
   EvaluationError,
 };
