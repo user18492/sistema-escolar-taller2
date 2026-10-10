@@ -9,7 +9,9 @@
 //     (?assignmentId=), y completa con ella los datos de la asignación. Resuelve la asignación, o
 //     null si no existe o no está a cargo del profesor de la sesión, o si la carga falla: en ese
 //     caso la tarjeta se oculta y el mensaje queda en "loadError", el .form-error de la vista.
-// Los datos de la evaluación todavía no tienen de dónde cargarse: conservan su raya.
+//   - showEvaluation(evaluation): completa los datos de la evaluación en la variante en dos
+//     bloques, con la que la vista ya cargó ({ title, evaluationDate }, con la fecha como
+//     'AAAA-MM-DD', que se muestra DD/MM/AAAA).
 // Estilos en assignment-summary.css.
 
 (() => {
@@ -94,6 +96,13 @@
         this.querySelector(`.summary-value[data-field="${field}"]`).textContent = texts[field];
       });
       return response.teacherAssignment;
+    }
+
+    showEvaluation({ title, evaluationDate }) {
+      const texts = { evaluation: title, date: evaluationDate.split('-').reverse().join('/') };
+      EVALUATION_FIELDS.forEach(({ field }) => {
+        this.querySelector(`.summary-value[data-field="${field}"]`).textContent = texts[field];
+      });
     }
   }
 

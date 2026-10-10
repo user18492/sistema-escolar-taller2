@@ -9,6 +9,7 @@ const { registerGradeHandlers } = require('./ipc/grade.controller');
 const { registerTeacherAssignmentHandlers } = require('./ipc/teacher-assignment.controller');
 const { registerEnrollmentHandlers } = require('./ipc/enrollment.controller');
 const { registerEvaluationHandlers } = require('./ipc/evaluation.controller');
+const { registerScoreHandlers } = require('./ipc/score.controller');
 const { registerDashboardHandlers } = require('./ipc/dashboard.controller');
 const { guardNavigation, showEntryView } = require('./navigation-guard');
 
@@ -40,6 +41,7 @@ function createMainWindow() {
   registerTeacherAssignmentHandlers(mainWindow);
   registerEnrollmentHandlers(mainWindow);
   registerEvaluationHandlers(mainWindow);
+  registerScoreHandlers(mainWindow);
   registerDashboardHandlers(mainWindow);
   guardNavigation(mainWindow);
   showEntryView(mainWindow);

@@ -72,13 +72,12 @@ document.addEventListener('DOMContentLoaded', () => {
     row.dataset.evaluationId = String(id);
     row.cells[0].querySelector('.text-truncate').textContent = title;
     row.cells[1].textContent = toDisplayDate(evaluationDate);
-    // "Gestionar" abre las calificaciones de esa evaluación y le pasa el id de la asignación, con
-    // el que esa vista la carga, junto con el título, que es el paso de la evaluación en su ruta
-    // de navegación. El destino se asigna antes de conectar el <row-actions>, que lo lee al
-    // generarse.
+    // "Gestionar" abre las calificaciones de esa evaluación y le pasa el id de la asignación y el
+    // de la evaluación, con los que esa vista las carga. El destino se asigna antes de conectar el
+    // <row-actions>, que lo lee al generarse.
     const rowActions = row.querySelector('row-actions');
     const scoresParams = new URLSearchParams(assignmentParams);
-    scoresParams.set('evaluation', title);
+    scoresParams.set('evaluationId', String(id));
     rowActions.setAttribute('manage-href', `${rowActions.getAttribute('manage-href')}?${scoresParams.toString()}`);
     return row;
   };

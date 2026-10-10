@@ -1,4 +1,4 @@
-/* Vista Calificaciones de una evaluación (Profesor) — puramente visual, sin lógica */
+/* Vista Calificaciones de una evaluación (Profesor) */
 
 /* ---------- Breadcrumb ---------- */
 
@@ -151,4 +151,19 @@ td.col-student {
   background: var(--color-bg);
   color: var(--color-text-tertiary);
   cursor: default;
+}
+
+/* Inscripción que no está activa: la calificación queda a la vista, pero no se carga ni
+   se corrige. El control completo se atenúa y no reacciona al puntero. */
+.numeric-stepper:has(.numeric-stepper-input:disabled),
+.numeric-stepper:has(.numeric-stepper-input:disabled) .numeric-stepper-btn {
+  background: var(--color-bg-page);
+}
+
+.numeric-stepper:has(.numeric-stepper-input:disabled):hover {
+  border-color: var(--color-border);
+}
+
+.numeric-stepper-input:disabled {
+  color: var(--color-text-tertiary);
 }

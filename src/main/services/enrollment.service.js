@@ -20,20 +20,22 @@ function formatEnrollmentNumber(enrollmentId) {
 
 // ---------- Inscripciones del curso de una asignación del profesor ----------
 
+// Lo que las vistas del Profesor muestran del alumno de una inscripción. `dni` son solo los
+// dígitos.
+function toListedStudent({ firstName, lastName, dni }) {
+  return { firstName, lastName, dni };
+}
+
 // Lista explícita de campos, como toListedCourse (course.service.js): lo que muestran la tabla de
 // Alumnos del Profesor y su filtro, y el id para identificar la fila. `number` es el número de
-// inscripción, `enrollmentDate` el día de la inscripción ('AAAA-MM-DD') y `student.dni`, solo los
-// dígitos.
+// inscripción, `enrollmentDate` el día de la inscripción ('AAAA-MM-DD') y `student`, el alumno
+// (toListedStudent).
 function toListedEnrollment({ id, student, enrollmentDate }) {
   return {
     id,
     number: formatEnrollmentNumber(id),
     enrollmentDate: toIsoDate(enrollmentDate),
-    student: {
-      firstName: student.firstName,
-      lastName: student.lastName,
-      dni: student.dni,
-    },
+    student: toListedStudent(student),
   };
 }
 
@@ -49,4 +51,4 @@ async function listOwnAssignmentEnrollments(currentUser, teacherAssignmentId) {
   return enrollments.map(toListedEnrollment);
 }
 
-module.exports = { listOwnAssignmentEnrollments, formatEnrollmentNumber };
+module.exports = { listOwnAssignmentEnrollments, formatEnrollmentNumber, toListedStudent };

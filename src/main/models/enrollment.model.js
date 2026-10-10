@@ -2,7 +2,7 @@
 // conserva y lo que cambia es su estado.
 // Incluye al alumno, para mostrarlo sin otra consulta.
 class Enrollment {
-  constructor({ id, student, courseId, enrollmentDate }) {
+  constructor({ id, student, courseId, enrollmentDate, isActive }) {
     // inscripcion_id: de él sale el número de inscripción (formatEnrollmentNumber,
     // enrollment.service.js), que no se guarda.
     this.id = id;
@@ -11,6 +11,9 @@ class Enrollment {
     this.courseId = courseId;
     // Día de la inscripción (inscripcion.fecha_inscripcion): su año es el ciclo lectivo del curso.
     this.enrollmentDate = enrollmentDate;
+    // true si su estado es ACTIVA; false si fue cancelada, finalizada o trasladada. Solo una
+    // inscripción activa admite que se le carguen o corrijan calificaciones.
+    this.isActive = isActive;
   }
 }
 

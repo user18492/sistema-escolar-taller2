@@ -33,9 +33,9 @@ contextBridge.exposeInMainWorld('api', {
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
   // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de profile, de users, de
-  // courses, de grades, de teacherAssignments, de enrollments, de evaluations y de dashboard
-  // resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal
-  // cierra la sesión y vuelve al login.
+  // courses, de grades, de teacherAssignments, de enrollments, de evaluations, de scores y de
+  // dashboard resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso
+  // principal cierra la sesión y vuelve al login.
   profile: {
     // Cualquier rol. Resuelve { ok: true, profile } con los datos del usuario de la sesión, leídos de
     // la base ({ firstName, lastName, dni, email, birthDate, imageUrl }, con dni solo los dígitos,
@@ -223,6 +223,36 @@ contextBridge.exposeInMainWorld('api', {
     // título.
     listByOwnAssignment: (teacherAssignmentId) =>
       ipcRenderer.invoke('evaluations:list-by-own-assignment', teacherAssignmentId),
+  },
+  scores: {
+    // Solo PROFESOR. Resuelve { ok: true, evaluation, scores } con la evaluación vigente con ese id
+    // (evaluacion_id), si es de la asignación docente vigente con ese id (asignacion_docente_id) y
+    // esa asignación está a su cargo ({ id, title, evaluationDate }, como en
+    // evaluations.listByOwnAssignment), y con sus calificaciones: una por cada inscripción del
+    // curso de la asignación, en cualquier estado, tenga o no una nota cargada ({ enrollmentId,
+    // student, value, isEnrollmentActive }, con enrollmentId el id de la inscripción, que
+    // identifica la fila; student { firstName, lastName, dni }, el alumno, con dni solo los
+    // dígitos; value la nota, un número de 0 a 10 con hasta dos decimales, o null si todavía no fue
+    // calificado, e isEnrollmentActive false si la inscripción fue cancelada, finalizada o
+    // trasladada: su nota no se puede cargar ni corregir), o { ok: false, error: { code, message } }:
+    // TEACHER_ASSIGNMENT_NOT_FOUND indica que la asignación no existe, que fue dada de baja o que
+    // es de otro profesor, y EVALUATION_NOT_FOUND, que la evaluación no existe, que fue dada de
+    // baja o que es de otra asignación, sin distinguir entre esos casos. Llegan siempre en el mismo
+    // orden: por alumno (apellido y nombre), como enrollments.listByOwnAssignment.
+    listByOwnEvaluation: (teacherAssignmentId, evaluationId) =>
+      ipcRenderer.invoke('scores:list-by-own-evaluation', teacherAssignmentId, evaluationId),
+    // Solo PROFESOR. Guarda la nota de un alumno en esa evaluación de esa asignación (los mismos ids
+    // que en listByOwnEvaluation). `data` es { enrollmentId, value }: el id de la inscripción del
+    // alumno (una de listByOwnEvaluation, activa) y la nota, un número de 0 a 10 con hasta dos
+    // decimales. Si el alumno todavía no tenía nota en la evaluación se crea su calificación; si ya
+    // tenía, se modifica esa misma. Resuelve { ok: true, score } con la nota como quedó guardada
+    // ({ enrollmentId, value }) o { ok: false, error: { code, message } }, sin guardar nada:
+    // INVALID_SCORE indica que la nota no es un número de 0 a 10 con hasta dos decimales;
+    // ENROLLMENT_NOT_FOUND, que la inscripción no existe o no es del curso de la asignación, y
+    // ENROLLMENT_NOT_ACTIVE, que fue cancelada, finalizada o trasladada; además,
+    // TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
+    save: (teacherAssignmentId, evaluationId, data) =>
+      ipcRenderer.invoke('scores:save', teacherAssignmentId, evaluationId, data),
   },
   dashboard: {
     // Solo ADMIN. Resuelve { ok: true, summary } con los indicadores de la vista Inicio para su

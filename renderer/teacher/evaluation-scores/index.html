@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="../../shared/styles/searchable-select.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/assignment-summary.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
@@ -20,7 +21,9 @@
     <script src="../../shared/components/user-avatar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
     <script src="../../shared/components/search-bar.component.js"></script>
     <script src="../../shared/components/table-pagination.component.js"></script>
@@ -44,8 +47,10 @@
               <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
               <a href="../assignment-evaluations/index.html">Evaluaciones</a>
               <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
-              <!-- La evaluación no tiene vista propia: queda como paso del recorrido. -->
-              <span class="breadcrumb-item text-truncate" data-field="evaluation">Evaluación escrita 1</span>
+              <!-- La evaluación no tiene vista propia: queda como paso del recorrido.
+                   evaluation-scores.js pone su título cuando llega del proceso principal; hasta
+                   entonces, una raya. -->
+              <span class="breadcrumb-item text-truncate" data-field="evaluation">—</span>
               <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
               <span class="breadcrumb-current" aria-current="page">Calificaciones</span>
             </nav>
@@ -64,10 +69,12 @@
           <!-- Contexto completo en una sola card: a la izquierda los datos de la asignación
                y a la derecha los de la evaluación elegida. evaluation-scores.js completa los
                de la asignación con los que devuelve el proceso principal para la elegida en
-               Asignaciones; hasta entonces, una raya. Los de la evaluación quedan con su raya
-               hasta que haya de dónde cargarlos. -->
+               Asignaciones, y los de la evaluación con los de la elegida en Evaluaciones;
+               hasta entonces, una raya. -->
           <assignment-summary course="—" level="—" subject="—" year="—" evaluation="—" evaluation-date="—"></assignment-summary>
 
+          <!-- Calificaciones de la evaluación, una fila por cada inscripción del curso de la
+               asignación: evaluation-scores.js las carga del proceso principal -->
           <section class="card scores-card">
             <div class="table-wrap">
               <table class="data-table">
@@ -77,49 +84,11 @@
                       <column-filter-toggle target="studentFilter" heading="Alumno" label="Filtrar por alumno"></column-filter-toggle>
                       <div id="studentFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por alumno">
                         <search-bar placeholder="Filtrar por alumno"></search-bar>
-                        <!-- Mismo filtro que Alumnos de la asignación; el dato secundario es el
-                             DNI, que es lo que esta tabla muestra junto al alumno. -->
+                        <!-- Mismo filtro que Alumnos de la asignación, con una opción por
+                             inscripción; el dato secundario es el DNI, que es lo que esta tabla
+                             muestra junto al alumno. evaluation-scores.js las agrega antes de
+                             .dropdown-empty -->
                         <ul class="dropdown-menu dropdown-menu-student" role="listbox" aria-label="Alumno">
-                          <li class="dropdown-option option-student" role="option" data-value="s1" aria-selected="false">
-                            <span class="option-name text-truncate">Acosta, Valentina</span>
-                            <span class="option-detail text-truncate">47.123.456</span>
-                          </li>
-                          <li class="dropdown-option option-student" role="option" data-value="s2" aria-selected="false">
-                            <span class="option-name text-truncate">Bianchi, Mateo</span>
-                            <span class="option-detail text-truncate">46.987.321</span>
-                          </li>
-                          <li class="dropdown-option option-student" role="option" data-value="s3" aria-selected="false">
-                            <span class="option-name text-truncate">Cáceres, Lucas</span>
-                            <span class="option-detail text-truncate">45.678.912</span>
-                          </li>
-                          <li class="dropdown-option option-student" role="option" data-value="s4" aria-selected="false">
-                            <span class="option-name text-truncate">Díaz, Martina</span>
-                            <span class="option-detail text-truncate">48.234.567</span>
-                          </li>
-                          <li class="dropdown-option option-student" role="option" data-value="s5" aria-selected="false">
-                            <span class="option-name text-truncate">Fernández, Tomás</span>
-                            <span class="option-detail text-truncate">46.345.678</span>
-                          </li>
-                          <li class="dropdown-option option-student" role="option" data-value="s6" aria-selected="false">
-                            <span class="option-name text-truncate">García, Emilia</span>
-                            <span class="option-detail text-truncate">47.890.123</span>
-                          </li>
-                          <li class="dropdown-option option-student" role="option" data-value="s7" aria-selected="false">
-                            <span class="option-name text-truncate">López, Benjamín</span>
-                            <span class="option-detail text-truncate">45.212.334</span>
-                          </li>
-                          <li class="dropdown-option option-student" role="option" data-value="s8" aria-selected="false">
-                            <span class="option-name text-truncate">Martínez, Sofía</span>
-                            <span class="option-detail text-truncate">46.765.901</span>
-                          </li>
-                          <li class="dropdown-option option-student" role="option" data-value="s9" aria-selected="false">
-                            <span class="option-name text-truncate">Pereyra, Santiago</span>
-                            <span class="option-detail text-truncate">47.321.098</span>
-                          </li>
-                          <li class="dropdown-option option-student" role="option" data-value="s10" aria-selected="false">
-                            <span class="option-name text-truncate">Romero, Julia</span>
-                            <span class="option-detail text-truncate">45.987.654</span>
-                          </li>
                           <li class="dropdown-empty" hidden>Sin resultados</li>
                         </ul>
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
@@ -129,226 +98,46 @@
                     <th class="col-score">Calificación</th>
                   </tr>
                 </thead>
-                <!-- Alumnos con inscripción activa en el curso de la asignación. La
-                     calificación se carga y edita en la propia celda con el numeric
-                     stepper (escritura manual o botones − y +); el campo vacío indica
-                     que todavía no fue registrada. -->
-                <tbody>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">Acosta, Valentina</span></td>
-                    <td>47.123.456</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" value="8" aria-label="Calificación de Acosta, Valentina" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Acosta, Valentina">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Acosta, Valentina">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">Bianchi, Mateo</span></td>
-                    <td>46.987.321</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" value="7" aria-label="Calificación de Bianchi, Mateo" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Bianchi, Mateo">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Bianchi, Mateo">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">Cáceres, Lucas</span></td>
-                    <td>45.678.912</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" value="9" aria-label="Calificación de Cáceres, Lucas" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Cáceres, Lucas">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Cáceres, Lucas">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">Díaz, Martina</span></td>
-                    <td>48.234.567</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" value="6" aria-label="Calificación de Díaz, Martina" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Díaz, Martina">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Díaz, Martina">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">Fernández, Tomás</span></td>
-                    <td>46.345.678</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de Fernández, Tomás" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Fernández, Tomás">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Fernández, Tomás">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">García, Emilia</span></td>
-                    <td>47.890.123</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de García, Emilia" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de García, Emilia">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de García, Emilia">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">López, Benjamín</span></td>
-                    <td>45.212.334</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de López, Benjamín" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de López, Benjamín">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de López, Benjamín">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">Martínez, Sofía</span></td>
-                    <td>46.765.901</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de Martínez, Sofía" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Martínez, Sofía">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Martínez, Sofía">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">Pereyra, Santiago</span></td>
-                    <td>47.321.098</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de Pereyra, Santiago" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Pereyra, Santiago">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Pereyra, Santiago">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="student-name col-student col-truncate"><span class="text-truncate">Romero, Julia</span></td>
-                    <td>45.987.654</td>
-                    <td class="col-score">
-                      <div class="numeric-stepper">
-                        <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" aria-label="Calificación de Romero, Julia" />
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Restar un punto a la calificación de Romero, Julia">
-                          <!-- resources/Minus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14" />
-                          </svg>
-                        </button>
-                        <button type="button" class="numeric-stepper-btn" tabindex="-1" aria-label="Sumar un punto a la calificación de Romero, Julia">
-                          <!-- resources/Plus.svg -->
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
+                <tbody></tbody>
               </table>
             </div>
 
-            <table-pagination results="Mostrando 1-10 de 10" label="Paginación de calificaciones" pages="1"></table-pagination>
+            <table-pagination results="" label="Paginación de calificaciones" pages="1"></table-pagination>
+
+            <!-- Plantillas: evaluation-scores.js las completa con lo que devuelve el proceso
+                 principal: una fila y una opción del filtro Alumno por cada inscripción del curso.
+                 La calificación se carga y se corrige en la propia celda con el numeric stepper
+                 (escritura manual o botones − y +) y se guarda al salir del campo; el campo vacío
+                 indica que todavía no fue registrada. -->
+            <template id="scoreRowTemplate">
+              <tr>
+                <td class="student-name col-student col-truncate"><span class="text-truncate"></span></td>
+                <td></td>
+                <td class="col-score">
+                  <div class="numeric-stepper">
+                    <input class="numeric-stepper-input" type="text" inputmode="decimal" autocomplete="off" role="spinbutton" aria-valuemin="0" aria-valuemax="10" />
+                    <button type="button" class="numeric-stepper-btn" tabindex="-1">
+                      <!-- resources/Minus.svg -->
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M5 12h14" />
+                      </svg>
+                    </button>
+                    <button type="button" class="numeric-stepper-btn" tabindex="-1">
+                      <!-- resources/Plus.svg -->
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 4.5v15m7.5-7.5h-15" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+            <template id="studentOptionTemplate">
+              <li class="dropdown-option option-student" role="option" aria-selected="false">
+                <span class="option-name text-truncate"></span>
+                <span class="option-detail text-truncate"></span>
+              </li>
+            </template>
           </section>
         </main>
       </div>
