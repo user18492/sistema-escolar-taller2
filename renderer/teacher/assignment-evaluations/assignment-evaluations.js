@@ -12,8 +12,10 @@
 // día y el mes que pide el formulario: el año es el ciclo lectivo de la asignación. El resultado se
 // avisa con un toast (toast.component.js), salvo los errores de un campo, que se marcan en el
 // formulario.
-// La edición y la eliminación siguen siendo una maqueta: interacción puramente visual, sin lógica
-// de negocio.
+// Eliminar la da de baja (baja lógica, window.api.evaluations.delete) después de confirmarlo en un
+// modal (confirm-modal.component.js) y también lo avisa con un toast: la evaluación sale de la
+// tabla y del filtro Título, y sus calificaciones se conservan.
+// La edición sigue siendo una maqueta: interacción puramente visual, sin lógica de negocio.
 
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
@@ -126,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pide la lista con el id de la URL, a la par de la tarjeta, y al llegar arma las opciones de
   // Título y muestra las evaluaciones. Sin id en la URL, o con uno que no es un número, el proceso
   // principal responde que no pudo identificar la asignación. Punto de entrada también para volver
-  // a pedirla después de un alta, si no había cargado.
+  // a pedirla después de un alta, si no había cargado, y cuando una baja avisa que quedó vieja.
   async function loadEvaluations() {
     isLoaded = false;
     showMessage('Cargando evaluaciones…');
@@ -160,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // lista ya cargada, que es cuando deja de ser estático.
   pagination.addEventListener('page-change', () => renderRows());
 
-  // ---------- Tabla: cambios después de crear ----------
+  // ---------- Tabla: cambios después de crear o eliminar ----------
 
   // Orden aproximado al del listado (FIND_BY_TEACHER_ASSIGNMENT_SQL, evaluation.repository.js): la
   // fecha (la más antigua primero) y, entre las del mismo día, el título. El orden exacto de los
@@ -183,6 +185,32 @@ document.addEventListener('DOMContentLoaded', () => {
     evaluations = evaluations.toSpliced(index === -1 ? evaluations.length : index, 0, newEvaluation);
     fillFilterOptions();
     renderRows({ page: Math.floor(evaluations.indexOf(newEvaluation) / pagination.pageSize) + 1 });
+  };
+
+  // Quita de la lista en memoria la evaluación dada de baja, sin recargarla, y su opción del filtro
+  // Título; si era la elegida, el filtro deja de aplicarse y su embudo se actualiza. La página se
+  // conserva; si era la última y quedó vacía, el componente pasa a la anterior.
+  const removeEvaluation = (deletedEvaluation) => {
+    evaluations = evaluations.filter(({ id }) => id !== deletedEvaluation.id);
+    const option = titleHeader.querySelector(`.dropdown-option[data-value="${deletedEvaluation.id}"]`);
+    const wasSelected = option?.classList.contains('selected');
+    option?.remove();
+    if (wasSelected) {
+      selectedEvaluationIds = selectedEvaluationIds.filter((value) => value !== String(deletedEvaluation.id));
+      titleHeader.dispatchEvent(new Event('column-filter-refresh'));
+    }
+    renderRows();
+  };
+
+  // Posición en la página de la fila del botón que abrió el modal de eliminación, solo para
+  // devolver el foco a la que ocupe su lugar si esa fila ya no se muestra
+  let triggerRowIndex = 0;
+
+  // El botón Eliminar de la fila que quedó en su lugar (o de la última de la página), o "Nueva
+  // evaluación" si la tabla quedó sin evaluaciones
+  const focusAfterRemoval = () => {
+    const buttons = tbody.querySelectorAll('[data-action="delete"]');
+    return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openEvaluationModalBtn;
   };
 
   // Descripción de los toasts de error: el mensaje del proceso principal. Sin respuesta, o con
@@ -373,9 +401,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar evaluación ----------
 
-  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
-  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
-  setupConfirmModal(document.getElementById('deleteEvaluationOverlay'));
+  // La evaluación o su asignación ya no están vigentes: la lista en memoria quedó vieja y se vuelve
+  // a pedir
+  const NO_LONGER_ACTIVE_CODES = ['EVALUATION_NOT_FOUND', 'TEACHER_ASSIGNMENT_NOT_FOUND'];
+
+  // El id sale del data-evaluation-id de la fila del botón (el evaluacion_id, fijado al crearla),
+  // no de su posición en la tabla, y se envía con el de la asignación con el que se pidió la lista.
+  // Avisa el resultado con un toast y no resuelve ningún mensaje, así el modal se cierra siempre.
+  const deleteEvaluation = async (trigger) => {
+    const row = trigger.closest('tr');
+    const evaluationId = Number(row?.dataset.evaluationId);
+    let response;
+    try {
+      response = await window.api?.evaluations?.delete(Number(assignmentId), evaluationId);
+    } catch (error) {
+      console.error('Error al eliminar la evaluación:', error);
+    }
+    const isGone = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
+    // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
+    if (response?.ok || isGone) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+    if (response?.ok) {
+      const { evaluation } = response;
+      removeEvaluation(evaluation);
+      showToast({
+        type: 'success',
+        title: 'Evaluación eliminada',
+        description: `Se eliminó “${evaluation.title}” del ${toDisplayDate(evaluation.evaluationDate)}.`,
+      });
+      return;
+    }
+    if (isGone) await loadEvaluations();
+    showToast({ type: 'error', title: 'No se pudo eliminar la evaluación', description: errorDescription(response?.error) });
+  };
+
+  // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
+  // cierra. Si la fila ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
+  setupConfirmModal(document.getElementById('deleteEvaluationOverlay'), {
+    onConfirm: deleteEvaluation,
+    fallbackFocus: focusAfterRemoval,
+  });
 
   loadEvaluations();
 });

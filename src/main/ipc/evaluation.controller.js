@@ -5,8 +5,8 @@ const { TeacherAssignmentError } = require('../services/teacher-assignment.servi
 
 const { EvaluationError } = evaluationService;
 
-// Rango de asignacion_docente.asignacion_docente_id (INT): fuera de él, PostgreSQL rechazaría el
-// parámetro.
+// Rango de asignacion_docente.asignacion_docente_id y evaluacion.evaluacion_id (INT): fuera de él,
+// PostgreSQL rechazaría el parámetro.
 const MAX_ID = 2 ** 31 - 1;
 
 function isId(value) {
@@ -72,11 +72,37 @@ async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, d
   }
 }
 
+// `teacherAssignmentId` es el id de una asignación del profesor de la sesión y `evaluationId`, el
+// de la evaluación que se da de baja: que la asignación esté a su cargo y que la evaluación sea de
+// esa asignación lo comprueba el servicio.
+// Nunca rechaza, como createOwnAssignmentEvaluation.
+async function deleteOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId) {
+  if (!isId(teacherAssignmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
+  }
+  if (!isId(evaluationId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la evaluación.');
+  }
+  try {
+    return {
+      ok: true,
+      evaluation: await evaluationService.deleteOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId),
+    };
+  } catch (error) {
+    if (error instanceof TeacherAssignmentError || error instanceof EvaluationError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al eliminar la evaluación:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo eliminar la evaluación. Intentá nuevamente.');
+  }
+}
+
 // Sin sesión, con otro rol o con la cuenta suspendida, handleProtected responde UNAUTHENTICATED,
 // FORBIDDEN o ACCOUNT_SUSPENDED sin llamar a la acción.
 function registerEvaluationHandlers(browserWindow) {
   handleProtected(browserWindow, 'evaluations:list-by-own-assignment', ['PROFESOR'], listOwnAssignmentEvaluations);
   handleProtected(browserWindow, 'evaluations:create', ['PROFESOR'], createOwnAssignmentEvaluation);
+  handleProtected(browserWindow, 'evaluations:delete', ['PROFESOR'], deleteOwnAssignmentEvaluation);
 }
 
 module.exports = { registerEvaluationHandlers };

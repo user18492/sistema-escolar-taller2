@@ -95,6 +95,12 @@ async function listOwnAssignmentEvaluations(currentUser, teacherAssignmentId) {
   return evaluations.map(toListedEvaluation);
 }
 
+// La evaluación no está entre las vigentes de la asignación: no existe, fue dada de baja o es de
+// otra asignación, sin distinguir los casos.
+function evaluationNotFoundError() {
+  return new EvaluationError('EVALUATION_NOT_FOUND', 'La evaluación no existe o no es de esta asignación.');
+}
+
 // La evaluación vigente con ese id, si es de una asignación docente vigente a cargo de
 // `currentUser` (el profesor de la sesión): una de las de listOwnAssignmentEvaluations para esa
 // asignación. Los dos ids llegan del renderer, así que antes se comprueba que la asignación sea
@@ -108,9 +114,7 @@ async function listOwnAssignmentEvaluations(currentUser, teacherAssignmentId) {
 async function getOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   const evaluation = await evaluationRepository.findActiveByIdAndTeacherAssignment(evaluationId, teacherAssignment.id);
-  if (!evaluation) {
-    throw new EvaluationError('EVALUATION_NOT_FOUND', 'La evaluación no existe o no es de esta asignación.');
-  }
+  if (!evaluation) throw evaluationNotFoundError();
   return { teacherAssignment, evaluation: toListedEvaluation(evaluation) };
 }
 
@@ -152,9 +156,30 @@ async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, d
   return toListedEvaluation(evaluation);
 }
 
+// ---------- Baja ----------
+
+// Baja lógica de una evaluación vigente de una asignación docente vigente a cargo de `currentUser`
+// (el profesor de la sesión): la fila queda con su fecha de baja, deja de listarse
+// (listOwnAssignmentEvaluations) y su título se puede volver a usar en la asignación. Sus
+// calificaciones se conservan sin cambios: calificacion no tiene baja, ni lógica ni física. Los dos
+// ids llegan del renderer, así que antes se comprueba que la asignación sea suya
+// (getOwnTeacherAssignment) y la baja solo alcanza a una evaluación de esa asignación.
+// Devuelve la evaluación dada de baja, con los campos de listOwnAssignmentEvaluations. Lanza el
+// TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la asignación
+// no existe, fue dada de baja o es de otro profesor, y un EvaluationError EVALUATION_NOT_FOUND si
+// la evaluación no existe, ya estaba dada de baja o es de otra asignación, sin distinguir los
+// casos.
+async function deleteOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId) {
+  const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
+  const deletedEvaluation = await evaluationRepository.markAsDeleted(evaluationId, teacherAssignment.id);
+  if (!deletedEvaluation) throw evaluationNotFoundError();
+  return toListedEvaluation(deletedEvaluation);
+}
+
 module.exports = {
   listOwnAssignmentEvaluations,
   getOwnAssignmentEvaluation,
   createOwnAssignmentEvaluation,
+  deleteOwnAssignmentEvaluation,
   EvaluationError,
 };
