@@ -29,6 +29,20 @@ const FIND_ACTIVE_BY_ID_AND_TEACHER_ASSIGNMENT_SQL = `
      AND e.fecha_eliminacion IS NULL
 `;
 
+// Alta: una evaluación vigente de la asignación docente. Devuelve la fila creada.
+const CREATE_SQL = `
+  INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion)
+  VALUES ($1, $2, $3)
+  RETURNING evaluacion_id, asignacion_docente_id, titulo, fecha_evaluacion
+`;
+
+// Índice único y restricción de evaluacion (con los nombres que les da db/schema.sql) que rechazan
+// un alta por un motivo previsto: la asignación ya tiene una evaluación vigente con ese título, o
+// la fecha no es del ciclo lectivo de su curso (la informa trg_evaluacion_fecha_ciclo_lectivo).
+// PostgreSQL informa el nombre del índice como el de una restricción.
+const UNIQUE_INDEX = 'uq_evaluacion_asignacion_docente_titulo';
+const SCHOOL_YEAR_CONSTRAINT = 'ck_evaluacion_fecha_ciclo_lectivo';
+
 function toEvaluation(row) {
   return new Evaluation({
     id: row.evaluacion_id,
@@ -53,4 +67,32 @@ async function findActiveByIdAndTeacherAssignment(evaluationId, teacherAssignmen
   return rows.length > 0 ? toEvaluation(rows[0]) : null;
 }
 
-module.exports = { findByTeacherAssignment, findActiveByIdAndTeacherAssignment };
+// Crea una evaluación vigente en la asignación docente `teacherAssignmentId` (un
+// asignacion_docente_id), con el título `title` y el día `evaluationDate` ('AAAA-MM-DD'). Devuelve
+// la evaluación creada. PostgreSQL rechaza el alta si la asignación ya tiene una vigente con ese
+// título (isDuplicateError) o si la fecha no es del ciclo lectivo de su curso
+// (isDateOutOfSchoolYearError). Que la asignación se pueda usar y que los datos sean válidos lo
+// comprueba el servicio.
+async function create(teacherAssignmentId, { title, evaluationDate }) {
+  const { rows } = await query(CREATE_SQL, [teacherAssignmentId, title, evaluationDate]);
+  return toEvaluation(rows[0]);
+}
+
+// true si `error` es la violación del índice único de evaluacion: la asignación ya tiene una
+// evaluación vigente con ese título.
+function isDuplicateError(error) {
+  return error?.code === '23505' && error.constraint === UNIQUE_INDEX;
+}
+
+// true si `error` indica que el año de la fecha no es el ciclo lectivo del curso de la asignación.
+function isDateOutOfSchoolYearError(error) {
+  return error?.code === '23514' && error.constraint === SCHOOL_YEAR_CONSTRAINT;
+}
+
+module.exports = {
+  findByTeacherAssignment,
+  findActiveByIdAndTeacherAssignment,
+  create,
+  isDuplicateError,
+  isDateOutOfSchoolYearError,
+};

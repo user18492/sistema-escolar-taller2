@@ -495,6 +495,7 @@ module.exports = {
   getProfile,
   updateProfile,
   deleteOwnAccount,
+  isRealDate,
   toIsoDate,
   UserError,
 };

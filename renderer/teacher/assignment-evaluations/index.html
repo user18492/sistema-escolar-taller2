@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/assignment-summary.css" />
     <link rel="stylesheet" href="../../shared/styles/confirm-modal.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/buttons.css" />
@@ -28,6 +29,7 @@
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
     <script src="../../shared/components/field-validation.component.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
     <script src="../../shared/components/search-bar.component.js"></script>
     <script src="../../shared/components/table-pagination.component.js"></script>
@@ -156,7 +158,8 @@
             </div>
           </div>
 
-          <!-- El año de la fecha no se ingresa: se toma del ciclo lectivo actual. -->
+          <!-- El año de la fecha no se ingresa: es el ciclo lectivo de la asignación, que
+               assignment-evaluations.js muestra al abrir el modal. -->
           <div class="info-box">
             <span class="info-box-icon">
               <!-- resources/CalendarDays.svg -->

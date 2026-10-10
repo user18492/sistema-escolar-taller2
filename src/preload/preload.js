@@ -223,6 +223,17 @@ contextBridge.exposeInMainWorld('api', {
     // título.
     listByOwnAssignment: (teacherAssignmentId) =>
       ipcRenderer.invoke('evaluations:list-by-own-assignment', teacherAssignmentId),
+    // Solo PROFESOR. Crea una evaluación vigente en la asignación docente vigente con ese id
+    // (asignacion_docente_id), si está a su cargo. `data` es { title, evaluationDate }, con
+    // evaluationDate el día de la evaluación, 'AAAA-MM-DD'. Resuelve { ok: true, evaluation } con la
+    // evaluación creada (mismos campos que listByOwnAssignment) o
+    // { ok: false, error: { code, message, fieldErrors } }, sin guardar nada: fieldErrors
+    // ({ campo: mensaje }, con los nombres de `data`) llega con INVALID_INPUT si el título está
+    // vacío o no tiene letras ni números, o si la fecha no existe en el calendario o no es del
+    // ciclo lectivo de la asignación, y con DUPLICATE_VALUE (la asignación ya tiene una evaluación
+    // vigente con ese título, en fieldErrors.title); TEACHER_ASSIGNMENT_NOT_FOUND, como en
+    // listByOwnAssignment.
+    create: (teacherAssignmentId, data) => ipcRenderer.invoke('evaluations:create', teacherAssignmentId, data),
   },
   scores: {
     // Solo PROFESOR. Resuelve { ok: true, evaluation, scores } con la evaluación vigente con ese id
