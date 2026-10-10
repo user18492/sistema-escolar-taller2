@@ -4,8 +4,12 @@
 // Hasta que llegan, cada dato muestra una raya.
 // Si la asignación no existe o no está a cargo del profesor de la sesión, o si la carga falla, la
 // tarjeta, el alta y la tabla se ocultan y queda solo el mensaje de error.
-// La tabla de evaluaciones y sus modales siguen siendo una maqueta: interacción puramente visual,
-// sin lógica de negocio.
+// La tabla muestra las evaluaciones vigentes de esa asignación, que llegan del proceso principal
+// (window.api.evaluations.listByOwnAssignment) con el mismo id, y el filtro Título, con una opción
+// por evaluación, las filtra en memoria. La lista filtrada se pagina en memoria, 10 por página, con
+// <table-pagination>.
+// Los modales de alta, edición y eliminación siguen siendo una maqueta: interacción puramente
+// visual, sin lógica de negocio.
 
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
@@ -31,30 +35,116 @@ document.addEventListener('DOMContentLoaded', () => {
     if (managementLink) managementLink.href = `${managementLink.getAttribute('href')}?${query}`;
   }
 
-  // ---------- Filtros: Título y Tipo ----------
+  // ---------- Tabla: evaluaciones de la asignación ----------
 
-  // Los filtros viven en los encabezados de la tabla y los gestiona el componente
-  // compartido column-filter.js (mismo patrón usado en Alumnos de la asignación).
+  const table = evaluationsCard.querySelector('.data-table');
+  const tbody = table.tBodies[0];
+  const rowTemplate = document.getElementById('evaluationRowTemplate');
+  const evaluationOptionTemplate = document.getElementById('evaluationOptionTemplate');
+  // El script del componente se carga sin defer en <head>: acá ya está definido y conectado
+  const pagination = evaluationsCard.querySelector('table-pagination');
+  const titleHeader = table.querySelector('th[data-filter="title"]');
 
-  // ---------- Navegación a las calificaciones de la evaluación ----------
+  const GENERIC_LOAD_ERROR = 'No se pudieron cargar las evaluaciones. Intentá nuevamente.';
 
-  // La acción "Gestionar" de cada fila abre las calificaciones de esa evaluación y le pasa el id
-  // de la asignación, con el que esa vista la carga, junto con el título de la fila, que es el
-  // paso de la evaluación en su ruta de navegación.
-  document.querySelectorAll('.data-table tbody tr').forEach((row) => {
-    const manageLink = row.querySelector('.manage-link');
-    if (!manageLink) return;
+  // En el orden en que llegan del proceso principal: por fecha
+  let evaluations = [];
+  // La evaluación elegida en el filtro Título, por su id. Vacío (nada elegido) no filtra.
+  let selectedEvaluationIds = [];
 
+  // Cargando, error o sin resultados, en una única fila de todo el ancho
+  const showMessage = (message) => {
+    const row = document.createElement('tr');
+    const cell = row.insertCell();
+    cell.colSpan = table.tHead.rows[0].cells.length;
+    cell.className = 'table-message';
+    cell.textContent = message;
+    tbody.replaceChildren(row);
+  };
+
+  // La fecha llega como 'AAAA-MM-DD' y se muestra como DD/MM/AAAA
+  const toDisplayDate = (isoDate) => isoDate.split('-').reverse().join('/');
+
+  // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
+  // evaluacion_id en data-evaluation-id.
+  const createRow = ({ id, title, evaluationDate }) => {
+    const row = rowTemplate.content.firstElementChild.cloneNode(true);
+    row.dataset.evaluationId = String(id);
+    row.cells[0].querySelector('.text-truncate').textContent = title;
+    row.cells[1].textContent = toDisplayDate(evaluationDate);
+    // "Gestionar" abre las calificaciones de esa evaluación y le pasa el id de la asignación, con
+    // el que esa vista la carga, junto con el título, que es el paso de la evaluación en su ruta
+    // de navegación. El destino se asigna antes de conectar el <row-actions>, que lo lee al
+    // generarse.
+    const rowActions = row.querySelector('row-actions');
     const scoresParams = new URLSearchParams(assignmentParams);
-    scoresParams.set('evaluation', row.cells[0].textContent.trim());
-    manageLink.href = `${manageLink.getAttribute('href')}?${scoresParams.toString()}`;
+    scoresParams.set('evaluation', title);
+    rowActions.setAttribute('manage-href', `${rowActions.getAttribute('manage-href')}?${scoresParams.toString()}`);
+    return row;
+  };
+
+  // El título y, como referencia, su fecha: el buscador del panel encuentra la opción por
+  // cualquiera de los dos
+  const createEvaluationOption = ({ id, title, evaluationDate }) => {
+    const option = evaluationOptionTemplate.content.firstElementChild.cloneNode(true);
+    option.dataset.value = String(id);
+    option.querySelector('.option-name').textContent = title;
+    option.querySelector('.option-detail').textContent = toDisplayDate(evaluationDate);
+    return option;
+  };
+
+  // Opciones de Título: una por evaluación, en el orden de la tabla y antes de .dropdown-empty;
+  // column-filter.js las lee al usarlas.
+  const fillFilterOptions = () => {
+    const titleList = titleHeader.querySelector('[role="listbox"]');
+    titleList.replaceChildren(...evaluations.map(createEvaluationOption), titleList.querySelector('.dropdown-empty'));
+  };
+
+  // Muestra la página `page` (por defecto, la actual) de las evaluaciones que pasan el filtro (10
+  // por página, en memoria): el total y los números de página salen de esa lista filtrada. Al
+  // cambiar el filtro se vuelve a la página 1.
+  const renderRows = ({ page } = {}) => {
+    const visibleEvaluations = selectedEvaluationIds.length
+      ? evaluations.filter(({ id }) => selectedEvaluationIds.includes(String(id)))
+      : evaluations;
+    const pageEvaluations = pagination.slice(visibleEvaluations, { page });
+    if (pageEvaluations.length) tbody.replaceChildren(...pageEvaluations.map(createRow));
+    else showMessage('No hay evaluaciones registradas para esta asignación.');
+  };
+
+  // Pide la lista con el id de la URL, a la par de la tarjeta, y al llegar arma las opciones de
+  // Título y muestra las evaluaciones. Sin id en la URL, o con uno que no es un número, el proceso
+  // principal responde que no pudo identificar la asignación.
+  async function loadEvaluations() {
+    showMessage('Cargando evaluaciones…');
+    let response;
+    try {
+      response = await window.api?.evaluations?.listByOwnAssignment(Number(assignmentId));
+    } catch (error) {
+      console.error('Error al cargar las evaluaciones:', error);
+    }
+    if (!response?.ok) {
+      showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
+      return;
+    }
+    evaluations = response.evaluations;
+    fillFilterOptions();
+    renderRows();
+  }
+
+  // El filtro de Título avisa sus cambios (column-filter.js). Si lo que filtra no cambió ("Limpiar
+  // filtro" sin nada elegido), la tabla y la página quedan como están; eso incluye a los avisos
+  // previos a la carga, cuando todavía no hay opciones que elegir.
+  table.tHead.addEventListener('column-filter-change', (event) => {
+    const { values } = event.detail;
+    if (String(values) === String(selectedEvaluationIds)) return;
+    selectedEvaluationIds = values;
+    renderRows({ page: 1 });
   });
 
-  // ---------- Dropdowns del modal ----------
-
-  // Apertura, cierre y selección: componente compartido dropdown.component.js. También guarda
-  // en data-placeholder el texto inicial de la etiqueta, que usa el reinicio del formulario.
-  const { closeAllDropdowns } = setupDropdowns();
+  // Previo, Siguiente o un número: el componente ya marcó la página nueva. Solo responde con la
+  // lista ya cargada, que es cuando deja de ser estático.
+  pagination.addEventListener('page-change', () => renderRows());
 
   // ---------- Modal compartido: Nueva evaluación / Editar evaluación ----------
 
@@ -69,11 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const titleInput = document.getElementById('evaluationTitleInput');
   const dateInput = document.getElementById('evaluationDateInput');
-  const typeDropdown = evaluationOverlay.querySelector('[data-filter="evaluation-type"]');
-  const typeLabel = typeDropdown.querySelector('.dropdown-label');
-  const typeOptions = typeDropdown.querySelectorAll('.dropdown-option');
-
-  const MONTH_ABBREVIATIONS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 
   let modalTrigger = openEvaluationModalBtn;
 
@@ -82,25 +167,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateSaveButtonState() {
     const hasTitle = titleInput.value.trim().length > 0;
-    const hasType = Boolean(typeDropdown.querySelector('.dropdown-option.selected'));
     const hasDate = /^\d{2}\/\d{2}$/.test(dateInput.value);
-    saveEvaluationBtn.disabled = !(hasTitle && hasType && hasDate);
+    saveEvaluationBtn.disabled = !(hasTitle && hasDate);
   }
 
   function resetEvaluationForm() {
     titleInput.value = '';
     dateInput.value = '';
     clearFieldErrors(evaluationOverlay);
-    typeOptions.forEach((option) => {
-      option.classList.remove('selected');
-      option.setAttribute('aria-selected', 'false');
-    });
-    typeLabel.textContent = typeLabel.dataset.placeholder;
-    typeLabel.classList.add('placeholder');
   }
 
-  function openEvaluationModal(row = null, trigger = openEvaluationModalBtn) {
-    const isEditing = Boolean(row);
+  // `evaluation` es la evaluación de la fila que se edita; sin ella, el modal es el de alta.
+  function openEvaluationModal(evaluation = null, trigger = openEvaluationModalBtn) {
+    const isEditing = Boolean(evaluation);
     modalTrigger = trigger;
     resetEvaluationForm();
 
@@ -114,19 +193,15 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEvaluationBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear evaluación';
     cycleYear.textContent = String(new Date().getFullYear());
 
-    if (row) {
-      const [title, type, date] = Array.from(row.cells, (cell) => cell.textContent.trim());
-      titleInput.value = title;
-      Array.from(typeOptions).find((option) => option.textContent.trim() === type)?.click();
-      // La tabla muestra la fecha como "DD MMM AAAA"; el campo la espera como DD/MM.
-      const [day, month, year] = date.split(' ');
-      const monthNumber = String(MONTH_ABBREVIATIONS.indexOf(month) + 1).padStart(2, '0');
-      dateInput.value = `${day}/${monthNumber}`;
+    if (evaluation) {
+      titleInput.value = evaluation.title;
+      // La fecha llega como 'AAAA-MM-DD'; el campo la espera como DD/MM y el año va aparte.
+      const [year, month, day] = evaluation.evaluationDate.split('-');
+      dateInput.value = `${day}/${month}`;
       cycleYear.textContent = year;
     }
 
     updateSaveButtonState();
-    closeAllDropdowns();
     document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     evaluationOverlay.classList.add('is-open');
     evaluationOverlay.querySelector('.modal').scrollTop = 0;
@@ -135,21 +210,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function closeEvaluationModal() {
     evaluationOverlay.classList.remove('is-open');
-    closeAllDropdowns();
     modalTrigger?.focus();
   }
 
   titleInput.addEventListener('input', updateSaveButtonState);
   dateInput.addEventListener('input', updateSaveButtonState);
-  typeOptions.forEach((option) => option.addEventListener('click', updateSaveButtonState));
 
   openEvaluationModalBtn.addEventListener('click', () => openEvaluationModal());
-  document.querySelectorAll('.data-table tbody [data-action=edit]').forEach((button) => {
-    button.addEventListener('click', () => openEvaluationModal(button.closest('tr'), button));
+  // Por delegación: las filas se generan después de cargar y al cambiar de página o de filtro
+  tbody.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="edit"]');
+    if (!button) return;
+    const { evaluationId } = button.closest('tr').dataset;
+    openEvaluationModal(evaluations.find(({ id }) => String(id) === evaluationId), button);
   });
 
-  // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
-  // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
+  // Escape cierra el modal. Se escucha en el documento para que funcione aunque el foco haya
   // quedado fuera de un control.
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && evaluationOverlay.classList.contains('is-open')) closeEvaluationModal();
@@ -170,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
   // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
-  setupConfirmModal(document.getElementById('deleteEvaluationOverlay'), { beforeOpen: closeAllDropdowns });
+  setupConfirmModal(document.getElementById('deleteEvaluationOverlay'));
 
+  loadEvaluations();
 });

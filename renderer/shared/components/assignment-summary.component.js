@@ -1,8 +1,8 @@
 // Componente reutilizable: card de contexto con los datos de la asignación seleccionada en las
 // vistas del Profesor que se abren desde Asignaciones.
 // Uso: <assignment-summary course="—" level="—" subject="—" year="—"></assignment-summary>
-// Si además recibe "evaluation", "evaluation-type" y "evaluation-date", genera la variante en dos
-// bloques (.assignment-summary-split): asignación a la izquierda y evaluación a la derecha.
+// Si además recibe "evaluation" y "evaluation-date", genera la variante en dos bloques
+// (.assignment-summary-split): asignación a la izquierda y evaluación a la derecha.
 // Los atributos son el texto de cada dato mientras no llega el real: una raya.
 //   - loadAssignment(loadError): pide al proceso principal (window.api.teacherAssignments.getOwn)
 //     la asignación elegida en Asignaciones, por el id que trae la URL de la vista
@@ -38,7 +38,6 @@
 
   const EVALUATION_FIELDS = [
     { field: 'evaluation', attribute: 'evaluation', label: 'Evaluación' },
-    { field: 'type', attribute: 'evaluation-type', label: 'Tipo' },
     { field: 'date', attribute: 'evaluation-date', label: 'Fecha' },
   ];
 

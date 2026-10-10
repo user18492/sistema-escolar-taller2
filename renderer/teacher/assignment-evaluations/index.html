@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="../../shared/styles/searchable-select.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/assignment-summary.css" />
-    <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/confirm-modal.css" />
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
@@ -26,10 +25,8 @@
     <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/modal-resize.js"></script>
-    <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
     <script src="../../shared/components/field-validation.component.js"></script>
-    <script src="../../shared/components/dropdown.component.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
     <script src="../../shared/components/search-bar.component.js"></script>
@@ -79,6 +76,8 @@
             </button>
           </div>
 
+          <!-- Evaluaciones vigentes de la asignación: assignment-evaluations.js las carga del proceso
+               principal -->
           <section class="card evaluations-card">
             <div class="table-wrap">
               <table class="data-table">
@@ -88,48 +87,10 @@
                       <column-filter-toggle target="titleFilter" heading="Título" label="Filtrar por título"></column-filter-toggle>
                       <div id="titleFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por título">
                         <search-bar placeholder="Filtrar por título"></search-bar>
-                        <!-- Evaluaciones creadas por el docente en esta asignación, con su fecha como dato secundario. -->
+                        <!-- Una opción por evaluación de la asignación, con su fecha como dato secundario:
+                             assignment-evaluations.js las agrega antes de .dropdown-empty -->
                         <ul class="dropdown-menu dropdown-menu-evaluation" role="listbox" aria-label="Título">
-                          <li class="dropdown-option option-evaluation" role="option" data-value="e1" aria-selected="false">
-                            <span class="option-name text-truncate">Actividad - Números del 1 al 100</span>
-                            <span class="option-detail text-truncate">12 MAR 2026</span>
-                          </li>
-                          <li class="dropdown-option option-evaluation" role="option" data-value="e2" aria-selected="false">
-                            <span class="option-name text-truncate">Trabajo práctico - Sumas y restas</span>
-                            <span class="option-detail text-truncate">26 MAR 2026</span>
-                          </li>
-                          <li class="dropdown-option option-evaluation" role="option" data-value="e3" aria-selected="false">
-                            <span class="option-name text-truncate">Evaluación escrita 1</span>
-                            <span class="option-detail text-truncate">15 ABR 2026</span>
-                          </li>
-                          <li class="dropdown-option option-evaluation" role="option" data-value="e4" aria-selected="false">
-                            <span class="option-name text-truncate">Exposición - Figuras geométricas</span>
-                            <span class="option-detail text-truncate">05 MAY 2026</span>
-                          </li>
-                          <li class="dropdown-option option-evaluation" role="option" data-value="e5" aria-selected="false">
-                            <span class="option-name text-truncate">Proyecto - Medición en el aula</span>
-                            <span class="option-detail text-truncate">27 MAY 2026</span>
-                          </li>
-                          <li class="dropdown-option option-evaluation" role="option" data-value="e6" aria-selected="false">
-                            <span class="option-name text-truncate">Evaluación oral - Tablas</span>
-                            <span class="option-detail text-truncate">18 JUN 2026</span>
-                          </li>
                           <li class="dropdown-empty" hidden>Sin resultados</li>
-                        </ul>
-                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
-                      </div>
-                    </th>
-                    <th scope="col" class="column-filter" data-filter="type">
-                      <column-filter-toggle target="typeFilter" heading="Tipo" label="Filtrar por tipo"></column-filter-toggle>
-                      <div id="typeFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por tipo">
-                        <ul class="dropdown-menu" role="listbox" aria-label="Tipo" aria-multiselectable="true">
-                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                          <li class="dropdown-option" role="option" data-value="ACTIVITY" aria-selected="false">Actividad</li>
-                          <li class="dropdown-option" role="option" data-value="PRACTICAL_WORK" aria-selected="false">Trabajo práctico</li>
-                          <li class="dropdown-option" role="option" data-value="WRITTEN" aria-selected="false">Escrito</li>
-                          <li class="dropdown-option" role="option" data-value="PRESENTATION" aria-selected="false">Exposición</li>
-                          <li class="dropdown-option" role="option" data-value="PROJECT" aria-selected="false">Proyecto</li>
-                          <li class="dropdown-option" role="option" data-value="ORAL" aria-selected="false">Oral</li>
                         </ul>
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
@@ -138,61 +99,30 @@
                     <th>Acciones</th>
                   </tr>
                 </thead>
-                <!-- "Gestionar" abre las calificaciones de esa evaluación. -->
-                <tbody>
-                  <tr>
-                    <td class="evaluation-title col-title col-truncate"><span class="text-truncate">Actividad - Números del 1 al 100</span></td>
-                    <td>Actividad</td>
-                    <td>12 MAR 2026</td>
-                    <td>
-                      <row-actions manage-href="../evaluation-scores/index.html" edit-label="Editar evaluación" delete-label="Eliminar evaluación"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="evaluation-title col-title col-truncate"><span class="text-truncate">Trabajo práctico - Sumas y restas</span></td>
-                    <td>Trabajo práctico</td>
-                    <td>26 MAR 2026</td>
-                    <td>
-                      <row-actions manage-href="../evaluation-scores/index.html" edit-label="Editar evaluación" delete-label="Eliminar evaluación"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="evaluation-title col-title col-truncate"><span class="text-truncate">Evaluación escrita 1</span></td>
-                    <td>Escrito</td>
-                    <td>15 ABR 2026</td>
-                    <td>
-                      <row-actions manage-href="../evaluation-scores/index.html" edit-label="Editar evaluación" delete-label="Eliminar evaluación"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="evaluation-title col-title col-truncate"><span class="text-truncate">Exposición - Figuras geométricas</span></td>
-                    <td>Exposición</td>
-                    <td>05 MAY 2026</td>
-                    <td>
-                      <row-actions manage-href="../evaluation-scores/index.html" edit-label="Editar evaluación" delete-label="Eliminar evaluación"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="evaluation-title col-title col-truncate"><span class="text-truncate">Proyecto - Medición en el aula</span></td>
-                    <td>Proyecto</td>
-                    <td>27 MAY 2026</td>
-                    <td>
-                      <row-actions manage-href="../evaluation-scores/index.html" edit-label="Editar evaluación" delete-label="Eliminar evaluación"></row-actions>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="evaluation-title col-title col-truncate"><span class="text-truncate">Evaluación oral - Tablas</span></td>
-                    <td>Oral</td>
-                    <td>18 JUN 2026</td>
-                    <td>
-                      <row-actions manage-href="../evaluation-scores/index.html" edit-label="Editar evaluación" delete-label="Eliminar evaluación"></row-actions>
-                    </td>
-                  </tr>
-                </tbody>
+                <tbody></tbody>
               </table>
             </div>
 
-            <table-pagination results="Mostrando 1-6 de 6" label="Paginación de evaluaciones" pages="1"></table-pagination>
+            <table-pagination results="" label="Paginación de evaluaciones" pages="1"></table-pagination>
+
+            <!-- Plantillas: assignment-evaluations.js las completa con lo que devuelve el proceso
+                 principal: una fila y una opción del filtro Título por cada evaluación de la
+                 asignación. "Gestionar" abre las calificaciones de esa evaluación -->
+            <template id="evaluationRowTemplate">
+              <tr>
+                <td class="evaluation-title col-title col-truncate"><span class="text-truncate"></span></td>
+                <td></td>
+                <td>
+                  <row-actions manage-href="../evaluation-scores/index.html" edit-label="Editar evaluación" delete-label="Eliminar evaluación"></row-actions>
+                </td>
+              </tr>
+            </template>
+            <template id="evaluationOptionTemplate">
+              <li class="dropdown-option option-evaluation" role="option" aria-selected="false">
+                <span class="option-name text-truncate"></span>
+                <span class="option-detail text-truncate"></span>
+              </li>
+            </template>
           </section>
         </main>
       </div>
@@ -210,26 +140,6 @@
             <label for="evaluationTitleInput">Título</label>
             <div class="field">
               <input type="text" id="evaluationTitleInput" placeholder="Ej. Evaluación escrita 2" autocomplete="off" data-validate="title" required />
-            </div>
-          </div>
-
-          <div class="form-field">
-            <label id="evaluationTypeLabel">Tipo</label>
-            <div class="field field-select dropdown" data-filter="evaluation-type">
-              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="evaluationTypeLabel">
-                <span class="dropdown-label text-truncate placeholder">Seleccionar tipo</span>
-                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              <ul class="dropdown-menu" role="listbox" aria-labelledby="evaluationTypeLabel" hidden>
-                <li class="dropdown-option" role="option" data-value="ACTIVITY" aria-selected="false">Actividad</li>
-                <li class="dropdown-option" role="option" data-value="PRACTICAL_WORK" aria-selected="false">Trabajo práctico</li>
-                <li class="dropdown-option" role="option" data-value="WRITTEN" aria-selected="false">Escrito</li>
-                <li class="dropdown-option" role="option" data-value="PRESENTATION" aria-selected="false">Exposición</li>
-                <li class="dropdown-option" role="option" data-value="PROJECT" aria-selected="false">Proyecto</li>
-                <li class="dropdown-option" role="option" data-value="ORAL" aria-selected="false">Oral</li>
-              </ul>
             </div>
           </div>
 

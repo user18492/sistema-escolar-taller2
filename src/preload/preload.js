@@ -33,9 +33,9 @@ contextBridge.exposeInMainWorld('api', {
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
   // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de profile, de users, de
-  // courses, de grades, de teacherAssignments, de enrollments y de dashboard resuelven
-  // { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal cierra la
-  // sesión y vuelve al login.
+  // courses, de grades, de teacherAssignments, de enrollments, de evaluations y de dashboard
+  // resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal
+  // cierra la sesión y vuelve al login.
   profile: {
     // Cualquier rol. Resuelve { ok: true, profile } con los datos del usuario de la sesión, leídos de
     // la base ({ firstName, lastName, dni, email, birthDate, imageUrl }, con dni solo los dígitos,
@@ -212,6 +212,17 @@ contextBridge.exposeInMainWorld('api', {
     // entre esos casos. Llegan siempre en el mismo orden: por alumno (apellido y nombre).
     listByOwnAssignment: (teacherAssignmentId) =>
       ipcRenderer.invoke('enrollments:list-by-own-assignment', teacherAssignmentId),
+  },
+  evaluations: {
+    // Solo PROFESOR. Resuelve { ok: true, evaluations } con las evaluaciones vigentes (sin las dadas
+    // de baja) de la asignación docente vigente con ese id (asignacion_docente_id), si está a su
+    // cargo ({ id, title, evaluationDate }, con evaluationDate el día de la evaluación,
+    // 'AAAA-MM-DD'), o { ok: false, error: { code, message } }: TEACHER_ASSIGNMENT_NOT_FOUND indica
+    // que la asignación no existe, que fue dada de baja o que es de otro profesor, sin distinguir
+    // entre esos casos. Llegan siempre en el mismo orden: por fecha (la más antigua primero) y
+    // título.
+    listByOwnAssignment: (teacherAssignmentId) =>
+      ipcRenderer.invoke('evaluations:list-by-own-assignment', teacherAssignmentId),
   },
   dashboard: {
     // Solo ADMIN. Resuelve { ok: true, summary } con los indicadores de la vista Inicio para su
