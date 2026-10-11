@@ -36,8 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const streetInput = document.getElementById('newStudentStreet');
   const streetNumberInput = document.getElementById('newStudentStreetNumber');
 
-  const MONTH_ABBREVIATIONS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-
   let modalTrigger = openModalBtn;
 
   // Máscaras, formato y errores de los campos de texto: componente compartido
@@ -96,10 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
       streetInput.value = addressParts ? addressParts[1] : address;
       streetNumberInput.value = addressParts ? addressParts[2] : '';
       dniInput.value = row.cells[4].textContent.trim();
-      // La tabla muestra la fecha como "DD MMM AAAA"; el campo la espera como DD/MM/AAAA.
-      const [day, month, year] = row.cells[5].textContent.trim().split(' ');
-      const monthNumber = String(MONTH_ABBREVIATIONS.indexOf(month) + 1).padStart(2, '0');
-      birthdateInput.value = `${day}/${monthNumber}/${year}`;
+      birthdateInput.value = row.cells[5].textContent.trim();
       selectStatus(row.cells[6].textContent.trim());
     }
 
