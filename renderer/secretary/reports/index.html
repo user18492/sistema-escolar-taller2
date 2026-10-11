@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reportes - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <app-sidebar nav-role="secretary" active="reports"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Reportes</h1>
+              <p>Visualiza los reportes correspondientes a la institución</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
