@@ -1,6 +1,7 @@
 const userRepository = require('../repositories/user.repository');
 const courseRepository = require('../repositories/course.repository');
 const teacherAssignmentRepository = require('../repositories/teacher-assignment.repository');
+const enrollmentRepository = require('../repositories/enrollment.repository');
 
 // Indicadores de la vista Inicio del Administrador para la institución de `currentUser` (el de la
 // sesión):
@@ -26,4 +27,13 @@ async function getAdminSummary(currentUser) {
   };
 }
 
-module.exports = { getAdminSummary };
+// Indicadores de la vista Inicio del Secretario para la institución de `currentUser` (el de la
+// sesión):
+//   - activeEnrollmentCount: inscripciones activas del ciclo lectivo del año en curso. El año lo
+//     resuelve la consulta del repositorio: acá no se calcula ni se reinicia nada.
+async function getSecretarySummary(currentUser) {
+  const activeEnrollmentCount = await enrollmentRepository.countActiveInCurrentSchoolYear(currentUser.institutionId);
+  return { activeEnrollmentCount };
+}
+
+module.exports = { getAdminSummary, getSecretarySummary };

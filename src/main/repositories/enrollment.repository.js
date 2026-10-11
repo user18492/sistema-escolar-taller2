@@ -26,6 +26,21 @@ const FIND_BY_COURSE_SQL = `
    ORDER BY al.apellido, al.nombre, al.alumno_id, i.inscripcion_id
 `;
 
+// Cantidad de inscripciones activas (de estado ACTIVA, un valor de inscripcion_estado.nombre) de una
+// institución en el ciclo lectivo del año en curso. La institución y el ciclo lectivo son los del
+// curso: la inscripción no los guarda. El año en curso lo resuelve la base (CURRENT_DATE), así que
+// las de ciclos anteriores quedan afuera sin que nadie las descuente: la cuenta vuelve a 0 cuando
+// empieza un año. Solo cuenta el estado de la inscripción, no el del alumno ni la baja del curso.
+const COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL = `
+  SELECT COUNT(*)::INT AS total
+    FROM inscripcion i
+    JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+    JOIN curso c ON c.curso_id = i.curso_id
+   WHERE c.institucion_id = $1
+     AND ie.nombre = 'ACTIVA'
+     AND c.anio_ciclo_lectivo = EXTRACT(YEAR FROM CURRENT_DATE)::INT
+`;
+
 function toEnrollment(row) {
   return new Enrollment({
     id: row.inscripcion_id,
@@ -48,4 +63,10 @@ async function findByCourse(courseId) {
   return rows.map(toEnrollment);
 }
 
-module.exports = { findByCourse };
+// Cantidad de inscripciones activas de la institución en el ciclo lectivo del año en curso.
+async function countActiveInCurrentSchoolYear(institutionId) {
+  const { rows } = await query(COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL, [institutionId]);
+  return rows[0].total;
+}
+
+module.exports = { findByCourse, countActiveInCurrentSchoolYear };

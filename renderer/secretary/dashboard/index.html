@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="../../shared/styles/base.css" />
     <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
     <link rel="stylesheet" href="../../shared/styles/dashboard.css" />
     <link rel="stylesheet" href="./dashboard.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -14,8 +15,10 @@
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="../../shared/components/dropdown.component.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/stat-card.component.js"></script>
     <script src="../../shared/components/dashboard-greeting.component.js"></script>
+    <script src="../../shared/components/dashboard-summary.component.js"></script>
     <script src="./dashboard.js" defer></script>
   </head>
   <body>
@@ -35,7 +38,8 @@
           </div>
 
           <section class="stat-grid">
-            <stat-card icon="clipboard-document" label="Inscripciones activas" value="2,256"></stat-card>
+            <!-- "value" lo completa dashboard-summary.component.js con el dato de data-stat; hasta entonces, una raya -->
+            <stat-card icon="clipboard-document" label="Inscripciones activas" value="—" data-stat="activeEnrollmentCount"></stat-card>
           </section>
 
           <section class="card chart-card">

@@ -16,6 +16,7 @@
     <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/stat-card.component.js"></script>
     <script src="../../shared/components/dashboard-greeting.component.js"></script>
+    <script src="../../shared/components/dashboard-summary.component.js"></script>
     <script src="./dashboard.js" defer></script>
   </head>
   <body>
@@ -35,7 +36,7 @@
           </div>
 
           <section class="stat-grid">
-            <!-- "value" lo completa dashboard.js con el dato de data-stat; hasta entonces, una raya -->
+            <!-- "value" lo completa dashboard-summary.component.js con el dato de data-stat; hasta entonces, una raya -->
             <stat-card icon="users" label="Usuarios vigentes" value="—" data-stat="userCount"></stat-card>
 
             <stat-card icon="rectangle-stack" label="Cursos vigentes" value="—" data-stat="courseCount"></stat-card>

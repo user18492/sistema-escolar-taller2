@@ -296,5 +296,10 @@ contextBridge.exposeInMainWorld('api', {
     // distintos que tienen al menos una de esas asignaciones), o
     // { ok: false, error: { code, message } }.
     getAdminSummary: () => ipcRenderer.invoke('dashboard:get-admin-summary'),
+    // Solo SECRETARIO. Resuelve { ok: true, summary } con los indicadores de la vista Inicio para su
+    // institución ({ activeEnrollmentCount }, un entero: las inscripciones activas del ciclo lectivo
+    // del año en curso, sin las de años anteriores; 0 si ese año todavía no tiene ninguna), o
+    // { ok: false, error: { code, message } }.
+    getSecretarySummary: () => ipcRenderer.invoke('dashboard:get-secretary-summary'),
   },
 });
