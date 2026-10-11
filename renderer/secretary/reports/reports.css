@@ -1,4 +1,4 @@
-/* Vista Inicio (dashboard) del Secretario — puramente visual, sin lógica */
+/* Vista Reportes del Secretario — puramente visual, sin lógica */
 
 /* ---------- Chart card ---------- */
 
@@ -7,7 +7,7 @@
   padding: 24px;
 }
 
-/* Transición del alto de la card mientras aparece u oculta la leyenda (ver dashboard.js) */
+/* Transición del alto de la card mientras aparece u oculta la leyenda (ver reports.js) */
 .chart-card.is-resizing {
   overflow: hidden;
   transition: height var(--size-transition);

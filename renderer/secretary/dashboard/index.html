@@ -9,12 +9,10 @@
     <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
     <link rel="stylesheet" href="../../shared/styles/toast.css" />
     <link rel="stylesheet" href="../../shared/styles/dashboard.css" />
-    <link rel="stylesheet" href="./dashboard.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/user-avatar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
-    <script src="../../shared/components/dropdown.component.js"></script>
     <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/stat-card.component.js"></script>
     <script src="../../shared/components/dashboard-greeting.component.js"></script>
@@ -40,98 +38,6 @@
           <section class="stat-grid">
             <!-- "value" lo completa dashboard-summary.component.js con el dato de data-stat; hasta entonces, una raya -->
             <stat-card icon="clipboard-document" label="Inscripciones activas" value="—" data-stat="activeEnrollmentCount"></stat-card>
-          </section>
-
-          <section class="card chart-card">
-            <div class="chart-header">
-              <div class="chart-header-left">
-                <div>
-                  <h2>Inscripciones por grado</h2>
-                  <p>Distribución de estudiantes</p>
-                </div>
-              </div>
-              <div class="field field-select dropdown" data-filter="chart-level">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                  <span class="dropdown-label text-truncate">Todos</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option selected" role="option" data-value="ALL" aria-selected="true">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
-                  <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
-                </ul>
-              </div>
-            </div>
-
-            <div class="chart">
-              <div class="chart-y-axis">
-                <span>300</span>
-                <span>200</span>
-                <span>100</span>
-                <span>0</span>
-              </div>
-              <div class="chart-plot">
-                <div class="chart-gridlines">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <div class="chart-bars mode-all" data-role="chart-bars">
-                  <div class="chart-col">
-                    <div class="chart-bar-group">
-                      <div class="chart-bar chart-bar-primary" style="height: 50%"></div>
-                      <div class="chart-bar chart-bar-secondary" style="height: 33%"></div>
-                    </div>
-                  </div>
-                  <div class="chart-col">
-                    <div class="chart-bar-group">
-                      <div class="chart-bar chart-bar-primary" style="height: 60%"></div>
-                      <div class="chart-bar chart-bar-secondary" style="height: 42%"></div>
-                    </div>
-                  </div>
-                  <div class="chart-col">
-                    <div class="chart-bar-group">
-                      <div class="chart-bar chart-bar-primary" style="height: 68%"></div>
-                      <div class="chart-bar chart-bar-secondary" style="height: 53%"></div>
-                    </div>
-                  </div>
-                  <div class="chart-col">
-                    <div class="chart-bar-group">
-                      <div class="chart-bar chart-bar-primary" style="height: 78%"></div>
-                      <div class="chart-bar chart-bar-secondary" style="height: 60%"></div>
-                    </div>
-                  </div>
-                  <div class="chart-col">
-                    <div class="chart-bar-group">
-                      <div class="chart-bar chart-bar-primary" style="height: 88%"></div>
-                      <div class="chart-bar chart-bar-secondary" style="height: 70%"></div>
-                    </div>
-                  </div>
-                  <div class="chart-col">
-                    <div class="chart-bar-group">
-                      <div class="chart-bar chart-bar-primary" style="height: 80%"></div>
-                      <div class="chart-bar chart-bar-secondary" style="height: 70%"></div>
-                    </div>
-                  </div>
-                </div>
-                <div class="chart-labels">
-                  <span class="chart-col-label">1°</span>
-                  <span class="chart-col-label">2°</span>
-                  <span class="chart-col-label">3°</span>
-                  <span class="chart-col-label">4°</span>
-                  <span class="chart-col-label">5°</span>
-                  <span class="chart-col-label">6°</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="chart-legend" data-role="chart-legend">
-              <span class="legend-item"><span class="legend-dot legend-dot-primary"></span>Primaria</span>
-              <span class="legend-item"><span class="legend-dot legend-dot-secondary"></span>Secundaria</span>
-            </div>
           </section>
 
           <section class="card attention-card">
