@@ -104,11 +104,6 @@
   color: var(--color-accent-blue);
 }
 
-/* Las inscripciones vigentes todavía no tienen fecha de baja. */
-.date-empty {
-  color: var(--color-text-tertiary);
-}
-
 /* ---------- Modales: Nueva inscripción / Editar inscripción ---------- */
 
 .modal-header {

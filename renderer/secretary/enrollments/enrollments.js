@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openEditModal(row, trigger) {
     editTrigger = trigger;
-    selectStatus(row.cells[5].textContent.trim());
+    selectStatus(row.cells[4].textContent.trim());
 
     closeAllDropdowns();
     closeAllSearchableMenus();
