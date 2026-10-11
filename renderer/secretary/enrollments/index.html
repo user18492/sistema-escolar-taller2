@@ -68,45 +68,46 @@
                       <column-filter-toggle target="numberFilter" heading="Número de inscripción" label="Filtrar por número de inscripción"></column-filter-toggle>
                       <div id="numberFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por número de inscripción">
                         <search-bar placeholder="Buscar por número"></search-bar>
+                        <!-- Cada opción lleva el id de su inscripción en data-value; enrollments.js arma el número con ese id. -->
                         <ul class="dropdown-menu dropdown-menu-enrollment" role="listbox" aria-label="Número de inscripción">
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e1" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2026-0001</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="1" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Álvarez, Camila</span>
                           </li>
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e2" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2026-0002</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="2" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Benítez, Tomás</span>
                           </li>
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e3" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2025-0148</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="148" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Cabrera, Julieta</span>
                           </li>
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e4" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2026-0003</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="3" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Duarte, Facundo</span>
                           </li>
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e5" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2026-0004</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="4" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Escobar, Martina</span>
                           </li>
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e6" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2025-0152</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="152" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Ferreyra, Lautaro</span>
                           </li>
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e7" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2026-0005</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="5" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Gauna, Valentina</span>
                           </li>
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e8" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2026-0006</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="6" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Herrera, Bautista</span>
                           </li>
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e9" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2026-0007</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="7" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Ibarra, Delfina</span>
                           </li>
-                          <li class="dropdown-option option-enrollment" role="option" data-value="e10" aria-selected="false">
-                            <span class="option-name text-truncate">INS-2026-0008</span>
+                          <li class="dropdown-option option-enrollment" role="option" data-value="8" aria-selected="false">
+                            <span class="option-name text-truncate"></span>
                             <span class="option-detail text-truncate">Juárez, Thiago</span>
                           </li>
                           <li class="dropdown-empty" hidden>Sin resultados</li>
@@ -189,9 +190,10 @@
                     <th>Acciones</th>
                   </tr>
                 </thead>
+                <!-- Cada fila lleva el id de su inscripción en data-enrollment-id; enrollments.js arma el número con ese id. -->
                 <tbody>
-                  <tr>
-                    <td class="enrollment-number">INS-2026-0001</td>
+                  <tr data-enrollment-id="1">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Álvarez, Camila</span></td>
                     <td>1° A, Mañana, Primaria</td>
                     <td>02 MAR 2026</td>
@@ -203,8 +205,8 @@
                       <row-actions edit-label="Editar inscripción" delete-label="Eliminar inscripción"></row-actions>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="enrollment-number">INS-2026-0002</td>
+                  <tr data-enrollment-id="2">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Benítez, Tomás</span></td>
                     <td>2° B, Tarde, Secundaria</td>
                     <td>02 MAR 2026</td>
@@ -216,8 +218,8 @@
                       <row-actions edit-label="Editar inscripción" delete-label="Eliminar inscripción"></row-actions>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="enrollment-number">INS-2025-0148</td>
+                  <tr data-enrollment-id="148">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Cabrera, Julieta</span></td>
                     <td>1° B, Tarde, Primaria</td>
                     <td>04 MAR 2025</td>
@@ -229,8 +231,8 @@
                       <row-actions edit-label="Editar inscripción" delete-label="Eliminar inscripción"></row-actions>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="enrollment-number">INS-2026-0003</td>
+                  <tr data-enrollment-id="3">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Duarte, Facundo</span></td>
                     <td>4° A, Mañana, Secundaria</td>
                     <td>03 MAR 2026</td>
@@ -242,8 +244,8 @@
                       <row-actions edit-label="Editar inscripción" delete-label="Eliminar inscripción"></row-actions>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="enrollment-number">INS-2026-0004</td>
+                  <tr data-enrollment-id="4">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Escobar, Martina</span></td>
                     <td>3° A, Tarde, Primaria</td>
                     <td>03 MAR 2026</td>
@@ -255,8 +257,8 @@
                       <row-actions edit-label="Editar inscripción" delete-label="Eliminar inscripción"></row-actions>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="enrollment-number">INS-2025-0152</td>
+                  <tr data-enrollment-id="152">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Ferreyra, Lautaro</span></td>
                     <td>6° B, Tarde, Secundaria</td>
                     <td>05 MAR 2025</td>
@@ -268,8 +270,8 @@
                       <row-actions edit-label="Editar inscripción" delete-label="Eliminar inscripción"></row-actions>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="enrollment-number">INS-2026-0005</td>
+                  <tr data-enrollment-id="5">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Gauna, Valentina</span></td>
                     <td>2° A, Mañana, Primaria</td>
                     <td>04 MAR 2026</td>
@@ -281,8 +283,8 @@
                       <row-actions edit-label="Editar inscripción" delete-label="Eliminar inscripción"></row-actions>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="enrollment-number">INS-2026-0006</td>
+                  <tr data-enrollment-id="6">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Herrera, Bautista</span></td>
                     <td>1° A, Tarde, Secundaria</td>
                     <td>04 MAR 2026</td>
@@ -294,8 +296,8 @@
                       <row-actions edit-label="Editar inscripción" delete-label="Eliminar inscripción"></row-actions>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="enrollment-number">INS-2026-0007</td>
+                  <tr data-enrollment-id="7">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Ibarra, Delfina</span></td>
                     <td>5° B, Mañana, Primaria</td>
                     <td>05 MAR 2026</td>
@@ -307,8 +309,8 @@
                       <row-actions edit-label="Editar inscripción" delete-label="Eliminar inscripción"></row-actions>
                     </td>
                   </tr>
-                  <tr>
-                    <td class="enrollment-number">INS-2026-0008</td>
+                  <tr data-enrollment-id="8">
+                    <td class="enrollment-number"></td>
                     <td class="col-student col-truncate"><span class="text-truncate">Juárez, Thiago</span></td>
                     <td>3° B, Tarde, Secundaria</td>
                     <td>05 MAR 2026</td>

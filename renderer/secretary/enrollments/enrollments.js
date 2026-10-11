@@ -14,6 +14,30 @@ document.addEventListener('DOMContentLoaded', () => {
   // de la tabla y los gestiona el componente compartido column-filter.js; Curso incrusta
   // <course-filter>, el mismo filtro compuesto de Docencia.
 
+  // ---------- Número de inscripción ----------
+
+  const ENROLLMENT_NUMBER_PREFIX = 'INS-';
+  const ENROLLMENT_NUMBER_MIN_DIGITS = 6;
+
+  // El número de inscripción no es un dato aparte: es el id de la inscripción con formato, el
+  // prefijo y el id completado con ceros a la izquierda hasta seis dígitos (1 → 'INS-000001',
+  // 148 → 'INS-000148'). Un id de más de seis dígitos va completo, sin truncar. Es el mismo formato
+  // que el proceso principal arma para las vistas del Profesor; mientras esta vista no tenga
+  // backend, se aplica acá, solo al mostrarlo.
+  function formatEnrollmentNumber(enrollmentId) {
+    return `${ENROLLMENT_NUMBER_PREFIX}${String(enrollmentId).padStart(ENROLLMENT_NUMBER_MIN_DIGITS, '0')}`;
+  }
+
+  // Datos maquetados: cada fila lleva el id de su inscripción en data-enrollment-id y cada opción
+  // del filtro Número de inscripción, en data-value. column-filter.js lee las opciones cada vez que
+  // se usan, así que busca y rotula el embudo con el número ya armado.
+  document.querySelectorAll('.data-table tbody tr[data-enrollment-id]').forEach((row) => {
+    row.querySelector('.enrollment-number').textContent = formatEnrollmentNumber(row.dataset.enrollmentId);
+  });
+  document.querySelectorAll('th[data-filter="number"] .dropdown-option').forEach((option) => {
+    option.querySelector('.option-name').textContent = formatEnrollmentNumber(option.dataset.value);
+  });
+
   // ---------- Modal: Nueva inscripción ----------
 
   const enrollmentOverlay = document.getElementById('newEnrollmentOverlay');
