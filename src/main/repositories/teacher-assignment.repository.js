@@ -36,9 +36,10 @@ const selectFrom = (source) => `
 
 // Listado de las asignaciones docentes vigentes de una institución (las dadas de baja no se
 // listan), de todos los ciclos lectivos, con su profesor, su curso y su materia. La institución es
-// la del curso: la asignación no la guarda. Solo cuenta la baja de la asignación, no la de su curso
-// ni la de su profesor: db/schema.sql todavía permite darlos de baja con asignaciones vigentes, y
-// esas asignaciones se siguen listando.
+// la del curso: la asignación no la guarda. Solo cuenta la baja de la asignación, no la de su
+// curso: db/schema.sql todavía permite darlo de baja con asignaciones vigentes, y esas asignaciones
+// se siguen listando. Su profesor siempre está vigente: no se puede dar de baja mientras las tenga
+// (trg_usuario_asignaciones_vigentes).
 // El orden es total: primero el ciclo lectivo más reciente y, dentro de cada uno, el profesor (por
 // apellido y nombre; usuario_id mantiene juntas las de dos profesores que se llaman igual), el
 // curso (como en el listado de cursos: primaria antes que secundaria, grado, división y turno) y la
@@ -168,6 +169,10 @@ const EXISTS_IN_INSTITUTION_SQL = `
 // restricción.
 const UNIQUE_INDEX = 'uq_asignacion_docente_curso_grado_materia';
 
+// Regla que valida trg_asignacion_docente_coherencia, con el nombre que informa (db/schema.sql): el
+// profesor de una asignación vigente no está dado de baja.
+const DELETED_TEACHER_CONSTRAINT = 'ck_asignacion_docente_usuario_vigente';
+
 function toTeacherAssignment(row) {
   return new TeacherAssignment({
     id: row.asignacion_docente_id,
@@ -235,8 +240,9 @@ async function findActiveByIdAndTeacher(teacherAssignmentId, teacherId) {
 // Crea la asignación vigente del profesor `teacherId` (un usuario_id) en el curso `courseId` para
 // la materia `subjectId` (un materia_id). Devuelve la asignación creada; null si la materia no es
 // del plan de estudios del grado del curso (o el curso no existe). Si esa materia ya tiene un
-// profesor vigente en el curso, PostgreSQL rechaza el alta: ver isDuplicateError. Que el profesor y
-// el curso se puedan elegir lo comprueba el servicio.
+// profesor vigente en el curso, PostgreSQL rechaza el alta (ver isDuplicateError), y también si el
+// profesor está dado de baja (ver isDeletedTeacherError). Que el profesor y el curso se puedan
+// elegir lo comprueba el servicio.
 async function create({ teacherId, courseId, subjectId }) {
   const { rows } = await query(CREATE_SQL, [teacherId, courseId, subjectId]);
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
@@ -247,8 +253,9 @@ async function create({ teacherId, courseId, subjectId }) {
 // institución o fue dada de baja, o si la materia no es del plan de estudios del grado del curso (o
 // el curso no existe). Si esa materia ya tiene un profesor vigente en el curso con otra asignación,
 // PostgreSQL rechaza el cambio (ver isDuplicateError): la fila no choca consigo misma, así que
-// guardarla con el curso y la materia que ya tenía no es un duplicado. Que el profesor y el curso
-// se puedan elegir lo comprueba el servicio.
+// guardarla con el curso y la materia que ya tenía no es un duplicado. También lo rechaza si el
+// profesor está dado de baja (ver isDeletedTeacherError). Que el profesor y el curso se puedan
+// elegir lo comprueba el servicio.
 async function update(teacherAssignmentId, institutionId, { teacherId, courseId, subjectId }) {
   const { rows } = await query(UPDATE_SQL, [teacherAssignmentId, institutionId, teacherId, courseId, subjectId]);
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
@@ -274,6 +281,11 @@ function isDuplicateError(error) {
   return error?.code === '23505' && error.constraint === UNIQUE_INDEX;
 }
 
+// true si `error` indica que el profesor de la asignación está dado de baja.
+function isDeletedTeacherError(error) {
+  return error?.code === '23514' && error.constraint === DELETED_TEACHER_CONSTRAINT;
+}
+
 module.exports = {
   findByInstitution,
   findByTeacher,
@@ -285,4 +297,5 @@ module.exports = {
   markAsDeleted,
   existsInInstitution,
   isDuplicateError,
+  isDeletedTeacherError,
 };

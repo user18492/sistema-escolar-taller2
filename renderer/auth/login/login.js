@@ -1,5 +1,6 @@
-// Vista Login — valida el formulario y autentica a través del proceso principal. Quien pertenece a
-// varias instituciones elige después con cuál ingresar, en un segundo paso dentro de la misma tarjeta.
+// Vista Login — valida el formulario y autentica a través del proceso principal. Quien tiene más de
+// una cuenta (en varias instituciones, o con varios roles en una misma) elige después con cuál
+// ingresar, en un segundo paso dentro de la misma tarjeta.
 
 // Vista inicial de cada rol. El rol es el que devuelve el proceso principal después de
 // verificar la cuenta (auth.service.js), nunca uno elegido o guardado en la interfaz.
@@ -19,8 +20,6 @@ const ROLE_LABELS = {
 };
 
 const INSTITUTIONS_TITLE = 'Elegí una institución';
-// institucion.nombre admite null.
-const UNNAMED_INSTITUTION = 'Institución sin nombre';
 
 const UNEXPECTED_ERROR_MESSAGE = 'No se pudo iniciar sesión. Intentá nuevamente.';
 const UNRECOGNIZED_ROLE_MESSAGE = 'Tu cuenta no tiene un rol habilitado. Contactá al administrador.';
@@ -54,9 +53,9 @@ async function requestLogin(email, password, rememberAccount) {
 }
 
 // Nunca rechaza, como requestLogin.
-async function requestSelectInstitution(institutionId, rememberAccount) {
+async function requestSelectInstitution(institutionId, role, rememberAccount) {
   try {
-    return await window.api.auth.selectInstitution(institutionId, rememberAccount);
+    return await window.api.auth.selectInstitution(institutionId, role, rememberAccount);
   } catch (error) {
     console.error('Error al elegir la institución:', error);
     return { ok: false, error: { code: 'UNEXPECTED_ERROR', message: UNEXPECTED_ERROR_MESSAGE } };
@@ -184,13 +183,17 @@ document.addEventListener('DOMContentLoaded', () => {
     institutionStep.querySelectorAll('button').forEach((button) => button.setAttribute('aria-disabled', String(selecting)));
   };
 
-  // Reemplaza el formulario por las instituciones a las que permiten ingresar las credenciales
-  // ({ id, name, role }, con el rol del usuario en cada una). El formulario conserva sus valores.
+  // Reemplaza el formulario por las cuentas con las que permiten ingresar las credenciales
+  // ({ id, name, role }: la institución y el rol del usuario en ella). Cada opción guarda los dos:
+  // juntos identifican la cuenta, porque una institución se repite si el usuario tiene en ella más
+  // de un rol. El formulario conserva sus valores.
   const showInstitutions = (institutions, accountEmail) => {
     institutionList.replaceChildren(...institutions.map((institution) => {
       const item = institutionOptionTemplate.content.firstElementChild.cloneNode(true);
-      item.querySelector('.institution-option').dataset.institutionId = institution.id;
-      item.querySelector('.institution-name').textContent = institution.name || UNNAMED_INSTITUTION;
+      const option = item.querySelector('.institution-option');
+      option.dataset.institutionId = institution.id;
+      option.dataset.role = institution.role;
+      item.querySelector('.institution-name').textContent = institution.name;
       item.querySelector('.institution-role').textContent = ROLE_LABELS[institution.role] ?? '';
       return item;
     }));
@@ -216,7 +219,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setInstitutionError('');
     setSelecting(true);
-    const result = await requestSelectInstitution(Number(option.dataset.institutionId), rememberAccount.checked);
+    const result = await requestSelectInstitution(
+      Number(option.dataset.institutionId),
+      option.dataset.role,
+      rememberAccount.checked
+    );
 
     if (result.ok && openHome(result.user)) return;
 

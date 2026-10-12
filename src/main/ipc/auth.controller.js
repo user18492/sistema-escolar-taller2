@@ -2,7 +2,7 @@ const { handleTrusted } = require('./trusted-sender');
 const { failure } = require('./ipc-response');
 const sessionService = require('../services/session.service');
 const rememberedAccountService = require('../services/remembered-account.service');
-const { AuthenticationError } = require('../services/auth.service');
+const { AuthenticationError, RECOGNIZED_ROLES } = require('../services/auth.service');
 const { toImageUrl } = require('../services/profile-image.service');
 
 // Solo lo que muestra la interfaz: los ids y el email quedan en la sesión del proceso principal, y
@@ -17,8 +17,8 @@ function toSessionUser(user) {
   };
 }
 
-// Opción del selector de instituciones: el id identifica la elección y el rol es el de la cuenta del
-// usuario en esa institución.
+// Opción del selector de instituciones: una por cuenta. El id y el rol identifican la elección: una
+// persona puede tener en una misma institución una cuenta por rol.
 function toInstitutionOption(account) {
   return {
     id: account.institutionId,
@@ -39,6 +39,7 @@ function isSelectInstitutionPayload(payload) {
   return payload !== null
     && typeof payload === 'object'
     && Number.isInteger(payload.institutionId)
+    && RECOGNIZED_ROLES.includes(payload.role)
     && (payload.rememberAccount === undefined || typeof payload.rememberAccount === 'boolean');
 }
 
@@ -53,8 +54,8 @@ async function updateRememberedAccount(rememberAccount, email) {
 }
 
 // Nunca rechaza: los errores previstos llevan su mensaje y el resto, uno genérico con el detalle en la consola.
-// Si las credenciales permiten ingresar a varias instituciones, responde con ellas en lugar del usuario:
-// la sesión se inicia con selectInstitution.
+// Si las credenciales permiten ingresar con varias cuentas (en varias instituciones, o con varios roles
+// en una misma), responde con ellas en lugar del usuario: la sesión se inicia con selectInstitution.
 async function login(payload) {
   if (!isLoginPayload(payload)) {
     return failure('INVALID_INPUT', 'Datos de inicio de sesión inválidos.');
@@ -71,7 +72,7 @@ async function login(payload) {
     return failure('UNEXPECTED_ERROR', 'No se pudo iniciar sesión. Intentá nuevamente.');
   }
 
-  // Todavía no hubo acceso: la cuenta recordada se actualiza al elegir la institución.
+  // Todavía no hubo acceso: la cuenta recordada se actualiza al elegir con cuál ingresar.
   if (result.pendingAccounts) {
     return { ok: true, institutions: result.pendingAccounts.map(toInstitutionOption) };
   }
@@ -80,7 +81,8 @@ async function login(payload) {
   return { ok: true, user: toSessionUser(result.user) };
 }
 
-// Segundo paso del login de quien pertenece a varias instituciones. Nunca rechaza, como login.
+// Segundo paso del login de quien tiene más de una cuenta: elige una por su institución y su rol.
+// Nunca rechaza, como login.
 async function selectInstitution(payload) {
   if (!isSelectInstitutionPayload(payload)) {
     return failure('INVALID_INPUT', 'Datos de selección de institución inválidos.');
@@ -88,7 +90,7 @@ async function selectInstitution(payload) {
 
   let user;
   try {
-    user = sessionService.selectInstitution(payload.institutionId);
+    user = sessionService.selectInstitution(payload.institutionId, payload.role);
   } catch (error) {
     if (error instanceof AuthenticationError) {
       return failure(error.code, error.message);

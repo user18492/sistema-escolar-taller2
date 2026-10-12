@@ -62,10 +62,11 @@ function toPublicUser(user) {
 }
 
 // Devuelve, sin datos sensibles, las cuentas con las que esas credenciales permiten ingresar: una por
-// institución, ordenadas por el nombre de la institución. Quien pertenece a varias instituciones tiene
-// una cuenta en cada una, con el mismo email y su propia contraseña: cuentan solo las cuentas en las que
-// la contraseña coincide y que están habilitadas (activas y con un rol reconocido). Si ninguna permite el
-// acceso, lanza un AuthenticationError (INVALID_INPUT, INVALID_CREDENTIALS, INACTIVE_USER, UNRECOGNIZED_ROLE).
+// institución y rol, ordenadas por el nombre de la institución y el del rol. Quien pertenece a varias
+// instituciones, o tiene más de un rol en una misma, tiene una cuenta por cada uno, con el mismo email y
+// su propia contraseña: cuentan solo las cuentas en las que la contraseña coincide y que están habilitadas
+// (activas y con un rol reconocido). Si ninguna permite el acceso, lanza un AuthenticationError
+// (INVALID_INPUT, INVALID_CREDENTIALS, INACTIVE_USER, UNRECOGNIZED_ROLE).
 async function authenticate(credentials) {
   const { email, password } = credentials ?? {};
   const normalizedEmail = normalizeEmail(email);
@@ -74,7 +75,7 @@ async function authenticate(credentials) {
   const accounts = await userRepository.findAllByEmail(normalizedEmail);
 
   // Sin cuentas se compara igual, contra el hash descartable. Las comparaciones corren a la vez (bcrypt
-  // las reparte en hilos), para que la respuesta no demore más por cada institución del email.
+  // las reparte en hilos), para que la respuesta no demore más por cada cuenta del email.
   const passwordHashes = accounts.length > 0 ? accounts.map((account) => account.passwordHash) : [DUMMY_PASSWORD_HASH];
   const matches = await Promise.all(passwordHashes.map((passwordHash) => bcrypt.compare(password, passwordHash)));
   const matchingAccounts = accounts.filter((_account, index) => matches[index]);
@@ -83,7 +84,7 @@ async function authenticate(credentials) {
   }
 
   // El estado de las cuentas se informa recién con la contraseña verificada, y solo si ninguna permite
-  // ingresar: una cuenta suspendida no impide el acceso con las de otras instituciones.
+  // ingresar: una cuenta suspendida no impide el acceso con las demás.
   const enabledAccounts = matchingAccounts.filter((account) => account.isActive && RECOGNIZED_ROLES.includes(account.role));
   if (enabledAccounts.length === 0) {
     if (matchingAccounts.some((account) => !account.isActive)) {

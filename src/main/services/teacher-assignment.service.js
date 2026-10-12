@@ -137,10 +137,14 @@ function findAssignableCourses(institutionId) {
 // y findAssignableCourses: los ids llegan del renderer y la lista que tiene a la vista puede haber
 // quedado vieja (otra sesión suspendió al profesor o dio de baja el curso). La excepción es la
 // asignación que se edita, que puede conservar el profesor y el curso que ya tiene.
+function teacherNotAvailableError() {
+  return new TeacherAssignmentError('TEACHER_NOT_AVAILABLE', 'El profesor elegido ya no está disponible.');
+}
+
 async function assertAssignableTeacher(institutionId, teacherId) {
   const teachers = await findAssignableTeachers(institutionId);
   if (!teachers.some((teacher) => teacher.id === teacherId)) {
-    throw new TeacherAssignmentError('TEACHER_NOT_AVAILABLE', 'El profesor elegido ya no está disponible.');
+    throw teacherNotAvailableError();
   }
 }
 
@@ -184,7 +188,10 @@ async function listAssignableSubjects(currentUser, courseId, teacherAssignmentId
 
 // Llama a `save` (el INSERT o el UPDATE) y devuelve su resultado. Una materia la dicta un solo
 // profesor en cada curso: si PostgreSQL rechaza el cambio porque ya tiene uno con otra asignación
-// vigente, lanza un TeacherAssignmentError DUPLICATE_VALUE con fieldErrors.subject.
+// vigente, lanza un TeacherAssignmentError DUPLICATE_VALUE con fieldErrors.subject. Y un usuario
+// dado de baja no recibe asignaciones: si otra sesión dio de baja al profesor después de comprobar
+// que se podía elegir, PostgreSQL también lo rechaza y se lanza TEACHER_NOT_AVAILABLE, como en
+// assertAssignableTeacher.
 async function saveTeacherAssignment(save) {
   try {
     return await save();
@@ -193,6 +200,9 @@ async function saveTeacherAssignment(save) {
       throw new TeacherAssignmentError('DUPLICATE_VALUE', 'La materia ya tiene un profesor asignado en ese curso.', {
         subject: 'Esta materia ya tiene un profesor asignado en el curso.',
       });
+    }
+    if (teacherAssignmentRepository.isDeletedTeacherError(error)) {
+      throw teacherNotAvailableError();
     }
     throw error;
   }
@@ -229,9 +239,10 @@ async function createTeacherAssignment(currentUser, { teacherId, courseId, subje
 // Guarda el profesor, el curso y la materia de una asignación docente vigente de la institución de
 // `currentUser` y la devuelve como quedó, con los campos de listTeacherAssignments. `data` trae los
 // mismos campos que en createTeacherAssignment. La asignación puede conservar el profesor y el
-// curso que ya tiene aunque el alta no los ofrezca (un profesor suspendido o dado de baja, un curso
-// de otro ciclo lectivo o dado de baja); si cambian, el nuevo tiene que ser uno de
-// listAssignableTeachers o de listAssignableCourses.
+// curso que ya tiene aunque el alta no los ofrezca (un profesor suspendido, un curso de otro ciclo
+// lectivo o dado de baja); si cambian, el nuevo tiene que ser uno de listAssignableTeachers o de
+// listAssignableCourses. Su profesor nunca está dado de baja: la base no deja dar de baja a un
+// usuario con asignaciones vigentes.
 // La unicidad es la del alta, sin contar a la propia asignación: si la materia ya tiene un profesor
 // en ese curso con otra asignación vigente, no se guarda nada y se lanza un TeacherAssignmentError
 // DUPLICATE_VALUE con fieldErrors.subject. La aplica el mismo índice único al modificar la fila,

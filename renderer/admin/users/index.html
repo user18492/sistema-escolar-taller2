@@ -229,7 +229,8 @@
                 <input type="text" id="newUserBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" autocomplete="off" data-validate="birth-date" data-min-age="18" data-max-age="80" required />
               </div>
             </div>
-            <div class="form-field">
+            <!-- Solo en el alta: users.js lo oculta al editar. El rol no cambia después del alta -->
+            <div class="form-field" id="newUserRoleField">
               <label>Rol</label>
               <div class="field field-select dropdown" data-filter="new-user-role">
                 <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">

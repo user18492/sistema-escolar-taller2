@@ -4,8 +4,9 @@
 // Las pestañas (tab-list.component.js) eligen qué usuarios se listan: los vigentes o los dados de
 // baja, que llegan en la misma lista con su deletedAt. Los eliminados muestran la fecha de baja en
 // lugar del estado y su única acción es Restaurar.
-// Nuevo usuario lo crea, siempre activo (window.api.users.create), Editar guarda los cambios, entre
-// ellos el estado (window.api.users.update), Eliminar da de baja al usuario (baja lógica,
+// Nuevo usuario lo crea, siempre activo y con el rol que conserva para siempre
+// (window.api.users.create), Editar guarda los cambios, entre ellos el estado y nunca el rol
+// (window.api.users.update), Eliminar da de baja al usuario (baja lógica,
 // window.api.users.delete) y Restaurar devuelve a los vigentes, activo, a uno dado de baja
 // (window.api.users.restore). Las dos últimas se confirman antes en un modal
 // (confirm-modal.component.js).
@@ -328,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Reemplaza al usuario en la lista en memoria y en las opciones de Usuario, DNI y Email. Conserva
   // su lugar en la lista aunque cambie su apellido: el orden se actualiza en la próxima carga. Si ya
-  // no coincide con los filtros activos (p. ej., cambió su rol), su fila deja de mostrarse.
+  // no coincide con los filtros activos (p. ej., cambió su estado), su fila deja de mostrarse.
   const replaceUser = (updatedUser) => {
     const id = String(updatedUser.id);
     users = users.map((user) => (String(user.id) === id ? updatedUser : user));
@@ -367,6 +368,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const createBtn = document.getElementById('createUserBtn');
 
   const textInputs = overlay.querySelectorAll('.modal-body input[type="text"], .modal-body input[type="email"]');
+  // Rol: el campo solo se muestra en el alta; el rol de un usuario no cambia después.
+  const roleField = document.getElementById('newUserRoleField');
   const roleDropdown = overlay.querySelector('[data-filter="new-user-role"]');
   const roleLabel = roleDropdown.querySelector('.dropdown-label');
   const roleOptions = roleDropdown.querySelectorAll('.dropdown-option');
@@ -446,7 +449,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateCreateButtonState() {
     const hasAllTextInputs = Array.from(textInputs).every((input) => !input.required || input.value.trim().length > 0);
-    const hasRole = Boolean(selectedValue(roleDropdown));
+    // El rol se elige solo en el alta
+    const hasRole = isEditing || Boolean(selectedValue(roleDropdown));
     // Al editar llega elegido el estado actual del usuario; en el alta no se elige
     const hasStatus = !isEditing || Boolean(selectedValue(statusDropdown));
     createBtn.disabled = !(hasAllTextInputs && hasRole && hasStatus);
@@ -491,6 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Modifica los datos del usuario.'
       : 'Completa los datos para crear una nueva cuenta de usuario.';
     createBtn.textContent = modalTexts().submit;
+    roleField.hidden = isEditing;
     statusField.hidden = !isEditing;
     if (user) {
       firstNameInput.value = user.firstName ?? '';
@@ -499,7 +504,6 @@ document.addEventListener('DOMContentLoaded', () => {
       emailInput.value = user.email ?? '';
       birthdateInput.value = toDisplayDate(user.birthDate);
       if (user.imageUrl) avatarEditor.showSavedImage(user.imageUrl);
-      selectDropdownValue(roleDropdown, user.role);
       selectDropdownValue(statusDropdown, statusCode(user));
     }
     updateCreateButtonState();
@@ -524,16 +528,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Solo los datos del formulario: el id va aparte, tomado al abrir el modal. El DNI se envía solo
-  // con dígitos, como se guarda. El estado (isActive) va solo al editar.
+  // con dígitos, como se guarda. El estado (isActive) va solo al editar y el rol, solo en el alta.
   const readFormData = () => ({
     firstName: firstNameInput.value,
     lastName: lastNameInput.value,
     dni: dniInput.value.replace(/\D/g, ''),
     email: emailInput.value,
     birthDate: toIsoDate(birthdateInput.value),
-    role: selectedValue(roleDropdown) ?? '',
     password: passwordGenerator.value,
-    ...(isEditing && { isActive: selectedValue(statusDropdown) === 'ACTIVE' }),
+    ...(isEditing
+      ? { isActive: selectedValue(statusDropdown) === 'ACTIVE' }
+      : { role: selectedValue(roleDropdown) ?? '' }),
   });
 
   // Marca los campos que rechazó el proceso principal (DNI o email de otro usuario, datos

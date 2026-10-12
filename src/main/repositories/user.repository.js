@@ -2,8 +2,9 @@ const { query, runInTransaction } = require('../database/connection');
 const { User } = require('../models/user.model');
 
 // Compara el email tal como llega: normalizarlo (espacios, mayúsculas) es tarea del servicio.
-// Da una fila por institución: quien pertenece a varias tiene una cuenta en cada una, con el mismo
-// email. Las cuentas dadas de baja no se encuentran: el login las trata como inexistentes.
+// Da una fila por institución y rol: quien pertenece a varias instituciones, o tiene más de un rol
+// en una misma, tiene una cuenta por cada uno, con el mismo email. Las cuentas dadas de baja no se
+// encuentran: el login las trata como inexistentes.
 const FIND_ALL_BY_EMAIL_SQL = `
   SELECT u.usuario_id,
          u.estado,
@@ -22,7 +23,7 @@ const FIND_ALL_BY_EMAIL_SQL = `
     JOIN institucion i ON i.institucion_id = u.institucion_id
    WHERE u.email = $1
      AND u.fecha_eliminacion IS NULL
-   ORDER BY i.nombre, u.institucion_id
+   ORDER BY i.nombre, u.institucion_id, r.nombre
 `;
 
 // Listado de los usuarios de una institución, vigentes y dados de baja (fecha_eliminacion los
@@ -104,24 +105,9 @@ const MARK_AS_DELETED_SQL = `
     JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
 `;
 
-// Usuarios de una institución con un rol que pueden usar el sistema (activos y vigentes, como
-// FIND_ACTIVE_BY_ROLE_SQL), con sus filas bloqueadas hasta el fin de la transacción: ninguno puede
-// dejar de serlo mientras tanto. Siempre en el mismo orden, para que dos transacciones no se
-// esperen entre sí.
-const LOCK_ACTIVE_BY_ROLE_SQL = `
-  SELECT usuario_id
-    FROM usuario
-   WHERE institucion_id = $1
-     AND usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = $2)
-     AND estado
-     AND fecha_eliminacion IS NULL
-   ORDER BY usuario_id
-     FOR UPDATE
-`;
-
 // Restauración: la fila vuelve a estar vigente (sin fecha de baja) y activa, porque la baja la había
 // dejado suspendida. Solo modifica a un usuario dado de baja de la institución, así no le cambia el
-// estado a uno vigente que está suspendido.
+// estado a uno vigente que está suspendido. Vuelve a contar para la unicidad del dni y del email.
 // Devuelve la fila como quedó, con el nombre del rol.
 const RESTORE_SQL = `
   WITH restored AS (
@@ -156,12 +142,14 @@ const EXISTS_IN_INSTITUTION_SQL = `
      AND institucion_id = $2
 `;
 
-const EXISTS_NOT_DELETED_SQL = `
-  SELECT 1
-    FROM usuario
-   WHERE usuario_id = $1
-     AND institucion_id = $2
-     AND fecha_eliminacion IS NULL
+// Rol (usuario_rol.nombre) de un usuario vigente de la institución.
+const FIND_NOT_DELETED_ROLE_SQL = `
+  SELECT r.nombre AS rol
+    FROM usuario u
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
+   WHERE u.usuario_id = $1
+     AND u.institucion_id = $2
+     AND u.fecha_eliminacion IS NULL
 `;
 
 const EXISTS_ACTIVE_SQL = `
@@ -172,18 +160,46 @@ const EXISTS_ACTIVE_SQL = `
      AND fecha_eliminacion IS NULL
 `;
 
-// Compara con los demás usuarios de la institución, también los dados de baja, como las
-// restricciones UNIQUE de dni y email: los de otra institución no cuentan, porque quien pertenece a
-// varias tiene una cuenta en cada una con el mismo dni y el mismo email. El email se compara sin
-// distinguir mayúsculas.
+// Compara con los demás usuarios vigentes de la institución que tienen el rol $5 (un valor de
+// usuario_rol.nombre), como los índices únicos de dni y email (db/schema.sql). No cuentan los dados
+// de baja, los de otro rol ni los de otra institución: una persona puede tener una cuenta por rol y
+// por institución, con el mismo dni y el mismo email. El email se compara tal cual: la base lo
+// guarda en minúsculas (ck_usuario_email).
 // Con $4 null (un alta) no excluye a nadie: `<>` daría NULL y descartaría todas las filas.
 const FIND_TAKEN_FIELDS_SQL = `
-  SELECT COALESCE(BOOL_OR(dni = $2), FALSE)          AS dni_taken,
-         COALESCE(BOOL_OR(LOWER(email) = $3), FALSE) AS email_taken
+  SELECT COALESCE(BOOL_OR(dni = $2), FALSE)   AS dni_taken,
+         COALESCE(BOOL_OR(email = $3), FALSE) AS email_taken
     FROM usuario
    WHERE institucion_id = $1
+     AND usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = $5)
+     AND fecha_eliminacion IS NULL
      AND usuario_id IS DISTINCT FROM $4
-     AND (dni = $2 OR LOWER(email) = $3)
+     AND (dni = $2 OR email = $3)
+`;
+
+// El usuario dado de baja más reciente de la institución con el rol $2 (un valor de
+// usuario_rol.nombre) y el dni $3. Puede haber más de uno: los dados de baja no cuentan para la
+// unicidad. Trae los campos de FIND_BY_INSTITUTION_SQL.
+const FIND_DELETED_BY_ROLE_AND_DNI_SQL = `
+  SELECT u.usuario_id,
+         u.estado,
+         u.institucion_id,
+         u.nombre,
+         u.apellido,
+         u.email,
+         u.dni,
+         u.fecha_nacimiento,
+         u.imagen_url,
+         u.fecha_eliminacion,
+         r.nombre AS rol
+    FROM usuario u
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
+   WHERE u.institucion_id = $1
+     AND r.nombre = $2
+     AND u.dni = $3
+     AND u.fecha_eliminacion IS NOT NULL
+   ORDER BY u.fecha_eliminacion DESC, u.usuario_id DESC
+   LIMIT 1
 `;
 
 // Alta en la institución: el usuario queda activo (estado TRUE, sin depender del valor por defecto
@@ -222,9 +238,9 @@ const LOCK_FOR_UPDATE_SQL = `
      FOR UPDATE
 `;
 
-// Solo modifica a un usuario vigente de la institución. password_hash cambia solo si llega uno:
-// con $9 null se conserva el actual. imagen_url cambia a $11 (null quita la foto) solo con $10 true.
-// estado es $12: true = activo, false = suspendido.
+// Solo modifica a un usuario vigente de la institución, sin tocar su rol: no cambia después del
+// alta. password_hash cambia solo si llega uno: con $8 null se conserva el actual. imagen_url cambia
+// a $10 (null quita la foto) solo con $9 true. estado es $11: true = activo, false = suspendido.
 // Devuelve la fila como quedó, con el nombre del rol.
 const UPDATE_SQL = `
   WITH updated AS (
@@ -234,10 +250,9 @@ const UPDATE_SQL = `
            dni = $5,
            email = $6,
            fecha_nacimiento = $7,
-           usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = $8),
-           password_hash = COALESCE($9, password_hash),
-           imagen_url = CASE WHEN $10 THEN $11 ELSE imagen_url END,
-           estado = $12
+           password_hash = COALESCE($8, password_hash),
+           imagen_url = CASE WHEN $9 THEN $10 ELSE imagen_url END,
+           estado = $11
      WHERE usuario_id = $1
        AND institucion_id = $2
        AND fecha_eliminacion IS NULL
@@ -275,8 +290,8 @@ const FIND_NOT_DELETED_BY_ID_SQL = `
      AND fecha_eliminacion IS NULL
 `;
 
-// Como UPDATE_SQL, pero sin el rol ni el estado: son los datos que un usuario cambia en su propio
-// perfil. password_hash cambia solo si llega uno ($8) e imagen_url pasa a $10 solo con $9 true.
+// Como UPDATE_SQL, pero sin el estado: son los datos que un usuario cambia en su propio perfil.
+// password_hash cambia solo si llega uno ($8) e imagen_url pasa a $10 solo con $9 true.
 // Devuelve la fila como quedó, con los campos de FIND_NOT_DELETED_BY_ID_SQL.
 const UPDATE_PROFILE_SQL = `
   UPDATE usuario
@@ -293,12 +308,19 @@ const UPDATE_PROFILE_SQL = `
   RETURNING usuario_id, institucion_id, nombre, apellido, email, dni, fecha_nacimiento, imagen_url
 `;
 
-// Restricciones UNIQUE de usuario (con los nombres que les da db/schema.sql) y el campo que protege
-// cada una.
+// Índices únicos de usuario (con los nombres que les da db/schema.sql) y el campo que protege cada
+// uno entre los vigentes de una institución y un rol. PostgreSQL informa el nombre del índice como
+// el de una restricción.
 const UNIQUE_CONSTRAINT_FIELDS = {
-  uq_usuario_institucion_dni: 'dni',
-  uq_usuario_institucion_email: 'email',
+  uq_usuario_institucion_usuario_rol_dni: 'dni',
+  uq_usuario_institucion_usuario_rol_email: 'email',
 };
+
+// Reglas de usuario que validan triggers, con el nombre que informa cada una (db/schema.sql): quien
+// tiene asignaciones docentes vigentes no se da de baja, y el único administrador habilitado de una
+// institución no se suspende ni se da de baja.
+const TEACHER_ASSIGNMENTS_CONSTRAINT = 'ck_usuario_asignaciones_vigentes';
+const LAST_ADMIN_CONSTRAINT = 'ck_usuario_ultimo_administrador';
 
 function toUser(row) {
   return new User({
@@ -318,8 +340,8 @@ function toUser(row) {
   });
 }
 
-// Cuentas vigentes con ese email, una por institución y ordenadas por el nombre de la institución.
-// Devuelve una lista vacía si no hay ninguna.
+// Cuentas vigentes con ese email, una por institución y rol, ordenadas por el nombre de la
+// institución y el del rol. Devuelve una lista vacía si no hay ninguna.
 async function findAllByEmail(email) {
   const { rows } = await query(FIND_ALL_BY_EMAIL_SQL, [email]);
   return rows.map(toUser);
@@ -347,32 +369,18 @@ async function countNotDeleted(institutionId) {
 }
 
 // Da de baja al usuario, que queda además suspendido. Devuelve el usuario como quedó, sin
-// password_hash; null si no existe en la institución o ya estaba dado de baja.
+// password_hash; null si no existe en la institución o ya estaba dado de baja. PostgreSQL rechaza
+// la baja de quien tiene asignaciones docentes vigentes y la del único administrador habilitado de
+// la institución: ver isTeacherAssignmentsError e isLastAdminError.
 async function markAsDeleted(userId, institutionId) {
   const { rows } = await query(MARK_AS_DELETED_SQL, [userId, institutionId]);
   return rows.length > 0 ? toUser(rows[0]) : null;
 }
 
-// Como markAsDeleted, salvo que el usuario sea el único de la institución con el rol `role` (un
-// valor de usuario_rol.nombre) que puede usar el sistema, activo y vigente: entonces no lo da de
-// baja. El rol es el que tiene en la base. Devuelve { user, isLastWithRole }: `user` es el usuario
-// como quedó, o null si no se dio de baja, e `isLastWithRole` indica que fue por ser el único.
-async function markAsDeletedUnlessLastWithRole(userId, institutionId, role) {
-  // En una transacción, con los usuarios de ese rol bloqueados: si dos se dan de baja a la vez, el
-  // segundo espera al primero y ya no lo cuenta.
-  return runInTransaction(async (transactionQuery) => {
-    const locked = await transactionQuery(LOCK_ACTIVE_BY_ROLE_SQL, [institutionId, role]);
-    if (locked.rows.length === 1 && locked.rows[0].usuario_id === userId) {
-      return { user: null, isLastWithRole: true };
-    }
-
-    const { rows } = await transactionQuery(MARK_AS_DELETED_SQL, [userId, institutionId]);
-    return { user: rows.length > 0 ? toUser(rows[0]) : null, isLastWithRole: false };
-  });
-}
-
 // Restaura al usuario dado de baja, que queda vigente y activo. Devuelve el usuario como quedó, sin
-// password_hash; null si no existe en la institución o no estaba dado de baja.
+// password_hash; null si no existe en la institución o no estaba dado de baja. Si su dni o su email
+// ya son de un usuario vigente de la institución con su mismo rol, PostgreSQL rechaza la
+// restauración: ver duplicateFieldOf.
 async function restore(userId, institutionId) {
   const { rows } = await query(RESTORE_SQL, [userId, institutionId]);
   return rows.length > 0 ? toUser(rows[0]) : null;
@@ -384,10 +392,11 @@ async function existsInInstitution(userId, institutionId) {
   return rows.length > 0;
 }
 
-// true si el usuario pertenece a la institución y no está dado de baja.
-async function existsNotDeleted(userId, institutionId) {
-  const { rows } = await query(EXISTS_NOT_DELETED_SQL, [userId, institutionId]);
-  return rows.length > 0;
+// Rol (un valor de usuario_rol.nombre) del usuario vigente con ese id en la institución, o null si
+// no existe en ella o fue dado de baja.
+async function findNotDeletedRole(userId, institutionId) {
+  const { rows } = await query(FIND_NOT_DELETED_ROLE_SQL, [userId, institutionId]);
+  return rows.length > 0 ? rows[0].rol : null;
 }
 
 // true si el usuario está activo y no está dado de baja: es la cuenta que puede usar el sistema.
@@ -396,21 +405,30 @@ async function existsActive(userId) {
   return rows.length > 0;
 }
 
-// Campos ('dni', 'email') cuyo valor ya tiene un usuario de la institución distinto de
-// `excludedUserId` (null en un alta, para comparar con todos). Espera el dni solo con dígitos y el
-// email normalizado, como se guardan.
-async function findTakenFields(institutionId, { dni, email }, excludedUserId) {
-  const { rows } = await query(FIND_TAKEN_FIELDS_SQL, [institutionId, dni, email, excludedUserId]);
+// Campos ('dni', 'email') cuyo valor ya tiene un usuario vigente de la institución con el rol
+// `role` (un valor de usuario_rol.nombre), distinto de `excludedUserId` (null en un alta, para
+// comparar con todos). Espera el dni solo con dígitos y el email normalizado, como se guardan.
+async function findTakenFields(institutionId, role, { dni, email }, excludedUserId) {
+  const { rows } = await query(FIND_TAKEN_FIELDS_SQL, [institutionId, dni, email, excludedUserId, role]);
   const fields = [];
   if (rows[0].dni_taken) fields.push('dni');
   if (rows[0].email_taken) fields.push('email');
   return fields;
 }
 
-// Crea un usuario vigente y activo en la institución. Recibe los datos como update, con
-// `passwordHash` obligatorio y sin setImage: `imageFileName` es el archivo de su foto, o null sin
-// foto. Devuelve el usuario creado, sin password_hash. Si el dni o el email ya son de otro usuario
-// de la institución, PostgreSQL rechaza el alta: ver duplicateFieldOf.
+// El usuario dado de baja de la institución con ese rol (un valor de usuario_rol.nombre) y ese dni
+// (solo los dígitos), sin password_hash y con su `deletedAt`; si hay varios, el de la baja más
+// reciente. null si no hay ninguno.
+async function findDeletedByRoleAndDni(institutionId, role, dni) {
+  const { rows } = await query(FIND_DELETED_BY_ROLE_AND_DNI_SQL, [institutionId, role, dni]);
+  return rows.length > 0 ? toUser(rows[0]) : null;
+}
+
+// Crea un usuario vigente y activo en la institución. Recibe los datos como update, con `role` (un
+// valor de usuario_rol.nombre), `passwordHash` obligatorio y sin setImage: `imageFileName` es el
+// archivo de su foto, o null sin foto. Devuelve el usuario creado, sin password_hash. Si el dni o
+// el email ya son de otro usuario vigente de la institución con ese rol, PostgreSQL rechaza el
+// alta: ver duplicateFieldOf.
 async function create(
   institutionId,
   { firstName, lastName, dni, email, birthDate, role, passwordHash, imageFileName }
@@ -429,18 +447,19 @@ async function create(
   return toUser(rows[0]);
 }
 
-// Reemplaza los datos de un usuario vigente de la institución. `birthDate` es 'AAAA-MM-DD', `role`
-// un valor de usuario_rol.nombre, `isActive` false para suspenderlo y `passwordHash` null para
-// conservar la contraseña actual. Con `setImage` true, la foto pasa a ser `imageFileName` (null la
-// quita); con false se conserva.
+// Reemplaza los datos de un usuario vigente de la institución, sin tocar su rol. `birthDate` es
+// 'AAAA-MM-DD', `isActive` false para suspenderlo y `passwordHash` null para conservar la
+// contraseña actual. Con `setImage` true, la foto pasa a ser `imageFileName` (null la quita); con
+// false se conserva.
 // Devuelve { user, previousImageFileName }: el usuario como quedó, sin password_hash, y el archivo de
 // la foto que tenía antes del cambio (null si no tenía). Devuelve null si no hay uno vigente con ese
-// id en la institución. Si el dni o el email ya son de otro usuario de la institución, PostgreSQL
-// rechaza el cambio: ver duplicateFieldOf.
+// id en la institución. Si el dni o el email ya son de otro usuario vigente de la institución con su
+// mismo rol, PostgreSQL rechaza el cambio (ver duplicateFieldOf), y también si suspende al único
+// administrador habilitado de la institución (ver isLastAdminError).
 async function update(
   userId,
   institutionId,
-  { firstName, lastName, dni, email, birthDate, role, isActive, passwordHash, setImage, imageFileName }
+  { firstName, lastName, dni, email, birthDate, isActive, passwordHash, setImage, imageFileName }
 ) {
   // En una transacción, y no con RETURNING OLD (PostgreSQL 18), para funcionar con cualquier versión.
   return runInTransaction(async (transactionQuery) => {
@@ -455,7 +474,6 @@ async function update(
       dni,
       email,
       birthDate,
-      role,
       passwordHash,
       setImage,
       imageFileName,
@@ -473,10 +491,10 @@ async function findNotDeletedById(userId, institutionId) {
 }
 
 // Reemplaza los datos del perfil de un usuario vigente de la institución, sin tocar su rol ni su
-// estado. Recibe los datos como update, sin `role` ni `isActive`, y devuelve lo mismo:
+// estado. Recibe los datos como update, sin `isActive`, y devuelve lo mismo:
 // { user, previousImageFileName }, con los campos de findNotDeletedById en `user`, o null si no hay
-// uno vigente con ese id en la institución. Si el dni o el email ya son de otro usuario de la
-// institución, PostgreSQL rechaza el cambio: ver duplicateFieldOf.
+// uno vigente con ese id en la institución. Si el dni o el email ya son de otro usuario vigente de
+// la institución con su mismo rol, PostgreSQL rechaza el cambio: ver duplicateFieldOf.
 async function updateProfile(
   userId,
   institutionId,
@@ -503,11 +521,23 @@ async function updateProfile(
   });
 }
 
-// Campo ('dni' o 'email') cuyo valor repetido causó `error`, si es una violación de una restricción
-// UNIQUE de usuario; si no, null.
+// Campo ('dni' o 'email') cuyo valor repetido causó `error`, si es una violación de un índice único
+// de usuario; si no, null.
 function duplicateFieldOf(error) {
   if (error?.code !== '23505') return null;
   return UNIQUE_CONSTRAINT_FIELDS[error.constraint] ?? null;
+}
+
+// true si `error` indica que el usuario no se puede dar de baja porque tiene asignaciones docentes
+// vigentes.
+function isTeacherAssignmentsError(error) {
+  return error?.code === '23514' && error.constraint === TEACHER_ASSIGNMENTS_CONSTRAINT;
+}
+
+// true si `error` indica que el usuario no se puede suspender ni dar de baja porque es el único
+// administrador habilitado (activo y vigente) de su institución.
+function isLastAdminError(error) {
+  return error?.code === '23514' && error.constraint === LAST_ADMIN_CONSTRAINT;
 }
 
 module.exports = {
@@ -516,15 +546,17 @@ module.exports = {
   findActiveByRole,
   countNotDeleted,
   markAsDeleted,
-  markAsDeletedUnlessLastWithRole,
   restore,
   existsInInstitution,
-  existsNotDeleted,
+  findNotDeletedRole,
   existsActive,
   findTakenFields,
+  findDeletedByRoleAndDni,
   create,
   update,
   findNotDeletedById,
   updateProfile,
   duplicateFieldOf,
+  isTeacherAssignmentsError,
+  isLastAdminError,
 };

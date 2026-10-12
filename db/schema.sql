@@ -5,24 +5,28 @@
 --   - Claves primarias INT GENERATED ALWAYS AS IDENTITY: un INSERT no puede fijar el id.
 --   - Todas las restricciones llevan nombre: pk_<tabla>, fk_<tabla>_<tabla referenciada>,
 --     uq_<tabla>_<columnas>, ck_<tabla>_<regla>.
---   - Las reglas que dependen de otra tabla las validan triggers, porque un CHECK no puede
---     consultarla: trg_<tabla>_<regla>, con su función fn_<tabla>_<regla>. Fallan como un CHECK
---     (código 23514) e informan un nombre ck_<tabla>_<regla> como el de la restricción incumplida.
+--   - Las reglas que dependen de otra tabla, o del valor anterior de la fila, las validan triggers,
+--     porque un CHECK no puede consultarlos: trg_<tabla>_<regla>, con su función
+--     fn_<tabla>_<regla>. Fallan como un CHECK (código 23514) e informan un nombre
+--     ck_<tabla>_<regla> como el de la restricción incumplida.
 
 BEGIN;
 
 -- Instituciones
 CREATE TABLE institucion (
     institucion_id    INT           GENERATED ALWAYS AS IDENTITY,
-    nombre            VARCHAR(150),
+    nombre            VARCHAR(150)  NOT NULL,
     direccion_calle   VARCHAR(150),
     direccion_altura  VARCHAR(20),
     email             VARCHAR(254),
     telefono          VARCHAR(30),
-    cuit              VARCHAR(13),
+    cuit              VARCHAR(13)   NOT NULL,
     -- Con guiones: XX-XXXXXXXX-X
 
-    CONSTRAINT pk_institucion PRIMARY KEY (institucion_id)
+    CONSTRAINT pk_institucion PRIMARY KEY (institucion_id),
+    CONSTRAINT uq_institucion_cuit UNIQUE (cuit),
+    CONSTRAINT ck_institucion_nombre CHECK (nombre = btrim(nombre) AND nombre <> ''),
+    CONSTRAINT ck_institucion_cuit CHECK (cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$')
 );
 
 -- Roles
@@ -32,11 +36,13 @@ CREATE TABLE usuario_rol (
     -- ADMIN, SECRETARIO, PROFESOR
 
     CONSTRAINT pk_usuario_rol PRIMARY KEY (usuario_rol_id),
-    CONSTRAINT uq_usuario_rol_nombre UNIQUE (nombre)
+    CONSTRAINT uq_usuario_rol_nombre UNIQUE (nombre),
+    CONSTRAINT ck_usuario_rol_nombre CHECK (nombre IN ('ADMIN', 'SECRETARIO', 'PROFESOR'))
 );
 
--- Usuarios: una fila por persona e institución. Quien pertenece a más de una institución tiene una
--- fila en cada una, con el mismo dni y el mismo email.
+-- Usuarios: una fila por cuenta, y una cuenta es de una persona en una institución con un rol.
+-- Quien pertenece a más de una institución, o tiene más de un rol en una misma, tiene una fila por
+-- cada una, con el mismo dni y el mismo email.
 CREATE TABLE usuario (
     usuario_id         INT           GENERATED ALWAYS AS IDENTITY,
     institucion_id     INT           NOT NULL,
@@ -56,20 +62,117 @@ CREATE TABLE usuario (
     -- NULL = vigente; con fecha = dado de baja (baja lógica): se lista aparte, como eliminado, y no
     -- puede iniciar sesión.
     -- La fila se conserva con su dni y su email, así que la baja y la restauración son un UPDATE
-    -- de esta columna y no un INSERT: las restricciones UNIQUE también cuentan a los dados de baja
+    -- de esta columna y no un INSERT. Los dados de baja no cuentan para la unicidad (más abajo)
 
     CONSTRAINT pk_usuario PRIMARY KEY (usuario_id),
     CONSTRAINT fk_usuario_institucion FOREIGN KEY (institucion_id) REFERENCES institucion(institucion_id),
     CONSTRAINT fk_usuario_usuario_rol FOREIGN KEY (usuario_rol_id) REFERENCES usuario_rol(usuario_rol_id),
-    CONSTRAINT uq_usuario_institucion_dni UNIQUE (institucion_id, dni),
-    CONSTRAINT uq_usuario_institucion_email UNIQUE (institucion_id, email),
     -- Todo dado de baja queda suspendido; un suspendido no necesariamente está dado de baja
-    CONSTRAINT ck_usuario_baja_suspendido CHECK (fecha_eliminacion IS NULL OR estado = FALSE)
+    CONSTRAINT ck_usuario_baja_suspendido CHECK (fecha_eliminacion IS NULL OR estado = FALSE),
+    -- Formato de los datos, como los deja el formulario de usuarios. La edad (18 a 80 años) no se
+    -- valida acá: depende de la fecha actual
+    CONSTRAINT ck_usuario_nombre CHECK (nombre = btrim(nombre) AND nombre <> ''),
+    CONSTRAINT ck_usuario_apellido CHECK (apellido = btrim(apellido) AND apellido <> ''),
+    CONSTRAINT ck_usuario_dni CHECK (dni ~ '^[1-9][0-9]{6,7}$'),
+    -- En minúsculas: el login busca la cuenta por el email en minúsculas, y así la unicidad no
+    -- distingue mayúsculas
+    CONSTRAINT ck_usuario_email CHECK (email = LOWER(email) AND email ~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'),
+    CONSTRAINT ck_usuario_password_hash CHECK (password_hash ~ '^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$')
 );
 
--- Indice porque sino no se hace solo. institucion_id no necesita uno propio: ya es la primera
--- columna de los índices de las restricciones UNIQUE
+-- El dni y el email de un usuario vigente no se repiten dentro de una institución y un rol: una
+-- persona puede tener una cuenta por rol y por institución, pero no dos iguales. Los dados de baja
+-- no cuentan, así que la cuenta se puede volver a crear después de una baja; por eso son índices
+-- únicos parciales y no restricciones UNIQUE, que no admiten WHERE. Conservan el nombre uq_ porque
+-- cumplen la misma función. Restaurar a un dado de baja lo vuelve a contar: falla si ya hay un
+-- vigente con su dni o su email y su rol
+CREATE UNIQUE INDEX uq_usuario_institucion_usuario_rol_dni
+    ON usuario (institucion_id, usuario_rol_id, dni)
+    WHERE fecha_eliminacion IS NULL;
+
+CREATE UNIQUE INDEX uq_usuario_institucion_usuario_rol_email
+    ON usuario (institucion_id, usuario_rol_id, email)
+    WHERE fecha_eliminacion IS NULL;
+
+-- Indice porque sino no se hace solo. institucion_id también necesita uno propio: los índices
+-- únicos son parciales y no sirven para listar a los dados de baja
 CREATE INDEX idx_usuario_usuario_rol_id ON usuario(usuario_rol_id);
+CREATE INDEX idx_usuario_institucion_id ON usuario(institucion_id);
+
+-- El rol y la institución de un usuario no cambian después del alta: una cuenta tiene un solo rol
+-- y es de una sola institución. Así, lo que referencia al usuario (sus asignaciones docentes,
+-- vigentes o dadas de baja) no queda apuntando a otro rol, y el rol que guarda una sesión abierta
+-- no queda viejo. Un rol mal cargado se corrige dando de baja la cuenta y creando otra
+CREATE FUNCTION fn_usuario_rol_institucion_inmutables() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.usuario_rol_id <> OLD.usuario_rol_id THEN
+        RAISE EXCEPTION 'El rol del usuario % no se puede cambiar', OLD.usuario_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_usuario_rol_inmutable';
+    END IF;
+
+    IF NEW.institucion_id <> OLD.institucion_id THEN
+        RAISE EXCEPTION 'La institución del usuario % no se puede cambiar', OLD.usuario_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_usuario_institucion_inmutable';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_usuario_rol_institucion_inmutables
+    BEFORE UPDATE ON usuario
+    FOR EACH ROW
+    WHEN (NEW.usuario_rol_id <> OLD.usuario_rol_id OR NEW.institucion_id <> OLD.institucion_id)
+    EXECUTE FUNCTION fn_usuario_rol_institucion_inmutables();
+
+-- Una institución no se queda sin administradores habilitados (activos y vigentes): el último no
+-- se suspende ni se da de baja. FOR NO KEY UPDATE retiene la fila de la institución hasta el fin
+-- de la transacción: si dos administradores se deshabilitan entre sí a la vez, el segundo espera
+-- y, al seguir, ya no cuenta al primero
+CREATE FUNCTION fn_usuario_ultimo_administrador() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_rol  VARCHAR(50);
+BEGIN
+    SELECT r.nombre
+      INTO v_rol
+      FROM usuario_rol r
+     WHERE r.usuario_rol_id = OLD.usuario_rol_id;
+
+    IF v_rol <> 'ADMIN' THEN
+        RETURN NEW;
+    END IF;
+
+    PERFORM 1
+       FROM institucion i
+      WHERE i.institucion_id = OLD.institucion_id
+        FOR NO KEY UPDATE;
+
+    IF NOT EXISTS (SELECT 1
+                     FROM usuario u
+                    WHERE u.institucion_id = OLD.institucion_id
+                      AND u.usuario_rol_id = OLD.usuario_rol_id
+                      AND u.usuario_id <> OLD.usuario_id
+                      AND u.estado
+                      AND u.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'El usuario % es el único administrador habilitado de su institución', OLD.usuario_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_usuario_ultimo_administrador';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_usuario_ultimo_administrador
+    BEFORE UPDATE ON usuario
+    FOR EACH ROW
+    WHEN (OLD.estado AND OLD.fecha_eliminacion IS NULL
+          AND (NOT NEW.estado OR NEW.fecha_eliminacion IS NOT NULL))
+    EXECUTE FUNCTION fn_usuario_ultimo_administrador();
 
 -- Materias: catálogo global, común a todas las instituciones
 CREATE TABLE materia (
@@ -107,7 +210,8 @@ CREATE TABLE grado_materia (
     CONSTRAINT uq_grado_materia_grado_materia UNIQUE (grado_id, materia_id)
 );
 
--- Igual que en usuario: grado_id ya es la primera columna del índice de la restricción UNIQUE
+-- grado_id no necesita un índice propio: ya es la primera columna del índice de la restricción
+-- UNIQUE
 CREATE INDEX idx_grado_materia_materia_id ON grado_materia(materia_id);
 
 -- Cursos: una división de un grado, en un turno y un ciclo lectivo, dentro de una institución
@@ -175,27 +279,29 @@ CREATE UNIQUE INDEX uq_asignacion_docente_curso_grado_materia
 CREATE INDEX idx_asignacion_docente_usuario_id ON asignacion_docente(usuario_id);
 CREATE INDEX idx_asignacion_docente_grado_materia_id ON asignacion_docente(grado_materia_id);
 
--- Coherencia de una asignación vigente con las filas que referencia: el usuario es un profesor, es
--- de la misma institución que el curso y la materia es del grado del curso. Las dadas de baja no se
--- validan. FOR SHARE retiene las filas del usuario y del curso hasta el fin de la transacción: un
--- cambio simultáneo de rol o de grado espera y, al seguir, su trigger (más abajo) ya ve esta
--- asignación. Si una fila referenciada no existe, las comparaciones dan NULL y no fallan: la
--- rechaza después su clave foránea
+-- Coherencia de una asignación vigente con las filas que referencia: el usuario es un profesor
+-- vigente, es de la misma institución que el curso y la materia es del grado del curso. Las dadas
+-- de baja no se validan. FOR SHARE retiene las filas del usuario y del curso hasta el fin de la
+-- transacción: una baja simultánea del usuario o un cambio simultáneo de grado esperan y, al
+-- seguir, su trigger (más abajo) ya ve esta asignación. Si una fila referenciada no existe, las
+-- comparaciones dan NULL y no fallan: la rechaza después su clave foránea
 CREATE FUNCTION fn_asignacion_docente_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_usuario_rol_id          INT;
-    v_usuario_institucion_id  INT;
-    v_rol                     VARCHAR(50);
-    v_curso_institucion_id    INT;
-    v_curso_grado_id          INT;
-    v_materia_grado_id        INT;
+    v_usuario_rol_id             INT;
+    v_usuario_institucion_id     INT;
+    v_usuario_fecha_eliminacion  TIMESTAMPTZ;
+    v_rol                        VARCHAR(50);
+    v_curso_institucion_id       INT;
+    v_curso_grado_id             INT;
+    v_materia_grado_id           INT;
 BEGIN
-    -- Sin JOIN con usuario_rol: si la fila cambió mientras esperaba el bloqueo, PostgreSQL vuelve a
-    -- evaluar la consulta con la fila nueva del usuario pero con el rol anterior, y no devolvería
-    -- nada
-    SELECT u.usuario_rol_id, u.institucion_id
-      INTO v_usuario_rol_id, v_usuario_institucion_id
+    -- Sin JOIN con usuario_rol: si la fila cambia mientras espera el bloqueo, PostgreSQL vuelve a
+    -- evaluar la consulta con la fila nueva del usuario pero con las filas anteriores de las demás
+    -- tablas, y no devolvería nada si ya no coinciden. El rol es inmutable, así que acá lo que
+    -- puede cambiar durante la espera es la fecha de baja, que se lee de la fila nueva
+    SELECT u.usuario_rol_id, u.institucion_id, u.fecha_eliminacion
+      INTO v_usuario_rol_id, v_usuario_institucion_id, v_usuario_fecha_eliminacion
       FROM usuario u
      WHERE u.usuario_id = NEW.usuario_id
        FOR SHARE;
@@ -220,6 +326,12 @@ BEGIN
         RAISE EXCEPTION 'El usuario % no es un profesor', NEW.usuario_id
             USING ERRCODE = 'check_violation',
                   CONSTRAINT = 'ck_asignacion_docente_usuario_profesor';
+    END IF;
+
+    IF v_usuario_fecha_eliminacion IS NOT NULL THEN
+        RAISE EXCEPTION 'El usuario % está dado de baja', NEW.usuario_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_asignacion_docente_usuario_vigente';
     END IF;
 
     IF v_usuario_institucion_id <> v_curso_institucion_id THEN
@@ -270,7 +382,10 @@ CREATE TRIGGER trg_curso_asignaciones_vigentes
     WHEN (NEW.grado_id <> OLD.grado_id OR NEW.institucion_id <> OLD.institucion_id)
     EXECUTE FUNCTION fn_curso_asignaciones_vigentes();
 
--- Un usuario con asignaciones vigentes conserva su rol (que es PROFESOR) y su institución
+-- Un usuario con asignaciones vigentes no se da de baja, sean del ciclo lectivo que sean: quedarían
+-- a nombre de un eliminado, con sus materias ocupadas y sin nadie que cargue sus evaluaciones y sus
+-- notas. Antes hay que reasignarlas o darlas de baja. Es el equivalente de la clave foránea para
+-- la baja lógica. Suspenderlo sí se puede: sus asignaciones lo esperan
 CREATE FUNCTION fn_usuario_asignaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -290,7 +405,7 @@ $$;
 CREATE TRIGGER trg_usuario_asignaciones_vigentes
     BEFORE UPDATE ON usuario
     FOR EACH ROW
-    WHEN (NEW.usuario_rol_id <> OLD.usuario_rol_id OR NEW.institucion_id <> OLD.institucion_id)
+    WHEN (OLD.fecha_eliminacion IS NULL AND NEW.fecha_eliminacion IS NOT NULL)
     EXECUTE FUNCTION fn_usuario_asignaciones_vigentes();
 
 -- Estados de alumno
@@ -303,8 +418,8 @@ CREATE TABLE alumno_estado (
     CONSTRAINT uq_alumno_estado_nombre UNIQUE (nombre)
 );
 
--- Alumnos: una fila por persona e institución, como en usuario. Quien pasa a otra institución
--- tiene una fila en cada una, con su propio estado.
+-- Alumnos: una fila por persona e institución. Quien pasa a otra institución tiene una fila en
+-- cada una, con su propio estado.
 -- La institución no se deduce de las inscripciones: el alumno se registra antes de inscribirse en
 -- un curso, y durante ese lapso no tiene ninguna
 CREATE TABLE alumno (
@@ -328,7 +443,7 @@ CREATE TABLE alumno (
     CONSTRAINT uq_alumno_institucion_email UNIQUE (institucion_id, email)
 );
 
--- Igual que en usuario: institucion_id ya es la primera columna de los índices de las
+-- institucion_id no necesita un índice propio: ya es la primera columna de los índices de las
 -- restricciones UNIQUE
 CREATE INDEX idx_alumno_alumno_estado_id ON alumno(alumno_estado_id);
 
@@ -643,7 +758,8 @@ CREATE TABLE calificacion (
     CONSTRAINT ck_calificacion_nota CHECK (nota BETWEEN 0 AND 10)
 );
 
--- Igual que en usuario: evaluacion_id ya es la primera columna del índice de la restricción UNIQUE
+-- evaluacion_id no necesita un índice propio: ya es la primera columna del índice de la
+-- restricción UNIQUE
 CREATE INDEX idx_calificacion_inscripcion_id ON calificacion(inscripcion_id);
 
 -- Coherencia de una calificación con las filas que referencia: la inscripción es del curso de la

@@ -4,8 +4,9 @@ const { authenticate, AuthenticationError } = require('./auth.service');
 // la ventana en la bandeja, y termina con logout() o al salir de la aplicación, cuando el proceso finaliza.
 let currentUser = null;
 
-// Cuentas de quien pertenece a varias instituciones, con las credenciales ya verificadas, mientras
-// elige con cuál ingresar: todavía no hay sesión. null si no hay un login a la espera de esa elección.
+// Cuentas de quien tiene más de una (en varias instituciones, o con varios roles en una misma), con
+// las credenciales ya verificadas, mientras elige con cuál ingresar: todavía no hay sesión. null si
+// no hay un login a la espera de esa elección.
 let pendingAccounts = null;
 
 // Cambia en cada login y logout: un login que termina después de otra operación de sesión se descarta.
@@ -13,7 +14,7 @@ let sessionVersion = 0;
 
 // Un intento de login cierra la sesión anterior aunque falle, para no dejar autenticado a otro usuario.
 // Devuelve { user } si la sesión quedó iniciada, o { pendingAccounts } si las credenciales permiten
-// ingresar a varias instituciones: la sesión se inicia recién con selectInstitution.
+// ingresar con varias cuentas: la sesión se inicia recién con selectInstitution.
 async function login(credentials) {
   const version = ++sessionVersion;
   currentUser = null;
@@ -33,11 +34,14 @@ async function login(credentials) {
   return { user: currentUser };
 }
 
-// Inicia la sesión con la cuenta de esa institución, que tiene que ser una de las que dejó pendientes
-// el último login. Si no lo es, o ya no hay un login pendiente, lanza un AuthenticationError
-// (NO_PENDING_LOGIN).
-function selectInstitution(institutionId) {
-  const account = pendingAccounts?.find((pendingAccount) => pendingAccount.institutionId === institutionId);
+// Inicia la sesión con la cuenta de esa institución y ese rol (un valor de usuario_rol.nombre), que
+// tiene que ser una de las que dejó pendientes el último login: la institución sola no alcanza,
+// porque una persona puede tener en ella una cuenta por rol. Si no lo es, o ya no hay un login
+// pendiente, lanza un AuthenticationError (NO_PENDING_LOGIN).
+function selectInstitution(institutionId, role) {
+  const account = pendingAccounts?.find(
+    (pendingAccount) => pendingAccount.institutionId === institutionId && pendingAccount.role === role
+  );
   if (!account) {
     throw new AuthenticationError('NO_PENDING_LOGIN', 'La selección ya no está disponible. Iniciá sesión nuevamente.');
   }

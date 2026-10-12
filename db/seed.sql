@@ -22,14 +22,19 @@ INSERT INTO institucion (nombre, direccion_calle, direccion_altura, email, telef
     ('Instituto San Martin', 'Av. Belgrano', '1234', 'contacto@institucion.edu.ar', '+54 379 4123456', '30-71234567-8'),
     ('Colegio Manuel Belgrano', 'Av. 3 de Abril', '845', 'contacto@colegiobelgrano.edu.ar', '+54 379 4467890', '30-69854321-5');
 
--- Usuarios del Instituto San Martin: 20 (2 administradores, 4 secretarios, 14 profesores).
+-- Usuarios del Instituto San Martin: 22 (2 administradores, 5 secretarios, 15 profesores), 21
+-- vigentes y 1 dada de baja.
+-- Julián Romero tiene dos cuentas, una de secretario y otra de profesor, con el mismo dni, el mismo
+-- email y la misma contraseña: al iniciar sesión elige con cuál ingresar. Lo permiten los índices
+-- únicos de usuario, que solo impiden repetir el dni o el email dentro de una institución y un rol.
 -- Credenciales de acceso (email / contraseña en texto plano):
 --   mariana.sosa@institucion.edu.ar          / 7$4GhQ4yd9WZ$pyE  (ADMIN)
 --   hernan.acosta@institucion.edu.ar         / SUs&LVqS3AbKnq6x  (ADMIN)
 --   valeria.benitez@institucion.edu.ar       / B@cC5iimsQJHXQ5d  (SECRETARIO)
---   julian.romero@institucion.edu.ar         / 6!y$GWY*7qYjVp%9  (SECRETARIO)
+--   julian.romero@institucion.edu.ar         / 6!y$GWY*7qYjVp%9  (SECRETARIO y PROFESOR)
 --   mariajose.duarte@institucion.edu.ar      / b6@m3cSRn!Vpmcg!  (SECRETARIO)
---   ricardo.medina@institucion.edu.ar        / pzvg3&4JpNWM#e*#  (SECRETARIO, inactivo)
+--   ricardo.medina@institucion.edu.ar        / pzvg3&4JpNWM#e*#  (SECRETARIO, suspendido)
+--   marta.quiroga@institucion.edu.ar         / 94yS!pdcW4Dg%T5f  (SECRETARIO, dada de baja)
 --   silvia.gomez@institucion.edu.ar          / 5i#aTSG@#u!y@NZF  (PROFESOR)
 --   pablo.fernandez@institucion.edu.ar       / BaeU6Qw4#ZeP#EmW  (PROFESOR)
 --   lorena.martinez@institucion.edu.ar       / &2q2pmAiRq6vQhnf  (PROFESOR)
@@ -42,8 +47,8 @@ INSERT INTO institucion (nombre, direccion_calle, direccion_altura, email, telef
 --   florencia.nunez@institucion.edu.ar       / j9dJDaabPnTL@Q#%  (PROFESOR)
 --   juanpablo.delafuente@institucion.edu.ar  / jbWhcR7p$68b%N5$  (PROFESOR)
 --   camila.ortiz@institucion.edu.ar          / Xn9h33Tt8%V@QTfG  (PROFESOR)
---   carolina.vallejos@institucion.edu.ar     / Ffdc4Ry*Jw*c$nN5  (PROFESOR, inactivo)
---   roberto.sanchez@institucion.edu.ar       / #2cPN9n$Af3XN$x!  (PROFESOR, inactivo)
+--   carolina.vallejos@institucion.edu.ar     / Ffdc4Ry*Jw*c$nN5  (PROFESOR, suspendido)
+--   roberto.sanchez@institucion.edu.ar       / #2cPN9n$Af3XN$x!  (PROFESOR, suspendido)
 INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, email, password_hash, dni, fecha_nacimiento) VALUES
     -- Administradores
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'ADMIN'),
@@ -186,12 +191,33 @@ INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, e
      (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
      'Roberto', 'Sánchez', 'roberto.sanchez@institucion.edu.ar',
      -- Email: roberto.sanchez@institucion.edu.ar / Contraseña: #2cPN9n$Af3XN$x!
-     '$2b$10$Kn0NtD.Ba.daKJ8vOI6kKekNbVDU9IJVJrlKyp9M3/FBRPxFGH4oa', '14382509', '1961-02-14');
+     '$2b$10$Kn0NtD.Ba.daKJ8vOI6kKekNbVDU9IJVJrlKyp9M3/FBRPxFGH4oa', '14382509', '1961-02-14'),
+
+    -- Segunda cuenta de Julián Romero, que también es secretario
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
+     'Julián', 'Romero', 'julian.romero@institucion.edu.ar',
+     -- Email: julian.romero@institucion.edu.ar / Contraseña: 6!y$GWY*7qYjVp%9
+     '$2b$10$oQGJbmkjCELqXwZrN5T0PuoF24xC24TToDIjoy6nAoKZnu0OI2YEq', '36904127', '1992-01-09');
+
+-- Usuaria dada de baja del Instituto San Martin, en un INSERT aparte porque es la única fila que
+-- carga fecha_eliminacion. Como toda cuenta dada de baja, queda además suspendida
+-- (ck_usuario_baja_suspendido). No cuenta para la unicidad del dni y del email, y un alta con su
+-- dni y su rol propone restaurarla en lugar de crear otra cuenta.
+INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, email, password_hash, dni, fecha_nacimiento, fecha_eliminacion) VALUES
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'SECRETARIO'),
+     FALSE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
+     'Marta', 'Quiroga', 'marta.quiroga@institucion.edu.ar',
+     -- Email: marta.quiroga@institucion.edu.ar / Contraseña: 94yS!pdcW4Dg%T5f
+     '$2b$10$kHQoz41VopLxfkRP6IcBEO/0gjeomRKvFOy6x4Pd7vUVHlHU0HA06', '21904736', '1970-04-08',
+     '2026-08-14 12:00:00-03');
 
 -- Usuarios del Colegio Manuel Belgrano: 2 (1 administrador, 1 profesor).
 -- Silvia Gómez pertenece a las dos instituciones: tiene una fila en cada una, con el mismo dni, el
--- mismo email y la misma contraseña. Lo permiten las restricciones UNIQUE (institucion_id, dni) y
--- (institucion_id, email), que solo impiden repetirlos dentro de una misma institución.
+-- mismo email y la misma contraseña. Lo permiten los índices únicos de usuario, que solo impiden
+-- repetirlos dentro de una misma institución y un mismo rol.
 -- Credenciales de acceso (email / contraseña en texto plano):
 --   claudia.ramirez@colegiobelgrano.edu.ar   / yLG*B4FfvR#&7h8W  (ADMIN)
 --   silvia.gomez@institucion.edu.ar          / 5i#aTSG@#u!y@NZF  (PROFESOR, también en el Instituto San Martin)
@@ -347,11 +373,12 @@ FROM grado g
 ORDER BY g.grado_id;
 
 -- Asignaciones docentes: 10 por institución, 20 en total, todas vigentes y de profesores activos.
--- Cada fila de VALUES nombra al profesor por su email, al curso por los datos que lo identifican
--- dentro de la institución y a la materia por su nombre; los LEFT JOIN los traducen a sus ids. Son
--- LEFT JOIN para que un dato que no existe (por ejemplo, una materia que no es del plan de estudios
--- del grado) deje su id en NULL y el INSERT falle por NOT NULL: con un JOIN, la fila se saltearía
--- sin avisar.
+-- Cada fila de VALUES nombra al profesor por su email (el de su cuenta vigente de profesor: el
+-- mismo email puede tener en la institución otra cuenta, con otro rol), al curso por los datos que
+-- lo identifican dentro de la institución y a la materia por su nombre; los LEFT JOIN los traducen
+-- a sus ids. Son LEFT JOIN para que un dato que no existe (por ejemplo, una materia que no es del
+-- plan de estudios del grado) deje su id en NULL y el INSERT falle por NOT NULL: con un JOIN, la
+-- fila se saltearía sin avisar.
 
 -- Instituto San Martin: 8 profesores. Pablo Fernández tiene dos materias de un mismo curso y Diego
 -- González, una misma materia en dos cursos
@@ -376,6 +403,8 @@ FROM (VALUES
 ) AS a(email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, materia)
 LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
 LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
+                   AND u.usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR')
+                   AND u.fecha_eliminacion IS NULL
 LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
 LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
                  AND c.division = a.division AND c.turno = a.turno
@@ -407,6 +436,8 @@ FROM (VALUES
 ) AS a(email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, materia)
 LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
 LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
+                   AND u.usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR')
+                   AND u.fecha_eliminacion IS NULL
 LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
 LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
                  AND c.division = a.division AND c.turno = a.turno

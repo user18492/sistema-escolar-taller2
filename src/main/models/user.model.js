@@ -1,5 +1,6 @@
-// Cuenta de usuario del sistema en una institución: quien pertenece a varias tiene una cuenta en cada una.
-// `role` es el nombre registrado en usuario_rol (ADMIN, SECRETARIO, PROFESOR).
+// Cuenta de usuario del sistema en una institución, con un rol: quien pertenece a varias instituciones, o
+// tiene más de un rol en una misma, tiene una cuenta por cada uno.
+// `role` es el nombre registrado en usuario_rol (ADMIN, SECRETARIO, PROFESOR): no cambia después del alta.
 // Incluye `passwordHash`: el servicio decide qué datos salen del proceso principal.
 class User {
   constructor({
@@ -22,7 +23,7 @@ class User {
     // false = suspendido.
     this.isActive = isActive;
     this.institutionId = institutionId;
-    // Nombre de la institución (institucion.nombre, que puede ser null), para mostrarlo sin otra consulta.
+    // Nombre de la institución (institucion.nombre), para mostrarlo sin otra consulta.
     this.institutionName = institutionName;
     this.firstName = firstName;
     this.lastName = lastName;

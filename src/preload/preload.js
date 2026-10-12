@@ -15,15 +15,16 @@ contextBridge.exposeInMainWorld('api', {
   },
   auth: {
     // Resuelve { ok: true, user } con la sesión iniciada o { ok: false, error: { code, message } }, con el
-    // mensaje listo para mostrar. Si las credenciales permiten ingresar a varias instituciones, resuelve
-    // { ok: true, institutions } ([{ id, name, role }], con el rol del usuario en cada una y name null si
-    // la institución no tiene nombre) y la sesión se inicia con selectInstitution.
+    // mensaje listo para mostrar. Si las credenciales permiten ingresar con varias cuentas (en varias
+    // instituciones, o con varios roles en una misma), resuelve { ok: true, institutions }
+    // ([{ id, name, role }], una por cuenta: la misma institución se repite si el usuario tiene en ella
+    // más de un rol) y la sesión se inicia con selectInstitution.
     // Con un acceso exitoso, `rememberAccount` guarda el email para el próximo inicio o lo olvida.
     login: (email, password, rememberAccount) => ipcRenderer.invoke('auth:login', { email, password, rememberAccount }),
-    // Completa el login con la institución elegida (el id de una de `institutions`). Resuelve como login:
-    // { ok: true, user } o { ok: false, error: { code, message } }; NO_PENDING_LOGIN indica que hay que
-    // volver a ingresar las credenciales.
-    selectInstitution: (institutionId, rememberAccount) => ipcRenderer.invoke('auth:select-institution', { institutionId, rememberAccount }),
+    // Completa el login con la cuenta elegida: el id y el rol de una de `institutions`. Resuelve como
+    // login: { ok: true, user } o { ok: false, error: { code, message } }; NO_PENDING_LOGIN indica que hay
+    // que volver a ingresar las credenciales.
+    selectInstitution: (institutionId, role, rememberAccount) => ipcRenderer.invoke('auth:select-institution', { institutionId, role, rememberAccount }),
     // Resuelve { firstName, lastName, role, imageUrl, institutionName }, o null si no hay sesión iniciada.
     getCurrentUser: () => ipcRenderer.invoke('auth:get-current-user'),
     // También descarta un login que quedó a la espera de elegir la institución.
@@ -50,14 +51,16 @@ contextBridge.exposeInMainWorld('api', {
     // el hash. Resuelve { ok: true, profile } con los datos como quedaron (mismos campos que get), y
     // getCurrentUser pasa a informar el nombre, el apellido y la foto nuevos, o
     // { ok: false, error: { code, message, fieldErrors } }: fieldErrors ({ campo: mensaje }, con los
-    // nombres de `data`) llega con DUPLICATE_VALUE (dni o email de otro usuario) y con los campos
-    // inválidos, también los de la contraseña; una foto inválida da INVALID_INPUT sin fieldErrors.
+    // nombres de `data`) llega con DUPLICATE_VALUE (dni o email de otro usuario vigente con su mismo
+    // rol) y con los campos inválidos, también los de la contraseña; una foto inválida da
+    // INVALID_INPUT sin fieldErrors.
     update: (data) => ipcRenderer.invoke('profile:update', data),
     // Cualquier rol. Baja lógica de la cuenta del usuario de la sesión, que queda además suspendida:
     // no puede volver a ingresar hasta que un administrador la restaure (users.restore). Resuelve
     // { ok: true } con la sesión ya cerrada (getCurrentUser pasa a informar null) o
     // { ok: false, error: { code, message } }, sin cambiar nada: LAST_ADMIN indica que es el único
-    // administrador activo y vigente de su institución, que no se puede dar de baja.
+    // administrador activo y vigente de su institución, que no se puede dar de baja, y
+    // USER_HAS_TEACHER_ASSIGNMENTS, que tiene asignaciones docentes vigentes.
     delete: () => ipcRenderer.invoke('profile:delete'),
   },
   users: {
@@ -68,33 +71,39 @@ contextBridge.exposeInMainWorld('api', {
     // está vigente), o { ok: false, error: { code, message } }.
     list: () => ipcRenderer.invoke('users:list'),
     // Solo ADMIN. Crea un usuario en su institución, siempre activo. `data` tiene los campos de update
-    // sin isActive y con password obligatoria: viaja en texto plano y el proceso principal guarda solo
-    // su hash. `image` null lo crea sin foto y `removeImage` no quita nada (no puede ser true junto con
+    // sin isActive, con role ('ADMIN', 'SECRETARIO' o 'PROFESOR', que la cuenta conserva: no se cambia
+    // después) y con password obligatoria: viaja en texto plano y el proceso principal guarda solo su
+    // hash. `image` null lo crea sin foto y `removeImage` no quita nada (no puede ser true junto con
     // image). Resuelve { ok: true, user } con el usuario creado (mismos campos que list) o
     // { ok: false, error: { code, message, fieldErrors } }, como update: DUPLICATE_VALUE indica un dni
-    // o un email ya registrados.
+    // o un email de otro usuario vigente con ese rol, y DELETED_USER_EXISTS (sin fieldErrors), que hay
+    // una cuenta dada de baja con ese dni y ese rol: en lugar de crear otra, hay que restaurarla.
     create: (data) => ipcRenderer.invoke('users:create', data),
-    // Solo ADMIN. Guarda los datos del usuario con ese id (usuario_id) de su institución. `data` es
-    // { firstName, lastName, dni, email, birthDate, role, isActive, password, image, removeImage }, con
-    // birthDate 'AAAA-MM-DD', isActive false para suspenderlo (sigue en el listado, pero no puede
-    // iniciar sesión) y password null para conservar la actual. `image` es el recorte de una foto nueva
-    // (Uint8Array con un PNG de 512 × 512), o null para no cambiarla; `removeImage` true quita la foto
-    // actual y no puede venir junto con image. Resuelve { ok: true, user } con el usuario como quedó
-    // (mismos campos que list) o { ok: false, error: { code, message, fieldErrors } }: fieldErrors
-    // ({ campo: mensaje }) llega con DUPLICATE_VALUE (dni o email de otro usuario) y con los campos
-    // inválidos; una foto inválida da INVALID_INPUT sin fieldErrors y USER_NOT_FOUND indica que ya no
-    // está vigente.
+    // Solo ADMIN. Guarda los datos del usuario con ese id (usuario_id) de su institución, sin cambiar
+    // su rol. `data` es { firstName, lastName, dni, email, birthDate, isActive, password, image,
+    // removeImage }, con birthDate 'AAAA-MM-DD', isActive false para suspenderlo (sigue en el listado,
+    // pero no puede iniciar sesión) y password null para conservar la actual. `image` es el recorte de
+    // una foto nueva (Uint8Array con un PNG de 512 × 512), o null para no cambiarla; `removeImage` true
+    // quita la foto actual y no puede venir junto con image. Resuelve { ok: true, user } con el usuario
+    // como quedó (mismos campos que list) o { ok: false, error: { code, message, fieldErrors } }:
+    // fieldErrors ({ campo: mensaje }) llega con DUPLICATE_VALUE (dni o email de otro usuario vigente
+    // con su mismo rol) y con los campos inválidos; una foto inválida da INVALID_INPUT sin fieldErrors,
+    // USER_NOT_FOUND indica que ya no está vigente y LAST_ADMIN, que es el único administrador activo y
+    // vigente de la institución, que no se puede suspender.
     update: (userId, data) => ipcRenderer.invoke('users:update', userId, data),
     // Solo ADMIN. Baja lógica del usuario con ese id (usuario_id) de su institución, que queda además
     // suspendido. Resuelve { ok: true, user } con el usuario como quedó (mismos campos que list, con su
     // deletedAt) o { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_ALREADY_DELETED indican
-    // que ya no está vigente.
+    // que ya no está vigente, USER_HAS_TEACHER_ASSIGNMENTS, que tiene asignaciones docentes vigentes
+    // (hay que reasignarlas o darlas de baja antes), y LAST_ADMIN, que es el único administrador activo
+    // y vigente de la institución.
     delete: (userId) => ipcRenderer.invoke('users:delete', userId),
     // Solo ADMIN. Restaura al usuario dado de baja con ese id (usuario_id) de su institución: vuelve a
     // estar vigente y queda activo, con la contraseña que tenía. Resuelve { ok: true, user } con el
     // usuario como quedó (mismos campos que list, con deletedAt null) o
     // { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_NOT_DELETED indican que ya no está
-    // dado de baja.
+    // dado de baja, y DUPLICATE_VALUE, que ya hay un usuario vigente con su dni o su email y su mismo
+    // rol.
     restore: (userId) => ipcRenderer.invoke('users:restore', userId),
   },
   courses: {

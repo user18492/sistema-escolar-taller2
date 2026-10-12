@@ -11,8 +11,9 @@ function isUserId(value) {
   return Number.isInteger(value) && value > 0 && value <= MAX_USER_ID;
 }
 
-// Campos de texto del formulario de usuario; el servicio valida su contenido.
-const USER_TEXT_FIELDS = ['firstName', 'lastName', 'dni', 'email', 'birthDate', 'role'];
+// Campos de texto del formulario de usuario que llegan en el alta y en la edición; el servicio
+// valida su contenido.
+const USER_TEXT_FIELDS = ['firstName', 'lastName', 'dni', 'email', 'birthDate'];
 
 // Un objeto con todos los campos de texto como strings, `password` string o null, `image` (los bytes
 // de la foto) Uint8Array o null y `removeImage` booleano. Si trae otros campos, el servicio no los usa.
@@ -28,8 +29,13 @@ function isUserData(value) {
   );
 }
 
+// En el alta llega además `role` (string): el rol se elige solo ahí y no cambia después.
+function isUserCreateData(value) {
+  return isUserData(value) && typeof value.role === 'string';
+}
+
 // Al editar llega además `isActive` (booleano): el estado no se elige en el alta, que siempre crea
-// al usuario activo.
+// al usuario activo. `role` no se exige: si llega, el servicio no lo usa.
 function isUserUpdateData(value) {
   return isUserData(value) && typeof value.isActive === 'boolean';
 }
@@ -60,7 +66,8 @@ async function deleteUser(currentUser, userId) {
   }
 }
 
-// Nunca rechaza, como deleteUser.
+// Nunca rechaza, como deleteUser. DUPLICATE_VALUE llega sin fieldErrors: no hay un formulario donde
+// marcarlos.
 async function restoreUser(currentUser, userId) {
   if (!isUserId(userId)) {
     return failure('INVALID_INPUT', 'No se pudo identificar al usuario.');
@@ -99,7 +106,7 @@ async function updateUser(currentUser, userId, data) {
 // Nunca rechaza, como updateUser, y tampoco registra `data`: trae la contraseña en texto plano y
 // puede traer los bytes de una foto. Que la contraseña no sea null lo comprueba el servicio.
 async function createUser(currentUser, data) {
-  if (!isUserData(data)) {
+  if (!isUserCreateData(data)) {
     return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');
   }
   try {
