@@ -329,21 +329,12 @@ WHERE g.nivel_educativo = 'SECUNDARIA'
                    'Filosofía', 'Psicología', 'Economía')
 ORDER BY g.grado_id, m.materia_id;
 
--- Cursos: 20 por institución, 40 en total. Cada institución tiene 8 del ciclo lectivo 2025 y 12
--- del 2026, y cada INSERT cruza los grados de un ciclo lectivo con sus divisiones.
+-- Cursos: 18 por institución, 36 en total, todos del ciclo lectivo 2026, el único cargado. Cada
+-- institución tiene los 12 grados con una división A y, en dos grados de cada nivel, más
+-- divisiones; cada INSERT cruza los grados con sus divisiones.
 
--- Instituto San Martin, ciclo lectivo 2025: 1° y 2° de cada nivel, con dos divisiones. La A cursa
--- a la mañana y la B a la tarde
-INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
-SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-       g.grado_id, d.division, d.turno, 2025
-FROM grado g
-CROSS JOIN (VALUES ('A', 'MAÑANA'), ('B', 'TARDE')) AS d(division, turno)
-WHERE g.nombre IN ('1°', '2°')
-ORDER BY g.grado_id, d.division;
-
--- Instituto San Martin, ciclo lectivo 2026: los 12 grados, con una división. Primaria cursa a la
--- mañana y secundaria a la tarde
+-- Instituto San Martin: los 12 grados, con la división A. Primaria cursa a la mañana y secundaria
+-- a la tarde
 INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
 SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
        g.grado_id, 'A',
@@ -352,18 +343,21 @@ SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
 FROM grado g
 ORDER BY g.grado_id;
 
--- Colegio Manuel Belgrano, ciclo lectivo 2025: 5° y 6° de cada nivel, con dos divisiones. La A
--- cursa a la mañana y la B a la tarde
+-- Instituto San Martin: 1° y 2° de cada nivel suman una división A a la mañana y una B a la
+-- tarde. La A de primaria no se repite: es la del INSERT anterior, que ya cursa a la mañana. En
+-- secundaria queda una división A en cada turno: son cursos distintos, porque el turno también
+-- los identifica
 INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
-SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
-       g.grado_id, d.division, d.turno, 2025
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
+       g.grado_id, d.division, d.turno, 2026
 FROM grado g
 CROSS JOIN (VALUES ('A', 'MAÑANA'), ('B', 'TARDE')) AS d(division, turno)
-WHERE g.nombre IN ('5°', '6°')
+WHERE g.nombre IN ('1°', '2°')
+  AND NOT (g.nivel_educativo = 'PRIMARIA' AND d.division = 'A')
 ORDER BY g.grado_id, d.division;
 
--- Colegio Manuel Belgrano, ciclo lectivo 2026: los 12 grados, con una división. Al revés que en
--- el Instituto San Martin, primaria cursa a la tarde y secundaria a la mañana
+-- Colegio Manuel Belgrano: los 12 grados, con la división A. Al revés que en el Instituto San
+-- Martin, primaria cursa a la tarde y secundaria a la mañana
 INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
 SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
        g.grado_id, 'A',
@@ -372,7 +366,20 @@ SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
 FROM grado g
 ORDER BY g.grado_id;
 
--- Asignaciones docentes: 10 por institución, 20 en total, todas vigentes y de profesores activos.
+-- Colegio Manuel Belgrano: 5° y 6° de cada nivel suman una división A a la mañana y una B a la
+-- tarde. La A de secundaria no se repite: es la del INSERT anterior, que ya cursa a la mañana. En
+-- primaria queda una división A en cada turno
+INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+       g.grado_id, d.division, d.turno, 2026
+FROM grado g
+CROSS JOIN (VALUES ('A', 'MAÑANA'), ('B', 'TARDE')) AS d(division, turno)
+WHERE g.nombre IN ('5°', '6°')
+  AND NOT (g.nivel_educativo = 'SECUNDARIA' AND d.division = 'A')
+ORDER BY g.grado_id, d.division;
+
+-- Asignaciones docentes: 10 en el Instituto San Martin y 9 en el Colegio Manuel Belgrano, 19 en
+-- total, todas vigentes y de profesores activos.
 -- Cada fila de VALUES nombra al profesor por su email (el de su cuenta vigente de profesor: el
 -- mismo email puede tener en la institución otra cuenta, con otro rol), al curso por los datos que
 -- lo identifican dentro de la institución y a la materia por su nombre; los LEFT JOIN los traducen
@@ -385,21 +392,19 @@ ORDER BY g.grado_id;
 INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
 SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
 FROM (VALUES
-    -- Ciclo lectivo 2026, primaria
+    -- Primaria
     ('pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, 'Lengua'),
     ('pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, 'Matemática'),
     ('lorena.martinez@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 2026, 'Ciencias Naturales'),
     ('diego.gonzalez@institucion.edu.ar', 'PRIMARIA', '5°', 'A', 'MAÑANA', 2026, 'Inglés'),
     ('diego.gonzalez@institucion.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, 'Inglés'),
 
-    -- Ciclo lectivo 2026, secundaria
+    -- Secundaria
     ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'TARDE', 2026, 'Matemática'),
     ('maria.gonzalez@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'TARDE', 2026, 'Historia'),
+    ('nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2026, 'Biología'),
     ('federico.ruizdiaz@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'TARDE', 2026, 'Física'),
-    ('gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'TARDE', 2026, 'Literatura'),
-
-    -- Ciclo lectivo 2025
-    ('nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2025, 'Biología')
+    ('gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'TARDE', 2026, 'Literatura')
 ) AS a(email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, materia)
 LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
 LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
@@ -418,21 +423,18 @@ ORDER BY c.curso_id, gm.grado_materia_id;
 INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
 SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
 FROM (VALUES
-    -- Ciclo lectivo 2026, primaria
+    -- Primaria
     ('silvia.gomez@institucion.edu.ar', 'PRIMARIA', '5°', 'A', 'TARDE', 2026, 'Matemática'),
     ('silvia.gomez@institucion.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, 'Matemática'),
 
-    -- Ciclo lectivo 2026, secundaria
+    -- Secundaria
     ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, 'Matemática'),
     ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, 'Matemática'),
     ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'MAÑANA', 2026, 'Matemática'),
     ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'MAÑANA', 2026, 'Física'),
     ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, 'Física'),
     ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, 'Física'),
-
-    -- Ciclo lectivo 2025
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, 'Física'),
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2025, 'Física')
+    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2026, 'Física')
 ) AS a(email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, materia)
 LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
 LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
@@ -592,9 +594,10 @@ INSERT INTO inscripcion_estado (nombre) VALUES
 -- datos que lo identifican dentro de la institución; los LEFT JOIN los traducen a sus ids. Como en
 -- las asignaciones docentes, son LEFT JOIN para que un dato que no existe deje su id en NULL y el
 -- INSERT falle por NOT NULL: con un JOIN, la fila se saltearía sin avisar.
--- Las activas son de alumnos activos y de cursos del ciclo lectivo 2026, y ningún alumno tiene más
--- de una: lo exige trg_inscripcion_coherencia. Cada trasladada tiene una inscripción posterior del
--- mismo alumno, la del curso al que pasó.
+-- Las activas son de alumnos activos, y ningún alumno tiene más de una: lo exige
+-- trg_inscripcion_coherencia. Cada trasladada tiene una inscripción posterior del mismo alumno, la
+-- del curso al que pasó, y cada finalizada es anterior a la inscripción de su alumno en el grado
+-- siguiente: las finalizadas y los cambios de división son de los primeros días hábiles de enero.
 -- El año de cada fecha de inscripción es el ciclo lectivo de su curso, como exige
 -- trg_inscripcion_fecha_ciclo_lectivo: las inscripciones se hacen durante ese año, a partir de
 -- enero.
@@ -624,17 +627,16 @@ FROM (VALUES
     ('CANCELADA', 'thiago.juarez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-18'),
     ('CANCELADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2026-01-22'),
 
-    -- Finalizadas: ciclo lectivo 2025
-    ('FINALIZADA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2025, '2025-01-14'),
-    ('FINALIZADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2025, '2025-05-19'),
-    ('FINALIZADA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2025, '2025-02-17'),
-    ('FINALIZADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'B', 'TARDE', 2025, '2025-04-07'),
-    ('FINALIZADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2025, '2025-02-24'),
+    -- Finalizadas: el grado anterior, de alumnos que después se inscribieron en el siguiente
+    ('FINALIZADA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-02'),
+    ('FINALIZADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2026, '2026-01-12'),
+    ('FINALIZADA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-06'),
+    ('FINALIZADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'B', 'TARDE', 2026, '2026-01-09'),
+    ('FINALIZADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2026, '2026-01-08'),
 
-    -- Trasladadas: dos cambios de división durante 2025 (de la A a la B) y uno de grado en 2026
-    -- (de 3° a 4°)
-    ('TRASLADADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2025, '2025-01-16'),
-    ('TRASLADADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2025, '2025-02-18'),
+    -- Trasladadas: dos cambios de división (de la A a la B) y uno de grado (de 3° a 4°)
+    ('TRASLADADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-05'),
+    ('TRASLADADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-07'),
     ('TRASLADADA', 'joaquin.quiroga@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-23')
 ) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
 LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
@@ -660,26 +662,24 @@ FROM (VALUES
     ('ACTIVA', 'mia.rojas@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-21'),
     ('ACTIVA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-16'),
 
-    -- Canceladas: las de los cuatro alumnos suspendidos. La de Jazmín Meza es del ciclo lectivo
-    -- 2025
+    -- Canceladas: las de los cuatro alumnos suspendidos
     ('CANCELADA', 'morena.acuna@colegiobelgrano.edu.ar', 'SECUNDARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-13'),
     ('CANCELADA', 'simon.gutierrez@colegiobelgrano.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-02-19'),
-    ('CANCELADA', 'jazmin.meza@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2025-02-25'),
+    ('CANCELADA', 'jazmin.meza@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-09'),
     ('CANCELADA', 'valentin.vargas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, '2026-02-20'),
 
-    -- Finalizadas: ciclo lectivo 2025. Nahuel Correa y Lucía Maidana son egresados; ella cursa la
-    -- secundaria en el Instituto San Martin
-    ('FINALIZADA', 'nahuel.correa@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2025, '2025-01-21'),
-    ('FINALIZADA', 'lucia.maidana@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2025, '2025-02-19'),
-    ('FINALIZADA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2025-01-15'),
-    ('FINALIZADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'B', 'TARDE', 2025, '2025-03-25'),
-    ('FINALIZADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'B', 'TARDE', 2025, '2025-06-02'),
+    -- Finalizadas: Nahuel Correa y Lucía Maidana son egresados; ella cursa la secundaria en el
+    -- Instituto San Martin. Los otros tres se inscribieron después en el grado siguiente
+    ('FINALIZADA', 'nahuel.correa@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2026, '2026-01-06'),
+    ('FINALIZADA', 'lucia.maidana@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-07'),
+    ('FINALIZADA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-02'),
+    ('FINALIZADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'B', 'TARDE', 2026, '2026-01-12'),
+    ('FINALIZADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'B', 'TARDE', 2026, '2026-01-13'),
 
-    -- Trasladadas: dos cambios de división durante 2025 (de la A a la B) y uno de grado en 2026
-    -- (de 1° a 2°)
+    -- Trasladadas: dos cambios de división (de la A a la B) y uno de grado (de 1° a 2°)
     ('TRASLADADA', 'felipe.barrios@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-02-27'),
-    ('TRASLADADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2025, '2025-02-20'),
-    ('TRASLADADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2025, '2025-01-17')
+    ('TRASLADADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-08'),
+    ('TRASLADADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-05')
 ) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
 LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
 LEFT JOIN alumno a ON a.institucion_id = i.institucion_id AND a.email = ins.email
@@ -690,13 +690,13 @@ LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grad
 LEFT JOIN inscripcion_estado e ON e.nombre = ins.estado
 ORDER BY ins.fecha_inscripcion::date, a.alumno_id;
 
--- Evaluaciones: 5 por asignación docente, 100 en total, todas vigentes.
+-- Evaluaciones: 5 por asignación docente, 95 en total, todas vigentes.
 -- El INSERT cruza las asignaciones con las cinco evaluaciones de VALUES, así que todas tienen los
 -- mismos títulos y las mismas fechas. Un título solo no se puede repetir dentro de una asignación
 -- (uq_evaluacion_asignacion_docente_titulo).
 -- VALUES da el día y el mes de cada fecha; el año es el ciclo lectivo del curso de la asignación,
--- como exige trg_evaluacion_fecha_ciclo_lectivo. Las cinco son días de clase en los dos ciclos
--- lectivos cargados, 2025 y 2026: no caen en fin de semana ni en feriado.
+-- como exige trg_evaluacion_fecha_ciclo_lectivo. Las cinco son días de clase de 2026, el único
+-- ciclo lectivo cargado: no caen en fin de semana ni en feriado.
 -- El ORDER BY deja juntas las de cada asignación, en orden de fecha.
 INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion)
 SELECT a.asignacion_docente_id, e.titulo, make_date(c.anio_ciclo_lectivo, e.mes, e.dia)
@@ -717,7 +717,7 @@ ORDER BY a.asignacion_docente_id, e.mes, e.dia;
 -- así que ninguna evaluación queda con un alumno del curso sin calificar.
 -- Solo cuentan las inscripciones activas: trg_calificacion_coherencia rechaza las demás, también
 -- al cargarlas. Por eso quedan sin calificaciones las evaluaciones de los cursos que no tienen
--- ninguna inscripción activa, entre ellas todas las del ciclo lectivo 2025.
+-- ninguna inscripción activa.
 -- La nota se calcula con los dos ids, para que sea la misma en cada carga: va de 4 a 10 de a 0,25,
 -- así que hay enteras y con decimales.
 -- El ORDER BY deja juntas las de cada evaluación.
