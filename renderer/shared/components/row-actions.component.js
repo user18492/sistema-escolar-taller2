@@ -1,9 +1,12 @@
 // Componente reutilizable: acciones de las filas de tabla (Editar y Eliminar, con "Gestionar" opcional;
 // o Restaurar, en las filas de los registros dados de baja).
 // Uso: <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions> en la última celda.
-//   - "edit-label" / "delete-label": aria-label y title de cada botón.
+//   - "edit-label" / "delete-label": aria-label y title de cada botón. La acción que no tiene su
+//     etiqueta no se genera (solo "delete-label": la fila lleva únicamente Eliminar).
 //   - "restore-label" (opcional): la fila es de un registro dado de baja. En lugar de Editar y
 //     Eliminar lleva solo Restaurar, con ese aria-label y title.
+//   - "disabled" (opcional): las acciones no están disponibles para esa fila y sus botones quedan
+//     deshabilitados. Se puede poner y quitar con la fila ya en la tabla.
 //   - "variant" (opcional): "user" usa .user-actions/.user-action; por defecto .table-actions/.table-action.
 //   - "manage-href" (opcional): antepone un <manage-link> con ese href (requiere manage-link.component.js).
 // Los botones llevan data-action="edit" / "delete" / "restore". confirm-modal.component.js atiende
@@ -22,12 +25,17 @@
   };
 
   class RowActions extends HTMLElement {
+    static observedAttributes = ['disabled'];
+
     connectedCallback() {
       if (this.rendered) return;
       this.rendered = true;
       const prefix = this.getAttribute('variant') === 'user' ? 'user' : 'table';
-      // Un registro dado de baja no se edita ni se elimina: solo se restaura
-      const actions = this.hasAttribute('restore-label') ? ['restore'] : ['edit', 'delete'];
+      // Un registro dado de baja no se edita ni se elimina: solo se restaura. Del resto, va cada
+      // acción que tenga su etiqueta
+      const actions = this.hasAttribute('restore-label')
+        ? ['restore']
+        : ['edit', 'delete'].filter((action) => this.hasAttribute(`${action}-label`));
       const buttons = actions.map((action) => `<button class="${prefix}-action" type="button" data-action="${action}" aria-label="" title="">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             ${ICONS[action]}
@@ -41,6 +49,7 @@
         const label = this.getAttribute(`${button.dataset.action}-label`);
         button.setAttribute('aria-label', label);
         button.setAttribute('title', label);
+        button.disabled = this.hasAttribute('disabled');
       });
 
       // El href se asigna antes de conectar el <manage-link>, que lo lee al generarse
@@ -50,6 +59,14 @@
         manageLink.setAttribute('href', manageHref);
         this.firstElementChild.prepend('\n', manageLink);
       }
+    }
+
+    // Antes de conectarse no hay botones que actualizar: connectedCallback lee el valor inicial.
+    attributeChangedCallback(_name, _oldValue, newValue) {
+      if (!this.rendered) return;
+      this.querySelectorAll('[data-action]').forEach((button) => {
+        button.disabled = newValue !== null;
+      });
     }
   }
 

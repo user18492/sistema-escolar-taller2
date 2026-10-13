@@ -10,8 +10,10 @@
     <link rel="stylesheet" href="../../shared/styles/searchable-select.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/assignment-summary.css" />
+    <link rel="stylesheet" href="../../shared/styles/confirm-modal.css" />
     <link rel="stylesheet" href="../../shared/styles/toast.css" />
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
@@ -21,13 +23,16 @@
     <script src="../../shared/components/user-avatar.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/modal-focus-trap.component.js"></script>
     <script src="../../shared/components/field-validation.component.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
+    <script src="../../shared/components/confirm-modal.component.js"></script>
     <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
     <script src="../../shared/components/search-bar.component.js"></script>
     <script src="../../shared/components/table-pagination.component.js"></script>
     <script src="../../shared/components/assignment-summary.component.js"></script>
+    <script src="../../shared/components/row-actions.component.js"></script>
     <script src="./evaluation-scores.js" defer></script>
   </head>
   <body>
@@ -96,6 +101,7 @@
                     </th>
                     <th class="col-dni">DNI</th>
                     <th class="col-score">Calificación</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -108,7 +114,8 @@
                  principal: una fila y una opción del filtro Alumno por cada inscripción del curso.
                  La calificación se carga y se corrige en la propia celda con el numeric stepper
                  (escritura manual o botones − y +) y se guarda al salir del campo; el campo vacío
-                 indica que todavía no fue registrada. -->
+                 indica que todavía no fue registrada. "Eliminar calificación" abre su modal de
+                 confirmación. -->
             <template id="scoreRowTemplate">
               <tr>
                 <td class="student-name col-student col-truncate"><span class="text-truncate"></span></td>
@@ -130,6 +137,9 @@
                     </button>
                   </div>
                 </td>
+                <td>
+                  <row-actions delete-label="Eliminar calificación"></row-actions>
+                </td>
               </tr>
             </template>
             <template id="studentOptionTemplate">
@@ -142,5 +152,7 @@
         </main>
       </div>
     </div>
+    <!-- Modal: Eliminar calificación -->
+    <confirm-modal entity="Score" heading="Eliminar calificación" description="¿Quieres eliminar esta calificación?"></confirm-modal>
   </body>
 </html>

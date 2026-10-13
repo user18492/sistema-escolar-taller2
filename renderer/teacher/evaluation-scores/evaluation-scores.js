@@ -13,6 +13,9 @@
 // La calificación se carga y se corrige en la propia fila y se guarda al salir del campo
 // (window.api.scores.save). Una ya cargada no se quita, y la de una inscripción que no está activa
 // solo se consulta.
+// Cada fila lleva la acción "Eliminar calificación", disponible si hay una calificación guardada
+// que se puede modificar. Por ahora es solo visual: abre su modal de confirmación
+// (confirm-modal.component.js), que se cierra sin eliminar nada.
 
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
@@ -104,10 +107,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const errorDescription = (error) =>
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
 
-  // Vuelve a generar la fila de esa calificación, si está a la vista, con lo que quedó en memoria
+  // Eliminar está disponible si hay una calificación guardada y se puede modificar (la inscripción
+  // está activa). El atributo vale antes y después de que <row-actions> genere su botón.
+  const syncDeleteAction = (row, { value, isEnrollmentActive }) => {
+    row.querySelector('row-actions').toggleAttribute('disabled', value === null || !isEnrollmentActive);
+  };
+
+  // Vuelve a generar la celda de esa calificación, si está a la vista, con lo que quedó en memoria.
+  // El resto de la fila se conserva: su botón Eliminar pudo recibir el foco o un clic mientras se
+  // guardaba.
   const refreshRow = (score) => {
     const row = tbody.querySelector(`tr[data-enrollment-id="${score.enrollmentId}"]`);
-    if (row) row.replaceWith(createRow(score));
+    if (!row) return;
+    row.querySelector('.col-score').replaceWith(createRow(score).querySelector('.col-score'));
+    syncDeleteAction(row, score);
   };
 
   // Guarda la nota del alumno: el proceso principal crea su calificación en la evaluación o, si ya
@@ -219,9 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
       step(event.key === 'ArrowUp' ? 1 : -1);
     });
 
-    // Los botones quedan fuera del orden de tabulación (Tab recorre solo las
-    // calificaciones) y no toman el foco: lo conserva el campo de la fila, así el borde
-    // azul marca la calificación que se está editando.
+    // Los botones − y + quedan fuera del orden de tabulación (Tab pasa de la calificación
+    // a Eliminar, si está disponible, o a la fila siguiente) y no toman el foco: lo conserva
+    // el campo de la fila, así el borde azul marca la calificación que se está editando.
     stepper.addEventListener('mousedown', (event) => {
       if (!event.target.closest('.numeric-stepper-btn')) return;
       event.preventDefault();
@@ -259,6 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isEnrollmentActive) stepper.title = 'La inscripción del alumno no está activa';
     stepper.inert = savingValue !== undefined;
     initStepper(stepper, score);
+    syncDeleteAction(row, score);
     return row;
   }
 
@@ -327,6 +341,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Previo, Siguiente o un número: el componente ya marcó la página nueva. Solo responde con la
   // lista ya cargada, que es cuando deja de ser estático.
   pagination.addEventListener('page-change', () => renderRows());
+
+  // ---------- Modal: Eliminar calificación ----------
+
+  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
+  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
+  setupConfirmModal(document.getElementById('deleteScoreOverlay'));
 
   loadScores();
 });

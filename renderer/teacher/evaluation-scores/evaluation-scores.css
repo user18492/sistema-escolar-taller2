@@ -57,8 +57,9 @@
 }
 
 /* Reparto de la tabla: el alumno encabeza la fila y la calificación queda alineada
-   con el resto de las columnas de datos. Alumno trunca su texto (.col-truncate de
-   base.css); min-width la mantiene legible en ventanas angostas. */
+   con el resto de las columnas de datos; Acciones ocupa el ancho restante. Alumno
+   trunca su texto (.col-truncate de base.css); min-width la mantiene legible en
+   ventanas angostas. */
 .col-student {
   width: 42%;
 }
@@ -68,16 +69,26 @@ td.col-student {
 }
 
 .col-dni {
-  width: 29%;
+  width: 24%;
 }
 
 .col-score {
-  width: 29%;
+  width: 24%;
 }
 
 /* El alumno encabeza la fila: mismo destaque que el título en Evaluaciones. */
 .student-name {
   font-weight: 500;
+}
+
+/* Acciones de fila en tono discreto, igual que en Evaluaciones; el azul queda reservado al
+   hover de la acción disponible. */
+.scores-card .table-action {
+  color: var(--color-text-tertiary);
+}
+
+.scores-card .table-action:enabled:hover {
+  color: var(--color-accent-blue);
 }
 
 /* ---------- Calificación editable ---------- */

@@ -399,6 +399,14 @@ row-actions {
   outline-offset: 2px;
 }
 
+/* Acción que no está disponible para esa fila (atributo "disabled" de <row-actions>): atenuada,
+   como .btn-primary:disabled. */
+.user-action:disabled,
+.table-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* Acción de texto "Gestionar" + chevron (resources/ChevronRight.svg): abre la vista
    que continúa desde la fila. Gris claro para no competir con los datos de la fila;
    se resalta en azul al pasar el puntero. */
