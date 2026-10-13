@@ -740,37 +740,47 @@ CREATE TRIGGER trg_curso_evaluaciones_vigentes
 
 -- Calificaciones: la nota de un alumno en una evaluación. El alumno se referencia por su
 -- inscripción en el curso de la evaluación, no directamente.
--- No tiene baja, ni lógica ni física: quien todavía no fue calificado no tiene fila, y la que
--- existe se conserva y lo que cambia es su nota
+-- Quien todavía no fue calificado no tiene fila. La que existe no se borra: se corrige su nota o,
+-- si se cargó por error, se da de baja (baja lógica)
 CREATE TABLE calificacion (
-    calificacion_id  INT           GENERATED ALWAYS AS IDENTITY,
-    evaluacion_id    INT           NOT NULL,
-    inscripcion_id   INT           NOT NULL,
+    calificacion_id    INT           GENERATED ALWAYS AS IDENTITY,
+    evaluacion_id      INT           NOT NULL,
+    inscripcion_id     INT           NOT NULL,
     -- El alumno, por su inscripción en el curso de la evaluación
-    nota             NUMERIC(4,2)  NOT NULL,
-    -- De 0 a 10, con hasta dos decimales
+    nota               NUMERIC(4,2)  NOT NULL,
+    -- De 0 a 10, con hasta dos decimales. La baja no la vacía: la fila conserva su última nota
+    fecha_eliminacion  TIMESTAMPTZ,
+    -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva, pero deja de
+    -- contar para las reglas de esta tabla
 
     CONSTRAINT pk_calificacion PRIMARY KEY (calificacion_id),
     CONSTRAINT fk_calificacion_evaluacion FOREIGN KEY (evaluacion_id) REFERENCES evaluacion(evaluacion_id),
     CONSTRAINT fk_calificacion_inscripcion FOREIGN KEY (inscripcion_id) REFERENCES inscripcion(inscripcion_id),
-    -- Una inscripción tiene una sola calificación por evaluación
-    CONSTRAINT uq_calificacion_evaluacion_inscripcion UNIQUE (evaluacion_id, inscripcion_id),
     CONSTRAINT ck_calificacion_nota CHECK (nota BETWEEN 0 AND 10)
 );
 
--- evaluacion_id no necesita un índice propio: ya es la primera columna del índice de la
--- restricción UNIQUE
+-- Una inscripción tiene una sola calificación vigente por evaluación. Las dadas de baja no
+-- cuentan, así que después de una baja se le puede cargar otra nota en la misma evaluación; por
+-- eso es un índice único parcial, como el de curso.
+-- evaluacion_id no necesita un índice propio: ya es la primera columna de este, que abarca a las
+-- calificaciones vigentes
+CREATE UNIQUE INDEX uq_calificacion_evaluacion_inscripcion
+    ON calificacion (evaluacion_id, inscripcion_id)
+    WHERE fecha_eliminacion IS NULL;
+
 CREATE INDEX idx_calificacion_inscripcion_id ON calificacion(inscripcion_id);
 
 -- Coherencia de una calificación con las filas que referencia: la inscripción es del curso de la
--- asignación de la evaluación y está activa. Se valida al cargarla y cada vez que se corrige: las
--- de una inscripción que dejó de estar activa (cancelada, finalizada o trasladada) se conservan,
--- pero ya no se pueden corregir.
+-- asignación de la evaluación y está activa. Se valida al cargarla y cada vez que se modifica,
+-- para corregirla o para darla de baja: las de una inscripción que dejó de estar activa
+-- (cancelada, finalizada o trasladada) se conservan como están, y ya no se pueden corregir ni dar
+-- de baja. Por eso el trigger valida también la baja, y no lleva el
+-- WHEN (NEW.fecha_eliminacion IS NULL) de los de asignacion_docente y evaluacion.
 -- FOR SHARE retiene las filas de la evaluación, de su asignación y de la inscripción hasta el fin
 -- de la transacción: un cambio simultáneo de asignación o de curso espera y, al seguir, su trigger
--- (más abajo) ya ve esta calificación; uno de estado de la inscripción también espera, y sigue
--- con la calificación ya cargada. Si una fila referenciada no existe, las comparaciones dan NULL y
--- no fallan: la rechaza después su clave foránea
+-- (más abajo) ya ve cómo quedó esta calificación; uno de estado de la inscripción también espera,
+-- y sigue con la calificación ya guardada. Si una fila referenciada no existe, las comparaciones
+-- dan NULL y no fallan: la rechaza después su clave foránea
 CREATE FUNCTION fn_calificacion_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -829,74 +839,82 @@ CREATE TRIGGER trg_calificacion_coherencia
     FOR EACH ROW
     EXECUTE FUNCTION fn_calificacion_coherencia();
 
--- Una inscripción con calificaciones conserva su curso: son de evaluaciones de ese curso. El estado
--- sí puede cambiar: solo se exige que esté activa al cargar o corregir una calificación
-CREATE FUNCTION fn_inscripcion_calificaciones() RETURNS trigger
+-- Una inscripción con calificaciones vigentes conserva su curso: son de evaluaciones de ese curso.
+-- Las dadas de baja no cuentan: quitada una nota cargada por error, la inscripción puede cambiar
+-- de curso. El estado sí puede cambiar: solo se exige que esté activa al cargar, corregir o dar de
+-- baja una calificación
+CREATE FUNCTION fn_inscripcion_calificaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
     IF EXISTS (SELECT 1
                  FROM calificacion c
-                WHERE c.inscripcion_id = OLD.inscripcion_id) THEN
-        RAISE EXCEPTION 'La inscripción % tiene calificaciones', OLD.inscripcion_id
+                WHERE c.inscripcion_id = OLD.inscripcion_id
+                  AND c.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'La inscripción % tiene calificaciones vigentes', OLD.inscripcion_id
             USING ERRCODE = 'check_violation',
-                  CONSTRAINT = 'ck_inscripcion_calificaciones';
+                  CONSTRAINT = 'ck_inscripcion_calificaciones_vigentes';
     END IF;
 
     RETURN NEW;
 END;
 $$;
 
-CREATE TRIGGER trg_inscripcion_calificaciones
+CREATE TRIGGER trg_inscripcion_calificaciones_vigentes
     BEFORE UPDATE ON inscripcion
     FOR EACH ROW
     WHEN (NEW.curso_id <> OLD.curso_id)
-    EXECUTE FUNCTION fn_inscripcion_calificaciones();
+    EXECUTE FUNCTION fn_inscripcion_calificaciones_vigentes();
 
--- Una evaluación con calificaciones conserva su asignación: sus alumnos son los del curso de esa
--- asignación. Vale también para las dadas de baja: sus calificaciones se conservan
-CREATE FUNCTION fn_evaluacion_calificaciones() RETURNS trigger
+-- Una evaluación con calificaciones vigentes conserva su asignación: sus alumnos son los del curso
+-- de esa asignación. Vale también para una evaluación dada de baja: sus calificaciones siguen
+-- vigentes
+CREATE FUNCTION fn_evaluacion_calificaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
     IF EXISTS (SELECT 1
                  FROM calificacion c
-                WHERE c.evaluacion_id = OLD.evaluacion_id) THEN
-        RAISE EXCEPTION 'La evaluación % tiene calificaciones', OLD.evaluacion_id
+                WHERE c.evaluacion_id = OLD.evaluacion_id
+                  AND c.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'La evaluación % tiene calificaciones vigentes', OLD.evaluacion_id
             USING ERRCODE = 'check_violation',
-                  CONSTRAINT = 'ck_evaluacion_calificaciones';
+                  CONSTRAINT = 'ck_evaluacion_calificaciones_vigentes';
     END IF;
 
     RETURN NEW;
 END;
 $$;
 
-CREATE TRIGGER trg_evaluacion_calificaciones
+CREATE TRIGGER trg_evaluacion_calificaciones_vigentes
     BEFORE UPDATE ON evaluacion
     FOR EACH ROW
     WHEN (NEW.asignacion_docente_id <> OLD.asignacion_docente_id)
-    EXECUTE FUNCTION fn_evaluacion_calificaciones();
+    EXECUTE FUNCTION fn_evaluacion_calificaciones_vigentes();
 
--- Una asignación con calificaciones conserva su curso. Cuentan las de todas sus evaluaciones,
--- también las dadas de baja, que trg_asignacion_docente_evaluaciones_vigentes no cubre
-CREATE FUNCTION fn_asignacion_docente_calificaciones() RETURNS trigger
+-- Una asignación con calificaciones vigentes conserva su curso. Cuentan las de todas sus
+-- evaluaciones, también las de las evaluaciones dadas de baja, que
+-- trg_asignacion_docente_evaluaciones_vigentes no cubre
+CREATE FUNCTION fn_asignacion_docente_calificaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
     IF EXISTS (SELECT 1
                  FROM evaluacion e
                  JOIN calificacion c ON c.evaluacion_id = e.evaluacion_id
-                WHERE e.asignacion_docente_id = OLD.asignacion_docente_id) THEN
-        RAISE EXCEPTION 'La asignación docente % tiene calificaciones', OLD.asignacion_docente_id
+                WHERE e.asignacion_docente_id = OLD.asignacion_docente_id
+                  AND c.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'La asignación docente % tiene calificaciones vigentes',
+                        OLD.asignacion_docente_id
             USING ERRCODE = 'check_violation',
-                  CONSTRAINT = 'ck_asignacion_docente_calificaciones';
+                  CONSTRAINT = 'ck_asignacion_docente_calificaciones_vigentes';
     END IF;
 
     RETURN NEW;
 END;
 $$;
 
-CREATE TRIGGER trg_asignacion_docente_calificaciones
+CREATE TRIGGER trg_asignacion_docente_calificaciones_vigentes
     BEFORE UPDATE ON asignacion_docente
     FOR EACH ROW
     WHEN (NEW.curso_id <> OLD.curso_id)
-    EXECUTE FUNCTION fn_asignacion_docente_calificaciones();
+    EXECUTE FUNCTION fn_asignacion_docente_calificaciones_vigentes();
 
 COMMIT;
