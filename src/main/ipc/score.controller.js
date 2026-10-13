@@ -26,7 +26,7 @@ function isScoreData(value) {
   );
 }
 
-// Errores previstos de las dos operaciones: los de la asignación, los de la evaluación y los de la
+// Errores previstos de las tres operaciones: los de la asignación, los de la evaluación y los de la
 // calificación.
 function isExpectedError(error) {
   return error instanceof TeacherAssignmentError || error instanceof EvaluationError || error instanceof ScoreError;
@@ -85,11 +85,39 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
   }
 }
 
+// `enrollmentId` es el id de la inscripción del alumno cuya calificación se da de baja: que tenga
+// una en esa evaluación lo comprueba el servicio.
+// Nunca rechaza, como listOwnEvaluationScores.
+async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evaluationId, enrollmentId) {
+  if (!isId(teacherAssignmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
+  }
+  if (!isId(evaluationId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la evaluación.');
+  }
+  if (!isId(enrollmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar al alumno.');
+  }
+  try {
+    return {
+      ok: true,
+      score: await scoreService.deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evaluationId, enrollmentId),
+    };
+  } catch (error) {
+    if (isExpectedError(error)) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al eliminar la calificación:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo eliminar la calificación. Intentá nuevamente.');
+  }
+}
+
 // Sin sesión, con otro rol o con la cuenta suspendida, handleProtected responde UNAUTHENTICATED,
 // FORBIDDEN o ACCOUNT_SUSPENDED sin llamar a la acción.
 function registerScoreHandlers(browserWindow) {
   handleProtected(browserWindow, 'scores:list-by-own-evaluation', ['PROFESOR'], listOwnEvaluationScores);
   handleProtected(browserWindow, 'scores:save', ['PROFESOR'], saveOwnEvaluationScore);
+  handleProtected(browserWindow, 'scores:delete', ['PROFESOR'], deleteOwnEvaluationScore);
 }
 
 module.exports = { registerScoreHandlers };

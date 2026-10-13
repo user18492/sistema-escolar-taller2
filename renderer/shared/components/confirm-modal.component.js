@@ -18,7 +18,8 @@
 //     "Cancelar"; con { message, canRetry: false }, el botón de confirmación queda deshabilitado
 //     (p. ej., el registro ya no existe). Con cualquier otro resultado se cierra.
 //   - fallbackFocus(): al cerrar, si el botón que lo abrió ya no está en el documento (su fila se
-//     eliminó), el foco pasa al elemento que devuelva.
+//     eliminó) o quedó deshabilitado (la acción ya no está disponible para su fila), el foco pasa
+//     al elemento que devuelva.
 //   - triggerSelector: selector de los botones que lo abren, para las vistas donde la acción no
 //     está en las filas de una tabla ("Eliminar mi cuenta" en Configuración de perfil).
 // Marcado: <confirm-modal entity="User" heading="Eliminar usuario" description="¿Quieres eliminar
@@ -140,7 +141,7 @@
 
     const closeModal = () => {
       overlay.classList.remove('is-open');
-      (trigger?.isConnected ? trigger : fallbackFocus?.())?.focus();
+      (trigger?.isConnected && !trigger.disabled ? trigger : fallbackFocus?.())?.focus();
     };
 
     // Con un mensaje, el modal sigue abierto para mostrarlo; sin mensaje, se cierra

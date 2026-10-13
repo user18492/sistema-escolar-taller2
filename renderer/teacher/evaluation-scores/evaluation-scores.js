@@ -11,11 +11,12 @@
 // filtro Alumno, con una opción por inscripción, las filtra en memoria. La lista filtrada se pagina
 // en memoria, 10 por página, con <table-pagination>.
 // La calificación se carga y se corrige en la propia fila y se guarda al salir del campo
-// (window.api.scores.save). Una ya cargada no se quita, y la de una inscripción que no está activa
-// solo se consulta.
+// (window.api.scores.save). Una ya cargada no se quita vaciando el campo, y la de una inscripción
+// que no está activa solo se consulta.
 // Cada fila lleva la acción "Eliminar calificación", disponible si hay una calificación guardada
-// que se puede modificar. Por ahora es solo visual: abre su modal de confirmación
-// (confirm-modal.component.js), que se cierra sin eliminar nada.
+// que se puede modificar: la da de baja (baja lógica, window.api.scores.delete) después de
+// confirmarlo en un modal (confirm-modal.component.js). La fila se conserva, porque el alumno sigue
+// inscripto en el curso: su campo queda vacío y admite otra nota.
 
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
@@ -201,22 +202,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Al salir del campo el valor queda en su forma final ("07," pasa a "7" y "7.5" a "7,5") y, si
-    // cambió, se guarda. Una calificación ya cargada no se quita: si el campo quedó vacío, vuelve
-    // la guardada y un toast lo explica.
-    input.addEventListener('blur', () => {
+    // cambió, se guarda. Una calificación ya cargada no se quita vaciando el campo, sino con
+    // Eliminar, que pide confirmación: si el campo quedó vacío, vuelve la guardada y un toast lo
+    // explica, salvo que el foco haya pasado justamente al Eliminar de su fila. El guardado en
+    // curso queda en `pendingSave`, para la baja que se confirme mientras tanto.
+    input.addEventListener('blur', (event) => {
       const typed = parseScore(input.value);
       const value = typed === null ? null : clamp(typed);
       const isRemoval = value === null && score.value !== null;
       input.value = lastValid = scoreText(isRemoval ? score.value : value);
       syncState();
       if (isRemoval) {
+        const deleteButton = stepper.closest('tr')?.querySelector('[data-action="delete"]');
+        if (deleteButton && event.relatedTarget === deleteButton) return;
         showToast({
           type: 'error',
-          title: 'La calificación no se puede quitar',
-          description: 'Una calificación ya cargada solo se puede modificar.',
+          title: 'La calificación no se quitó',
+          description: 'Para quitarla, usá Eliminar calificación, en la columna Acciones.',
         });
       } else if (value !== score.value) {
-        saveScore(score, value, stepper);
+        score.pendingSave = saveScore(score, value, stepper);
       }
     });
 
@@ -344,9 +349,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar calificación ----------
 
-  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
-  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
-  setupConfirmModal(document.getElementById('deleteScoreOverlay'));
+  // Fila de la última calificación que se pidió eliminar
+  let deletedScoreRow = null;
+
+  // Da de baja la calificación de la fila del botón: la inscripción sale de su data-enrollment-id
+  // (el inscripcion_id, fijado al crearla) y se envía con los ids de la URL. La fila no se quita ni
+  // se oculta: lo que cambia es su campo, que queda vacío, y Eliminar deja de estar disponible. Si
+  // la nota se estaba guardando (el clic en Eliminar sacó el foco del campo), la baja espera a que
+  // termine. Sin calificación que dar de baja (ya la eliminó otra sesión), el campo también queda
+  // vacío; si la inscripción dejó de estar activa, queda deshabilitado con su nota.
+  // Avisa el resultado con un toast y no resuelve ningún mensaje, así el modal se cierra siempre.
+  const deleteScore = async (trigger) => {
+    deletedScoreRow = trigger.closest('tr');
+    const enrollmentId = Number(deletedScoreRow.dataset.enrollmentId);
+    const score = scores.find((item) => item.enrollmentId === enrollmentId);
+    await score.pendingSave;
+    let response;
+    try {
+      response = await window.api?.scores?.delete(Number(assignmentId), Number(evaluationId), enrollmentId);
+    } catch (error) {
+      console.error('Error al eliminar la calificación:', error);
+    }
+    const errorCode = response?.error?.code;
+    if (response?.ok || errorCode === 'SCORE_NOT_FOUND') score.value = null;
+    if (errorCode === 'ENROLLMENT_NOT_ACTIVE') score.isEnrollmentActive = false;
+    refreshRow(score);
+    if (response?.ok) {
+      showToast({
+        type: 'success',
+        title: 'Calificación eliminada',
+        description: `Se eliminó la calificación de ${studentName(score.student)}.`,
+      });
+      return;
+    }
+    showToast({
+      type: 'error',
+      title: 'No se pudo eliminar la calificación',
+      description: errorDescription(response?.error),
+    });
+  };
+
+  // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
+  // cierra. Si Eliminar quedó deshabilitado, el foco pasa al campo de la calificación de su fila.
+  setupConfirmModal(document.getElementById('deleteScoreOverlay'), {
+    onConfirm: deleteScore,
+    fallbackFocus: () => deletedScoreRow?.querySelector('.numeric-stepper-input'),
+  });
 
   loadScores();
 });

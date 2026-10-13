@@ -200,7 +200,7 @@ async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, e
 // Baja lógica de una evaluación vigente de una asignación docente vigente a cargo de `currentUser`
 // (el profesor de la sesión): la fila queda con su fecha de baja, deja de listarse
 // (listOwnAssignmentEvaluations) y su título se puede volver a usar en la asignación. Sus
-// calificaciones se conservan sin cambios: calificacion no tiene baja, ni lógica ni física. Los dos
+// calificaciones se conservan sin cambios: la baja de la evaluación no las da de baja. Los dos
 // ids llegan del renderer, así que antes se comprueba que la asignación sea suya
 // (getOwnTeacherAssignment) y la baja solo alcanza a una evaluación de esa asignación.
 // Devuelve la evaluación dada de baja, con los campos de listOwnAssignmentEvaluations. Lanza el

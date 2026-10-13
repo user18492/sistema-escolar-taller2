@@ -276,8 +276,9 @@ contextBridge.exposeInMainWorld('api', {
     // student, value, isEnrollmentActive }, con enrollmentId el id de la inscripción, que
     // identifica la fila; student { firstName, lastName, dni }, el alumno, con dni solo los
     // dígitos; value la nota, un número de 0 a 10 con hasta dos decimales, o null si todavía no fue
-    // calificado, e isEnrollmentActive false si la inscripción fue cancelada, finalizada o
-    // trasladada: su nota no se puede cargar ni corregir), o { ok: false, error: { code, message } }:
+    // calificado o su calificación se dio de baja, e isEnrollmentActive false si la inscripción fue
+    // cancelada, finalizada o trasladada: su nota no se puede cargar, corregir ni dar de baja), o
+    // { ok: false, error: { code, message } }:
     // TEACHER_ASSIGNMENT_NOT_FOUND indica que la asignación no existe, que fue dada de baja o que
     // es de otro profesor, y EVALUATION_NOT_FOUND, que la evaluación no existe, que fue dada de
     // baja o que es de otra asignación, sin distinguir entre esos casos. Llegan siempre en el mismo
@@ -287,8 +288,9 @@ contextBridge.exposeInMainWorld('api', {
     // Solo PROFESOR. Guarda la nota de un alumno en esa evaluación de esa asignación (los mismos ids
     // que en listByOwnEvaluation). `data` es { enrollmentId, value }: el id de la inscripción del
     // alumno (una de listByOwnEvaluation, activa) y la nota, un número de 0 a 10 con hasta dos
-    // decimales. Si el alumno todavía no tenía nota en la evaluación se crea su calificación; si ya
-    // tenía, se modifica esa misma. Resuelve { ok: true, score } con la nota como quedó guardada
+    // decimales. Si el alumno no tenía nota en la evaluación (todavía no fue calificado o su
+    // calificación se dio de baja) se crea su calificación; si ya tenía, se modifica esa misma.
+    // Resuelve { ok: true, score } con la nota como quedó guardada
     // ({ enrollmentId, value }) o { ok: false, error: { code, message } }, sin guardar nada:
     // INVALID_SCORE indica que la nota no es un número de 0 a 10 con hasta dos decimales;
     // ENROLLMENT_NOT_FOUND, que la inscripción no existe o no es del curso de la asignación, y
@@ -296,6 +298,18 @@ contextBridge.exposeInMainWorld('api', {
     // TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     save: (teacherAssignmentId, evaluationId, data) =>
       ipcRenderer.invoke('scores:save', teacherAssignmentId, evaluationId, data),
+    // Solo PROFESOR. Baja lógica de la calificación de un alumno en esa evaluación de esa asignación
+    // (los mismos ids que en listByOwnEvaluation). `enrollmentId` es el id de la inscripción del
+    // alumno (una de listByOwnEvaluation, activa y con nota). El alumno sigue en
+    // listByOwnEvaluation, con value null, y se le puede cargar otra nota con save. Resuelve
+    // { ok: true, score } con la calificación del alumno como quedó ({ enrollmentId, value: null })
+    // o { ok: false, error: { code, message } }, sin modificar nada: SCORE_NOT_FOUND indica
+    // que el alumno no tiene una calificación en la evaluación (nunca la tuvo, ya se dio de baja o
+    // la inscripción no existe o no es del curso de la asignación, sin distinguir entre esos casos)
+    // y ENROLLMENT_NOT_ACTIVE, que la inscripción fue cancelada, finalizada o trasladada; además,
+    // TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
+    delete: (teacherAssignmentId, evaluationId, enrollmentId) =>
+      ipcRenderer.invoke('scores:delete', teacherAssignmentId, evaluationId, enrollmentId),
   },
   dashboard: {
     // Solo ADMIN. Resuelve { ok: true, summary } con los indicadores de la vista Inicio para su
