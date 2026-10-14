@@ -78,8 +78,8 @@
                hasta entonces, una raya. -->
           <assignment-summary course="—" level="—" subject="—" year="—" evaluation="—" evaluation-date="—"></assignment-summary>
 
-          <!-- Calificaciones de la evaluación, una fila por cada inscripción del curso de la
-               asignación: evaluation-scores.js las carga del proceso principal -->
+          <!-- Calificaciones de la evaluación, una fila por cada inscripción activa o finalizada
+               del curso de la asignación: evaluation-scores.js las carga del proceso principal -->
           <section class="card scores-card">
             <div class="table-wrap">
               <table class="data-table">
@@ -111,12 +111,13 @@
             <table-pagination results="" label="Paginación de calificaciones" pages="1"></table-pagination>
 
             <!-- Plantillas: evaluation-scores.js las completa con lo que devuelve el proceso
-                 principal: una fila y una opción del filtro Alumno por cada inscripción del curso.
-                 La calificación se carga y se corrige en la propia celda con el numeric stepper
-                 (escritura manual o botones − y +) y se guarda al salir del campo; el campo vacío
-                 indica que todavía no fue registrada. "Eliminar calificación" abre su modal de
-                 confirmación y, al confirmar, la da de baja: la fila se conserva con el campo
-                 vacío. -->
+                 principal: una fila y una opción del filtro Alumno por cada inscripción activa o
+                 finalizada del curso. La calificación se carga y se corrige en la propia celda con
+                 el numeric stepper (escritura manual o botones − y +) y se guarda al salir del
+                 campo; el campo vacío indica que todavía no fue registrada. La de una inscripción
+                 finalizada queda deshabilitada, de solo lectura. "Eliminar calificación" abre su
+                 modal de confirmación y, al confirmar, la da de baja: la fila se conserva con el
+                 campo vacío. -->
             <template id="scoreRowTemplate">
               <tr>
                 <td class="student-name col-student col-truncate"><span class="text-truncate"></span></td>

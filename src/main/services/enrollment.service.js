@@ -40,14 +40,14 @@ function toListedEnrollment({ id, student, enrollmentDate }) {
 }
 
 // Inscripciones del curso de una asignación docente vigente a cargo de `currentUser` (el profesor
-// de la sesión): todas las del curso, en cualquier estado, en el orden del repositorio. El id de la
-// asignación llega del renderer, así que antes se comprueba que sea suya
+// de la sesión): las activas y las finalizadas del curso, sin las canceladas, en el orden del
+// repositorio. El id de la asignación llega del renderer, así que antes se comprueba que sea suya
 // (getOwnTeacherAssignment): el curso sale de esa asignación y nunca de lo que envía el renderer.
 // Lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la
 // asignación no existe, fue dada de baja o es de otro profesor.
 async function listOwnAssignmentEnrollments(currentUser, teacherAssignmentId) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
-  const enrollments = await enrollmentRepository.findByCourse(teacherAssignment.course.id);
+  const enrollments = await enrollmentRepository.findActiveOrFinishedByCourse(teacherAssignment.course.id);
   return enrollments.map(toListedEnrollment);
 }
 

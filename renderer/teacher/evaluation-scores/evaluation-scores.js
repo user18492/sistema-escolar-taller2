@@ -6,13 +6,13 @@
 // tarjeta y la tabla se ocultan y queda solo el mensaje de error.
 // La evaluación es la elegida en Evaluaciones (?evaluationId=). El proceso principal
 // (window.api.scores.listByOwnEvaluation) devuelve con los dos ids sus datos, que completan la
-// tarjeta y la ruta de navegación, y sus calificaciones: una por cada inscripción del curso de la
-// asignación, en cualquier estado, con el campo vacío si el alumno todavía no fue calificado. El
-// filtro Alumno, con una opción por inscripción, las filtra en memoria. La lista filtrada se pagina
-// en memoria, 10 por página, con <table-pagination>.
+// tarjeta y la ruta de navegación, y sus calificaciones: una por cada inscripción activa o
+// finalizada del curso de la asignación (las canceladas no llegan), con el campo vacío si el alumno
+// todavía no fue calificado. El filtro Alumno, con una opción por inscripción, las filtra en
+// memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
 // La calificación se carga y se corrige en la propia fila y se guarda al salir del campo
 // (window.api.scores.save). Una ya cargada no se quita vaciando el campo, y la de una inscripción
-// que no está activa solo se consulta.
+// finalizada es de solo lectura.
 // Cada fila lleva la acción "Eliminar calificación", disponible si hay una calificación guardada
 // que se puede modificar: la da de baja (baja lógica, window.api.scores.delete) después de
 // confirmarlo en un modal (confirm-modal.component.js). La fila se conserva, porque el alumno sigue

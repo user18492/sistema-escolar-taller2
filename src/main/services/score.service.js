@@ -38,7 +38,8 @@ function isScoreValue(value) {
 // identificar la fila. `score` es la calificación vigente de esa inscripción en la evaluación, si
 // la tiene: `value` es su nota, o null si todavía no fue calificada o su calificación se dio de
 // baja. `isEnrollmentActive` indica si la inscripción está activa, que es cuando la nota se puede
-// cargar, corregir o dar de baja.
+// cargar, corregir o dar de baja; si es false, la inscripción está finalizada y su nota es de solo
+// lectura.
 function toListedScore(enrollment, score) {
   return {
     enrollmentId: enrollment.id,
@@ -49,9 +50,10 @@ function toListedScore(enrollment, score) {
 }
 
 // Calificaciones de una evaluación vigente de una asignación docente vigente a cargo de
-// `currentUser` (el profesor de la sesión): una por cada inscripción del curso de la asignación,
-// en cualquier estado y en el orden de las inscripciones (por alumno), tenga o no una nota cargada.
-// Una calificación dada de baja no cuenta: su inscripción se lista igual, sin nota.
+// `currentUser` (el profesor de la sesión): una por cada inscripción activa o finalizada del curso
+// de la asignación, en el orden de las inscripciones (por alumno), tenga o no una nota cargada. Las
+// inscripciones canceladas no se listan, ni sus calificaciones. Una calificación dada de baja no
+// cuenta: su inscripción se lista igual, sin nota.
 // Los ids llegan del renderer, así que antes se comprueba que la asignación sea suya y que la
 // evaluación sea de esa asignación (getOwnAssignmentEvaluation): el curso sale de la asignación y
 // nunca de lo que envía el renderer.
@@ -64,7 +66,7 @@ async function listOwnEvaluationScores(currentUser, teacherAssignmentId, evaluat
     teacherAssignmentId,
     evaluationId
   );
-  const enrollments = await enrollmentRepository.findByCourse(teacherAssignment.course.id);
+  const enrollments = await enrollmentRepository.findActiveOrFinishedByCourse(teacherAssignment.course.id);
   const scores = await scoreRepository.findByEvaluation(evaluation.id);
   const scoreByEnrollmentId = new Map(scores.map((score) => [score.enrollmentId, score]));
   return {
