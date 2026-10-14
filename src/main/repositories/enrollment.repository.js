@@ -3,7 +3,7 @@ const { Enrollment } = require('../models/enrollment.model');
 const { Student } = require('../models/student.model');
 
 // Listado de las inscripciones de un curso, con su alumno: todas las filas del curso, en cualquier
-// estado (activas, canceladas, finalizadas y trasladadas), porque la inscripción no tiene baja
+// estado (activas, finalizadas y canceladas), porque la inscripción no tiene baja
 // lógica. No hace falta la institución: el alumno es de la misma que el curso
 // (trg_inscripcion_coherencia, db/schema.sql). `activa` indica si el estado de la inscripción es
 // ACTIVA (un valor de inscripcion_estado.nombre).

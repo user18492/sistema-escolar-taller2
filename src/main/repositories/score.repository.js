@@ -117,9 +117,8 @@ function isEnrollmentNotInCourseError(error) {
   );
 }
 
-// true si `error` indica que la inscripción no está activa (fue cancelada, finalizada o
-// trasladada): sus calificaciones se conservan, pero no se cargan, no se corrigen ni se dan de
-// baja.
+// true si `error` indica que la inscripción no está activa (fue finalizada o cancelada): sus
+// calificaciones se conservan, pero no se cargan, no se corrigen ni se dan de baja.
 function isEnrollmentNotActiveError(error) {
   return error?.code === '23514' && error.constraint === ACTIVE_ENROLLMENT_CONSTRAINT;
 }

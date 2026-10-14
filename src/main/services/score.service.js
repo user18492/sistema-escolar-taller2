@@ -105,8 +105,7 @@ async function createOrUpdateScore(evaluationId, enrollmentId, value) {
 // La inscripción tiene que ser del curso de la asignación y estar activa. Las dos reglas las aplica
 // PostgreSQL al guardar (trg_calificacion_coherencia, db/schema.sql), así que valen también si la
 // inscripción cambia mientras tanto: se lanza un ScoreError ENROLLMENT_NOT_FOUND si no existe o es
-// de otro curso, sin distinguir los casos, y ENROLLMENT_NOT_ACTIVE si fue cancelada, finalizada o
-// trasladada.
+// de otro curso, sin distinguir los casos, y ENROLLMENT_NOT_ACTIVE si fue finalizada o cancelada.
 // También lanza los errores de getOwnAssignmentEvaluation: TEACHER_ASSIGNMENT_NOT_FOUND y
 // EVALUATION_NOT_FOUND.
 async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluationId, { enrollmentId, value }) {
@@ -155,7 +154,7 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
 // evaluación: nunca la tuvo, ya se dio de baja o la inscripción no existe o es de otro curso, sin
 // distinguir los casos. La inscripción tiene que estar activa, como al cargar la nota o corregirla:
 // la regla la aplica PostgreSQL al dar de baja (trg_calificacion_coherencia, db/schema.sql) y se
-// lanza un ScoreError ENROLLMENT_NOT_ACTIVE si fue cancelada, finalizada o trasladada.
+// lanza un ScoreError ENROLLMENT_NOT_ACTIVE si fue finalizada o cancelada.
 // También lanza los errores de getOwnAssignmentEvaluation: TEACHER_ASSIGNMENT_NOT_FOUND y
 // EVALUATION_NOT_FOUND.
 async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evaluationId, enrollmentId) {

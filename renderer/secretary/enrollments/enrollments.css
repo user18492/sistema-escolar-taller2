@@ -91,10 +91,6 @@
   color: #ef4444;
 }
 
-.badge-transferred .badge-icon {
-  color: #ea580c;
-}
-
 /* Acciones de fila en tono discreto, igual que en Administrador; el azul queda reservado al hover. */
 .enrollments-card .table-action {
   color: var(--color-text-tertiary);

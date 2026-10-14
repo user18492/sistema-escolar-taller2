@@ -11,8 +11,8 @@ class Enrollment {
     this.courseId = courseId;
     // Día de la inscripción (inscripcion.fecha_inscripcion): su año es el ciclo lectivo del curso.
     this.enrollmentDate = enrollmentDate;
-    // true si su estado es ACTIVA; false si fue cancelada, finalizada o trasladada. Solo una
-    // inscripción activa admite que se le carguen o corrijan calificaciones.
+    // true si su estado es ACTIVA; false si fue finalizada o cancelada. Solo una inscripción
+    // activa admite que se le carguen o corrijan calificaciones.
     this.isActive = isActive;
   }
 }

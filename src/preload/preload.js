@@ -277,7 +277,7 @@ contextBridge.exposeInMainWorld('api', {
     // identifica la fila; student { firstName, lastName, dni }, el alumno, con dni solo los
     // dígitos; value la nota, un número de 0 a 10 con hasta dos decimales, o null si todavía no fue
     // calificado o su calificación se dio de baja, e isEnrollmentActive false si la inscripción fue
-    // cancelada, finalizada o trasladada: su nota no se puede cargar, corregir ni dar de baja), o
+    // finalizada o cancelada: su nota no se puede cargar, corregir ni dar de baja), o
     // { ok: false, error: { code, message } }:
     // TEACHER_ASSIGNMENT_NOT_FOUND indica que la asignación no existe, que fue dada de baja o que
     // es de otro profesor, y EVALUATION_NOT_FOUND, que la evaluación no existe, que fue dada de
@@ -294,7 +294,7 @@ contextBridge.exposeInMainWorld('api', {
     // ({ enrollmentId, value }) o { ok: false, error: { code, message } }, sin guardar nada:
     // INVALID_SCORE indica que la nota no es un número de 0 a 10 con hasta dos decimales;
     // ENROLLMENT_NOT_FOUND, que la inscripción no existe o no es del curso de la asignación, y
-    // ENROLLMENT_NOT_ACTIVE, que fue cancelada, finalizada o trasladada; además,
+    // ENROLLMENT_NOT_ACTIVE, que fue finalizada o cancelada; además,
     // TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     save: (teacherAssignmentId, evaluationId, data) =>
       ipcRenderer.invoke('scores:save', teacherAssignmentId, evaluationId, data),
@@ -306,7 +306,7 @@ contextBridge.exposeInMainWorld('api', {
     // o { ok: false, error: { code, message } }, sin modificar nada: SCORE_NOT_FOUND indica
     // que el alumno no tiene una calificación en la evaluación (nunca la tuvo, ya se dio de baja o
     // la inscripción no existe o no es del curso de la asignación, sin distinguir entre esos casos)
-    // y ENROLLMENT_NOT_ACTIVE, que la inscripción fue cancelada, finalizada o trasladada; además,
+    // y ENROLLMENT_NOT_ACTIVE, que la inscripción fue finalizada o cancelada; además,
     // TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     delete: (teacherAssignmentId, evaluationId, enrollmentId) =>
       ipcRenderer.invoke('scores:delete', teacherAssignmentId, evaluationId, enrollmentId),
