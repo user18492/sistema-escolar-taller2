@@ -408,14 +408,16 @@ CREATE TRIGGER trg_usuario_asignaciones_vigentes
     WHEN (OLD.fecha_eliminacion IS NULL AND NEW.fecha_eliminacion IS NOT NULL)
     EXECUTE FUNCTION fn_usuario_asignaciones_vigentes();
 
--- Estados de alumno
+-- Estados de alumno. No intervienen en las calificaciones: si al alumno se lo puede calificar en un
+-- curso, y si esas notas cuentan para el promedio, depende solo del estado de su inscripción
 CREATE TABLE alumno_estado (
     alumno_estado_id  INT          GENERATED ALWAYS AS IDENTITY,
     nombre            VARCHAR(50)  NOT NULL,
-    -- ACTIVO, SUSPENDIDO, EGRESADO
+    -- ACTIVO, EGRESADO
 
     CONSTRAINT pk_alumno_estado PRIMARY KEY (alumno_estado_id),
-    CONSTRAINT uq_alumno_estado_nombre UNIQUE (nombre)
+    CONSTRAINT uq_alumno_estado_nombre UNIQUE (nombre),
+    CONSTRAINT ck_alumno_estado_nombre CHECK (nombre IN ('ACTIVO', 'EGRESADO'))
 );
 
 -- Alumnos: una fila por persona e institución. Quien pasa a otra institución tiene una fila en
@@ -447,15 +449,24 @@ CREATE TABLE alumno (
 -- restricciones UNIQUE
 CREATE INDEX idx_alumno_alumno_estado_id ON alumno(alumno_estado_id);
 
--- Estados de inscripción
+-- Estados de inscripción. Cada uno dice si al alumno se lo puede calificar en el curso y si sus
+-- calificaciones cuentan para el promedio:
+--   - ACTIVA: cursa el curso. Se califica y cuenta para el promedio.
+--   - FINALIZADA: terminó el cursado. Solo lectura, y cuenta para el promedio.
+--   - CANCELADA: dejó de cursar, porque abandonó o porque se cambió a otro curso. Solo lectura, y
+--     no cuenta para el promedio.
+-- Un cambio de curso cancela la inscripción actual y crea otra, activa, en el curso destino.
+-- La base hace cumplir la primera regla: trg_calificacion_coherencia (más abajo) solo acepta
+-- cargar, corregir o dar de baja calificaciones de inscripciones activas. La segunda la aplican
+-- las consultas que calculan promedios
 CREATE TABLE inscripcion_estado (
     inscripcion_estado_id  INT          GENERATED ALWAYS AS IDENTITY,
     nombre                 VARCHAR(50)  NOT NULL,
-    -- ACTIVA, CANCELADA, FINALIZADA, TRASLADADA
-    -- FINALIZADA: terminó el cursado del curso. TRASLADADA: el alumno pasó a otro curso
+    -- ACTIVA, FINALIZADA, CANCELADA
 
     CONSTRAINT pk_inscripcion_estado PRIMARY KEY (inscripcion_estado_id),
-    CONSTRAINT uq_inscripcion_estado_nombre UNIQUE (nombre)
+    CONSTRAINT uq_inscripcion_estado_nombre UNIQUE (nombre),
+    CONSTRAINT ck_inscripcion_estado_nombre CHECK (nombre IN ('ACTIVA', 'FINALIZADA', 'CANCELADA'))
 );
 
 -- Inscripciones: un alumno cursa un curso. A lo largo del tiempo, un alumno pasa por muchos cursos
@@ -482,8 +493,8 @@ CREATE INDEX idx_inscripcion_inscripcion_estado_id ON inscripcion(inscripcion_es
 
 -- Coherencia de una inscripción con las filas que referencia: el alumno y el curso son de la misma
 -- institución y, si la inscripción es activa, el alumno no tiene otra activa. Las demás no cuentan:
--- un alumno puede tener cualquier cantidad de canceladas, finalizadas y trasladadas. Por eso un
--- traslado primero pasa la inscripción anterior a TRASLADADA y después crea la nueva.
+-- un alumno puede tener cualquier cantidad de canceladas y finalizadas. Por eso un cambio de curso
+-- primero pasa la inscripción actual a CANCELADA y después crea la nueva.
 -- "Activa" es una fila de inscripcion_estado y no un valor fijo, así que un índice único parcial no
 -- puede expresar la regla. En su lugar, FOR NO KEY UPDATE retiene la fila del alumno hasta el fin
 -- de la transacción: otra inscripción simultánea del mismo alumno espera y, al seguir, ya ve esta.
@@ -773,8 +784,8 @@ CREATE INDEX idx_calificacion_inscripcion_id ON calificacion(inscripcion_id);
 -- Coherencia de una calificación con las filas que referencia: la inscripción es del curso de la
 -- asignación de la evaluación y está activa. Se valida al cargarla y cada vez que se modifica,
 -- para corregirla o para darla de baja: las de una inscripción que dejó de estar activa
--- (cancelada, finalizada o trasladada) se conservan como están, y ya no se pueden corregir ni dar
--- de baja. Por eso el trigger valida también la baja, y no lleva el
+-- (finalizada o cancelada) se conservan como están, y ya no se pueden corregir ni dar de baja.
+-- Por eso el trigger valida también la baja, y no lleva el
 -- WHEN (NEW.fecha_eliminacion IS NULL) de los de asignacion_docente y evaluacion.
 -- FOR SHARE retiene las filas de la evaluación, de su asignación y de la inscripción hasta el fin
 -- de la transacción: un cambio simultáneo de asignación o de curso espera y, al seguir, su trigger

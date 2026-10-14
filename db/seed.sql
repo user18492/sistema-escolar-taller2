@@ -451,10 +451,9 @@ ORDER BY c.curso_id, gm.grado_materia_id;
 -- Estados de alumno
 INSERT INTO alumno_estado (nombre) VALUES
     ('ACTIVO'),
-    ('SUSPENDIDO'),
     ('EGRESADO');
 
--- Alumnos: 20 por institución, 40 en total: 25 activos, 7 suspendidos y 8 egresados.
+-- Alumnos: 20 por institución, 40 en total: 32 activos y 8 egresados.
 -- Cada fila de VALUES nombra el estado por su nombre y el LEFT JOIN lo traduce a su id. Como en las
 -- asignaciones docentes, es LEFT JOIN para que un estado que no existe deje su id en NULL y el
 -- INSERT falle por NOT NULL: con un JOIN, la fila se saltearía sin avisar.
@@ -465,7 +464,7 @@ INSERT INTO alumno_estado (nombre) VALUES
 -- Manuel Belgrano y cursa la secundaria en el Instituto San Martin. Lo permite la restricción
 -- UNIQUE (institucion_id, dni), que solo impide repetirlo dentro de una misma institución.
 
--- Instituto San Martin: 13 activos, 3 suspendidos y 4 egresados
+-- Instituto San Martin: 16 activos y 4 egresados
 INSERT INTO alumno (institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
                     direccion_calle, direccion_altura, dni, fecha_nacimiento)
 SELECT i.institucion_id, e.alumno_estado_id, a.nombre, a.apellido, a.email, a.telefono,
@@ -480,10 +479,14 @@ FROM (VALUES
      '379 421-9034', 'Rivadavia', '2570', '49204775', '2011-11-08'),
     ('ACTIVO', 'Martina', 'Escobar', 'martina.escobar@institucion.edu.ar',
      '379 445-6602', 'Córdoba', '1880', '48556941', '2010-05-17'),
+    ('ACTIVO', 'Lautaro', 'Ferreyra', 'lautaro.ferreyra@institucion.edu.ar',
+     '379 452-3388', 'Mendoza', '640', '47331408', '2009-09-02'),
     ('ACTIVO', 'Valentina', 'Gauna', 'valentina.gauna@institucion.edu.ar',
      '379 460-7715', 'La Rioja', '1120', '49617882', '2011-12-21'),
     ('ACTIVO', 'Delfina', 'Ibarra', 'delfina.ibarra@institucion.edu.ar',
      '379 480-5563', 'Salta', '755', '48998127', '2010-02-09'),
+    ('ACTIVO', 'Thiago', 'Juárez', 'thiago.juarez@institucion.edu.ar',
+     '379 494-8871', 'Catamarca', '1460', '47145690', '2009-10-26'),
     -- También en el Colegio Manuel Belgrano, como egresada
     ('ACTIVO', 'Lucía', 'Maidana', 'lucia.maidana@institucion.edu.ar',
      '379 427-3184', 'San Juan', '1432', '53412768', '2013-09-14'),
@@ -499,13 +502,7 @@ FROM (VALUES
      '379 474-5529', '9 de Julio', '1390', '58260715', '2019-03-30'),
     ('ACTIVO', 'Isabella', 'Torres', 'isabella.torres@institucion.edu.ar',
      '379 486-3740', 'Pellegrini', '1127', '59047386', '2020-07-16'),
-
-    -- Suspendidos
-    ('SUSPENDIDO', 'Lautaro', 'Ferreyra', 'lautaro.ferreyra@institucion.edu.ar',
-     '379 452-3388', 'Mendoza', '640', '47331408', '2009-09-02'),
-    ('SUSPENDIDO', 'Thiago', 'Juárez', 'thiago.juarez@institucion.edu.ar',
-     '379 494-8871', 'Catamarca', '1460', '47145690', '2009-10-26'),
-    ('SUSPENDIDO', 'Agustín', 'Vera', 'agustin.vera@institucion.edu.ar',
+    ('ACTIVO', 'Agustín', 'Vera', 'agustin.vera@institucion.edu.ar',
      '379 418-6653', 'Hipólito Yrigoyen', '2085', '51539027', '2012-05-23'),
 
     -- Egresados
@@ -523,13 +520,15 @@ LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
 LEFT JOIN alumno_estado e ON e.nombre = a.estado
 ORDER BY a.apellido, a.nombre;
 
--- Colegio Manuel Belgrano: 12 activos, 4 suspendidos y 4 egresados
+-- Colegio Manuel Belgrano: 16 activos y 4 egresados
 INSERT INTO alumno (institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
                     direccion_calle, direccion_altura, dni, fecha_nacimiento)
 SELECT i.institucion_id, e.alumno_estado_id, a.nombre, a.apellido, a.email, a.telefono,
        a.direccion_calle, a.direccion_altura, a.dni, a.fecha_nacimiento::date
 FROM (VALUES
     -- Activos
+    ('ACTIVO', 'Morena', 'Acuña', 'morena.acuna@colegiobelgrano.edu.ar',
+     '379 451-8203', 'Perú', '1139', '50794158', '2011-08-25'),
     ('ACTIVO', 'Renata', 'Aguilar', 'renata.aguilar@colegiobelgrano.edu.ar',
      '379 431-7742', 'Lavalle', '1175', '50218436', '2011-02-18'),
     ('ACTIVO', 'Felipe', 'Barrios', 'felipe.barrios@colegiobelgrano.edu.ar',
@@ -544,8 +543,12 @@ FROM (VALUES
      '379 484-9350', 'Av. Armenia', '2765', '57692043', '2018-08-22'),
     ('ACTIVO', 'Olivia', 'Giménez', 'olivia.gimenez@colegiobelgrano.edu.ar',
      '379 492-4673', 'Uruguay', '674', '58945127', '2020-01-10'),
+    ('ACTIVO', 'Simón', 'Gutiérrez', 'simon.gutierrez@colegiobelgrano.edu.ar',
+     '379 467-3945', 'Necochea', '1582', '52093671', '2012-12-09'),
     ('ACTIVO', 'Francisco', 'López', 'francisco.lopez@colegiobelgrano.edu.ar',
      '379 409-1835', 'Chaco', '1921', '55406398', '2015-11-04'),
+    ('ACTIVO', 'Jazmín', 'Meza', 'jazmin.meza@colegiobelgrano.edu.ar',
+     '379 473-1068', 'Plácido Martínez', '936', '48371925', '2009-01-20'),
     ('ACTIVO', 'Guadalupe', 'Molina', 'guadalupe.molina@colegiobelgrano.edu.ar',
      '379 416-7204', 'Santiago del Estero', '1367', '48735019', '2009-04-26'),
     ('ACTIVO', 'Ramiro', 'Peralta', 'ramiro.peralta@colegiobelgrano.edu.ar',
@@ -554,15 +557,7 @@ FROM (VALUES
      '379 437-6419', 'Brasil', '1490', '53850746', '2014-05-31'),
     ('ACTIVO', 'Lorenzo', 'Silva', 'lorenzo.silva@colegiobelgrano.edu.ar',
      '379 446-0952', 'San Lorenzo', '2218', '47508263', '2008-10-03'),
-
-    -- Suspendidos
-    ('SUSPENDIDO', 'Morena', 'Acuña', 'morena.acuna@colegiobelgrano.edu.ar',
-     '379 451-8203', 'Perú', '1139', '50794158', '2011-08-25'),
-    ('SUSPENDIDO', 'Simón', 'Gutiérrez', 'simon.gutierrez@colegiobelgrano.edu.ar',
-     '379 467-3945', 'Necochea', '1582', '52093671', '2012-12-09'),
-    ('SUSPENDIDO', 'Jazmín', 'Meza', 'jazmin.meza@colegiobelgrano.edu.ar',
-     '379 473-1068', 'Plácido Martínez', '936', '48371925', '2009-01-20'),
-    ('SUSPENDIDO', 'Valentín', 'Vargas', 'valentin.vargas@colegiobelgrano.edu.ar',
+    ('ACTIVO', 'Valentín', 'Vargas', 'valentin.vargas@colegiobelgrano.edu.ar',
      '379 488-7531', 'Av. Pujol', '2407', '55183409', '2015-06-18'),
 
     -- Egresados
@@ -585,19 +580,19 @@ ORDER BY a.apellido, a.nombre;
 INSERT INTO inscripcion_estado (nombre) VALUES
     ('ACTIVA'),
     ('CANCELADA'),
-    ('FINALIZADA'),
-    ('TRASLADADA');
+    ('FINALIZADA');
 
--- Inscripciones: 20 por institución, 40 en total: 16 activas, 8 canceladas, 10 finalizadas y 6
--- trasladadas.
+-- Inscripciones: 20 por institución, 40 en total: 16 activas, 14 canceladas y 10 finalizadas.
 -- Cada fila de VALUES nombra el estado por su nombre, al alumno por su email y al curso por los
 -- datos que lo identifican dentro de la institución; los LEFT JOIN los traducen a sus ids. Como en
 -- las asignaciones docentes, son LEFT JOIN para que un dato que no existe deje su id en NULL y el
 -- INSERT falle por NOT NULL: con un JOIN, la fila se saltearía sin avisar.
 -- Las activas son de alumnos activos, y ningún alumno tiene más de una: lo exige
--- trg_inscripcion_coherencia. Cada trasladada tiene una inscripción posterior del mismo alumno, la
--- del curso al que pasó, y cada finalizada es anterior a la inscripción de su alumno en el grado
--- siguiente: las finalizadas y los cambios de división son de los primeros días hábiles de enero.
+-- trg_inscripcion_coherencia. Las canceladas cubren los dos casos: el alumno que dejó de cursar,
+-- que sigue activo y sin inscripción activa, y el cambio de curso, que tiene una inscripción
+-- posterior del mismo alumno en el curso destino. Cada finalizada es anterior a la inscripción de
+-- su alumno en el grado siguiente: las finalizadas y los cambios de división son de los primeros
+-- días hábiles de enero.
 -- El año de cada fecha de inscripción es el ciclo lectivo de su curso, como exige
 -- trg_inscripcion_fecha_ciclo_lectivo: las inscripciones se hacen durante ese año, a partir de
 -- enero.
@@ -605,7 +600,7 @@ INSERT INTO inscripcion_estado (nombre) VALUES
 -- habrían cargado.
 -- Quedan alumnos sin ninguna inscripción, algunos de ellos activos.
 
--- Instituto San Martin: 8 activas, 4 canceladas, 5 finalizadas y 3 trasladadas
+-- Instituto San Martin: 8 activas, 7 canceladas y 5 finalizadas
 INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
 SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, ins.fecha_inscripcion::date
 FROM (VALUES
@@ -620,24 +615,23 @@ FROM (VALUES
     ('ACTIVA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-19'),
     ('ACTIVA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-20'),
 
-    -- Canceladas: las de los tres alumnos suspendidos y la de Martina Escobar, que sigue activa y
-    -- sin otra inscripción
+    -- Canceladas porque el alumno dejó de cursar
     ('CANCELADA', 'martina.escobar@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-11'),
     ('CANCELADA', 'lautaro.ferreyra@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-12'),
     ('CANCELADA', 'thiago.juarez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-18'),
     ('CANCELADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2026-01-22'),
+
+    -- Canceladas por cambio de curso: dos de división (de la A a la B) y uno de grado (de 3° a 4°)
+    ('CANCELADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-05'),
+    ('CANCELADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-07'),
+    ('CANCELADA', 'joaquin.quiroga@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-23'),
 
     -- Finalizadas: el grado anterior, de alumnos que después se inscribieron en el siguiente
     ('FINALIZADA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-02'),
     ('FINALIZADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2026, '2026-01-12'),
     ('FINALIZADA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-06'),
     ('FINALIZADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'B', 'TARDE', 2026, '2026-01-09'),
-    ('FINALIZADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2026, '2026-01-08'),
-
-    -- Trasladadas: dos cambios de división (de la A a la B) y uno de grado (de 3° a 4°)
-    ('TRASLADADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-05'),
-    ('TRASLADADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-07'),
-    ('TRASLADADA', 'joaquin.quiroga@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-23')
+    ('FINALIZADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2026, '2026-01-08')
 ) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
 LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
 LEFT JOIN alumno a ON a.institucion_id = i.institucion_id AND a.email = ins.email
@@ -648,7 +642,7 @@ LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grad
 LEFT JOIN inscripcion_estado e ON e.nombre = ins.estado
 ORDER BY ins.fecha_inscripcion::date, a.alumno_id;
 
--- Colegio Manuel Belgrano: 8 activas, 4 canceladas, 5 finalizadas y 3 trasladadas
+-- Colegio Manuel Belgrano: 8 activas, 7 canceladas y 5 finalizadas
 INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
 SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, ins.fecha_inscripcion::date
 FROM (VALUES
@@ -662,11 +656,16 @@ FROM (VALUES
     ('ACTIVA', 'mia.rojas@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-21'),
     ('ACTIVA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-16'),
 
-    -- Canceladas: las de los cuatro alumnos suspendidos
+    -- Canceladas porque el alumno dejó de cursar
     ('CANCELADA', 'morena.acuna@colegiobelgrano.edu.ar', 'SECUNDARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-13'),
     ('CANCELADA', 'simon.gutierrez@colegiobelgrano.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-02-19'),
     ('CANCELADA', 'jazmin.meza@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-09'),
     ('CANCELADA', 'valentin.vargas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, '2026-02-20'),
+
+    -- Canceladas por cambio de curso: dos de división (de la A a la B) y uno de grado (de 1° a 2°)
+    ('CANCELADA', 'felipe.barrios@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-02-27'),
+    ('CANCELADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-08'),
+    ('CANCELADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-05'),
 
     -- Finalizadas: Nahuel Correa y Lucía Maidana son egresados; ella cursa la secundaria en el
     -- Instituto San Martin. Los otros tres se inscribieron después en el grado siguiente
@@ -674,12 +673,7 @@ FROM (VALUES
     ('FINALIZADA', 'lucia.maidana@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-07'),
     ('FINALIZADA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-02'),
     ('FINALIZADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'B', 'TARDE', 2026, '2026-01-12'),
-    ('FINALIZADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'B', 'TARDE', 2026, '2026-01-13'),
-
-    -- Trasladadas: dos cambios de división (de la A a la B) y uno de grado (de 1° a 2°)
-    ('TRASLADADA', 'felipe.barrios@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-02-27'),
-    ('TRASLADADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-08'),
-    ('TRASLADADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-05')
+    ('FINALIZADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'B', 'TARDE', 2026, '2026-01-13')
 ) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
 LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
 LEFT JOIN alumno a ON a.institucion_id = i.institucion_id AND a.email = ins.email
