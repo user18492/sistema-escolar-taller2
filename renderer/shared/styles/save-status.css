@@ -1,0 +1,29 @@
+/* Componente reutilizable: estado del guardado automático (save-status.component.js), a la
+   derecha del .page-header. Texto discreto en gris, como la descripción de la página;
+   "Guardado" suma el ícono de confirmación y el error pasa a rojo. */
+
+save-status {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+save-status[data-state="error"] {
+  color: var(--color-accent-red);
+}
+
+/* "Guardando…" va sin ícono; sin estado (todavía no hubo guardados) tampoco. */
+.save-status-icon {
+  display: none;
+  width: 18px;
+  height: 18px;
+}
+
+save-status[data-state="saved"] .save-status-icon,
+save-status[data-state="error"] .save-status-icon {
+  display: block;
+}

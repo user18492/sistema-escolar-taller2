@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/save-status.css" />
     <link rel="stylesheet" href="./evaluation-scores.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/user-avatar.component.js"></script>
@@ -33,6 +34,7 @@
     <script src="../../shared/components/table-pagination.component.js"></script>
     <script src="../../shared/components/assignment-summary.component.js"></script>
     <script src="../../shared/components/row-actions.component.js"></script>
+    <script src="../../shared/components/save-status.component.js"></script>
     <script src="./evaluation-scores.js" defer></script>
   </head>
   <body>
@@ -65,6 +67,10 @@
                 <h1>Calificaciones</h1>
                 <p>Registra y consulta las calificaciones de la evaluación seleccionada</p>
               </div>
+
+              <!-- Estado del guardado de las calificaciones: evaluation-scores.js lo actualiza con
+                   cada nota que se carga o se corrige. Hasta el primer guardado no muestra nada. -->
+              <save-status></save-status>
             </div>
           </div>
 

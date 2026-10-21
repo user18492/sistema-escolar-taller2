@@ -12,7 +12,8 @@
 // memoria. La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
 // La calificación se carga y se corrige en la propia fila y se guarda al salir del campo
 // (window.api.scores.save). Una ya cargada no se quita vaciando el campo, y la de una inscripción
-// finalizada es de solo lectura.
+// finalizada es de solo lectura. Cada guardado se refleja arriba, en <save-status>: "Guardando…"
+// mientras está en curso y después "Guardado" o, si falló, "No se pudo guardar".
 // Cada fila lleva la acción "Eliminar calificación", disponible si hay una calificación guardada
 // que se puede modificar: la da de baja (baja lógica, window.api.scores.delete) después de
 // confirmarlo en un modal (confirm-modal.component.js). La fila se conserva, porque el alumno sigue
@@ -58,6 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const studentHeader = table.querySelector('th[data-filter="student"]');
   // Paso de la evaluación en la ruta de navegación
   const evaluationStep = document.querySelector('.breadcrumb-item[data-field="evaluation"]');
+  // Estado del guardado, en el encabezado de la página (save-status.component.js)
+  const saveStatus = document.querySelector('save-status');
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar las calificaciones. Intentá nuevamente.';
 
@@ -126,12 +129,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Guarda la nota del alumno: el proceso principal crea su calificación en la evaluación o, si ya
   // tenía una, la modifica. Hasta que responde, el control de la fila no admite cambios (inert),
-  // así no se cruzan dos guardados de la misma calificación. Si no se pudo guardar, lo avisa un
-  // toast y el campo vuelve a mostrar la nota guardada; si fue porque la inscripción dejó de estar
-  // activa, queda además deshabilitado.
+  // así no se cruzan dos guardados de la misma calificación. El encabezado muestra "Guardando…"
+  // hasta la respuesta y después el resultado. Si no se pudo guardar, un toast avisa el motivo y el
+  // campo vuelve a mostrar la nota guardada; si fue porque la inscripción dejó de estar activa,
+  // queda además deshabilitado.
   const saveScore = async (score, value, stepper) => {
     score.savingValue = value;
     stepper.inert = true;
+    saveStatus.start();
     let response;
     try {
       response = await window.api?.scores?.save(Number(assignmentId), Number(evaluationId), {
@@ -142,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error al guardar la calificación:', error);
     }
     delete score.savingValue;
+    saveStatus.finish(Boolean(response?.ok));
     if (response?.ok) {
       score.value = response.score.value;
     } else {
