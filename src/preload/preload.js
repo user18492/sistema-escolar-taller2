@@ -34,9 +34,9 @@ contextBridge.exposeInMainWorld('api', {
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
   // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de profile, de users, de
-  // courses, de grades, de teacherAssignments, de enrollments, de evaluations, de scores y de
-  // dashboard resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso
-  // principal cierra la sesión y vuelve al login.
+  // courses, de grades, de teacherAssignments, de students, de enrollments, de evaluations, de scores
+  // y de dashboard resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el
+  // proceso principal cierra la sesión y vuelve al login.
   profile: {
     // Cualquier rol. Resuelve { ok: true, profile } con los datos del usuario de la sesión, leídos de
     // la base ({ firstName, lastName, dni, email, birthDate, imageUrl }, con dni solo los dígitos,
@@ -209,6 +209,15 @@ contextBridge.exposeInMainWorld('api', {
     // campos que list) o { ok: false, error: { code, message } }; TEACHER_ASSIGNMENT_NOT_FOUND y
     // TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente.
     delete: (teacherAssignmentId) => ipcRenderer.invoke('teacher-assignments:delete', teacherAssignmentId),
+  },
+  students: {
+    // Solo SECRETARIO. Resuelve { ok: true, students } con todos los alumnos de su institución,
+    // activos y egresados ({ id, firstName, lastName, dni, email, phone, street, streetNumber,
+    // birthDate, status }, con dni solo los dígitos, phone el teléfono tal como se guardó
+    // (379 412-3456), street y streetNumber la calle y la altura de la dirección, birthDate
+    // 'AAAA-MM-DD' y status 'ACTIVE' o 'GRADUATED'), o { ok: false, error: { code, message } }.
+    // Llegan siempre en el mismo orden: por apellido y nombre.
+    list: () => ipcRenderer.invoke('students:list'),
   },
   enrollments: {
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la

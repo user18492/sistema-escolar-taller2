@@ -1,15 +1,165 @@
-// Vista Alumnos del Secretario — interacción puramente visual, sin lógica de negocio
+// Vista Alumnos del Secretario: la tabla muestra los alumnos de la institución, que llegan del
+// proceso principal (window.api.students.list), y los filtros de columna los filtran en memoria.
+// La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
+// Los modales Nuevo alumno / Editar alumno y Eliminar alumno siguen siendo puramente visuales: no
+// guardan ni eliminan nada. Editar completa el formulario con los datos del alumno cargado.
 
 document.addEventListener('DOMContentLoaded', () => {
 
   // Apertura, cierre y selección de los dropdowns: componente compartido dropdown.component.js.
   const { closeAllDropdowns } = setupDropdowns();
 
-  // Los filtros de Nombre / Email / Teléfono / DNI / Estado viven en los encabezados
-  // de la tabla y los gestiona el componente compartido column-filter.js.
-
   // Los textos truncados (Nombre / Email / Dirección) muestran su tooltip con el
   // componente compartido text-truncate.component.js.
+
+  // ---------- Tabla: alumnos de la institución ----------
+
+  // Los filtros de Nombre / Email / Teléfono / DNI / Estado viven en los encabezados de la tabla y
+  // los gestiona el componente compartido column-filter.js.
+  const table = document.querySelector('.students-card .data-table');
+  const tbody = table.tBodies[0];
+  const rowTemplate = document.getElementById('studentRowTemplate');
+  const optionTemplate = document.getElementById('studentOptionTemplate');
+  // El script del componente se carga sin defer en <head>: acá ya está definido y conectado
+  const pagination = document.querySelector('.students-card table-pagination');
+
+  const GENERIC_LOAD_ERROR = 'No se pudieron cargar los alumnos. Intentá nuevamente.';
+
+  // Textos de Estado tomados de las opciones de su filtro, para que la celda y el filtro digan lo
+  // mismo. Los estados llegan como ACTIVE o GRADUATED.
+  const statusLabels = Object.fromEntries(
+    Array.from(document.querySelectorAll('#statusFilter .dropdown-option'), (option) => [option.dataset.value, option.textContent.trim()])
+  );
+
+  // En el orden en que llegan del proceso principal: por apellido y nombre
+  let students = [];
+  let isLoaded = false;
+  // Valores elegidos en cada filtro de columna, por su data-filter
+  const activeFilters = {};
+
+  // "Apellido, Nombre"
+  const fullName = (student) => `${student.lastName ?? ''}, ${student.firstName ?? ''}`;
+  // Calle y altura, como una sola dirección
+  const address = (student) => [student.street, student.streetNumber].filter(Boolean).join(' ');
+  // La fecha llega como 'AAAA-MM-DD' (o null) y se muestra como DD/MM/AAAA
+  const toDisplayDate = (isoDate) => (isoDate ? isoDate.split('-').reverse().join('/') : '');
+
+  // Lo que compara cada filtro: Nombre, Email, Teléfono y DNI eligen un alumno por su id
+  const FILTER_KEYS = {
+    name: (student) => String(student.id),
+    email: (student) => String(student.id),
+    phone: (student) => String(student.id),
+    dni: (student) => String(student.id),
+    status: (student) => student.status,
+  };
+
+  // Texto principal y secundario de las opciones de Nombre, Email, Teléfono y DNI
+  const FILTER_OPTION_TEXTS = {
+    name: (student) => [fullName(student), student.email],
+    email: (student) => [student.email, fullName(student)],
+    phone: (student) => [student.phone, fullName(student)],
+    dni: (student) => [formatDni(student.dni ?? ''), fullName(student)],
+  };
+
+  // Entre columnas se combinan con Y; un filtro sin valores no descarta nada
+  const matchesFilters = (student) =>
+    Object.entries(activeFilters).every(([filter, values]) => values.length === 0 || values.includes(FILTER_KEYS[filter](student)));
+
+  // Cargando, error o sin resultados, en una única fila de todo el ancho
+  const showMessage = (message) => {
+    const row = document.createElement('tr');
+    const cell = row.insertCell();
+    cell.colSpan = table.tHead.rows[0].cells.length;
+    cell.className = 'table-message';
+    cell.textContent = message;
+    tbody.replaceChildren(row);
+  };
+
+  // Los datos de la base se asignan siempre con textContent, nunca como HTML
+  const createOption = (student, [name, detail]) => {
+    const option = optionTemplate.content.firstElementChild.cloneNode(true);
+    option.dataset.value = String(student.id);
+    option.querySelector('.option-name').textContent = name ?? '';
+    option.querySelector('.option-detail').textContent = detail ?? '';
+    return option;
+  };
+
+  // Opciones de Nombre, Email, Teléfono y DNI: una por alumno, en el orden de la tabla y antes de
+  // .dropdown-empty; column-filter.js las lee al usarlas. Llegan sin marcar, así que esos filtros
+  // dejan de aplicarse y sus embudos se actualizan.
+  const fillFilterOptions = () => {
+    Object.entries(FILTER_OPTION_TEXTS).forEach(([filter, textsOf]) => {
+      const header = table.querySelector(`th[data-filter="${filter}"]`);
+      const list = header.querySelector('[role="listbox"]');
+      const emptyState = list.querySelector('.dropdown-empty');
+      list.replaceChildren(...students.map((student) => createOption(student, textsOf(student))), emptyState);
+      delete activeFilters[filter];
+      header.dispatchEvent(new Event('column-filter-refresh'));
+    });
+  };
+
+  // La fila lleva el alumno_id en data-student-id
+  const createRow = (student) => {
+    const row = rowTemplate.content.firstElementChild.cloneNode(true);
+    row.dataset.studentId = String(student.id);
+    row.cells[0].querySelector('.text-truncate').textContent = fullName(student);
+    row.cells[1].querySelector('.text-truncate').textContent = student.email ?? '';
+    row.cells[2].textContent = student.phone ?? '';
+    row.cells[3].querySelector('.text-truncate').textContent = address(student);
+    row.cells[4].textContent = formatDni(student.dni ?? '');
+    row.cells[5].textContent = toDisplayDate(student.birthDate);
+    // <status-badge> lee sus atributos al conectarse: se fijan antes de insertar la fila
+    const badge = row.querySelector('status-badge');
+    badge.setAttribute('status', (student.status ?? '').toLowerCase());
+    badge.setAttribute('label', statusLabels[student.status] ?? student.status ?? '');
+    return row;
+  };
+
+  // Muestra la página `page` (por defecto, la actual) de los alumnos que pasan los filtros (10 por
+  // página, en memoria): el total y los números de página salen de esa lista filtrada. Al cambiar
+  // un filtro se vuelve a la página 1; al recargar se conserva, y el componente la acota a la
+  // última que quede.
+  const renderRows = ({ page } = {}) => {
+    const visibleStudents = students.filter(matchesFilters);
+    const pageStudents = pagination.slice(visibleStudents, { page });
+    if (pageStudents.length) tbody.replaceChildren(...pageStudents.map(createRow));
+    else showMessage(students.length ? 'Ningún alumno coincide con los filtros.' : 'No hay alumnos registrados.');
+  };
+
+  // Punto de entrada también para volver a pedir la lista cuando la que está en memoria quedó
+  // vieja. Conserva la página y el filtro de Estado.
+  async function loadStudents() {
+    isLoaded = false;
+    showMessage('Cargando alumnos…');
+    let response;
+    try {
+      response = await window.api?.students?.list();
+    } catch (error) {
+      console.error('Error al cargar los alumnos:', error);
+    }
+    if (!response?.ok) {
+      showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
+      return;
+    }
+    students = response.students;
+    isLoaded = true;
+    fillFilterOptions();
+    renderRows();
+  }
+
+  // Cada filtro de columna avisa sus cambios (column-filter.js). Mientras carga o si la carga
+  // falló, se guardan los valores sin reemplazar el mensaje de la tabla.
+  table.tHead.addEventListener('column-filter-change', (event) => {
+    activeFilters[event.target.dataset.filter] = event.detail.values;
+    if (isLoaded) renderRows({ page: 1 });
+  });
+
+  // Previo, Siguiente o un número: el componente ya marcó la página nueva
+  pagination.addEventListener('page-change', () => {
+    if (isLoaded) renderRows();
+  });
+
+  loadStudents();
 
   // ---------- Modal: Nuevo alumno / Editar alumno ----------
 
@@ -51,11 +201,11 @@ document.addEventListener('DOMContentLoaded', () => {
     createBtn.disabled = !(hasAllTextInputs && hasStatus);
   }
 
-  // Marca la opción de estado cuyo texto coincide, replicando lo que hace el
-  // listener del dropdown al elegirla con el ratón.
-  function selectStatus(optionLabel) {
+  // Marca la opción de estado con ese data-value (ACTIVE o GRADUATED, los mismos que el filtro de la
+  // columna), replicando lo que hace el listener del dropdown al elegirla con el ratón.
+  function selectStatus(status) {
     statusOptions.forEach((option) => {
-      const selected = option.textContent.trim() === optionLabel;
+      const selected = option.dataset.value === status;
       option.classList.toggle('selected', selected);
       option.setAttribute('aria-selected', String(selected));
       if (selected) statusLabel.textContent = option.textContent.trim();
@@ -76,7 +226,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openModal(row = null, trigger = openModalBtn) {
-    isEditing = Boolean(row);
+    // La fila identifica al alumno solo por su data-student-id (el alumno_id). Los datos del
+    // formulario salen del alumno cargado de la base, no del texto de las celdas.
+    const student = row ? students.find((candidate) => String(candidate.id) === row.dataset.studentId) : null;
+    if (row && !student) return;
+    isEditing = Boolean(student);
     modalTrigger = trigger;
     resetForm();
 
@@ -87,20 +241,16 @@ document.addEventListener('DOMContentLoaded', () => {
     createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear alumno';
     statusField.hidden = !isEditing;
 
-    if (row) {
-      const [lastName, firstName] = row.querySelector('.student-name').textContent.trim().split(', ');
-      firstNameInput.value = firstName;
-      lastNameInput.value = lastName;
-      emailInput.value = row.cells[1].textContent.trim();
-      phoneInput.value = row.cells[2].textContent.trim();
-      // La tabla muestra la dirección completa: se separa la altura final de la calle.
-      const address = row.cells[3].textContent.trim();
-      const addressParts = address.match(/^(.*\S)\s+(\d+\S*)$/);
-      streetInput.value = addressParts ? addressParts[1] : address;
-      streetNumberInput.value = addressParts ? addressParts[2] : '';
-      dniInput.value = row.cells[4].textContent.trim();
-      birthdateInput.value = row.cells[5].textContent.trim();
-      selectStatus(row.cells[6].textContent.trim());
+    if (student) {
+      firstNameInput.value = student.firstName ?? '';
+      lastNameInput.value = student.lastName ?? '';
+      emailInput.value = student.email ?? '';
+      phoneInput.value = student.phone ?? '';
+      streetInput.value = student.street ?? '';
+      streetNumberInput.value = student.streetNumber ?? '';
+      dniInput.value = formatDni(student.dni ?? '');
+      birthdateInput.value = toDisplayDate(student.birthDate);
+      selectStatus(student.status);
     }
 
     updateCreateButtonState();
@@ -129,8 +279,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   openModalBtn.addEventListener('click', () => openModal());
-  document.querySelectorAll('.data-table tbody [data-action=edit]').forEach((button) => {
-    button.addEventListener('click', () => openModal(button.closest('tr'), button));
+  // Por delegación: las filas se generan al cargar los alumnos, al filtrar y al cambiar de página
+  tbody.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="edit"]');
+    if (button) openModal(button.closest('tr'), button);
   });
 
   // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
