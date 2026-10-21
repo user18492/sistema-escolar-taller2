@@ -471,7 +471,9 @@ CREATE TABLE inscripcion_estado (
 
 -- Inscripciones: un alumno cursa un curso. A lo largo del tiempo, un alumno pasa por muchos cursos
 -- y un curso tiene muchos alumnos.
--- No tiene baja lógica: la fila se conserva y lo que cambia es su estado
+-- Lo que cambia a lo largo de su vida es su estado. fecha_eliminacion prepara una baja lógica
+-- futura, pero todavía ninguna regla la tiene en cuenta: una inscripción dada de baja sigue
+-- contando para todas
 CREATE TABLE inscripcion (
     inscripcion_id         INT   GENERATED ALWAYS AS IDENTITY,
     alumno_id              INT   NOT NULL,
@@ -479,6 +481,8 @@ CREATE TABLE inscripcion (
     inscripcion_estado_id  INT   NOT NULL,
     fecha_inscripcion      DATE  NOT NULL DEFAULT CURRENT_DATE,
     -- Su año es el ciclo lectivo del curso
+    fecha_eliminacion      TIMESTAMPTZ,
+    -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva
 
     CONSTRAINT pk_inscripcion PRIMARY KEY (inscripcion_id),
     CONSTRAINT fk_inscripcion_alumno FOREIGN KEY (alumno_id) REFERENCES alumno(alumno_id),
