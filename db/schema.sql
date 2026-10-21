@@ -423,20 +423,24 @@ CREATE TABLE alumno_estado (
 -- Alumnos: una fila por persona e institución. Quien pasa a otra institución tiene una fila en
 -- cada una, con su propio estado.
 -- La institución no se deduce de las inscripciones: el alumno se registra antes de inscribirse en
--- un curso, y durante ese lapso no tiene ninguna
+-- un curso, y durante ese lapso no tiene ninguna.
+-- fecha_eliminacion prepara una baja lógica futura, pero todavía ninguna regla la tiene en cuenta:
+-- un alumno dado de baja sigue contando para todas, también para la unicidad de dni y email
 CREATE TABLE alumno (
-    alumno_id         INT           GENERATED ALWAYS AS IDENTITY,
-    institucion_id    INT           NOT NULL,
-    alumno_estado_id  INT           NOT NULL,
-    nombre            VARCHAR(100)  NOT NULL,
-    apellido          VARCHAR(100)  NOT NULL,
-    email             VARCHAR(254)  NOT NULL,
-    telefono          VARCHAR(30)   NOT NULL,
-    direccion_calle   VARCHAR(150)  NOT NULL,
-    direccion_altura  VARCHAR(20)   NOT NULL,
-    dni               VARCHAR(8)    NOT NULL,
+    alumno_id          INT           GENERATED ALWAYS AS IDENTITY,
+    institucion_id     INT           NOT NULL,
+    alumno_estado_id   INT           NOT NULL,
+    nombre             VARCHAR(100)  NOT NULL,
+    apellido           VARCHAR(100)  NOT NULL,
+    email              VARCHAR(254)  NOT NULL,
+    telefono           VARCHAR(30)   NOT NULL,
+    direccion_calle    VARCHAR(150)  NOT NULL,
+    direccion_altura   VARCHAR(20)   NOT NULL,
+    dni                VARCHAR(8)    NOT NULL,
     -- Solo los dígitos (7 u 8)
-    fecha_nacimiento  DATE          NOT NULL,
+    fecha_nacimiento   DATE          NOT NULL,
+    fecha_eliminacion  TIMESTAMPTZ,
+    -- NULL = vigente; con fecha = dado de baja (baja lógica): la fila se conserva
 
     CONSTRAINT pk_alumno PRIMARY KEY (alumno_id),
     CONSTRAINT fk_alumno_institucion FOREIGN KEY (institucion_id) REFERENCES institucion(institucion_id),
