@@ -23,7 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const textInputs = overlay.querySelectorAll(
     '.modal-body input[type="text"], .modal-body input[type="email"], .modal-body input[type="tel"]'
   );
-  const statusDropdown = overlay.querySelector('.dropdown');
+  // Estado: el campo solo se muestra al editar; un alta registra siempre un alumno activo.
+  const statusField = document.getElementById('editStudentStatusField');
+  const statusDropdown = statusField.querySelector('.dropdown');
   const statusLabel = statusDropdown.querySelector('.dropdown-label');
   const statusOptions = statusDropdown.querySelectorAll('.dropdown-option');
 
@@ -37,13 +39,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const streetNumberInput = document.getElementById('newStudentStreetNumber');
 
   let modalTrigger = openModalBtn;
+  let isEditing = false;
 
   // Máscaras, formato y errores de los campos de texto: componente compartido
   // field-validation.component.js, según el data-validate de cada campo.
 
   function updateCreateButtonState() {
     const hasAllTextInputs = Array.from(textInputs).every((input) => input.value.trim().length > 0);
-    const hasStatus = Boolean(statusDropdown.querySelector('.dropdown-option.selected'));
+    // Al editar llega elegido el estado actual del alumno; en el alta no se elige
+    const hasStatus = !isEditing || Boolean(statusDropdown.querySelector('.dropdown-option.selected'));
     createBtn.disabled = !(hasAllTextInputs && hasStatus);
   }
 
@@ -72,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openModal(row = null, trigger = openModalBtn) {
-    const isEditing = Boolean(row);
+    isEditing = Boolean(row);
     modalTrigger = trigger;
     resetForm();
 
@@ -81,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Modifica los datos del alumno.'
       : 'Completa los datos para registrar un nuevo alumno.';
     createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear alumno';
+    statusField.hidden = !isEditing;
 
     if (row) {
       const [lastName, firstName] = row.querySelector('.student-name').textContent.trim().split(', ');
