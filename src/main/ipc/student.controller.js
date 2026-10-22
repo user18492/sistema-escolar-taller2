@@ -78,12 +78,30 @@ async function updateStudent(currentUser, studentId, data) {
   }
 }
 
+// Nunca rechaza: los errores previstos llevan su mensaje y el resto, uno genérico con el detalle en
+// la consola.
+async function deleteStudent(currentUser, studentId) {
+  if (!isStudentId(studentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar al alumno.');
+  }
+  try {
+    return { ok: true, ...(await studentService.deleteStudent(currentUser, studentId)) };
+  } catch (error) {
+    if (error instanceof StudentError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al eliminar el alumno:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo eliminar el alumno. Intentá nuevamente.');
+  }
+}
+
 // Sin sesión, con otro rol o con la cuenta suspendida, handleProtected responde UNAUTHENTICATED,
 // FORBIDDEN o ACCOUNT_SUSPENDED sin llamar a la acción.
 function registerStudentHandlers(browserWindow) {
   handleProtected(browserWindow, 'students:list', ['SECRETARIO'], listStudents);
   handleProtected(browserWindow, 'students:create', ['SECRETARIO'], createStudent);
   handleProtected(browserWindow, 'students:update', ['SECRETARIO'], updateStudent);
+  handleProtected(browserWindow, 'students:delete', ['SECRETARIO'], deleteStudent);
 }
 
 module.exports = { registerStudentHandlers };

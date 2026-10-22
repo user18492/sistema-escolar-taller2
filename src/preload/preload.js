@@ -211,11 +211,11 @@ contextBridge.exposeInMainWorld('api', {
     delete: (teacherAssignmentId) => ipcRenderer.invoke('teacher-assignments:delete', teacherAssignmentId),
   },
   students: {
-    // Solo SECRETARIO. Resuelve { ok: true, students } con todos los alumnos de su institución,
-    // activos y egresados ({ id, firstName, lastName, dni, email, phone, street, streetNumber,
-    // birthDate, status }, con dni y phone solo los dígitos, street y streetNumber la calle y la
-    // altura de la dirección, birthDate 'AAAA-MM-DD' y status 'ACTIVE' o 'GRADUATED'), o
-    // { ok: false, error: { code, message } }.
+    // Solo SECRETARIO. Resuelve { ok: true, students } con los alumnos vigentes de su institución,
+    // activos y egresados, sin los dados de baja ({ id, firstName, lastName, dni, email, phone,
+    // street, streetNumber, birthDate, status }, con dni y phone solo los dígitos, street y
+    // streetNumber la calle y la altura de la dirección, birthDate 'AAAA-MM-DD' y status 'ACTIVE' o
+    // 'GRADUATED'), o { ok: false, error: { code, message } }.
     // Llegan siempre en el mismo orden: por apellido y nombre.
     list: () => ipcRenderer.invoke('students:list'),
     // Solo SECRETARIO. Registra un alumno en su institución, siempre activo: el estado no se elige en
@@ -234,6 +234,12 @@ contextBridge.exposeInMainWorld('api', {
     // (conservar los suyos no es un duplicado), e INVALID_INPUT llega sin fieldErrors si el estado no
     // es válido. Además, STUDENT_NOT_FOUND indica que el alumno ya no está vigente.
     update: (studentId, data) => ipcRenderer.invoke('students:update', studentId, data),
+    // Solo SECRETARIO. Baja lógica del alumno vigente con ese id (alumno_id) de su institución: deja
+    // de listarse y sus inscripciones activas pasan a canceladas, todo o nada. Resuelve
+    // { ok: true, cancelledEnrollmentCount }, con cuántas inscripciones activas se cancelaron (0 o
+    // 1), o { ok: false, error: { code, message } }, sin cambiar nada; STUDENT_NOT_FOUND y
+    // STUDENT_ALREADY_DELETED indican que ya no está vigente.
+    delete: (studentId) => ipcRenderer.invoke('students:delete', studentId),
   },
   enrollments: {
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la

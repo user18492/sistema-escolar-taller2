@@ -1,8 +1,8 @@
 const { query } = require('../database/connection');
 const { Student } = require('../models/student.model');
 
-// Listado de todos los alumnos de una institución, con el nombre de su estado. fecha_eliminacion
-// todavía no interviene en ninguna regla (db/schema.sql), así que tampoco filtra el listado.
+// Listado de los alumnos vigentes de una institución, con el nombre de su estado: los dados de baja
+// no se listan.
 // El orden es total: el apellido y el nombre; alumno_id mantiene juntos los datos de dos alumnos
 // que se llaman igual, así dos consultas sobre los mismos datos dan siempre el mismo orden.
 const FIND_BY_INSTITUTION_SQL = `
@@ -20,6 +20,7 @@ const FIND_BY_INSTITUTION_SQL = `
     FROM alumno a
     JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
    WHERE a.institucion_id = $1
+     AND a.fecha_eliminacion IS NULL
    ORDER BY a.apellido, a.nombre, a.alumno_id
 `;
 
@@ -110,6 +111,17 @@ const UPDATE_SQL = `
     JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
 `;
 
+// Baja lógica del alumno $1 de la institución $2 y cancelación de sus inscripciones activas, todo o
+// nada: lo hace sp_alumno_dar_de_baja (db/schema.sql). Su parámetro OUT se pasa como NULL y vuelve
+// en la única fila del resultado.
+const MARK_AS_DELETED_SQL = `
+  CALL sp_alumno_dar_de_baja($1, $2, NULL)
+`;
+
+// Errores previstos de sp_alumno_dar_de_baja, por su código de condición de PostgreSQL.
+const STUDENT_NOT_FOUND_CODE = 'P0002'; // no_data_found
+const STUDENT_ALREADY_DELETED_CODE = '55000'; // object_not_in_prerequisite_state
+
 // Valores de alumno_estado.nombre, con los códigos del sistema.
 const STATUS_BY_COLUMN_VALUE = {
   ACTIVO: 'ACTIVE',
@@ -143,7 +155,7 @@ function toStudent(row) {
   });
 }
 
-// Alumnos de la institución, ordenados por apellido y nombre.
+// Alumnos vigentes de la institución, ordenados por apellido y nombre.
 async function findByInstitution(institutionId) {
   const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId]);
   return rows.map(toStudent);
@@ -213,6 +225,15 @@ async function update(
   return rows.length > 0 ? toStudent(rows[0]) : null;
 }
 
+// Da de baja al alumno vigente con ese id en la institución y cancela sus inscripciones activas, en
+// una sola llamada a sp_alumno_dar_de_baja. Devuelve cuántas inscripciones canceló. Si el alumno no
+// existe en la institución o ya estaba dado de baja, el procedimiento falla sin cambiar nada: ver
+// isNotFoundError e isAlreadyDeletedError.
+async function markAsDeleted(studentId, institutionId) {
+  const { rows } = await query(MARK_AS_DELETED_SQL, [studentId, institutionId]);
+  return rows[0].p_inscripciones_canceladas;
+}
+
 // Campo ('dni' o 'email') cuyo valor repetido causó `error`, si es una violación de una restricción
 // UNIQUE de alumno; si no, null.
 function duplicateFieldOf(error) {
@@ -220,4 +241,24 @@ function duplicateFieldOf(error) {
   return UNIQUE_CONSTRAINT_FIELDS[error.constraint] ?? null;
 }
 
-module.exports = { findByInstitution, existsNotDeleted, findTakenFields, create, update, duplicateFieldOf };
+// true si `error` es el de sp_alumno_dar_de_baja para un alumno que no existe en la institución.
+function isNotFoundError(error) {
+  return error?.code === STUDENT_NOT_FOUND_CODE;
+}
+
+// true si `error` es el de sp_alumno_dar_de_baja para un alumno que ya estaba dado de baja.
+function isAlreadyDeletedError(error) {
+  return error?.code === STUDENT_ALREADY_DELETED_CODE;
+}
+
+module.exports = {
+  findByInstitution,
+  existsNotDeleted,
+  findTakenFields,
+  create,
+  update,
+  markAsDeleted,
+  duplicateFieldOf,
+  isNotFoundError,
+  isAlreadyDeletedError,
+};

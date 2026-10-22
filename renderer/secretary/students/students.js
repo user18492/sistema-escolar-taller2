@@ -1,11 +1,12 @@
-// Vista Alumnos del Secretario: la tabla muestra los alumnos de la institución, que llegan del
-// proceso principal (window.api.students.list), y los filtros de columna los filtran en memoria.
+// Vista Alumnos del Secretario: la tabla muestra los alumnos vigentes de la institución, que llegan
+// del proceso principal (window.api.students.list), y los filtros de columna los filtran en memoria.
 // La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
-// Nuevo alumno lo registra, siempre activo (window.api.students.create), y Editar alumno guarda los
-// cambios, entre ellos el estado (window.api.students.update). El resultado de las dos se avisa con
-// un toast (toast.component.js), salvo los errores de un campo, que se marcan en el formulario.
+// Nuevo alumno lo registra, siempre activo (window.api.students.create), Editar alumno guarda los
+// cambios, entre ellos el estado (window.api.students.update), y Eliminar alumno lo da de baja (baja
+// lógica, window.api.students.delete), junto con su inscripción activa, que pasa a cancelada,
+// después de confirmarlo en un modal (confirm-modal.component.js). El resultado de las tres se avisa
+// con un toast (toast.component.js), salvo los errores de un campo, que se marcan en el formulario.
 // Editar completa el formulario con los datos del alumno cargado.
-// Eliminar alumno sigue siendo puramente visual: no elimina nada.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -172,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadStudents();
 
-  // ---------- Tabla: alumno nuevo o editado ----------
+  // ---------- Tabla: alumno nuevo, editado o eliminado ----------
 
   // Sin recargar la lista: se conservan los filtros.
 
@@ -230,14 +231,34 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows();
   };
 
-  // Posición en la página de la fila del botón que abrió el modal, solo para devolver el foco a la
-  // que ocupe su lugar si esa fila ya no se muestra
+  // Quita al alumno dado de baja de la lista en memoria y de las opciones de Nombre, Email, Teléfono
+  // y DNI, sin recargar la lista. Si su opción estaba marcada, deja de filtrar y el embudo se
+  // actualiza. La página se conserva; si era la última y quedó vacía, el componente pasa a la
+  // anterior.
+  const removeStudent = (studentId) => {
+    const id = String(studentId);
+    students = students.filter((student) => String(student.id) !== id);
+    Object.keys(FILTER_OPTION_TEXTS).forEach((filter) => {
+      const header = table.querySelector(`th[data-filter="${filter}"]`);
+      const option = findOption(header, id);
+      if (!option) return;
+      const wasSelected = option.classList.contains('selected');
+      option.remove();
+      if (!wasSelected) return;
+      activeFilters[filter] = (activeFilters[filter] ?? []).filter((value) => value !== id);
+      header.dispatchEvent(new Event('column-filter-refresh'));
+    });
+    renderRows();
+  };
+
+  // Posición en la página de la fila del botón que abrió el último modal, solo para devolver el
+  // foco a la que ocupe su lugar si esa fila ya no se muestra
   let triggerRowIndex = 0;
 
-  // El botón Editar de la fila que quedó en su lugar (o de la última de la página), o "Nuevo alumno"
-  // si la tabla quedó sin alumnos
-  const focusAfterRemoval = () => {
-    const buttons = tbody.querySelectorAll('[data-action="edit"]');
+  // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
+  // página), o "Nuevo alumno" si la tabla quedó sin alumnos
+  const focusAfterRemoval = (action) => {
+    const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
     return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openModalBtn;
   };
 
@@ -403,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // foco pasa a Editar en la fila del alumno o, si ya no se muestra, en la que quedó en su lugar
     const focusTarget = modalTrigger.isConnected
       ? modalTrigger
-      : tbody.querySelector(`tr[data-student-id="${editingStudentId}"] [data-action="edit"]`) ?? focusAfterRemoval();
+      : tbody.querySelector(`tr[data-student-id="${editingStudentId}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
     focusTarget.focus();
     closeAllDropdowns();
   }
@@ -511,8 +532,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar alumno ----------
 
-  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
-  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
-  setupConfirmModal(document.getElementById('deleteStudentOverlay'), { beforeOpen: closeAllDropdowns });
+  // El alumno ya no está vigente: la lista en memoria quedó vieja y se vuelve a pedir
+  const NO_LONGER_ACTIVE_CODES = ['STUDENT_NOT_FOUND', 'STUDENT_ALREADY_DELETED'];
+
+  // El id sale del data-student-id de la fila del botón (el alumno_id, fijado al crearla), no de su
+  // posición en la tabla, y el nombre del toast, del alumno cargado. Avisa el resultado con un toast
+  // y no resuelve ningún mensaje, así el modal se cierra siempre.
+  const deleteStudent = async (trigger) => {
+    const row = trigger.closest('tr');
+    const student = students.find((candidate) => String(candidate.id) === row?.dataset.studentId);
+    let response;
+    try {
+      response = await window.api?.students?.delete(Number(row?.dataset.studentId));
+    } catch (error) {
+      console.error('Error al eliminar el alumno:', error);
+    }
+    const isGone = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
+    // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
+    if (response?.ok || isGone) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+    if (response?.ok) {
+      removeStudent(row.dataset.studentId);
+      // La base admite una sola inscripción activa por alumno
+      const cancelledText = response.cancelledEnrollmentCount > 0 ? ' y se canceló su inscripción activa' : '';
+      showToast({
+        type: 'success',
+        title: 'Alumno eliminado',
+        description: `Se eliminó a ${displayName(student)}${cancelledText}.`,
+      });
+      return;
+    }
+    if (isGone) await loadStudents();
+    showToast({ type: 'error', title: 'No se pudo eliminar el alumno', description: errorDescription(response?.error) });
+  };
+
+  // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
+  // cierra. Si la fila ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
+  setupConfirmModal(document.getElementById('deleteStudentOverlay'), {
+    beforeOpen: closeAllDropdowns,
+    onConfirm: deleteStudent,
+    fallbackFocus: () => focusAfterRemoval('delete'),
+  });
 });
 

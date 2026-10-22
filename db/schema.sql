@@ -9,6 +9,8 @@
 --     porque un CHECK no puede consultarlos: trg_<tabla>_<regla>, con su función
 --     fn_<tabla>_<regla>. Fallan como un CHECK (código 23514) e informan un nombre
 --     ck_<tabla>_<regla> como el de la restricción incumplida.
+--   - Los procedimientos almacenados se llaman sp_<tabla>_<acción>. Sus errores previstos usan los
+--     códigos de condición de PostgreSQL que correspondan, y cada uno documenta los suyos.
 
 BEGIN;
 
@@ -426,8 +428,9 @@ CREATE TABLE alumno_estado (
 -- cada una, con su propio estado.
 -- La institución no se deduce de las inscripciones: el alumno se registra antes de inscribirse en
 -- un curso, y durante ese lapso no tiene ninguna.
--- fecha_eliminacion prepara una baja lógica futura, pero todavía ninguna regla la tiene en cuenta:
--- un alumno dado de baja sigue contando para todas, también para la unicidad de dni y email
+-- La baja lógica (fecha_eliminacion) la hace sp_alumno_dar_de_baja (más abajo), que también cancela
+-- sus inscripciones activas. Ninguna otra regla la tiene en cuenta todavía: un alumno dado de baja
+-- sigue contando para todas, también para la unicidad de dni y email
 CREATE TABLE alumno (
     alumno_id          INT           GENERATED ALWAYS AS IDENTITY,
     institucion_id     INT           NOT NULL,
@@ -479,9 +482,10 @@ CREATE TABLE inscripcion_estado (
 
 -- Inscripciones: un alumno cursa un curso. A lo largo del tiempo, un alumno pasa por muchos cursos
 -- y un curso tiene muchos alumnos.
--- Lo que cambia a lo largo de su vida es su estado. fecha_eliminacion prepara una baja lógica
--- futura, pero todavía ninguna regla la tiene en cuenta: una inscripción dada de baja sigue
--- contando para todas
+-- Lo que cambia a lo largo de su vida es su estado. La baja lógica (fecha_eliminacion) solo la hace
+-- sp_alumno_dar_de_baja (más abajo), con las inscripciones activas del alumno que se da de baja, que
+-- pasan además a CANCELADA. Ninguna regla la tiene en cuenta todavía: una inscripción dada de baja
+-- sigue contando para todas
 CREATE TABLE inscripcion (
     inscripcion_id         INT   GENERATED ALWAYS AS IDENTITY,
     alumno_id              INT   NOT NULL,
@@ -598,7 +602,8 @@ CREATE TRIGGER trg_inscripcion_fecha_ciclo_lectivo
     EXECUTE FUNCTION fn_inscripcion_fecha_ciclo_lectivo();
 
 -- Un alumno con inscripciones conserva su institución: cambiarla lo dejaría en cursos de otra.
--- Cuentan todas, no solo las activas: como no hay baja lógica, las demás siguen siendo su historial
+-- Cuentan todas, no solo las activas: las demás, también las dadas de baja, siguen siendo su
+-- historial
 CREATE FUNCTION fn_alumno_inscripciones() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -643,6 +648,77 @@ CREATE TRIGGER trg_curso_inscripciones
     WHEN (NEW.institucion_id <> OLD.institucion_id
           OR NEW.anio_ciclo_lectivo <> OLD.anio_ciclo_lectivo)
     EXECUTE FUNCTION fn_curso_inscripciones();
+
+-- Baja lógica de un alumno de la institución: completa su fecha_eliminacion, sin cambiar su estado,
+-- y da de baja sus inscripciones vigentes y activas, que pasan a CANCELADA con la misma fecha de
+-- baja. Así ya no se lo puede calificar: trg_calificacion_coherencia (más abajo) solo acepta
+-- inscripciones activas. Las finalizadas y las canceladas no cambian: son su historial.
+-- Devuelve en p_inscripciones_canceladas cuántas inscripciones canceló (0 o 1, porque un alumno
+-- tiene una sola activa).
+-- Es todo o nada sin hacer COMMIT ni ROLLBACK: un CALL fuera de una transacción es una transacción
+-- en sí mismo, y si falla cualquiera de sus pasos (un RAISE de acá o el de un trigger), PostgreSQL
+-- deshace todo lo que había hecho. Llamado dentro de una transacción, forma parte de ella. NOW() es
+-- el instante en que empezó la transacción, así que el alumno y sus inscripciones quedan con la
+-- misma fecha de baja.
+-- Errores previstos, que el backend traduce en un mensaje para el usuario:
+--   - no_data_found (P0002): el alumno no existe en la institución.
+--   - object_not_in_prerequisite_state (55000): el alumno ya estaba dado de baja.
+-- FOR NO KEY UPDATE retiene la fila del alumno hasta el fin de la transacción, como
+-- fn_inscripcion_coherencia: una segunda baja simultánea espera y, al seguir, lo encuentra dado de
+-- baja, y una inscripción simultánea del alumno también espera o, si llegó antes, ya está guardada
+-- cuando se cancelan las activas
+CREATE PROCEDURE sp_alumno_dar_de_baja(
+    p_alumno_id                     INT,
+    p_institucion_id                INT,
+    OUT p_inscripciones_canceladas  INT
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_fecha_eliminacion  TIMESTAMPTZ;
+    v_activa_id          INT;
+    v_cancelada_id       INT;
+BEGIN
+    SELECT a.fecha_eliminacion
+      INTO v_fecha_eliminacion
+      FROM alumno a
+     WHERE a.alumno_id = p_alumno_id
+       AND a.institucion_id = p_institucion_id
+       FOR NO KEY UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'El alumno % no existe en la institución %', p_alumno_id, p_institucion_id
+            USING ERRCODE = 'no_data_found';
+    END IF;
+
+    IF v_fecha_eliminacion IS NOT NULL THEN
+        RAISE EXCEPTION 'El alumno % ya está dado de baja', p_alumno_id
+            USING ERRCODE = 'object_not_in_prerequisite_state';
+    END IF;
+
+    SELECT e.inscripcion_estado_id
+      INTO v_activa_id
+      FROM inscripcion_estado e
+     WHERE e.nombre = 'ACTIVA';
+
+    SELECT e.inscripcion_estado_id
+      INTO v_cancelada_id
+      FROM inscripcion_estado e
+     WHERE e.nombre = 'CANCELADA';
+
+    UPDATE alumno
+       SET fecha_eliminacion = NOW()
+     WHERE alumno_id = p_alumno_id;
+
+    UPDATE inscripcion
+       SET inscripcion_estado_id = v_cancelada_id,
+           fecha_eliminacion = NOW()
+     WHERE alumno_id = p_alumno_id
+       AND inscripcion_estado_id = v_activa_id
+       AND fecha_eliminacion IS NULL;
+
+    GET DIAGNOSTICS p_inscripciones_canceladas = ROW_COUNT;
+END;
+$$;
 
 -- Evaluaciones: las que un profesor toma en una asignación docente, es decir, en una materia de un
 -- curso

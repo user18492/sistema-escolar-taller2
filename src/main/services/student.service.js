@@ -158,8 +158,8 @@ function toListedStudent(student) {
   };
 }
 
-// Alumnos de la institución de `currentUser` (el de la sesión), activos y egresados, en el orden
-// del repositorio.
+// Alumnos vigentes de la institución de `currentUser` (el de la sesión), activos y egresados, en el
+// orden del repositorio. Los dados de baja no se listan.
 async function listStudents(currentUser) {
   const students = await studentRepository.findByInstitution(currentUser.institutionId);
   return students.map(toListedStudent);
@@ -203,4 +203,24 @@ async function updateStudent(currentUser, studentId, data) {
   return toListedStudent(student);
 }
 
-module.exports = { listStudents, createStudent, updateStudent, StudentError };
+// Baja lógica del alumno vigente con ese id (alumno_id) en la institución de `currentUser`: la fila
+// queda con su fecha de baja y su estado, y deja de listarse. Sus inscripciones activas pasan a
+// canceladas, así ya no se lo puede calificar. Todo lo hace la base en sp_alumno_dar_de_baja, todo o
+// nada: acá solo se lo llama y se traducen sus errores.
+// Devuelve { cancelledEnrollmentCount }, cuántas inscripciones activas se cancelaron (0 o 1).
+// Lanza un StudentError si el alumno no existe en la institución (STUDENT_NOT_FOUND) o si ya estaba
+// dado de baja (STUDENT_ALREADY_DELETED).
+async function deleteStudent(currentUser, studentId) {
+  try {
+    const cancelledEnrollmentCount = await studentRepository.markAsDeleted(studentId, currentUser.institutionId);
+    return { cancelledEnrollmentCount };
+  } catch (error) {
+    if (studentRepository.isNotFoundError(error)) throw studentNotFoundError();
+    if (studentRepository.isAlreadyDeletedError(error)) {
+      throw new StudentError('STUDENT_ALREADY_DELETED', 'El alumno ya había sido eliminado.');
+    }
+    throw error;
+  }
+}
+
+module.exports = { listStudents, createStudent, updateStudent, deleteStudent, StudentError };
