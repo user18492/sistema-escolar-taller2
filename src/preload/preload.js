@@ -218,6 +218,14 @@ contextBridge.exposeInMainWorld('api', {
     // 'AAAA-MM-DD' y status 'ACTIVE' o 'GRADUATED'), o { ok: false, error: { code, message } }.
     // Llegan siempre en el mismo orden: por apellido y nombre.
     list: () => ipcRenderer.invoke('students:list'),
+    // Solo SECRETARIO. Registra un alumno en su institución, siempre activo: el estado no se elige en
+    // el alta. `data` es { firstName, lastName, dni, email, phone, street, streetNumber, birthDate },
+    // con dni solo los dígitos, street y streetNumber la calle y la altura de la dirección y birthDate
+    // 'AAAA-MM-DD'. Resuelve { ok: true, student } con el alumno creado (mismos campos que list) o
+    // { ok: false, error: { code, message, fieldErrors } }: fieldErrors ({ campo: mensaje }) llega con
+    // INVALID_INPUT (campos inválidos) y con DUPLICATE_VALUE (dni o email de otro alumno de la
+    // institución, también si fue dado de baja).
+    create: (data) => ipcRenderer.invoke('students:create', data),
   },
   enrollments: {
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la

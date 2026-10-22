@@ -1,5 +1,120 @@
 const studentRepository = require('../repositories/student.repository');
-const { toIsoDate } = require('./user.service');
+const { parsePersonalData, normalizeText, toIsoDate, REQUIRED_MESSAGE, LETTERS } = require('./user.service');
+
+// Error previsto, con un mensaje apto para la UI (como UserError en user.service.js).
+// `fieldErrors` ({ campo: mensaje }), si llega, indica qué campos del formulario están mal.
+class StudentError extends Error {
+  constructor(code, message, fieldErrors) {
+    super(message);
+    this.name = 'StudentError';
+    this.code = code;
+    this.fieldErrors = fieldErrors;
+  }
+}
+
+// ---------- Validación de los datos del formulario ----------
+
+// Nombre, apellido, dni, email y fecha de nacimiento se validan como los de un usuario
+// (parsePersonalData, user.service.js), con la edad de un alumno. Teléfono, calle y altura siguen las
+// mismas reglas que field-validation.component.js (phone, street y street-number). La edad es la de
+// los data-min-age y data-max-age del modal de alumno. El proceso principal no puede importar ese
+// componente: si cambian allá, hay que cambiarlas acá.
+const STUDENT_AGE_RANGE = { minAge: 5, maxAge: 25 };
+
+// El maxlength del campo Teléfono; la columna alumno.telefono admite 30.
+const PHONE_MAX_LENGTH = 20;
+const PHONE_PATTERN = /^\+?([\d -]|\(\d+\))+$/;
+const PHONE_MIN_DIGITS = 10;
+const PHONE_MAX_DIGITS = 13;
+
+// Largo de la columna alumno.direccion_calle.
+const STREET_MAX_LENGTH = 150;
+const NOT_STREET_CHAR = new RegExp(`[^${LETTERS}\\d .'°º-]`);
+const STREET_CONTENT_PATTERN = new RegExp(`[${LETTERS}\\d]`);
+
+const DUPLICATE_MESSAGES = {
+  message: 'Ya existe un alumno con estos datos.',
+  dni: 'Ya existe un alumno con este DNI.',
+  email: 'Ya existe un alumno con este email.',
+};
+
+function checkPhone(value) {
+  if (!value) return REQUIRED_MESSAGE;
+  if (value.length > PHONE_MAX_LENGTH) return `Máximo ${PHONE_MAX_LENGTH} caracteres.`;
+  if (!PHONE_PATTERN.test(value)) return 'Formato de teléfono inválido.';
+  const digitCount = value.replace(/\D/g, '').length;
+  return digitCount >= PHONE_MIN_DIGITS && digitCount <= PHONE_MAX_DIGITS
+    ? ''
+    : `El teléfono debe tener entre ${PHONE_MIN_DIGITS} y ${PHONE_MAX_DIGITS} dígitos.`;
+}
+
+// El campo descarta al escribir los caracteres que no admite; acá llegan solo si el renderer no
+// los filtró.
+function checkStreet(value) {
+  if (!value) return REQUIRED_MESSAGE;
+  if (value.length > STREET_MAX_LENGTH) return `Máximo ${STREET_MAX_LENGTH} caracteres.`;
+  if (NOT_STREET_CHAR.test(value)) return 'Solo se admiten letras, números, espacios, puntos, guiones, apóstrofos y °.';
+  return STREET_CONTENT_PATTERN.test(value) ? '' : 'La calle debe incluir letras o números.';
+}
+
+function checkStreetNumber(value) {
+  if (!value) return REQUIRED_MESSAGE;
+  return /^[1-9]\d{0,4}$/.test(value) ? '' : 'La altura debe estar entre 1 y 99999.';
+}
+
+const CONTACT_FIELD_CHECKS = {
+  phone: checkPhone,
+  street: checkStreet,
+  streetNumber: checkStreetNumber,
+};
+
+// Normaliza los datos del formulario de alumno (el controlador ya verificó que sean strings) y
+// devuelve solo los campos que se guardan: el estado no se elige en el alta. Lanza un StudentError
+// INVALID_INPUT con los fieldErrors de todos los campos que no son válidos.
+function parseStudentData(data) {
+  const { values: personalValues, fieldErrors } = parsePersonalData(data, STUDENT_AGE_RANGE);
+  const values = {
+    ...personalValues,
+    phone: normalizeText(data.phone),
+    street: normalizeText(data.street),
+    streetNumber: data.streetNumber.trim(),
+  };
+  Object.entries(CONTACT_FIELD_CHECKS).forEach(([field, check]) => {
+    const message = check(values[field]);
+    if (message) fieldErrors[field] = message;
+  });
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new StudentError('INVALID_INPUT', 'Revisá los datos marcados.', fieldErrors);
+  }
+  return values;
+}
+
+function duplicateError(fields) {
+  const fieldErrors = Object.fromEntries(fields.map((field) => [field, DUPLICATE_MESSAGES[field]]));
+  return new StudentError('DUPLICATE_VALUE', DUPLICATE_MESSAGES.message, fieldErrors);
+}
+
+// Lanza un StudentError DUPLICATE_VALUE si el dni o el email de `values` ya son de un alumno
+// vigente de la institución. No cuentan los de otra institución: una persona tiene una fila por
+// institución, con el mismo dni y el mismo email.
+async function assertNotTaken(institutionId, values) {
+  const takenFields = await studentRepository.findTakenFields(institutionId, values);
+  if (takenFields.length > 0) throw duplicateError(takenFields);
+}
+
+// Ejecuta `save` (el INSERT). Si la base lo rechaza por uq_alumno_institucion_dni o
+// uq_alumno_institucion_email, se informa como duplicado: pasa si otro alumno tomó el dni o el email
+// entre la comprobación y el guardado, y también si son de un alumno dado de baja, que
+// assertNotTaken no cuenta.
+async function saveUnique(save) {
+  try {
+    return await save();
+  } catch (error) {
+    const field = studentRepository.duplicateFieldOf(error);
+    if (!field) throw error;
+    throw duplicateError([field]);
+  }
+}
 
 // Lista explícita de campos, como toListedUser (user.service.js): lo que muestran la tabla de
 // Alumnos del Secretario, sus filtros y el modal de edición, y el id para identificar la fila. `dni`
@@ -29,4 +144,19 @@ async function listStudents(currentUser) {
   return students.map(toListedStudent);
 }
 
-module.exports = { listStudents };
+// Registra un alumno en la institución de `currentUser` (el de la sesión), siempre activo, y lo
+// devuelve con los campos de listStudents. `data` trae firstName, lastName, dni, email, phone,
+// street, streetNumber y birthDate ('AAAA-MM-DD'); el estado no se elige en el alta: si llega, no
+// se usa.
+// El dni y el email no se repiten entre los alumnos de la institución: se comprueban antes contra
+// los vigentes y, como respaldo, los rechaza la base, que cuenta también a los dados de baja.
+// Lanza un StudentError si algún dato no es válido (INVALID_INPUT) o si el dni o el email ya son de
+// un alumno de la institución (DUPLICATE_VALUE), los dos con fieldErrors.
+async function createStudent(currentUser, data) {
+  const values = parseStudentData(data);
+  await assertNotTaken(currentUser.institutionId, values);
+  const student = await saveUnique(() => studentRepository.create(currentUser.institutionId, values));
+  return toListedStudent(student);
+}
+
+module.exports = { listStudents, createStudent, StudentError };

@@ -29,8 +29,9 @@ const LETTERS = 'A-Za-zÀ-ÖØ-öø-ÿ';
 const PERSON_NAME_PATTERN = new RegExp(`^[${LETTERS}]+([ '-][${LETTERS}]+)*$`);
 const NOT_PERSON_NAME_CHAR = new RegExp(`[^${LETTERS} '-]`);
 
-const BIRTH_DATE_MIN_AGE = 18;
-const BIRTH_DATE_MAX_AGE = 80;
+// Edad admitida de un usuario, la de su fecha de nacimiento. La de un alumno es otra:
+// student.service.js.
+const USER_AGE_RANGE = { minAge: 18, maxAge: 80 };
 
 // Al editar, el propio usuario no cuenta como duplicado: el que ya tiene el dato es "otro". Al
 // restaurar no hay formulario donde marcar el campo: el mensaje general dice qué se repite.
@@ -106,8 +107,8 @@ function dateKey(year, month, day) {
   return year * 10000 + month * 100 + day;
 }
 
-// Recibe 'AAAA-MM-DD'.
-function checkBirthDate(value) {
+// Recibe 'AAAA-MM-DD' y la edad admitida ({ minAge, maxAge }).
+function checkBirthDate(value, { minAge, maxAge }) {
   if (!value) return REQUIRED_MESSAGE;
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return 'La fecha no es válida.';
@@ -119,8 +120,8 @@ function checkBirthDate(value) {
   const todayKey = dateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
   if (birthKey > todayKey) return 'La fecha no puede ser futura.';
   const age = Math.floor((todayKey - birthKey) / 10000);
-  if (age < BIRTH_DATE_MIN_AGE || age > BIRTH_DATE_MAX_AGE) {
-    return `La edad debe estar entre ${BIRTH_DATE_MIN_AGE} y ${BIRTH_DATE_MAX_AGE} años.`;
+  if (age < minAge || age > maxAge) {
+    return `La edad debe estar entre ${minAge} y ${maxAge} años.`;
   }
   return '';
 }
@@ -134,9 +135,10 @@ const FIELD_CHECKS = {
 };
 
 // Normaliza los datos personales del formulario (el controlador ya verificó que sean strings).
-// Devuelve { values, fieldErrors }: los campos como se guardan y el mensaje de cada uno que no es
-// válido ({ campo: mensaje }, vacío si lo son todos).
-function parsePersonalData(data) {
+// `ageRange` ({ minAge, maxAge }) es la edad admitida: solo la usa checkBirthDate. Devuelve
+// { values, fieldErrors }: los campos como se guardan y el mensaje de cada uno que no es válido
+// ({ campo: mensaje }, vacío si lo son todos). El alta de alumnos también la usa, con su edad.
+function parsePersonalData(data, ageRange) {
   const values = {
     firstName: normalizeText(data.firstName),
     lastName: normalizeText(data.lastName),
@@ -148,7 +150,7 @@ function parsePersonalData(data) {
 
   const fieldErrors = {};
   Object.entries(FIELD_CHECKS).forEach(([field, check]) => {
-    const message = check(values[field]);
+    const message = check(values[field], ageRange);
     if (message) fieldErrors[field] = message;
   });
   return { values, fieldErrors };
@@ -164,7 +166,7 @@ function invalidFieldsError(fieldErrors) {
 // fieldErrors si algún campo no es válido, y sin ellos si no lo son el rol o la contraseña, que no
 // tienen un campo de texto donde mostrar el error.
 function parseUserData(data, operation) {
-  const { values, fieldErrors } = parsePersonalData(data);
+  const { values, fieldErrors } = parsePersonalData(data, USER_AGE_RANGE);
   if (Object.keys(fieldErrors).length > 0) {
     throw invalidFieldsError(fieldErrors);
   }
@@ -198,7 +200,7 @@ function checkPasswordChange(newPassword, repeatPassword) {
 // INVALID_INPUT con los fieldErrors de todos los campos que no son válidos, también los de la
 // contraseña (newPassword, repeatPassword).
 function parseProfileData(data) {
-  const { values, fieldErrors } = parsePersonalData(data);
+  const { values, fieldErrors } = parsePersonalData(data, USER_AGE_RANGE);
   Object.assign(fieldErrors, checkPasswordChange(data.newPassword, data.repeatPassword));
   if (Object.keys(fieldErrors).length > 0) {
     throw invalidFieldsError(fieldErrors);
@@ -570,7 +572,11 @@ module.exports = {
   getProfile,
   updateProfile,
   deleteOwnAccount,
+  parsePersonalData,
+  normalizeText,
   isRealDate,
   toIsoDate,
+  REQUIRED_MESSAGE,
+  LETTERS,
   UserError,
 };
