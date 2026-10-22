@@ -3,13 +3,15 @@
 // La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
 // Las pestañas (tab-list.component.js) separan a los vigentes de los dados de baja, que llegan en la
 // misma lista con su deletedAt, y cada una muestra cuántos tiene. Las dos comparten las columnas; en
-// Eliminados, la única acción de la fila es Restaurar, que por ahora es solo visual.
+// Eliminados, la única acción de la fila es Restaurar.
 // Nuevo alumno lo registra, siempre activo (window.api.students.create), Editar alumno guarda los
-// cambios, entre ellos el estado (window.api.students.update), y Eliminar alumno lo da de baja (baja
+// cambios, entre ellos el estado (window.api.students.update), Eliminar alumno lo da de baja (baja
 // lógica, window.api.students.delete) y lo pasa a Eliminados, junto con su inscripción activa, que
-// pasa a cancelada, después de confirmarlo en un modal (confirm-modal.component.js). El resultado de
-// las tres se avisa con un toast (toast.component.js), salvo los errores de un campo, que se marcan
-// en el formulario. Editar completa el formulario con los datos del alumno cargado.
+// pasa a cancelada, y Restaurar alumno lo devuelve a Vigentes con el estado que tenía
+// (window.api.students.restore), sin reactivar sus inscripciones. Las dos últimas se confirman antes
+// en un modal (confirm-modal.component.js). El resultado de las cuatro se avisa con un toast
+// (toast.component.js), salvo los errores de un campo, que se marcan en el formulario. Editar
+// completa el formulario con los datos del alumno cargado.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -226,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadStudents();
 
-  // ---------- Tabla: alumno nuevo, editado o eliminado ----------
+  // ---------- Tabla: alumno nuevo, editado, eliminado o restaurado ----------
 
   // Sin recargar la lista: se conservan los filtros.
 
@@ -287,26 +289,31 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows();
   };
 
-  // Pasa a Eliminados al alumno dado de baja, sin recargar la lista: en la lista en memoria conserva
-  // su lugar y recibe como deletedAt el instante actual (la tabla no lo muestra; el de la base llega
-  // en la próxima carga), y los contadores se actualizan. Como las bajas se hacen desde Vigentes,
-  // sale de la pestaña elegida y de las opciones de Nombre, Email, Teléfono y DNI: si su opción
-  // estaba marcada, deja de filtrar y el embudo se actualiza. La página se conserva; si era la
-  // última y quedó vacía, el componente pasa a la anterior.
-  const moveToDeleted = (studentId) => {
-    const id = String(studentId);
-    const deletedAt = new Date().toISOString();
-    students = students.map((student) => (String(student.id) === id ? { ...student, deletedAt } : student));
-    Object.keys(FILTER_OPTION_TEXTS).forEach((filter) => {
-      const header = table.querySelector(`th[data-filter="${filter}"]`);
-      const option = findOption(header, id);
-      if (!option) return;
-      const wasSelected = option.classList.contains('selected');
-      option.remove();
-      if (!wasSelected) return;
-      activeFilters[filter] = (activeFilters[filter] ?? []).filter((value) => value !== id);
-      header.dispatchEvent(new Event('column-filter-refresh'));
-    });
+  // Pasa a la otra pestaña al alumno dado de baja o restaurado (`movedStudent`, como quedó), sin
+  // recargar la lista: lo reemplaza en la lista en memoria, donde conserva su lugar, y los contadores
+  // se actualizan. Como las bajas se hacen desde Vigentes y las restauraciones desde Eliminados, sale
+  // de la pestaña elegida y de las opciones de Nombre, Email, Teléfono y DNI: si su opción estaba
+  // marcada, deja de filtrar y el embudo se actualiza. La página se conserva; si era la última y
+  // quedó vacía, el componente pasa a la anterior.
+  const moveToOtherTab = (movedStudent) => {
+    const id = String(movedStudent.id);
+    students = students.map((student) => (String(student.id) === id ? movedStudent : student));
+    if (tabOf(movedStudent) === activeTab) {
+      // Se cambió de pestaña mientras se esperaba la respuesta: llega a la elegida, y las opciones
+      // se vuelven a armar con él
+      fillFilterOptions();
+    } else {
+      Object.keys(FILTER_OPTION_TEXTS).forEach((filter) => {
+        const header = table.querySelector(`th[data-filter="${filter}"]`);
+        const option = findOption(header, id);
+        if (!option) return;
+        const wasSelected = option.classList.contains('selected');
+        option.remove();
+        if (!wasSelected) return;
+        activeFilters[filter] = (activeFilters[filter] ?? []).filter((value) => value !== id);
+        header.dispatchEvent(new Event('column-filter-refresh'));
+      });
+    }
     renderTabCounts();
     renderRows();
   };
@@ -315,8 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // foco a la que ocupe su lugar si esa fila ya no se muestra
   let triggerRowIndex = 0;
 
-  // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
-  // página), o "Nuevo alumno" si la tabla quedó sin alumnos
+  // El botón de `action` (edit, delete o restore) de la fila que quedó en su lugar (o de la última
+  // de la página), o "Nuevo alumno" si la tabla quedó sin alumnos
   const focusAfterRemoval = (action) => {
     const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
     return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openModalBtn;
@@ -611,7 +618,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
     if (response?.ok || isGone) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
     if (response?.ok) {
-      moveToDeleted(row.dataset.studentId);
+      // La respuesta no trae al alumno: su deletedAt es el instante actual (la tabla no lo muestra;
+      // el de la base llega en la próxima carga)
+      moveToOtherTab({ ...student, deletedAt: new Date().toISOString() });
       // La base admite una sola inscripción activa por alumno
       const cancelledText = response.cancelledEnrollmentCount > 0 ? ' y se canceló su inscripción activa' : '';
       showToast({
@@ -631,6 +640,46 @@ document.addEventListener('DOMContentLoaded', () => {
     beforeOpen: closeAllDropdowns,
     onConfirm: deleteStudent,
     fallbackFocus: () => focusAfterRemoval('delete'),
+  });
+
+  // ---------- Modal: Restaurar alumno ----------
+
+  // El alumno ya no está dado de baja: la lista en memoria quedó vieja y se vuelve a pedir
+  const NO_LONGER_DELETED_CODES = ['STUDENT_NOT_FOUND', 'STUDENT_NOT_DELETED'];
+
+  // Como en la baja: el id sale del data-student-id de la fila del botón, el resultado se avisa con
+  // un toast y no se resuelve ningún mensaje, así el modal se cierra siempre. Si otro alumno vigente
+  // ya tiene su DNI o su email (DUPLICATE_VALUE), sigue en Eliminados y el toast dice cuál.
+  const restoreStudent = async (trigger) => {
+    const row = trigger.closest('tr');
+    let response;
+    try {
+      response = await window.api?.students?.restore(Number(row?.dataset.studentId));
+    } catch (error) {
+      console.error('Error al restaurar el alumno:', error);
+    }
+    const isStale = NO_LONGER_DELETED_CODES.includes(response?.error?.code);
+    // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
+    if (response?.ok || isStale) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+    if (response?.ok) {
+      moveToOtherTab(response.student);
+      showToast({
+        type: 'success',
+        title: 'Alumno restaurado',
+        description: `Se restauró a ${displayName(response.student)}.`,
+      });
+      return;
+    }
+    if (isStale) await loadStudents();
+    showToast({ type: 'error', title: 'No se pudo restaurar el alumno', description: errorDescription(response?.error) });
+  };
+
+  // El mismo componente que Eliminar, con action="restore" en su marcado: lo abre Restaurar. Si la
+  // fila ya no está, el foco pasa a Restaurar en la que quedó en su lugar.
+  setupConfirmModal(document.getElementById('restoreStudentOverlay'), {
+    beforeOpen: closeAllDropdowns,
+    onConfirm: restoreStudent,
+    fallbackFocus: () => focusAfterRemoval('restore'),
   });
 });
 

@@ -241,6 +241,14 @@ contextBridge.exposeInMainWorld('api', {
     // cancelaron (0 o 1), o { ok: false, error: { code, message } }, sin cambiar nada;
     // STUDENT_NOT_FOUND y STUDENT_ALREADY_DELETED indican que ya no está vigente.
     delete: (studentId) => ipcRenderer.invoke('students:delete', studentId),
+    // Solo SECRETARIO. Restaura al alumno dado de baja con ese id (alumno_id) de su institución:
+    // vuelve a listarse entre los vigentes, con el estado que tenía, y sus inscripciones no cambian
+    // (las que la baja canceló siguen canceladas). Resuelve { ok: true, student } con el alumno como
+    // quedó (mismos campos que list, con deletedAt null) o { ok: false, error: { code, message } },
+    // sin cambiar nada: STUDENT_NOT_FOUND indica que no existe en la institución,
+    // STUDENT_NOT_DELETED, que ya estaba vigente, y DUPLICATE_VALUE (sin fieldErrors), que otro
+    // alumno vigente de la institución ya tiene su dni o su email; el mensaje dice cuál.
+    restore: (studentId) => ipcRenderer.invoke('students:restore', studentId),
   },
   enrollments: {
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la

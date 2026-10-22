@@ -33,6 +33,18 @@ const EXISTS_NOT_DELETED_SQL = `
      AND fecha_eliminacion IS NULL
 `;
 
+// El alumno $1 de la institución $2, vigente o dado de baja, con lo que la restauración comprueba
+// antes de hacerla.
+const FIND_BY_ID_SQL = `
+  SELECT alumno_id,
+         dni,
+         email,
+         fecha_eliminacion
+    FROM alumno
+   WHERE alumno_id = $1
+     AND institucion_id = $2
+`;
+
 // Si $2 (dni) y $3 (email) ya los tiene un alumno vigente de la institución distinto de $4 (null en
 // un alta). Los dados de baja no cuentan, aunque uq_alumno_institucion_dni y
 // uq_alumno_institucion_email sí: ver duplicateFieldOf.
@@ -111,6 +123,36 @@ const UPDATE_SQL = `
     JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
 `;
 
+// Restauración: la fila vuelve a estar vigente (sin fecha de baja), con el estado que tenía, porque
+// la baja no lo cambia. Sus inscripciones no se tocan: las que la baja canceló siguen canceladas.
+// Solo modifica a un alumno dado de baja de la institución. Devuelve la fila como quedó, con los
+// campos y el estado de FIND_BY_INSTITUTION_SQL salvo fecha_eliminacion (ya está vigente), o
+// ninguna si el alumno no está dado de baja en la institución.
+const RESTORE_SQL = `
+  WITH restored AS (
+    UPDATE alumno
+       SET fecha_eliminacion = NULL
+     WHERE alumno_id = $1
+       AND institucion_id = $2
+       AND fecha_eliminacion IS NOT NULL
+    RETURNING alumno_id, institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
+              direccion_calle, direccion_altura, dni, fecha_nacimiento
+  )
+  SELECT a.alumno_id,
+         a.institucion_id,
+         a.nombre,
+         a.apellido,
+         a.email,
+         a.telefono,
+         a.direccion_calle,
+         a.direccion_altura,
+         a.dni,
+         a.fecha_nacimiento,
+         e.nombre AS estado
+    FROM restored a
+    JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
+`;
+
 // Baja lógica del alumno $1 de la institución $2 y cancelación de sus inscripciones activas, todo o
 // nada: lo hace sp_alumno_dar_de_baja (db/schema.sql). Su parámetro OUT se pasa como NULL y vuelve
 // en la única fila del resultado.
@@ -161,6 +203,14 @@ function toStudent(row) {
 async function findByInstitution(institutionId) {
   const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId]);
   return rows.map(toStudent);
+}
+
+// El alumno con ese id en la institución, vigente o dado de baja, solo con su dni, su email y su
+// fecha de baja (`deletedAt`, null si está vigente): los demás campos quedan undefined. null si no
+// existe en la institución.
+async function findById(studentId, institutionId) {
+  const { rows } = await query(FIND_BY_ID_SQL, [studentId, institutionId]);
+  return rows.length > 0 ? toStudent(rows[0]) : null;
 }
 
 // true si el alumno con ese id es de la institución y no está dado de baja.
@@ -227,6 +277,15 @@ async function update(
   return rows.length > 0 ? toStudent(rows[0]) : null;
 }
 
+// Restaura al alumno dado de baja con ese id en la institución, que vuelve a estar vigente con el
+// estado que tenía y sin cambios en sus inscripciones. Devuelve el alumno como quedó, o null si no
+// existe en la institución o ya estaba vigente. Si su dni o su email fueran de otro alumno de la
+// institución, PostgreSQL rechazaría la restauración: ver duplicateFieldOf.
+async function restore(studentId, institutionId) {
+  const { rows } = await query(RESTORE_SQL, [studentId, institutionId]);
+  return rows.length > 0 ? toStudent(rows[0]) : null;
+}
+
 // Da de baja al alumno vigente con ese id en la institución y cancela sus inscripciones activas, en
 // una sola llamada a sp_alumno_dar_de_baja. Devuelve cuántas inscripciones canceló. Si el alumno no
 // existe en la institución o ya estaba dado de baja, el procedimiento falla sin cambiar nada: ver
@@ -255,10 +314,12 @@ function isAlreadyDeletedError(error) {
 
 module.exports = {
   findByInstitution,
+  findById,
   existsNotDeleted,
   findTakenFields,
   create,
   update,
+  restore,
   markAsDeleted,
   duplicateFieldOf,
   isNotFoundError,

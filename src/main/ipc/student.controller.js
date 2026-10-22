@@ -95,6 +95,23 @@ async function deleteStudent(currentUser, studentId) {
   }
 }
 
+// Nunca rechaza, como deleteStudent. DUPLICATE_VALUE llega sin fieldErrors: no hay un formulario
+// donde marcarlos, y su mensaje ya dice qué dato se repite.
+async function restoreStudent(currentUser, studentId) {
+  if (!isStudentId(studentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar al alumno.');
+  }
+  try {
+    return { ok: true, student: await studentService.restoreStudent(currentUser, studentId) };
+  } catch (error) {
+    if (error instanceof StudentError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al restaurar el alumno:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo restaurar el alumno. Intentá nuevamente.');
+  }
+}
+
 // Sin sesión, con otro rol o con la cuenta suspendida, handleProtected responde UNAUTHENTICATED,
 // FORBIDDEN o ACCOUNT_SUSPENDED sin llamar a la acción.
 function registerStudentHandlers(browserWindow) {
@@ -102,6 +119,7 @@ function registerStudentHandlers(browserWindow) {
   handleProtected(browserWindow, 'students:create', ['SECRETARIO'], createStudent);
   handleProtected(browserWindow, 'students:update', ['SECRETARIO'], updateStudent);
   handleProtected(browserWindow, 'students:delete', ['SECRETARIO'], deleteStudent);
+  handleProtected(browserWindow, 'students:restore', ['SECRETARIO'], restoreStudent);
 }
 
 module.exports = { registerStudentHandlers };

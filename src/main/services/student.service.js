@@ -30,7 +30,9 @@ const STREET_MAX_LENGTH = 150;
 const NOT_STREET_CHAR = new RegExp(`[^${LETTERS}\\d .'°º-]`);
 const STREET_CONTENT_PATTERN = new RegExp(`[${LETTERS}\\d]`);
 
-// Al editar, el propio alumno no cuenta como duplicado: el que ya tiene el dato es "otro".
+// Al editar, el propio alumno no cuenta como duplicado: el que ya tiene el dato es "otro". Al
+// restaurar no hay un formulario donde marcar el campo: el mensaje dice cuál se repite (ver
+// duplicateError).
 const DUPLICATE_MESSAGES = {
   create: {
     message: 'Ya existe un alumno con estos datos.',
@@ -41,6 +43,11 @@ const DUPLICATE_MESSAGES = {
     message: 'Ya existe otro alumno con estos datos.',
     dni: 'Ya existe otro alumno con este DNI.',
     email: 'Ya existe otro alumno con este email.',
+  },
+  restore: {
+    message: 'Ya hay otro alumno vigente con el mismo DNI y el mismo email.',
+    dni: 'Ya hay otro alumno vigente con el mismo DNI.',
+    email: 'Ya hay otro alumno vigente con el mismo email.',
   },
 };
 
@@ -105,11 +112,13 @@ function parseStudentData(data, operation) {
   return { ...values, status: data.status };
 }
 
-// `operation` es 'create' o 'update'.
+// `operation` es 'create', 'update' o 'restore'. Al restaurar, si se repite un solo campo, el
+// mensaje es el suyo: es lo único que se muestra.
 function duplicateError(fields, operation) {
   const messages = DUPLICATE_MESSAGES[operation];
   const fieldErrors = Object.fromEntries(fields.map((field) => [field, messages[field]]));
-  return new StudentError('DUPLICATE_VALUE', messages.message, fieldErrors);
+  const message = operation === 'restore' && fields.length === 1 ? messages[fields[0]] : messages.message;
+  return new StudentError('DUPLICATE_VALUE', message, fieldErrors);
 }
 
 // Lanza un StudentError DUPLICATE_VALUE si el dni o el email de `values` ya son de un alumno
@@ -120,7 +129,7 @@ async function assertNotTaken(institutionId, values, excludedStudentId, operatio
   if (takenFields.length > 0) throw duplicateError(takenFields, operation);
 }
 
-// Ejecuta `save` (el INSERT o el UPDATE). Si la base lo rechaza por uq_alumno_institucion_dni o
+// Ejecuta `save` (el INSERT o un UPDATE). Si la base lo rechaza por uq_alumno_institucion_dni o
 // uq_alumno_institucion_email, se informa como duplicado: pasa si otro alumno tomó el dni o el email
 // entre la comprobación y el guardado, y también si son de un alumno dado de baja, que
 // assertNotTaken no cuenta.
@@ -138,13 +147,17 @@ function studentNotFoundError() {
   return new StudentError('STUDENT_NOT_FOUND', 'El alumno ya no existe.');
 }
 
+function studentNotDeletedError() {
+  return new StudentError('STUDENT_NOT_DELETED', 'El alumno ya había sido restaurado.');
+}
+
 // Lista explícita de campos, como toListedUser (user.service.js): lo que muestran la tabla de
 // Alumnos del Secretario, sus filtros y el modal de edición, y el id para identificar la fila. `dni`
 // y `phone` son solo los dígitos, `street` y `streetNumber` la calle y la altura de la dirección,
 // `birthDate` el día de nacimiento ('AAAA-MM-DD'), `status` ACTIVE o GRADUATED y `deletedAt` el
 // instante de su baja en ISO 8601 (null si está vigente, también cuando la consulta no trae la
-// columna: el alta y la edición solo devuelven alumnos vigentes). Las vistas del Profesor muestran
-// menos datos del alumno: ver toListedStudent (enrollment.service.js).
+// columna: el alta, la edición y la restauración solo devuelven alumnos vigentes). Las vistas del
+// Profesor muestran menos datos del alumno: ver toListedStudent (enrollment.service.js).
 function toListedStudent(student) {
   return {
     id: student.id,
@@ -226,4 +239,32 @@ async function deleteStudent(currentUser, studentId) {
   }
 }
 
-module.exports = { listStudents, createStudent, updateStudent, deleteStudent, StudentError };
+// Restauración del alumno dado de baja con ese id (alumno_id) en la institución de `currentUser`: la
+// fila queda sin fecha de baja, con el estado que tenía, y vuelve a listarse entre los vigentes. Sus
+// inscripciones no cambian: las que la baja canceló siguen canceladas. Devuelve al alumno como
+// quedó, con los campos de listStudents.
+// Al volver a estar vigente, su dni y su email cuentan otra vez en assertNotTaken: si otro alumno
+// vigente de la institución tiene alguno de los dos, no se restaura. uq_alumno_institucion_dni y
+// uq_alumno_institucion_email cuentan también a los dados de baja, así que la base no deja repetir
+// el dni ni el email tal cual; la comprobación previa cubre además el email que solo cambia en
+// mayúsculas, que la restricción distingue, y saveUnique traduce el rechazo de la base si llegara.
+// Lanza un StudentError si el alumno no existe en la institución (STUDENT_NOT_FOUND), si ya estaba
+// vigente (STUDENT_NOT_DELETED) o si su dni o su email ya son de otro alumno vigente de la
+// institución (DUPLICATE_VALUE, con un mensaje que dice cuál).
+async function restoreStudent(currentUser, studentId) {
+  const student = await studentRepository.findById(studentId, currentUser.institutionId);
+  if (!student) throw studentNotFoundError();
+  if (!student.deletedAt) throw studentNotDeletedError();
+  // findTakenFields compara con el email en minúsculas, como lo guardan el alta y la edición
+  const values = { dni: student.dni, email: student.email.toLowerCase() };
+  await assertNotTaken(currentUser.institutionId, values, studentId, 'restore');
+  const restoredStudent = await saveUnique(
+    () => studentRepository.restore(studentId, currentUser.institutionId),
+    'restore'
+  );
+  // Otra sesión lo restauró entre la comprobación y el guardado.
+  if (!restoredStudent) throw studentNotDeletedError();
+  return toListedStudent(restoredStudent);
+}
+
+module.exports = { listStudents, createStudent, updateStudent, deleteStudent, restoreStudent, StudentError };
