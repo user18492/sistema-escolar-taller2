@@ -10,7 +10,7 @@ class Student {
     // Solo los dígitos (7 u 8).
     this.dni = dni;
     this.email = email;
-    // Tal como se guarda: con el formato del formulario (379 412-3456).
+    // Solo los dígitos (10 a 13).
     this.phone = phone;
     // Dirección: la calle (alumno.direccion_calle) y la altura (alumno.direccion_altura), por separado.
     this.street = street;

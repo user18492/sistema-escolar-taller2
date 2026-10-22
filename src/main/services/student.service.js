@@ -21,9 +21,7 @@ class StudentError extends Error {
 // componente: si cambian allá, hay que cambiarlas acá.
 const STUDENT_AGE_RANGE = { minAge: 5, maxAge: 25 };
 
-// El maxlength del campo Teléfono; la columna alumno.telefono admite 30.
-const PHONE_MAX_LENGTH = 20;
-const PHONE_PATTERN = /^\+?([\d -]|\(\d+\))+$/;
+// El teléfono se guarda solo con dígitos, como el dni: el rango es el de ck_alumno_telefono.
 const PHONE_MIN_DIGITS = 10;
 const PHONE_MAX_DIGITS = 13;
 
@@ -49,12 +47,12 @@ const DUPLICATE_MESSAGES = {
 // Estados que se eligen al editar, los de toListedStudent: el alta no elige el estado.
 const STUDENT_STATUSES = ['ACTIVE', 'GRADUATED'];
 
+// Recibe el valor tal como llegó, sin normalizar: el campo solo admite dígitos, así que un espacio,
+// un guion o un + llegan solo si el renderer no los filtró, y se rechazan en lugar de quitarlos.
 function checkPhone(value) {
   if (!value) return REQUIRED_MESSAGE;
-  if (value.length > PHONE_MAX_LENGTH) return `Máximo ${PHONE_MAX_LENGTH} caracteres.`;
-  if (!PHONE_PATTERN.test(value)) return 'Formato de teléfono inválido.';
-  const digitCount = value.replace(/\D/g, '').length;
-  return digitCount >= PHONE_MIN_DIGITS && digitCount <= PHONE_MAX_DIGITS
+  if (!/^\d+$/.test(value)) return 'El teléfono solo admite dígitos, sin espacios, guiones ni otros caracteres.';
+  return value.length >= PHONE_MIN_DIGITS && value.length <= PHONE_MAX_DIGITS
     ? ''
     : `El teléfono debe tener entre ${PHONE_MIN_DIGITS} y ${PHONE_MAX_DIGITS} dígitos.`;
 }
@@ -79,16 +77,17 @@ const CONTACT_FIELD_CHECKS = {
   streetNumber: checkStreetNumber,
 };
 
-// Normaliza los datos del formulario de alumno (el controlador ya verificó que sean strings) y
-// devuelve solo los campos que se guardan. `operation` es 'create' o 'update': el estado se elige
-// solo al editar, así que en el alta no se lee ni se devuelve. Lanza un StudentError INVALID_INPUT:
-// con los fieldErrors de todos los campos de texto que no son válidos, y sin ellos si no lo es el
-// estado, que no tiene un campo de texto donde mostrar el error.
+// Normaliza los datos del formulario de alumno, salvo el teléfono, que se valida tal como llegó (el
+// controlador ya verificó que sean strings), y devuelve solo los campos que se guardan.
+// `operation` es 'create' o 'update': el estado se elige solo al editar, así que en el alta no se
+// lee ni se devuelve. Lanza un StudentError INVALID_INPUT: con los fieldErrors de todos los campos
+// de texto que no son válidos, y sin ellos si no lo es el estado, que no tiene un campo de texto
+// donde mostrar el error.
 function parseStudentData(data, operation) {
   const { values: personalValues, fieldErrors } = parsePersonalData(data, STUDENT_AGE_RANGE);
   const values = {
     ...personalValues,
-    phone: normalizeText(data.phone),
+    phone: data.phone,
     street: normalizeText(data.street),
     streetNumber: data.streetNumber.trim(),
   };
@@ -141,10 +140,9 @@ function studentNotFoundError() {
 
 // Lista explícita de campos, como toListedUser (user.service.js): lo que muestran la tabla de
 // Alumnos del Secretario, sus filtros y el modal de edición, y el id para identificar la fila. `dni`
-// son solo los dígitos, `phone` el teléfono tal como se guarda, `street` y `streetNumber` la calle y
-// la altura de la dirección, `birthDate` el día de nacimiento ('AAAA-MM-DD') y `status` ACTIVE o
-// GRADUATED. Las vistas del Profesor muestran menos datos del alumno: ver toListedStudent
-// (enrollment.service.js).
+// y `phone` son solo los dígitos, `street` y `streetNumber` la calle y la altura de la dirección,
+// `birthDate` el día de nacimiento ('AAAA-MM-DD') y `status` ACTIVE o GRADUATED. Las vistas del
+// Profesor muestran menos datos del alumno: ver toListedStudent (enrollment.service.js).
 function toListedStudent(student) {
   return {
     id: student.id,

@@ -213,18 +213,18 @@ contextBridge.exposeInMainWorld('api', {
   students: {
     // Solo SECRETARIO. Resuelve { ok: true, students } con todos los alumnos de su institución,
     // activos y egresados ({ id, firstName, lastName, dni, email, phone, street, streetNumber,
-    // birthDate, status }, con dni solo los dígitos, phone el teléfono tal como se guardó
-    // (379 412-3456), street y streetNumber la calle y la altura de la dirección, birthDate
-    // 'AAAA-MM-DD' y status 'ACTIVE' o 'GRADUATED'), o { ok: false, error: { code, message } }.
+    // birthDate, status }, con dni y phone solo los dígitos, street y streetNumber la calle y la
+    // altura de la dirección, birthDate 'AAAA-MM-DD' y status 'ACTIVE' o 'GRADUATED'), o
+    // { ok: false, error: { code, message } }.
     // Llegan siempre en el mismo orden: por apellido y nombre.
     list: () => ipcRenderer.invoke('students:list'),
     // Solo SECRETARIO. Registra un alumno en su institución, siempre activo: el estado no se elige en
     // el alta. `data` es { firstName, lastName, dni, email, phone, street, streetNumber, birthDate },
-    // con dni solo los dígitos, street y streetNumber la calle y la altura de la dirección y birthDate
-    // 'AAAA-MM-DD'. Resuelve { ok: true, student } con el alumno creado (mismos campos que list) o
-    // { ok: false, error: { code, message, fieldErrors } }: fieldErrors ({ campo: mensaje }) llega con
-    // INVALID_INPUT (campos inválidos) y con DUPLICATE_VALUE (dni o email de otro alumno de la
-    // institución, también si fue dado de baja).
+    // con dni y phone solo los dígitos (un phone con otro carácter se rechaza), street y streetNumber
+    // la calle y la altura de la dirección y birthDate 'AAAA-MM-DD'. Resuelve { ok: true, student }
+    // con el alumno creado (mismos campos que list) o { ok: false, error: { code, message,
+    // fieldErrors } }: fieldErrors ({ campo: mensaje }) llega con INVALID_INPUT (campos inválidos) y
+    // con DUPLICATE_VALUE (dni o email de otro alumno de la institución, también si fue dado de baja).
     create: (data) => ipcRenderer.invoke('students:create', data),
     // Solo SECRETARIO. Guarda los cambios del alumno vigente con ese id (alumno_id) de su
     // institución. `data` trae los mismos campos que create y además status ('ACTIVE' o

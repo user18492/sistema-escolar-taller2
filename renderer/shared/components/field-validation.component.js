@@ -40,8 +40,6 @@
   const EMAIL_MAX_LENGTH = 254;
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const PHONE_PATTERN = /^\+?([\d -]|\(\d+\))+$/;
-
   // Mismas reglas y mensajes que password.service.js, que el renderer no puede importar: 12
   // caracteres o más, 72 bytes UTF-8 o menos (lo que admite bcrypt) y al menos una mayúscula,
   // una minúscula, un dígito y un símbolo.
@@ -211,16 +209,11 @@
       format: (value) => value.trim().toLowerCase(),
       validate: (value) => (isValidEmail(value) ? '' : 'El email no es válido.'),
     },
+    // Solo dígitos, como se guarda: lo escrito o pegado que no lo sea se descarta, y se muestra sin
+    // agrupar, porque un formato fijo agruparía mal los números de otras zonas
     phone: {
-      maxLength: 20,
-      sanitize: (value) =>
-        value.replace(/[^\d ()+-]/g, '').replace(/\+/g, (plus, index) => (index === 0 ? plus : '')),
-      format: collapseSpaces,
-      validate: (value) => {
-        if (!PHONE_PATTERN.test(value)) return 'Formato de teléfono inválido.';
-        const digitCount = digitsOf(value).length;
-        return digitCount >= 10 && digitCount <= 13 ? '' : 'El teléfono debe tener entre 10 y 13 dígitos.';
-      },
+      mask: { maxDigits: 13, format: (digits) => digits },
+      validate: (value) => (/^\d{10,13}$/.test(value) ? '' : 'El teléfono debe tener entre 10 y 13 dígitos.'),
     },
     street: {
       maxLength: 150,

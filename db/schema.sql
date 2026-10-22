@@ -19,14 +19,16 @@ CREATE TABLE institucion (
     direccion_calle   VARCHAR(150),
     direccion_altura  VARCHAR(20),
     email             VARCHAR(254),
-    telefono          VARCHAR(30),
+    telefono          VARCHAR(13),
+    -- Solo los dígitos (10 a 13), sin espacios, guiones ni +
     cuit              VARCHAR(13)   NOT NULL,
     -- Con guiones: XX-XXXXXXXX-X
 
     CONSTRAINT pk_institucion PRIMARY KEY (institucion_id),
     CONSTRAINT uq_institucion_cuit UNIQUE (cuit),
     CONSTRAINT ck_institucion_nombre CHECK (nombre = btrim(nombre) AND nombre <> ''),
-    CONSTRAINT ck_institucion_cuit CHECK (cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$')
+    CONSTRAINT ck_institucion_cuit CHECK (cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'),
+    CONSTRAINT ck_institucion_telefono CHECK (telefono ~ '^[0-9]{10,13}$')
 );
 
 -- Roles
@@ -433,7 +435,8 @@ CREATE TABLE alumno (
     nombre             VARCHAR(100)  NOT NULL,
     apellido           VARCHAR(100)  NOT NULL,
     email              VARCHAR(254)  NOT NULL,
-    telefono           VARCHAR(30)   NOT NULL,
+    telefono           VARCHAR(13)   NOT NULL,
+    -- Solo los dígitos (10 a 13), sin espacios, guiones ni +
     direccion_calle    VARCHAR(150)  NOT NULL,
     direccion_altura   VARCHAR(20)   NOT NULL,
     dni                VARCHAR(8)    NOT NULL,
@@ -446,7 +449,8 @@ CREATE TABLE alumno (
     CONSTRAINT fk_alumno_institucion FOREIGN KEY (institucion_id) REFERENCES institucion(institucion_id),
     CONSTRAINT fk_alumno_alumno_estado FOREIGN KEY (alumno_estado_id) REFERENCES alumno_estado(alumno_estado_id),
     CONSTRAINT uq_alumno_institucion_dni UNIQUE (institucion_id, dni),
-    CONSTRAINT uq_alumno_institucion_email UNIQUE (institucion_id, email)
+    CONSTRAINT uq_alumno_institucion_email UNIQUE (institucion_id, email),
+    CONSTRAINT ck_alumno_telefono CHECK (telefono ~ '^[0-9]{10,13}$')
 );
 
 -- institucion_id no necesita un índice propio: ya es la primera columna de los índices de las
