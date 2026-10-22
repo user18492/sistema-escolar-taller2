@@ -47,7 +47,8 @@ const FIND_BY_ID_SQL = `
 
 // Si $2 (dni) y $3 (email) ya los tiene un alumno vigente de la institución distinto de $4 (null en
 // un alta). Los dados de baja no cuentan, aunque uq_alumno_institucion_dni y
-// uq_alumno_institucion_email sí: ver duplicateFieldOf.
+// uq_alumno_institucion_email sí: el alta los busca aparte (FIND_DELETED_BY_DNI_OR_EMAIL_SQL) y, al
+// editar, los rechaza la base (ver duplicateFieldOf).
 // alumno no tiene un CHECK de minúsculas como usuario: el email se compara en minúsculas, como
 // llega normalizado.
 const FIND_TAKEN_FIELDS_SQL = `
@@ -58,6 +59,26 @@ const FIND_TAKEN_FIELDS_SQL = `
      AND fecha_eliminacion IS NULL
      AND alumno_id IS DISTINCT FROM $4
      AND (dni = $2 OR LOWER(email) = $3)
+`;
+
+// Un alumno dado de baja de la institución $1 con el dni $2 o el email $3 (en minúsculas, como en
+// FIND_TAKEN_FIELDS_SQL), con lo que el alta necesita para nombrarlo. Las restricciones UNIQUE
+// dejan a lo sumo uno con ese dni y otro con ese email; si son distintos, primero el del dni, que
+// identifica a la persona. El resto del orden (la baja más reciente) solo desempata emails que
+// difieren en mayúsculas.
+const FIND_DELETED_BY_DNI_OR_EMAIL_SQL = `
+  SELECT alumno_id,
+         nombre,
+         apellido,
+         dni,
+         email,
+         fecha_eliminacion
+    FROM alumno
+   WHERE institucion_id = $1
+     AND fecha_eliminacion IS NOT NULL
+     AND (dni = $2 OR LOWER(email) = $3)
+   ORDER BY dni = $2 DESC, fecha_eliminacion DESC, alumno_id DESC
+   LIMIT 1
 `;
 
 // Alta: el alumno nace vigente y ACTIVO. Devuelve la fila creada con los campos y el estado de
@@ -230,6 +251,15 @@ async function findTakenFields(institutionId, { dni, email }, excludedStudentId)
   return fields;
 }
 
+// Un alumno dado de baja de la institución con ese dni o ese email (los espera como
+// findTakenFields), solo con su nombre, su apellido, su dni, su email y su `deletedAt`: los demás
+// campos quedan undefined. Si el dni es de uno y el email de otro, el del dni. null si no hay
+// ninguno.
+async function findDeletedByDniOrEmail(institutionId, { dni, email }) {
+  const { rows } = await query(FIND_DELETED_BY_DNI_OR_EMAIL_SQL, [institutionId, dni, email]);
+  return rows.length > 0 ? toStudent(rows[0]) : null;
+}
+
 // Crea un alumno vigente y activo en la institución. `birthDate` es 'AAAA-MM-DD' y `street` y
 // `streetNumber`, la calle y la altura de la dirección. Devuelve el alumno creado. Si el dni o el
 // email ya son de otro alumno de la institución, vigente o dado de baja, PostgreSQL rechaza el alta:
@@ -317,6 +347,7 @@ module.exports = {
   findById,
   existsNotDeleted,
   findTakenFields,
+  findDeletedByDniOrEmail,
   create,
   update,
   restore,

@@ -224,8 +224,10 @@ contextBridge.exposeInMainWorld('api', {
     // con dni y phone solo los dígitos (un phone con otro carácter se rechaza), street y streetNumber
     // la calle y la altura de la dirección y birthDate 'AAAA-MM-DD'. Resuelve { ok: true, student }
     // con el alumno creado (mismos campos que list) o { ok: false, error: { code, message,
-    // fieldErrors } }: fieldErrors ({ campo: mensaje }) llega con INVALID_INPUT (campos inválidos) y
-    // con DUPLICATE_VALUE (dni o email de otro alumno de la institución, también si fue dado de baja).
+    // fieldErrors } }, sin crear nada: fieldErrors ({ campo: mensaje }) llega con INVALID_INPUT (campos
+    // inválidos) y con DUPLICATE_VALUE (dni o email de otro alumno vigente de la institución), y
+    // DELETED_STUDENT_EXISTS (sin fieldErrors) indica que son de un alumno dado de baja: en lugar de
+    // registrarlo otra vez, hay que restaurarlo desde Eliminados; el mensaje lo nombra.
     create: (data) => ipcRenderer.invoke('students:create', data),
     // Solo SECRETARIO. Guarda los cambios del alumno vigente con ese id (alumno_id) de su
     // institución. `data` trae los mismos campos que create y además status ('ACTIVE' o

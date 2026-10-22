@@ -10,7 +10,8 @@
 // pasa a cancelada, y Restaurar alumno lo devuelve a Vigentes con el estado que tenía
 // (window.api.students.restore), sin reactivar sus inscripciones. Las dos últimas se confirman antes
 // en un modal (confirm-modal.component.js). El resultado de las cuatro se avisa con un toast
-// (toast.component.js), salvo los errores de un campo, que se marcan en el formulario. Editar
+// (toast.component.js), salvo los errores de un campo, que se marcan en el formulario. Un alta con
+// el DNI o el email de un alumno dado de baja no se hace: el toast manda a restaurarlo. Editar
 // completa el formulario con los datos del alumno cargado.
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -522,6 +523,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Registra o guarda según el modo; al terminar cierra el modal y lo avisa con un toast. Los errores
   // de un campo se marcan en el formulario y los demás salen en un toast: en ambos casos el modal
   // sigue abierto con lo que se escribió. Solo se cierra si el alumno que se editaba ya no existe.
+  // Un alta con el DNI o el email de un alumno dado de baja (DELETED_STUDENT_EXISTS) no lo registra:
+  // el toast lo nombra y manda a restaurarlo desde Eliminados.
   const saveStudent = async () => {
     const studentId = editingStudentId;
     setSaving(true);
@@ -535,9 +538,11 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error al guardar el alumno:', error);
     }
     // El alumno que se editaba ya no está vigente: la lista se vuelve a pedir antes de liberar el
-    // modal, que se cierra más abajo
+    // modal, que se cierra más abajo. Con un dado de baja en el alta, también, con el modal abierto:
+    // si otra sesión lo dio de baja después de la carga, Eliminados todavía no lo tiene
     const isGone = isEditing && response?.error?.code === 'STUDENT_NOT_FOUND';
-    if (isGone) await loadStudents();
+    const isDeletedMatch = response?.error?.code === 'DELETED_STUDENT_EXISTS';
+    if (isGone || isDeletedMatch) await loadStudents();
     setSaving(false);
 
     if (response?.ok) {
