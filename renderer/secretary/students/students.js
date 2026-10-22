@@ -1,12 +1,15 @@
-// Vista Alumnos del Secretario: la tabla muestra los alumnos vigentes de la institución, que llegan
-// del proceso principal (window.api.students.list), y los filtros de columna los filtran en memoria.
+// Vista Alumnos del Secretario: la tabla muestra los alumnos de la institución, que llegan del
+// proceso principal (window.api.students.list), y los filtros de columna los filtran en memoria.
 // La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
+// Las pestañas (tab-list.component.js) separan a los vigentes de los dados de baja, que llegan en la
+// misma lista con su deletedAt, y cada una muestra cuántos tiene. Las dos comparten las columnas; en
+// Eliminados, la única acción de la fila es Restaurar, que por ahora es solo visual.
 // Nuevo alumno lo registra, siempre activo (window.api.students.create), Editar alumno guarda los
 // cambios, entre ellos el estado (window.api.students.update), y Eliminar alumno lo da de baja (baja
-// lógica, window.api.students.delete), junto con su inscripción activa, que pasa a cancelada,
-// después de confirmarlo en un modal (confirm-modal.component.js). El resultado de las tres se avisa
-// con un toast (toast.component.js), salvo los errores de un campo, que se marcan en el formulario.
-// Editar completa el formulario con los datos del alumno cargado.
+// lógica, window.api.students.delete) y lo pasa a Eliminados, junto con su inscripción activa, que
+// pasa a cancelada, después de confirmarlo en un modal (confirm-modal.component.js). El resultado de
+// las tres se avisa con un toast (toast.component.js), salvo los errores de un campo, que se marcan
+// en el formulario. Editar completa el formulario con los datos del alumno cargado.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -20,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Los filtros de Nombre / Email / Teléfono / DNI / Estado viven en los encabezados de la tabla y
   // los gestiona el componente compartido column-filter.js.
+  const tabList = document.querySelector('.students-card .tab-list');
   const table = document.querySelector('.students-card .data-table');
   const tbody = table.tBodies[0];
   const rowTemplate = document.getElementById('studentRowTemplate');
@@ -35,11 +39,25 @@ document.addEventListener('DOMContentLoaded', () => {
     Array.from(document.querySelectorAll('#statusFilter .dropdown-option'), (option) => [option.dataset.value, option.textContent.trim()])
   );
 
-  // En el orden en que llegan del proceso principal: por apellido y nombre
+  // Vigentes y dados de baja juntos, en el orden en que llegan del proceso principal: por apellido y
+  // nombre
   let students = [];
   let isLoaded = false;
+  // Pestaña elegida, por su data-tab: 'current' (Vigentes) o 'deleted' (Eliminados)
+  let activeTab = tabList.querySelector('[aria-selected="true"]').dataset.tab;
   // Valores elegidos en cada filtro de columna, por su data-filter
   const activeFilters = {};
+
+  // Los dados de baja traen el instante de su baja (deletedAt); los vigentes, null
+  const tabOf = (student) => (student.deletedAt ? 'deleted' : 'current');
+  // Alumnos de la pestaña `tab` (por defecto, la elegida), en el orden de la lista
+  const studentsOfTab = (tab = activeTab) => students.filter((student) => tabOf(student) === tab);
+
+  // Tabla vacía porque la pestaña elegida no tiene alumnos
+  const EMPTY_TAB_MESSAGES = {
+    current: 'No hay alumnos registrados.',
+    deleted: 'No hay alumnos eliminados.',
+  };
 
   // "Apellido, Nombre"
   const fullName = (student) => `${student.lastName ?? ''}, ${student.firstName ?? ''}`;
@@ -83,6 +101,14 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.replaceChildren(row);
   };
 
+  // Cantidad de alumnos de cada pestaña, sin contar los filtros de columna. Mientras no hay lista
+  // cargada queda vacía, y tab-list.css la oculta.
+  const renderTabCounts = () => {
+    tabList.querySelectorAll('[role="tab"]').forEach((tab) => {
+      tab.querySelector('.tab-count').textContent = isLoaded ? String(studentsOfTab(tab.dataset.tab).length) : '';
+    });
+  };
+
   // Los datos de la base se asignan siempre con textContent, nunca como HTML
   const fillOption = (option, [name, detail]) => {
     option.querySelector('.option-name').textContent = name ?? '';
@@ -96,17 +122,28 @@ document.addEventListener('DOMContentLoaded', () => {
     return option;
   };
 
-  // Opciones de Nombre, Email, Teléfono y DNI: una por alumno, en el orden de la tabla y antes de
-  // .dropdown-empty; column-filter.js las lee al usarlas. Llegan sin marcar, así que esos filtros
-  // dejan de aplicarse y sus embudos se actualizan.
+  // Opciones de Nombre, Email, Teléfono y DNI: una por alumno de la pestaña elegida, en el orden de
+  // la tabla y antes de .dropdown-empty; column-filter.js las lee al usarlas. Llegan sin marcar, así
+  // que esos filtros dejan de aplicarse y sus embudos se actualizan.
   const fillFilterOptions = () => {
+    const tabStudents = studentsOfTab();
     Object.entries(FILTER_OPTION_TEXTS).forEach(([filter, textsOf]) => {
       const header = table.querySelector(`th[data-filter="${filter}"]`);
       const list = header.querySelector('[role="listbox"]');
       const emptyState = list.querySelector('.dropdown-empty');
-      list.replaceChildren(...students.map((student) => createOption(student, textsOf(student))), emptyState);
+      list.replaceChildren(...tabStudents.map((student) => createOption(student, textsOf(student))), emptyState);
       delete activeFilters[filter];
       header.dispatchEvent(new Event('column-filter-refresh'));
+    });
+  };
+
+  // Al cambiar de pestaña, ningún filtro de columna queda con algo elegido. column-filter-reset no
+  // emite column-filter-change: la tabla se vuelve a dibujar después, una sola vez.
+  const clearAllFilters = () => {
+    document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
+    table.querySelectorAll('th.column-filter').forEach((header) => {
+      delete activeFilters[header.dataset.filter];
+      header.dispatchEvent(new Event('column-filter-reset'));
     });
   };
 
@@ -114,6 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const createRow = (student) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.studentId = String(student.id);
+    // <row-actions> genera sus botones al conectarse, y con restore-label genera solo Restaurar: se
+    // le quita antes de insertar la fila de un vigente, que lleva Editar y Eliminar
+    if (tabOf(student) === 'current') row.querySelector('row-actions').removeAttribute('restore-label');
     row.cells[0].querySelector('.text-truncate').textContent = fullName(student);
     row.cells[1].querySelector('.text-truncate').textContent = student.email ?? '';
     row.cells[2].textContent = student.phone ?? '';
@@ -127,21 +167,23 @@ document.addEventListener('DOMContentLoaded', () => {
     return row;
   };
 
-  // Muestra la página `page` (por defecto, la actual) de los alumnos que pasan los filtros (10 por
-  // página, en memoria): el total y los números de página salen de esa lista filtrada. Al cambiar
-  // un filtro se vuelve a la página 1; al recargar se conserva, y el componente la acota a la
-  // última que quede.
+  // Muestra la página `page` (por defecto, la actual) de los alumnos de la pestaña elegida que pasan
+  // los filtros (10 por página, en memoria): el total y los números de página salen de esa lista
+  // filtrada. Al cambiar un filtro o de pestaña se vuelve a la página 1; al recargar se conserva, y
+  // el componente la acota a la última que quede.
   const renderRows = ({ page } = {}) => {
-    const visibleStudents = students.filter(matchesFilters);
+    const tabStudents = studentsOfTab();
+    const visibleStudents = tabStudents.filter(matchesFilters);
     const pageStudents = pagination.slice(visibleStudents, { page });
     if (pageStudents.length) tbody.replaceChildren(...pageStudents.map(createRow));
-    else showMessage(students.length ? 'Ningún alumno coincide con los filtros.' : 'No hay alumnos registrados.');
+    else showMessage(tabStudents.length ? 'Ningún alumno coincide con los filtros.' : EMPTY_TAB_MESSAGES[activeTab]);
   };
 
   // Punto de entrada también para volver a pedir la lista cuando la que está en memoria quedó
-  // vieja. Conserva la página y el filtro de Estado.
+  // vieja. Conserva la pestaña, la página y el filtro de Estado.
   async function loadStudents() {
     isLoaded = false;
+    renderTabCounts();
     showMessage('Cargando alumnos…');
     let response;
     try {
@@ -156,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     students = response.students;
     isLoaded = true;
     fillFilterOptions();
+    renderTabCounts();
     renderRows();
   }
 
@@ -164,6 +207,16 @@ document.addEventListener('DOMContentLoaded', () => {
   table.tHead.addEventListener('column-filter-change', (event) => {
     activeFilters[event.target.dataset.filter] = event.detail.values;
     if (isLoaded) renderRows({ page: 1 });
+  });
+
+  // Otra pestaña: sus alumnos, con las mismas columnas, sin filtros de columna y desde la página 1.
+  // Los contadores no cambian. Mientras carga o si la carga falló, la tabla sigue con su mensaje.
+  tabList.addEventListener('tab-change', (event) => {
+    activeTab = event.detail.tab;
+    clearAllFilters();
+    if (!isLoaded) return;
+    fillFilterOptions();
+    renderRows({ page: 1 });
   });
 
   // Previo, Siguiente o un número: el componente ya marcó la página nueva
@@ -190,10 +243,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const findOption = (list, id) =>
     Array.from(list.querySelectorAll('.dropdown-option')).find((candidate) => candidate.dataset.value === id);
 
-  // Agrega al alumno creado a la lista en memoria, en su lugar alfabético, y a las opciones de
-  // Nombre, Email, Teléfono y DNI, sin tocar los filtros: si coincide con los activos, la tabla pasa
-  // a la página donde quedó; si no, no se muestra. Si la lista no se había podido cargar, se vuelve
-  // a pedir: mostrar solo al alumno nuevo taparía el error.
+  // Agrega al alumno creado a la lista en memoria, en su lugar alfabético, y lo suma a Vigentes. Si
+  // es la pestaña elegida, lo agrega también a las opciones de Nombre, Email, Teléfono y DNI, sin
+  // tocar los filtros: si coincide con los activos, la tabla pasa a la página donde quedó; si no, no
+  // se muestra. Con Eliminados elegida, solo cambia el contador. Si la lista no se había podido
+  // cargar, se vuelve a pedir: mostrar solo al alumno nuevo taparía el error.
   const insertStudent = (newStudent) => {
     if (!isLoaded) {
       loadStudents();
@@ -202,14 +256,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const index = students.findIndex((student) => compareStudents(newStudent, student) < 0);
     const position = index === -1 ? students.length : index;
     students = students.toSpliced(position, 0, newStudent);
-    // Su opción va antes de la del alumno que lo sigue en la lista
-    const nextStudent = students[position + 1];
+    renderTabCounts();
+    if (tabOf(newStudent) !== activeTab) return;
+    // Su opción va antes de la del alumno que lo sigue en la pestaña
+    const nextStudent = students.slice(position + 1).find((student) => tabOf(student) === activeTab);
     Object.entries(FILTER_OPTION_TEXTS).forEach(([filter, textsOf]) => {
       const list = table.querySelector(`th[data-filter="${filter}"] [role="listbox"]`);
       const reference = (nextStudent && findOption(list, String(nextStudent.id))) ?? list.querySelector('.dropdown-empty');
       list.insertBefore(createOption(newStudent, textsOf(newStudent)), reference);
     });
-    const visibleIndex = students.filter(matchesFilters).indexOf(newStudent);
+    const visibleIndex = studentsOfTab().filter(matchesFilters).indexOf(newStudent);
     renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
   };
 
@@ -231,13 +287,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows();
   };
 
-  // Quita al alumno dado de baja de la lista en memoria y de las opciones de Nombre, Email, Teléfono
-  // y DNI, sin recargar la lista. Si su opción estaba marcada, deja de filtrar y el embudo se
-  // actualiza. La página se conserva; si era la última y quedó vacía, el componente pasa a la
-  // anterior.
-  const removeStudent = (studentId) => {
+  // Pasa a Eliminados al alumno dado de baja, sin recargar la lista: en la lista en memoria conserva
+  // su lugar y recibe como deletedAt el instante actual (la tabla no lo muestra; el de la base llega
+  // en la próxima carga), y los contadores se actualizan. Como las bajas se hacen desde Vigentes,
+  // sale de la pestaña elegida y de las opciones de Nombre, Email, Teléfono y DNI: si su opción
+  // estaba marcada, deja de filtrar y el embudo se actualiza. La página se conserva; si era la
+  // última y quedó vacía, el componente pasa a la anterior.
+  const moveToDeleted = (studentId) => {
     const id = String(studentId);
-    students = students.filter((student) => String(student.id) !== id);
+    const deletedAt = new Date().toISOString();
+    students = students.map((student) => (String(student.id) === id ? { ...student, deletedAt } : student));
     Object.keys(FILTER_OPTION_TEXTS).forEach((filter) => {
       const header = table.querySelector(`th[data-filter="${filter}"]`);
       const option = findOption(header, id);
@@ -248,6 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
       activeFilters[filter] = (activeFilters[filter] ?? []).filter((value) => value !== id);
       header.dispatchEvent(new Event('column-filter-refresh'));
     });
+    renderTabCounts();
     renderRows();
   };
 
@@ -551,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
     if (response?.ok || isGone) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
     if (response?.ok) {
-      removeStudent(row.dataset.studentId);
+      moveToDeleted(row.dataset.studentId);
       // La base admite una sola inscripción activa por alumno
       const cancelledText = response.cancelledEnrollmentCount > 0 ? ' y se canceló su inscripción activa' : '';
       showToast({

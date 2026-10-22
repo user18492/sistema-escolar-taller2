@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/buttons.css" />
+    <link rel="stylesheet" href="../../shared/styles/tab-list.css" />
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/badge.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
@@ -33,6 +34,7 @@
     <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
     <script src="../../shared/components/search-bar.component.js"></script>
+    <script src="../../shared/components/tab-list.component.js"></script>
     <script src="../../shared/components/table-pagination.component.js"></script>
     <script src="../../shared/components/row-actions.component.js"></script>
     <script src="../../shared/components/status-badge.component.js"></script>
@@ -58,7 +60,19 @@
           </div>
 
           <section class="card students-card">
-            <div class="table-wrap">
+            <!-- Pestañas: students.js lista los alumnos de la elegida y escribe cuántos tiene cada una -->
+            <div class="tab-list" role="tablist" aria-label="Alumnos vigentes o eliminados">
+              <button type="button" class="tab" role="tab" id="currentStudentsTab" data-tab="current" aria-selected="true" aria-controls="studentsTabPanel">
+                Vigentes
+                <span class="tab-count"></span>
+              </button>
+              <button type="button" class="tab" role="tab" id="deletedStudentsTab" data-tab="deleted" aria-selected="false" aria-controls="studentsTabPanel" tabindex="-1">
+                Eliminados
+                <span class="tab-count"></span>
+              </button>
+            </div>
+
+            <div class="table-wrap" id="studentsTabPanel" role="tabpanel" aria-labelledby="currentStudentsTab">
               <table class="data-table">
                 <thead>
                   <tr>
@@ -124,8 +138,10 @@
 
             <table-pagination results="" label="Paginación de alumnos" pages="1"></table-pagination>
 
-            <!-- Plantillas: students.js las completa con los alumnos que devuelve el proceso principal:
-                 una fila y una opción de los filtros Nombre, Email, Teléfono y DNI por cada alumno -->
+            <!-- Plantillas: students.js las completa con los alumnos de la pestaña elegida: una fila y
+                 una opción de los filtros Nombre, Email, Teléfono y DNI por cada alumno. Las dos
+                 pestañas comparten las columnas; con restore-label, <row-actions> genera solo
+                 Restaurar, así que las filas de Vigentes lo pierden y llevan Editar y Eliminar -->
             <template id="studentRowTemplate">
               <tr>
                 <td class="student-name col-name col-truncate"><span class="text-truncate"></span></td>
@@ -138,7 +154,7 @@
                   <status-badge></status-badge>
                 </td>
                 <td>
-                  <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno"></row-actions>
+                  <row-actions edit-label="Editar alumno" delete-label="Eliminar alumno" restore-label="Restaurar alumno"></row-actions>
                 </td>
               </tr>
             </template>

@@ -1,8 +1,8 @@
 const { query } = require('../database/connection');
 const { Student } = require('../models/student.model');
 
-// Listado de los alumnos vigentes de una institución, con el nombre de su estado: los dados de baja
-// no se listan.
+// Listado de los alumnos de una institución, vigentes y dados de baja (fecha_eliminacion los
+// distingue), con el nombre de su estado.
 // El orden es total: el apellido y el nombre; alumno_id mantiene juntos los datos de dos alumnos
 // que se llaman igual, así dos consultas sobre los mismos datos dan siempre el mismo orden.
 const FIND_BY_INSTITUTION_SQL = `
@@ -16,11 +16,11 @@ const FIND_BY_INSTITUTION_SQL = `
          a.direccion_altura,
          a.dni,
          a.fecha_nacimiento,
+         a.fecha_eliminacion,
          e.nombre AS estado
     FROM alumno a
     JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
    WHERE a.institucion_id = $1
-     AND a.fecha_eliminacion IS NULL
    ORDER BY a.apellido, a.nombre, a.alumno_id
 `;
 
@@ -49,7 +49,7 @@ const FIND_TAKEN_FIELDS_SQL = `
 `;
 
 // Alta: el alumno nace vigente y ACTIVO. Devuelve la fila creada con los campos y el estado de
-// FIND_BY_INSTITUTION_SQL.
+// FIND_BY_INSTITUTION_SQL, salvo fecha_eliminacion: está vigente.
 const CREATE_SQL = `
   WITH created AS (
     INSERT INTO alumno (institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
@@ -76,8 +76,8 @@ const CREATE_SQL = `
 
 // Solo modifica a un alumno vigente de la institución, sin tocar su institución ni su
 // fecha_eliminacion. El estado llega como un valor de alumno_estado.nombre ($3). Devuelve la fila
-// como quedó, con los campos y el estado de FIND_BY_INSTITUTION_SQL, o ninguna si el alumno no está
-// vigente en la institución.
+// como quedó, con los campos y el estado de FIND_BY_INSTITUTION_SQL salvo fecha_eliminacion (sigue
+// vigente), o ninguna si el alumno no está vigente en la institución.
 const UPDATE_SQL = `
   WITH updated AS (
     UPDATE alumno
@@ -152,10 +152,12 @@ function toStudent(row) {
     streetNumber: row.direccion_altura,
     birthDate: row.fecha_nacimiento,
     status: STATUS_BY_COLUMN_VALUE[row.estado],
+    deletedAt: row.fecha_eliminacion,
   });
 }
 
-// Alumnos vigentes de la institución, ordenados por apellido y nombre.
+// Alumnos de la institución, vigentes y dados de baja (con `deletedAt`), ordenados por apellido y
+// nombre.
 async function findByInstitution(institutionId) {
   const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId]);
   return rows.map(toStudent);

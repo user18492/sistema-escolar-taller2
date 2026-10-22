@@ -141,8 +141,10 @@ function studentNotFoundError() {
 // Lista explícita de campos, como toListedUser (user.service.js): lo que muestran la tabla de
 // Alumnos del Secretario, sus filtros y el modal de edición, y el id para identificar la fila. `dni`
 // y `phone` son solo los dígitos, `street` y `streetNumber` la calle y la altura de la dirección,
-// `birthDate` el día de nacimiento ('AAAA-MM-DD') y `status` ACTIVE o GRADUATED. Las vistas del
-// Profesor muestran menos datos del alumno: ver toListedStudent (enrollment.service.js).
+// `birthDate` el día de nacimiento ('AAAA-MM-DD'), `status` ACTIVE o GRADUATED y `deletedAt` el
+// instante de su baja en ISO 8601 (null si está vigente, también cuando la consulta no trae la
+// columna: el alta y la edición solo devuelven alumnos vigentes). Las vistas del Profesor muestran
+// menos datos del alumno: ver toListedStudent (enrollment.service.js).
 function toListedStudent(student) {
   return {
     id: student.id,
@@ -155,11 +157,12 @@ function toListedStudent(student) {
     streetNumber: student.streetNumber,
     birthDate: toIsoDate(student.birthDate),
     status: student.status,
+    deletedAt: student.deletedAt instanceof Date ? student.deletedAt.toISOString() : null,
   };
 }
 
-// Alumnos vigentes de la institución de `currentUser` (el de la sesión), activos y egresados, en el
-// orden del repositorio. Los dados de baja no se listan.
+// Alumnos de la institución de `currentUser` (el de la sesión), vigentes y dados de baja, activos y
+// egresados, en el orden del repositorio.
 async function listStudents(currentUser) {
   const students = await studentRepository.findByInstitution(currentUser.institutionId);
   return students.map(toListedStudent);
@@ -204,9 +207,9 @@ async function updateStudent(currentUser, studentId, data) {
 }
 
 // Baja lógica del alumno vigente con ese id (alumno_id) en la institución de `currentUser`: la fila
-// queda con su fecha de baja y su estado, y deja de listarse. Sus inscripciones activas pasan a
-// canceladas, así ya no se lo puede calificar. Todo lo hace la base en sp_alumno_dar_de_baja, todo o
-// nada: acá solo se lo llama y se traducen sus errores.
+// queda con su fecha de baja y su estado, y se lista entre los dados de baja. Sus inscripciones
+// activas pasan a canceladas, así ya no se lo puede calificar. Todo lo hace la base en
+// sp_alumno_dar_de_baja, todo o nada: acá solo se lo llama y se traducen sus errores.
 // Devuelve { cancelledEnrollmentCount }, cuántas inscripciones activas se cancelaron (0 o 1).
 // Lanza un StudentError si el alumno no existe en la institución (STUDENT_NOT_FOUND) o si ya estaba
 // dado de baja (STUDENT_ALREADY_DELETED).

@@ -21,6 +21,15 @@
   gap: 20px;
 }
 
+/* ---------- Pestañas (Vigentes / Eliminados) ---------- */
+
+/* Primera fila de la card: la lista (tab-list.css) compensa su padding para que la línea inferior
+   la cruce de borde a borde. */
+.students-card .tab-list {
+  margin: -24px -24px 0;
+  padding: 0 24px;
+}
+
 /* ---------- Table ---------- */
 
 /* Nombre, Email y Dirección reparten el espacio libre de la tabla y truncan su texto
