@@ -1,10 +1,11 @@
 // Vista Alumnos del Secretario: la tabla muestra los alumnos de la institución, que llegan del
 // proceso principal (window.api.students.list), y los filtros de columna los filtran en memoria.
 // La lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
-// Nuevo alumno lo registra, siempre activo (window.api.students.create), y avisa el resultado con
+// Nuevo alumno lo registra, siempre activo (window.api.students.create), y Editar alumno guarda los
+// cambios, entre ellos el estado (window.api.students.update). El resultado de las dos se avisa con
 // un toast (toast.component.js), salvo los errores de un campo, que se marcan en el formulario.
-// Editar alumno y Eliminar alumno siguen siendo puramente visuales: no guardan ni eliminan nada.
 // Editar completa el formulario con los datos del alumno cargado.
+// Eliminar alumno sigue siendo puramente visual: no elimina nada.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -82,11 +83,15 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML
-  const createOption = (student, [name, detail]) => {
-    const option = optionTemplate.content.firstElementChild.cloneNode(true);
-    option.dataset.value = String(student.id);
+  const fillOption = (option, [name, detail]) => {
     option.querySelector('.option-name').textContent = name ?? '';
     option.querySelector('.option-detail').textContent = detail ?? '';
+  };
+
+  const createOption = (student, texts) => {
+    const option = optionTemplate.content.firstElementChild.cloneNode(true);
+    option.dataset.value = String(student.id);
+    fillOption(option, texts);
     return option;
   };
 
@@ -167,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadStudents();
 
-  // ---------- Tabla: alumno nuevo ----------
+  // ---------- Tabla: alumno nuevo o editado ----------
 
   // Sin recargar la lista: se conservan los filtros.
 
@@ -179,7 +184,8 @@ document.addEventListener('DOMContentLoaded', () => {
     nameCollator.compare(a.firstName ?? '', b.firstName ?? '') ||
     a.id - b.id;
 
-  // Opción del alumno con ese id (string) en la lista de opciones `list`, o undefined
+  // Opción del alumno con ese id (string) en `list` (una lista de opciones o el encabezado de su
+  // filtro), o undefined
   const findOption = (list, id) =>
     Array.from(list.querySelectorAll('.dropdown-option')).find((candidate) => candidate.dataset.value === id);
 
@@ -204,6 +210,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const visibleIndex = students.filter(matchesFilters).indexOf(newStudent);
     renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
+  };
+
+  // Reemplaza al alumno en la lista en memoria y en las opciones de Nombre, Email, Teléfono y DNI.
+  // Conserva su lugar en la lista aunque cambie su apellido: el orden se actualiza en la próxima
+  // carga. Si ya no coincide con los filtros activos (p. ej., cambió su estado), su fila deja de
+  // mostrarse.
+  const replaceStudent = (updatedStudent) => {
+    const id = String(updatedStudent.id);
+    students = students.map((student) => (String(student.id) === id ? updatedStudent : student));
+    Object.entries(FILTER_OPTION_TEXTS).forEach(([filter, textsOf]) => {
+      const header = table.querySelector(`th[data-filter="${filter}"]`);
+      const option = findOption(header, id);
+      if (!option) return;
+      fillOption(option, textsOf(updatedStudent));
+      // La etiqueta del embudo nombra a las opciones marcadas
+      if (option.classList.contains('selected')) header.dispatchEvent(new Event('column-filter-refresh'));
+    });
+    renderRows();
+  };
+
+  // Posición en la página de la fila del botón que abrió el modal, solo para devolver el foco a la
+  // que ocupe su lugar si esa fila ya no se muestra
+  let triggerRowIndex = 0;
+
+  // El botón Editar de la fila que quedó en su lugar (o de la última de la página), o "Nuevo alumno"
+  // si la tabla quedó sin alumnos
+  const focusAfterRemoval = () => {
+    const buttons = tbody.querySelectorAll('[data-action="edit"]');
+    return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openModalBtn;
   };
 
   // Descripción de los toasts de error: el mensaje del proceso principal. Sin respuesta, o con
@@ -251,9 +286,33 @@ document.addEventListener('DOMContentLoaded', () => {
     streetNumber: streetNumberInput,
   };
 
+  // Texto del botón principal, en reposo y mientras se espera la respuesta, y de los toasts de
+  // éxito y de error, según el modo del modal
+  const MODAL_TEXTS = {
+    create: {
+      submit: 'Crear alumno',
+      saving: 'Creando…',
+      successTitle: 'Alumno creado',
+      successDescription: (student) => `Se registró a ${displayName(student)}.`,
+      errorTitle: 'No se pudo crear el alumno',
+    },
+    edit: {
+      submit: 'Guardar cambios',
+      saving: 'Guardando…',
+      successTitle: 'Alumno actualizado',
+      successDescription: (student) => `Se guardaron los cambios de ${displayName(student)}.`,
+      errorTitle: 'No se pudieron guardar los cambios',
+    },
+  };
+
   let modalTrigger = openModalBtn;
   let isEditing = false;
+  // alumno_id del alumno que se edita, fijado al abrir el modal desde su fila: es el único que se
+  // envía al guardar
+  let editingStudentId = null;
   let isSaving = false;
+
+  const modalTexts = () => MODAL_TEXTS[isEditing ? 'edit' : 'create'];
 
   // Máscaras, formato y errores de los campos de texto: componente compartido
   // field-validation.component.js, según el data-validate de cada campo.
@@ -265,15 +324,15 @@ document.addEventListener('DOMContentLoaded', () => {
     createBtn.disabled = !(hasAllTextInputs && hasStatus);
   }
 
-  // Mientras se espera la respuesta del alta, el cuerpo del modal queda inerte, así lo enviado
-  // coincide con lo que se ve. Los botones del pie quedan con aria-disabled y no con disabled:
-  // conservan el foco, como en confirm-modal.component.js.
+  // Mientras se espera la respuesta, el cuerpo del modal queda inerte, así lo enviado coincide con
+  // lo que se ve. Los botones del pie quedan con aria-disabled y no con disabled: conservan el foco,
+  // como en confirm-modal.component.js.
   const setSaving = (saving) => {
     isSaving = saving;
     modalBody.inert = saving;
     overlay.querySelector('.modal').setAttribute('aria-busy', String(saving));
     [cancelBtn, createBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
-    createBtn.textContent = saving ? 'Creando…' : 'Crear alumno';
+    createBtn.textContent = saving ? modalTexts().saving : modalTexts().submit;
   };
 
   // Marca la opción de estado con ese data-value (ACTIVE o GRADUATED, los mismos que el filtro de la
@@ -306,14 +365,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const student = row ? students.find((candidate) => String(candidate.id) === row.dataset.studentId) : null;
     if (row && !student) return;
     isEditing = Boolean(student);
+    editingStudentId = student?.id ?? null;
     modalTrigger = trigger;
+    triggerRowIndex = row ? Math.max(0, Array.from(tbody.rows).indexOf(row)) : 0;
     resetForm();
 
     modalTitle.textContent = isEditing ? 'Editar alumno' : 'Nuevo alumno';
     modalDescription.textContent = isEditing
       ? 'Modifica los datos del alumno.'
       : 'Completa los datos para registrar un nuevo alumno.';
-    createBtn.textContent = isEditing ? 'Guardar cambios' : 'Crear alumno';
+    createBtn.textContent = modalTexts().submit;
     statusField.hidden = !isEditing;
 
     if (student) {
@@ -338,12 +399,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function closeModal() {
     overlay.classList.remove('is-open');
-    modalTrigger.focus();
+    // Después de guardar los cambios, o si el alumno ya no existe, la tabla se volvió a dibujar: el
+    // foco pasa a Editar en la fila del alumno o, si ya no se muestra, en la que quedó en su lugar
+    const focusTarget = modalTrigger.isConnected
+      ? modalTrigger
+      : tbody.querySelector(`tr[data-student-id="${editingStudentId}"] [data-action="edit"]`) ?? focusAfterRemoval();
+    focusTarget.focus();
     closeAllDropdowns();
   }
 
-  // Solo los datos que se guardan: un alta no envía el estado. El DNI se envía solo con dígitos,
-  // como se guarda.
+  // Solo los datos del formulario: el id va aparte, tomado al abrir el modal. El estado va solo al
+  // editar: un alta no lo envía. El DNI se envía solo con dígitos, como se guarda.
   const readFormData = () => ({
     firstName: firstNameInput.value,
     lastName: lastNameInput.value,
@@ -353,6 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
     street: streetInput.value,
     streetNumber: streetNumberInput.value,
     birthDate: toIsoDate(birthdateInput.value),
+    ...(isEditing ? { status: statusDropdown.querySelector('.dropdown-option.selected')?.dataset.value ?? '' } : {}),
   });
 
   // Marca los campos que rechazó el proceso principal (DNI o email de otro alumno, datos inválidos)
@@ -364,32 +431,42 @@ document.addEventListener('DOMContentLoaded', () => {
     return invalidFields.length > 0;
   };
 
-  // Registra al alumno; al terminar cierra el modal y lo avisa con un toast. Los errores de un campo
-  // se marcan en el formulario y los demás salen en un toast: en ambos casos el modal sigue abierto
-  // con lo que se escribió.
-  const createStudent = async () => {
+  // Registra o guarda según el modo; al terminar cierra el modal y lo avisa con un toast. Los errores
+  // de un campo se marcan en el formulario y los demás salen en un toast: en ambos casos el modal
+  // sigue abierto con lo que se escribió. Solo se cierra si el alumno que se editaba ya no existe.
+  const saveStudent = async () => {
+    const studentId = editingStudentId;
     setSaving(true);
     let response;
     try {
-      response = await window.api?.students?.create(readFormData());
+      const data = readFormData();
+      response = await (isEditing
+        ? window.api?.students?.update(studentId, data)
+        : window.api?.students?.create(data));
     } catch (error) {
-      console.error('Error al crear el alumno:', error);
+      console.error('Error al guardar el alumno:', error);
     }
+    // El alumno que se editaba ya no está vigente: la lista se vuelve a pedir antes de liberar el
+    // modal, que se cierra más abajo
+    const isGone = isEditing && response?.error?.code === 'STUDENT_NOT_FOUND';
+    if (isGone) await loadStudents();
     setSaving(false);
 
     if (response?.ok) {
-      insertStudent(response.student);
+      if (isEditing) replaceStudent(response.student);
+      else insertStudent(response.student);
       closeModal();
       showToast({
         type: 'success',
-        title: 'Alumno creado',
-        description: `Se registró a ${displayName(response.student)}.`,
+        title: modalTexts().successTitle,
+        description: modalTexts().successDescription(response.student),
       });
       return;
     }
     const error = response?.error;
     if (showFieldErrors(error?.fieldErrors)) return;
-    showToast({ type: 'error', title: 'No se pudo crear el alumno', description: errorDescription(error) });
+    if (isGone) closeModal();
+    showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
   };
 
   textInputs.forEach((input) => {
@@ -413,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
   // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
   // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
-  // quedado fuera de un control. Mientras se crea el alumno, ni Escape ni Cancelar lo cierran.
+  // quedado fuera de un control. Mientras se guarda el alumno, ni Escape ni Cancelar lo cierran.
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && overlay.classList.contains('is-open') && !isSaving) closeModal();
   });
@@ -429,13 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
     if (validateFields(overlay)) return;
     // El proceso principal vuelve a validar todo.
-    if (!isEditing) {
-      createStudent();
-      return;
-    }
-    // Editar sigue siendo puramente visual: el guardado real se conecta cuando exista la capa de
-    // servicios/IPC.
-    closeModal();
+    saveStudent();
   });
 
   // ---------- Modal: Eliminar alumno ----------

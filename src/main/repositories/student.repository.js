@@ -23,8 +23,18 @@ const FIND_BY_INSTITUTION_SQL = `
    ORDER BY a.apellido, a.nombre, a.alumno_id
 `;
 
-// Si $2 (dni) y $3 (email) ya los tiene un alumno vigente de la institución. Los dados de baja no
-// cuentan, aunque uq_alumno_institucion_dni y uq_alumno_institucion_email sí: ver duplicateFieldOf.
+// Si el alumno $1 está vigente en la institución $2.
+const EXISTS_NOT_DELETED_SQL = `
+  SELECT 1
+    FROM alumno
+   WHERE alumno_id = $1
+     AND institucion_id = $2
+     AND fecha_eliminacion IS NULL
+`;
+
+// Si $2 (dni) y $3 (email) ya los tiene un alumno vigente de la institución distinto de $4 (null en
+// un alta). Los dados de baja no cuentan, aunque uq_alumno_institucion_dni y
+// uq_alumno_institucion_email sí: ver duplicateFieldOf.
 // alumno no tiene un CHECK de minúsculas como usuario: el email se compara en minúsculas, como
 // llega normalizado.
 const FIND_TAKEN_FIELDS_SQL = `
@@ -33,6 +43,7 @@ const FIND_TAKEN_FIELDS_SQL = `
     FROM alumno
    WHERE institucion_id = $1
      AND fecha_eliminacion IS NULL
+     AND alumno_id IS DISTINCT FROM $4
      AND (dni = $2 OR LOWER(email) = $3)
 `;
 
@@ -62,11 +73,52 @@ const CREATE_SQL = `
     JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
 `;
 
+// Solo modifica a un alumno vigente de la institución, sin tocar su institución ni su
+// fecha_eliminacion. El estado llega como un valor de alumno_estado.nombre ($3). Devuelve la fila
+// como quedó, con los campos y el estado de FIND_BY_INSTITUTION_SQL, o ninguna si el alumno no está
+// vigente en la institución.
+const UPDATE_SQL = `
+  WITH updated AS (
+    UPDATE alumno
+       SET alumno_estado_id = (SELECT alumno_estado_id FROM alumno_estado WHERE nombre = $3),
+           nombre = $4,
+           apellido = $5,
+           email = $6,
+           telefono = $7,
+           direccion_calle = $8,
+           direccion_altura = $9,
+           dni = $10,
+           fecha_nacimiento = $11
+     WHERE alumno_id = $1
+       AND institucion_id = $2
+       AND fecha_eliminacion IS NULL
+    RETURNING alumno_id, institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
+              direccion_calle, direccion_altura, dni, fecha_nacimiento
+  )
+  SELECT a.alumno_id,
+         a.institucion_id,
+         a.nombre,
+         a.apellido,
+         a.email,
+         a.telefono,
+         a.direccion_calle,
+         a.direccion_altura,
+         a.dni,
+         a.fecha_nacimiento,
+         e.nombre AS estado
+    FROM updated a
+    JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
+`;
+
 // Valores de alumno_estado.nombre, con los códigos del sistema.
 const STATUS_BY_COLUMN_VALUE = {
   ACTIVO: 'ACTIVE',
   EGRESADO: 'GRADUATED',
 };
+
+const COLUMN_VALUE_BY_STATUS = Object.fromEntries(
+  Object.entries(STATUS_BY_COLUMN_VALUE).map(([columnValue, status]) => [status, columnValue])
+);
 
 // Restricciones UNIQUE de alumno (con los nombres que les da db/schema.sql) y el campo que protege
 // cada una entre los alumnos de una institución, vigentes y dados de baja.
@@ -97,10 +149,17 @@ async function findByInstitution(institutionId) {
   return rows.map(toStudent);
 }
 
-// Campos ('dni', 'email') cuyo valor ya tiene un alumno vigente de la institución. Espera el dni
-// solo con dígitos y el email normalizado, como se guardan.
-async function findTakenFields(institutionId, { dni, email }) {
-  const { rows } = await query(FIND_TAKEN_FIELDS_SQL, [institutionId, dni, email]);
+// true si el alumno con ese id es de la institución y no está dado de baja.
+async function existsNotDeleted(studentId, institutionId) {
+  const { rows } = await query(EXISTS_NOT_DELETED_SQL, [studentId, institutionId]);
+  return rows.length > 0;
+}
+
+// Campos ('dni', 'email') cuyo valor ya tiene un alumno vigente de la institución distinto de
+// `excludedStudentId` (null en un alta, para comparar con todos). Espera el dni solo con dígitos y
+// el email normalizado, como se guardan.
+async function findTakenFields(institutionId, { dni, email }, excludedStudentId) {
+  const { rows } = await query(FIND_TAKEN_FIELDS_SQL, [institutionId, dni, email, excludedStudentId]);
   const fields = [];
   if (rows[0].dni_taken) fields.push('dni');
   if (rows[0].email_taken) fields.push('email');
@@ -129,6 +188,31 @@ async function create(
   return toStudent(rows[0]);
 }
 
+// Modifica los datos y el estado (ACTIVE o GRADUATED) del alumno vigente con ese id en la
+// institución, con los mismos campos que create. Devuelve el alumno como quedó, o null si no existe
+// en la institución o fue dado de baja. Si el dni o el email ya son de otro alumno de la
+// institución, vigente o dado de baja, PostgreSQL rechaza el cambio: ver duplicateFieldOf.
+async function update(
+  studentId,
+  institutionId,
+  { firstName, lastName, dni, email, phone, street, streetNumber, birthDate, status }
+) {
+  const { rows } = await query(UPDATE_SQL, [
+    studentId,
+    institutionId,
+    COLUMN_VALUE_BY_STATUS[status],
+    firstName,
+    lastName,
+    email,
+    phone,
+    street,
+    streetNumber,
+    dni,
+    birthDate,
+  ]);
+  return rows.length > 0 ? toStudent(rows[0]) : null;
+}
+
 // Campo ('dni' o 'email') cuyo valor repetido causó `error`, si es una violación de una restricción
 // UNIQUE de alumno; si no, null.
 function duplicateFieldOf(error) {
@@ -136,4 +220,4 @@ function duplicateFieldOf(error) {
   return UNIQUE_CONSTRAINT_FIELDS[error.constraint] ?? null;
 }
 
-module.exports = { findByInstitution, findTakenFields, create, duplicateFieldOf };
+module.exports = { findByInstitution, existsNotDeleted, findTakenFields, create, update, duplicateFieldOf };

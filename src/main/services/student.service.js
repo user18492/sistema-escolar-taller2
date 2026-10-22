@@ -32,11 +32,22 @@ const STREET_MAX_LENGTH = 150;
 const NOT_STREET_CHAR = new RegExp(`[^${LETTERS}\\d .'°º-]`);
 const STREET_CONTENT_PATTERN = new RegExp(`[${LETTERS}\\d]`);
 
+// Al editar, el propio alumno no cuenta como duplicado: el que ya tiene el dato es "otro".
 const DUPLICATE_MESSAGES = {
-  message: 'Ya existe un alumno con estos datos.',
-  dni: 'Ya existe un alumno con este DNI.',
-  email: 'Ya existe un alumno con este email.',
+  create: {
+    message: 'Ya existe un alumno con estos datos.',
+    dni: 'Ya existe un alumno con este DNI.',
+    email: 'Ya existe un alumno con este email.',
+  },
+  update: {
+    message: 'Ya existe otro alumno con estos datos.',
+    dni: 'Ya existe otro alumno con este DNI.',
+    email: 'Ya existe otro alumno con este email.',
+  },
 };
+
+// Estados que se eligen al editar, los de toListedStudent: el alta no elige el estado.
+const STUDENT_STATUSES = ['ACTIVE', 'GRADUATED'];
 
 function checkPhone(value) {
   if (!value) return REQUIRED_MESSAGE;
@@ -69,9 +80,11 @@ const CONTACT_FIELD_CHECKS = {
 };
 
 // Normaliza los datos del formulario de alumno (el controlador ya verificó que sean strings) y
-// devuelve solo los campos que se guardan: el estado no se elige en el alta. Lanza un StudentError
-// INVALID_INPUT con los fieldErrors de todos los campos que no son válidos.
-function parseStudentData(data) {
+// devuelve solo los campos que se guardan. `operation` es 'create' o 'update': el estado se elige
+// solo al editar, así que en el alta no se lee ni se devuelve. Lanza un StudentError INVALID_INPUT:
+// con los fieldErrors de todos los campos de texto que no son válidos, y sin ellos si no lo es el
+// estado, que no tiene un campo de texto donde mostrar el error.
+function parseStudentData(data, operation) {
   const { values: personalValues, fieldErrors } = parsePersonalData(data, STUDENT_AGE_RANGE);
   const values = {
     ...personalValues,
@@ -86,34 +99,44 @@ function parseStudentData(data) {
   if (Object.keys(fieldErrors).length > 0) {
     throw new StudentError('INVALID_INPUT', 'Revisá los datos marcados.', fieldErrors);
   }
-  return values;
+  if (operation === 'create') return values;
+  if (!STUDENT_STATUSES.includes(data.status)) {
+    throw new StudentError('INVALID_INPUT', 'Elegí un estado válido.');
+  }
+  return { ...values, status: data.status };
 }
 
-function duplicateError(fields) {
-  const fieldErrors = Object.fromEntries(fields.map((field) => [field, DUPLICATE_MESSAGES[field]]));
-  return new StudentError('DUPLICATE_VALUE', DUPLICATE_MESSAGES.message, fieldErrors);
+// `operation` es 'create' o 'update'.
+function duplicateError(fields, operation) {
+  const messages = DUPLICATE_MESSAGES[operation];
+  const fieldErrors = Object.fromEntries(fields.map((field) => [field, messages[field]]));
+  return new StudentError('DUPLICATE_VALUE', messages.message, fieldErrors);
 }
 
 // Lanza un StudentError DUPLICATE_VALUE si el dni o el email de `values` ya son de un alumno
-// vigente de la institución. No cuentan los de otra institución: una persona tiene una fila por
-// institución, con el mismo dni y el mismo email.
-async function assertNotTaken(institutionId, values) {
-  const takenFields = await studentRepository.findTakenFields(institutionId, values);
-  if (takenFields.length > 0) throw duplicateError(takenFields);
+// vigente de la institución distinto de `excludedStudentId` (null en un alta). No cuentan los de
+// otra institución: una persona tiene una fila por institución, con el mismo dni y el mismo email.
+async function assertNotTaken(institutionId, values, excludedStudentId, operation) {
+  const takenFields = await studentRepository.findTakenFields(institutionId, values, excludedStudentId);
+  if (takenFields.length > 0) throw duplicateError(takenFields, operation);
 }
 
-// Ejecuta `save` (el INSERT). Si la base lo rechaza por uq_alumno_institucion_dni o
+// Ejecuta `save` (el INSERT o el UPDATE). Si la base lo rechaza por uq_alumno_institucion_dni o
 // uq_alumno_institucion_email, se informa como duplicado: pasa si otro alumno tomó el dni o el email
 // entre la comprobación y el guardado, y también si son de un alumno dado de baja, que
 // assertNotTaken no cuenta.
-async function saveUnique(save) {
+async function saveUnique(save, operation) {
   try {
     return await save();
   } catch (error) {
     const field = studentRepository.duplicateFieldOf(error);
     if (!field) throw error;
-    throw duplicateError([field]);
+    throw duplicateError([field], operation);
   }
+}
+
+function studentNotFoundError() {
+  return new StudentError('STUDENT_NOT_FOUND', 'El alumno ya no existe.');
 }
 
 // Lista explícita de campos, como toListedUser (user.service.js): lo que muestran la tabla de
@@ -153,10 +176,33 @@ async function listStudents(currentUser) {
 // Lanza un StudentError si algún dato no es válido (INVALID_INPUT) o si el dni o el email ya son de
 // un alumno de la institución (DUPLICATE_VALUE), los dos con fieldErrors.
 async function createStudent(currentUser, data) {
-  const values = parseStudentData(data);
-  await assertNotTaken(currentUser.institutionId, values);
-  const student = await saveUnique(() => studentRepository.create(currentUser.institutionId, values));
+  const values = parseStudentData(data, 'create');
+  await assertNotTaken(currentUser.institutionId, values, null, 'create');
+  const student = await saveUnique(() => studentRepository.create(currentUser.institutionId, values), 'create');
   return toListedStudent(student);
 }
 
-module.exports = { listStudents, createStudent, StudentError };
+// Guarda los cambios del alumno vigente con ese id (alumno_id) en la institución de `currentUser` y
+// lo devuelve como quedó, con los campos de listStudents. `data` trae los mismos campos que en
+// createStudent y además `status` (ACTIVE o GRADUATED). La institución no cambia.
+// El dni y el email no se repiten entre los alumnos de la institución, como en el alta: el propio
+// alumno no cuenta, así que conservar los suyos no es un duplicado.
+// Lanza un StudentError si algún dato no es válido (INVALID_INPUT, con fieldErrors salvo el
+// estado), si el alumno no existe en la institución o fue dado de baja (STUDENT_NOT_FOUND) o si el
+// dni o el email ya son de otro alumno de la institución (DUPLICATE_VALUE, con fieldErrors).
+async function updateStudent(currentUser, studentId, data) {
+  const values = parseStudentData(data, 'update');
+  if (!(await studentRepository.existsNotDeleted(studentId, currentUser.institutionId))) {
+    throw studentNotFoundError();
+  }
+  await assertNotTaken(currentUser.institutionId, values, studentId, 'update');
+  const student = await saveUnique(
+    () => studentRepository.update(studentId, currentUser.institutionId, values),
+    'update'
+  );
+  // Se dio de baja entre la comprobación y el guardado.
+  if (!student) throw studentNotFoundError();
+  return toListedStudent(student);
+}
+
+module.exports = { listStudents, createStudent, updateStudent, StudentError };

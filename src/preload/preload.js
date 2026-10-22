@@ -226,6 +226,14 @@ contextBridge.exposeInMainWorld('api', {
     // INVALID_INPUT (campos inválidos) y con DUPLICATE_VALUE (dni o email de otro alumno de la
     // institución, también si fue dado de baja).
     create: (data) => ipcRenderer.invoke('students:create', data),
+    // Solo SECRETARIO. Guarda los cambios del alumno vigente con ese id (alumno_id) de su
+    // institución. `data` trae los mismos campos que create y además status ('ACTIVE' o
+    // 'GRADUATED'). Resuelve { ok: true, student } con el alumno como quedó (mismos campos que list)
+    // o { ok: false, error: { code, message, fieldErrors } }, sin guardar nada, con los códigos de
+    // create: DUPLICATE_VALUE indica que el dni o el email son de otro alumno de la institución
+    // (conservar los suyos no es un duplicado), e INVALID_INPUT llega sin fieldErrors si el estado no
+    // es válido. Además, STUDENT_NOT_FOUND indica que el alumno ya no está vigente.
+    update: (studentId, data) => ipcRenderer.invoke('students:update', studentId, data),
   },
   enrollments: {
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la
