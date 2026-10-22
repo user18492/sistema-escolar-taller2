@@ -222,4 +222,5 @@ module.exports = {
   isUnknownGradeError,
   SHIFTS,
   SHIFT_BY_COLUMN_VALUE,
+  COLUMN_VALUE_BY_SHIFT,
 };

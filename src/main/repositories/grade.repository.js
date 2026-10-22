@@ -18,6 +18,13 @@ const EDUCATION_LEVEL_BY_COLUMN_VALUE = {
   SECUNDARIA: 'SECONDARY',
 };
 
+const COLUMN_VALUE_BY_EDUCATION_LEVEL = Object.fromEntries(
+  Object.entries(EDUCATION_LEVEL_BY_COLUMN_VALUE).map(([columnValue, level]) => [level, columnValue])
+);
+
+// Niveles educativos que admite grado.nivel_educativo, con los códigos del sistema.
+const EDUCATION_LEVELS = Object.keys(COLUMN_VALUE_BY_EDUCATION_LEVEL);
+
 function toGrade(row) {
   return new Grade({
     id: row.grado_id,
@@ -32,4 +39,4 @@ async function findAll() {
   return rows.map(toGrade);
 }
 
-module.exports = { findAll, EDUCATION_LEVEL_BY_COLUMN_VALUE };
+module.exports = { findAll, EDUCATION_LEVEL_BY_COLUMN_VALUE, COLUMN_VALUE_BY_EDUCATION_LEVEL, EDUCATION_LEVELS };
