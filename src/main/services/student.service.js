@@ -240,8 +240,10 @@ async function updateStudent(currentUser, studentId, data) {
 
 // Baja lógica del alumno vigente con ese id (alumno_id) en la institución de `currentUser`: la fila
 // queda con su fecha de baja y su estado, y se lista entre los dados de baja. Sus inscripciones
-// activas pasan a canceladas, así ya no se lo puede calificar. Todo lo hace la base en
-// sp_alumno_dar_de_baja, todo o nada: acá solo se lo llama y se traducen sus errores.
+// activas pasan a canceladas, así ya no se lo puede calificar, pero no se dan de baja: como sus
+// demás inscripciones, sus calificaciones y las evaluaciones, se conservan para cuando se lo
+// restaure. Todo lo hace la base en sp_alumno_dar_de_baja, todo o nada: acá solo se lo llama y se
+// traducen sus errores.
 // Devuelve { cancelledEnrollmentCount }, cuántas inscripciones activas se cancelaron (0 o 1).
 // Lanza un StudentError si el alumno no existe en la institución (STUDENT_NOT_FOUND) o si ya estaba
 // dado de baja (STUDENT_ALREADY_DELETED).

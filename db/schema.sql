@@ -429,8 +429,8 @@ CREATE TABLE alumno_estado (
 -- La institución no se deduce de las inscripciones: el alumno se registra antes de inscribirse en
 -- un curso, y durante ese lapso no tiene ninguna.
 -- La baja lógica (fecha_eliminacion) la hace sp_alumno_dar_de_baja (más abajo), que también cancela
--- sus inscripciones activas. Ninguna otra regla la tiene en cuenta todavía: un alumno dado de baja
--- sigue contando para todas, también para la unicidad de dni y email
+-- sus inscripciones activas, sin darlas de baja. Ninguna otra regla la tiene en cuenta todavía: un
+-- alumno dado de baja sigue contando para todas, también para la unicidad de dni y email
 CREATE TABLE alumno (
     alumno_id          INT           GENERATED ALWAYS AS IDENTITY,
     institucion_id     INT           NOT NULL,
@@ -482,10 +482,10 @@ CREATE TABLE inscripcion_estado (
 
 -- Inscripciones: un alumno cursa un curso. A lo largo del tiempo, un alumno pasa por muchos cursos
 -- y un curso tiene muchos alumnos.
--- Lo que cambia a lo largo de su vida es su estado. La baja lógica (fecha_eliminacion) solo la hace
--- sp_alumno_dar_de_baja (más abajo), con las inscripciones activas del alumno que se da de baja, que
--- pasan además a CANCELADA. Ninguna regla la tiene en cuenta todavía: una inscripción dada de baja
--- sigue contando para todas
+-- Lo que cambia a lo largo de su vida es su estado. La baja lógica (fecha_eliminacion) no la hace
+-- todavía ninguna operación: la baja de un alumno (sp_alumno_dar_de_baja, más abajo) pasa sus
+-- inscripciones activas a CANCELADA, pero no las da de baja, para conservar todo su historial.
+-- Ninguna regla la tiene en cuenta todavía: una inscripción dada de baja sigue contando para todas
 CREATE TABLE inscripcion (
     inscripcion_id         INT   GENERATED ALWAYS AS IDENTITY,
     alumno_id              INT   NOT NULL,
@@ -650,16 +650,16 @@ CREATE TRIGGER trg_curso_inscripciones
     EXECUTE FUNCTION fn_curso_inscripciones();
 
 -- Baja lógica de un alumno de la institución: completa su fecha_eliminacion, sin cambiar su estado,
--- y da de baja sus inscripciones vigentes y activas, que pasan a CANCELADA con la misma fecha de
--- baja. Así ya no se lo puede calificar: trg_calificacion_coherencia (más abajo) solo acepta
--- inscripciones activas. Las finalizadas y las canceladas no cambian: son su historial.
+-- y pasa sus inscripciones vigentes y activas a CANCELADA, sin darlas de baja: su fecha_eliminacion
+-- sigue en NULL. Así ya no se lo puede calificar: trg_calificacion_coherencia (más abajo) solo
+-- acepta inscripciones activas. Las finalizadas y las canceladas no cambian, y la baja no llega a
+-- las calificaciones ni a las evaluaciones: todo es su historial, que se conserva completo para
+-- cuando se lo restaure.
 -- Devuelve en p_inscripciones_canceladas cuántas inscripciones canceló (0 o 1, porque un alumno
 -- tiene una sola activa).
 -- Es todo o nada sin hacer COMMIT ni ROLLBACK: un CALL fuera de una transacción es una transacción
 -- en sí mismo, y si falla cualquiera de sus pasos (un RAISE de acá o el de un trigger), PostgreSQL
--- deshace todo lo que había hecho. Llamado dentro de una transacción, forma parte de ella. NOW() es
--- el instante en que empezó la transacción, así que el alumno y sus inscripciones quedan con la
--- misma fecha de baja.
+-- deshace todo lo que había hecho. Llamado dentro de una transacción, forma parte de ella.
 -- Errores previstos, que el backend traduce en un mensaje para el usuario:
 --   - no_data_found (P0002): el alumno no existe en la institución.
 --   - object_not_in_prerequisite_state (55000): el alumno ya estaba dado de baja.
@@ -710,8 +710,7 @@ BEGIN
      WHERE alumno_id = p_alumno_id;
 
     UPDATE inscripcion
-       SET inscripcion_estado_id = v_cancelada_id,
-           fecha_eliminacion = NOW()
+       SET inscripcion_estado_id = v_cancelada_id
      WHERE alumno_id = p_alumno_id
        AND inscripcion_estado_id = v_activa_id
        AND fecha_eliminacion IS NULL;

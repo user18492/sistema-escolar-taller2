@@ -238,7 +238,8 @@ contextBridge.exposeInMainWorld('api', {
     // es válido. Además, STUDENT_NOT_FOUND indica que el alumno ya no está vigente.
     update: (studentId, data) => ipcRenderer.invoke('students:update', studentId, data),
     // Solo SECRETARIO. Baja lógica del alumno vigente con ese id (alumno_id) de su institución: se
-    // lista entre los dados de baja y sus inscripciones activas pasan a canceladas, todo o nada.
+    // lista entre los dados de baja y sus inscripciones activas pasan a canceladas, sin darse de
+    // baja, todo o nada.
     // Resuelve { ok: true, cancelledEnrollmentCount }, con cuántas inscripciones activas se
     // cancelaron (0 o 1), o { ok: false, error: { code, message } }, sin cambiar nada;
     // STUDENT_NOT_FOUND y STUDENT_ALREADY_DELETED indican que ya no está vigente.

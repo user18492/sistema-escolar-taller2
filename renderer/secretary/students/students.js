@@ -6,8 +6,8 @@
 // Eliminados, la única acción de la fila es Restaurar.
 // Nuevo alumno lo registra, siempre activo (window.api.students.create), Editar alumno guarda los
 // cambios, entre ellos el estado (window.api.students.update), Eliminar alumno lo da de baja (baja
-// lógica, window.api.students.delete) y lo pasa a Eliminados, junto con su inscripción activa, que
-// pasa a cancelada, y Restaurar alumno lo devuelve a Vigentes con el estado que tenía
+// lógica, window.api.students.delete) y lo pasa a Eliminados (su inscripción activa pasa a
+// cancelada, sin darse de baja), y Restaurar alumno lo devuelve a Vigentes con el estado que tenía
 // (window.api.students.restore), sin reactivar sus inscripciones. Las dos últimas se confirman antes
 // en un modal (confirm-modal.component.js). El resultado de las cuatro se avisa con un toast
 // (toast.component.js), salvo los errores de un campo, que se marcan en el formulario. Un alta con

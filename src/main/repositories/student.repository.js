@@ -174,9 +174,9 @@ const RESTORE_SQL = `
     JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
 `;
 
-// Baja lógica del alumno $1 de la institución $2 y cancelación de sus inscripciones activas, todo o
-// nada: lo hace sp_alumno_dar_de_baja (db/schema.sql). Su parámetro OUT se pasa como NULL y vuelve
-// en la única fila del resultado.
+// Baja lógica del alumno $1 de la institución $2 y cancelación de sus inscripciones activas, que no
+// se dan de baja, todo o nada: lo hace sp_alumno_dar_de_baja (db/schema.sql). Su parámetro OUT se
+// pasa como NULL y vuelve en la única fila del resultado.
 const MARK_AS_DELETED_SQL = `
   CALL sp_alumno_dar_de_baja($1, $2, NULL)
 `;
@@ -316,10 +316,10 @@ async function restore(studentId, institutionId) {
   return rows.length > 0 ? toStudent(rows[0]) : null;
 }
 
-// Da de baja al alumno vigente con ese id en la institución y cancela sus inscripciones activas, en
-// una sola llamada a sp_alumno_dar_de_baja. Devuelve cuántas inscripciones canceló. Si el alumno no
-// existe en la institución o ya estaba dado de baja, el procedimiento falla sin cambiar nada: ver
-// isNotFoundError e isAlreadyDeletedError.
+// Da de baja al alumno vigente con ese id en la institución y cancela sus inscripciones activas, sin
+// darlas de baja, en una sola llamada a sp_alumno_dar_de_baja. Devuelve cuántas inscripciones
+// canceló. Si el alumno no existe en la institución o ya estaba dado de baja, el procedimiento falla
+// sin cambiar nada: ver isNotFoundError e isAlreadyDeletedError.
 async function markAsDeleted(studentId, institutionId) {
   const { rows } = await query(MARK_AS_DELETED_SQL, [studentId, institutionId]);
   return rows[0].p_inscripciones_canceladas;
