@@ -45,9 +45,11 @@ const COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL = `
      AND c.anio_ciclo_lectivo = EXTRACT(YEAR FROM CURRENT_DATE)::INT
 `;
 
-// Inscripciones vigentes (sin baja lógica) de la institución $1 que pasan los filtros $2 a $8. La
-// institución es la del curso: la inscripción no la guarda. Solo cuenta la baja de la inscripción,
-// no la de su alumno ni la de su curso.
+// Inscripciones vigentes (sin baja lógica) de alumnos vigentes de la institución $1 que pasan los
+// filtros $2 a $8, en cualquier estado. La institución es la del curso: la inscripción no la guarda.
+// Las de un alumno dado de baja quedan afuera, todas: su baja no da de baja sus inscripciones (solo
+// cancela la activa, sp_alumno_dar_de_baja en db/schema.sql), así que al restaurarlo vuelven a
+// listarse completas. La baja del curso no cuenta.
 // Cada filtro es un arreglo, vacío si no filtra: inscripciones ($2, inscripcion_id), alumnos ($3,
 // alumno_id), grados ($4 los niveles educativos y $5 los nombres, de a pares en la misma
 // posición), divisiones ($6), turnos ($7) y estados ($8, valores de inscripcion_estado.nombre).
@@ -60,6 +62,7 @@ const FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
     JOIN grado g ON g.grado_id = c.grado_id
    WHERE c.institucion_id = $1
      AND i.fecha_eliminacion IS NULL
+     AND al.fecha_eliminacion IS NULL
      AND (CARDINALITY($2::INT[]) = 0 OR i.inscripcion_id = ANY($2::INT[]))
      AND (CARDINALITY($3::INT[]) = 0 OR i.alumno_id = ANY($3::INT[]))
      AND (CARDINALITY($4::TEXT[]) = 0
@@ -100,9 +103,9 @@ const FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
    LIMIT $9 OFFSET $10
 `;
 
-// Todas las inscripciones vigentes de la institución, sin filtros, con los datos de su alumno que
-// necesitan las opciones de los filtros Número de inscripción y Alumno. Mismas inscripciones y mismo
-// orden que FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL sin filtros.
+// Todas las inscripciones vigentes de alumnos vigentes de la institución, sin filtros, con los datos
+// de su alumno que necesitan las opciones de los filtros Número de inscripción y Alumno. Mismas
+// inscripciones y mismo orden que FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL sin filtros.
 const FIND_NOT_DELETED_BY_INSTITUTION_SQL = `
   SELECT i.inscripcion_id,
          al.alumno_id,
@@ -114,6 +117,7 @@ const FIND_NOT_DELETED_BY_INSTITUTION_SQL = `
     JOIN curso c ON c.curso_id = i.curso_id
    WHERE c.institucion_id = $1
      AND i.fecha_eliminacion IS NULL
+     AND al.fecha_eliminacion IS NULL
    ORDER BY al.apellido, al.nombre, al.alumno_id, i.inscripcion_id
 `;
 
@@ -187,19 +191,19 @@ function filterParams(institutionId, { enrollmentIds, studentIds, grades, divisi
   ];
 }
 
-// Cantidad de inscripciones vigentes de la institución que pasan `filters`: { enrollmentIds,
-// studentIds, grades, divisions, shifts, statuses }, cada uno un arreglo, vacío si no filtra.
-// `grades` son pares { educationLevel, gradeName } (PRIMARY o SECONDARY y el nombre del grado, 1° a
-// 6°), `divisions` letras mayúsculas, `shifts` valores de SHIFTS (course.repository.js) y
-// `statuses`, de STATUSES.
+// Cantidad de inscripciones vigentes de alumnos vigentes de la institución, en cualquier estado, que
+// pasan `filters`: { enrollmentIds, studentIds, grades, divisions, shifts, statuses }, cada uno un
+// arreglo, vacío si no filtra. `grades` son pares { educationLevel, gradeName } (PRIMARY o SECONDARY
+// y el nombre del grado, 1° a 6°), `divisions` letras mayúsculas, `shifts` valores de SHIFTS
+// (course.repository.js) y `statuses`, de STATUSES.
 async function countNotDeletedByInstitution(institutionId, filters) {
   const { rows } = await query(COUNT_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL, filterParams(institutionId, filters));
   return rows[0].total;
 }
 
-// Hasta `limit` inscripciones vigentes de la institución que pasan `filters` (como en
-// countNotDeletedByInstitution), a partir de la posición `offset` (0 es la primera), ordenadas por
-// alumno (apellido y nombre), con su alumno, su curso y su estado.
+// Hasta `limit` inscripciones vigentes de alumnos vigentes de la institución que pasan `filters`
+// (como en countNotDeletedByInstitution), a partir de la posición `offset` (0 es la primera),
+// ordenadas por alumno (apellido y nombre), con su alumno, su curso y su estado.
 async function findPageNotDeletedByInstitution(institutionId, filters, { offset, limit }) {
   const { rows } = await query(FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL, [
     ...filterParams(institutionId, filters),
@@ -209,8 +213,8 @@ async function findPageNotDeletedByInstitution(institutionId, filters, { offset,
   return rows.map(toInstitutionEnrollment);
 }
 
-// Todas las inscripciones vigentes de la institución, sin filtrar, ordenadas como
-// findPageNotDeletedByInstitution. Cada una trae solo su id y su alumno (id, nombre, apellido y
+// Todas las inscripciones vigentes de alumnos vigentes de la institución, sin filtrar, ordenadas
+// como findPageNotDeletedByInstitution. Cada una trae solo su id y su alumno (id, nombre, apellido y
 // email).
 async function findNotDeletedByInstitution(institutionId) {
   const { rows } = await query(FIND_NOT_DELETED_BY_INSTITUTION_SQL, [institutionId]);

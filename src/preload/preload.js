@@ -256,9 +256,11 @@ contextBridge.exposeInMainWorld('api', {
   enrollments: {
     // Solo SECRETARIO. Resuelve { ok: true, enrollments, total, page } con la página `page` (1 la
     // primera; de `pageSize` inscripciones, hasta 100) de las inscripciones vigentes de su
-    // institución (sin las dadas de baja), de todos los ciclos lectivos, que pasan `filters`; filtrar
-    // y paginar se hace sobre todas, en el proceso principal. `filters` es { enrollmentIds,
-    // studentIds, grades, divisions, shifts, statuses }, cada uno un arreglo, vacío si no filtra:
+    // institución (sin las dadas de baja), de todos los ciclos lectivos y en cualquier estado, que
+    // pasan `filters`. Las de un alumno dado de baja no se listan, ninguna; al restaurarlo vuelven
+    // todas. Filtrar y paginar se hace sobre todas, en el proceso principal. `filters` es
+    // { enrollmentIds, studentIds, grades, divisions, shifts, statuses }, cada uno un arreglo, vacío
+    // si no filtra:
     // ids de inscripciones y de alumnos (de listFilterOptions), grados { educationLevel, gradeName }
     // ('PRIMARY' o 'SECONDARY' y el nombre del grado, 1° a 6°), divisiones (letras mayúsculas),
     // turnos ('MORNING' o 'AFTERNOON') y estados ('ACTIVE', 'COMPLETED' o 'CANCELLED'). Una
@@ -271,10 +273,10 @@ contextBridge.exposeInMainWorld('api', {
     // { ok: false, error: { code, message } } si no: INVALID_INPUT indica filtros o página inválidos.
     list: (filters, page, pageSize) => ipcRenderer.invoke('enrollments:list', filters, page, pageSize),
     // Solo SECRETARIO. Las opciones de los filtros Número de inscripción y Alumno: resuelve
-    // { ok: true, enrollments, students } con todas las inscripciones vigentes de su institución,
-    // sin filtrar ({ id, number, student }, con number como en list y student { firstName,
-    // lastName }), y sus alumnos, una vez cada uno ({ id, firstName, lastName, email }), las dos
-    // listas en el orden de list, o { ok: false, error: { code, message } }.
+    // { ok: true, enrollments, students } con todas las inscripciones que lista list sin filtros,
+    // también sin las de alumnos dados de baja ({ id, number, student }, con number como en list y
+    // student { firstName, lastName }), y sus alumnos, una vez cada uno ({ id, firstName, lastName,
+    // email }), las dos listas en el orden de list, o { ok: false, error: { code, message } }.
     listFilterOptions: () => ipcRenderer.invoke('enrollments:list-filter-options'),
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la
     // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo: las activas

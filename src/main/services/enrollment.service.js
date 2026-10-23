@@ -103,8 +103,9 @@ function toInstitutionEnrollment({ id, student, course, enrollmentDate, status }
 }
 
 // Una página de las inscripciones vigentes (sin baja lógica) de la institución de `currentUser`
-// (el de la sesión) que pasan `filters`, de todos los ciclos lectivos, en el orden del
-// repositorio: por alumno (apellido y nombre). Filtrar y paginar se hace sobre todas, en la base.
+// (el de la sesión) que pasan `filters`, de todos los ciclos lectivos y en cualquier estado, sin las
+// de alumnos dados de baja (vuelven al restaurarlo), en el orden del repositorio: por alumno
+// (apellido y nombre). Filtrar y paginar se hace sobre todas, en la base.
 // `filters` trae enrollmentIds, studentIds, grades ({ educationLevel, gradeName }), divisions,
 // shifts y statuses, cada uno un arreglo, vacío si no filtra (ver countNotDeletedByInstitution,
 // enrollment.repository.js). `page` es la página pedida (1 la primera) y `pageSize`, cuántas
@@ -129,8 +130,9 @@ async function listEnrollments(currentUser, filters, page, pageSize) {
 }
 
 // Opciones de los filtros Número de inscripción y Alumno de la tabla de Inscripciones del
-// Secretario: todas las inscripciones vigentes de la institución de `currentUser`, sin filtrar, y
-// sus alumnos, una vez cada uno. Las dos listas siguen el orden del listado (por alumno).
+// Secretario: todas las inscripciones que lista listEnrollments sin filtros (las vigentes de la
+// institución de `currentUser`, sin las de alumnos dados de baja) y sus alumnos, una vez cada uno.
+// Las dos listas siguen el orden del listado (por alumno).
 // Devuelve { enrollments, students }: enrollments con { id, number, student } (student con nombre y
 // apellido) y students con { id, firstName, lastName, email }.
 async function listEnrollmentFilterOptions(currentUser) {

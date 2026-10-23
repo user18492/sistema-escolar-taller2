@@ -1,10 +1,10 @@
 // Vista Inscripciones del Secretario: la tabla muestra las inscripciones vigentes (sin baja lógica)
-// de la institución, de todos los ciclos lectivos, que llegan del proceso principal de a una página
-// (window.api.enrollments.list). Los filtros de columna y la paginación se resuelven allá, sobre
-// todas las inscripciones: la vista envía los filtros activos y la página, y recibe sus filas y el
-// total que pasa los filtros, 10 por página, con <table-pagination>. Las opciones de los filtros
-// Número de inscripción y Alumno son todas las inscripciones vigentes y sus alumnos
-// (window.api.enrollments.listFilterOptions).
+// de la institución, de todos los ciclos lectivos y en cualquier estado, sin las de alumnos dados de
+// baja, que llegan del proceso principal de a una página (window.api.enrollments.list). Los filtros
+// de columna y la paginación se resuelven allá, sobre todas las inscripciones: la vista envía los
+// filtros activos y la página, y recibe sus filas y el total que pasa los filtros, 10 por página,
+// con <table-pagination>. Las opciones de los filtros Número de inscripción y Alumno son las mismas
+// inscripciones y sus alumnos (window.api.enrollments.listFilterOptions).
 // Nueva inscripción, Editar y Eliminar siguen siendo maqueta: interacción puramente visual, sin
 // guardar nada.
 
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Pide las opciones de Número de inscripción (el número, con el alumno debajo) y de Alumno (el
-  // alumno, con su email debajo): todas las inscripciones vigentes de la institución y sus
+  // alumno, con su email debajo): todas las inscripciones que lista la tabla sin filtros y sus
   // alumnos, no solo los de la página a la vista. Si no llegan, las dos listas quedan vacías con
   // el motivo.
   async function loadFilterOptions() {
