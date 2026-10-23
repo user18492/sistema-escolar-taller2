@@ -300,6 +300,115 @@ async function createEnrollment(currentUser, { studentId, educationLevel, course
   throw new Error(`No se insertó la inscripción del alumno ${studentId} en el curso ${courseId}, que se pueden inscribir`);
 }
 
+// ---------- Edición ----------
+
+// Estado de una inscripción activa, con los códigos del sistema (ACTIVA en inscripcion_estado.nombre):
+// un alumno solo puede tener una.
+const ACTIVE_STATUS = 'ACTIVE';
+
+// La inscripción vigente (sin baja lógica) con ese id de la institución, con su alumno, su curso y su
+// estado (enrollmentRepository.findById). El id llega del renderer y la fila que tiene a la vista
+// puede haber quedado vieja, así que se busca de nuevo.
+// Lanza un EnrollmentError si no existe en la institución (ENROLLMENT_NOT_FOUND; una de otra
+// institución cuenta como inexistente) o si fue dada de baja (ENROLLMENT_DELETED).
+async function findNotDeletedEnrollment(institutionId, enrollmentId) {
+  const enrollment = await enrollmentRepository.findById(enrollmentId, institutionId);
+  if (!enrollment) {
+    throw new EnrollmentError('ENROLLMENT_NOT_FOUND', 'La inscripción ya no existe.');
+  }
+  if (enrollment.deletedAt) {
+    throw new EnrollmentError('ENROLLMENT_DELETED', 'La inscripción fue eliminada.');
+  }
+  return enrollment;
+}
+
+// La inscripción vigente con ese id de la institución de `currentUser` (el de la sesión), con los
+// campos de listEnrollments: el formulario de edición muestra su estado actual. Como el listado, la
+// devuelve de cualquier ciclo lectivo y en cualquier estado.
+// Lanza los EnrollmentError de findNotDeletedEnrollment.
+async function getEnrollment(currentUser, enrollmentId) {
+  return toInstitutionEnrollment(await findNotDeletedEnrollment(currentUser.institutionId, enrollmentId));
+}
+
+// Lanza el EnrollmentError INVALID_INPUT si `status` no es ACTIVE, COMPLETED ni CANCELLED.
+function assertValidStatus(status) {
+  if (!enrollmentRepository.STATUSES.includes(status)) {
+    throw new EnrollmentError('INVALID_INPUT', 'Elegí un estado válido.');
+  }
+}
+
+// Error de un cambio a activa rechazado porque el alumno de `enrollment` ya tiene otra inscripción
+// activa, `activeEnrollment` (la de findActiveByStudent): un alumno solo puede tener una. La nombra,
+// con su número, para encontrarla en el listado. Con `activeEnrollment` null (la base rechazó el
+// cambio, pero otra sesión cambió esa inscripción después), no la nombra.
+function anotherActiveEnrollmentError(enrollment, activeEnrollment) {
+  const name = `${enrollment.student.firstName} ${enrollment.student.lastName}`;
+  if (!activeEnrollment) {
+    return new EnrollmentError('STUDENT_ALREADY_ENROLLED', `${name} ya tiene otra inscripción activa. Intentá nuevamente.`);
+  }
+  return new EnrollmentError(
+    'STUDENT_ALREADY_ENROLLED',
+    `${name} ya tiene otra inscripción activa: ${formatEnrollmentNumber(activeEnrollment.id)}. Un alumno solo puede ` +
+      'tener una: para activar esta, primero hay que cancelar o finalizar aquella.'
+  );
+}
+
+// Lanza el EnrollmentError STUDENT_ALREADY_ENROLLED de anotherActiveEnrollmentError si el alumno de
+// `enrollment` tiene una inscripción activa que no es esa. Cuenta la misma que
+// ck_inscripcion_alumno_una_activa: también si es de un ciclo anterior, de un curso dado de baja o
+// está dada de baja.
+async function assertNoOtherActiveEnrollment(enrollment) {
+  const activeEnrollment = await enrollmentRepository.findActiveByStudent(enrollment.student.id);
+  if (activeEnrollment && activeEnrollment.id !== enrollment.id) {
+    throw anotherActiveEnrollmentError(enrollment, activeEnrollment);
+  }
+}
+
+// Pasa `enrollment` (la de findNotDeletedEnrollment) de la institución al estado `status` y la
+// devuelve como quedó; null si no cambió nada (ver enrollmentRepository.updateStatus).
+// Si PostgreSQL rechaza el cambio porque el alumno ya tiene otra inscripción activa
+// (ck_inscripcion_alumno_una_activa: otra sesión la activó o la creó después de comprobarlo), lanza
+// el EnrollmentError STUDENT_ALREADY_ENROLLED. Es la única restricción de db/schema.sql que puede
+// rechazar el cambio de estado (ver UPDATE_STATUS_SQL en enrollment.repository.js).
+async function saveEnrollmentStatus(institutionId, enrollment, status) {
+  try {
+    return await enrollmentRepository.updateStatus(enrollment.id, institutionId, status);
+  } catch (error) {
+    if (enrollmentRepository.isSecondActiveEnrollmentError(error)) {
+      await assertNoOtherActiveEnrollment(enrollment);
+      throw anotherActiveEnrollmentError(enrollment, null);
+    }
+    throw error;
+  }
+}
+
+// Cambia el estado de la inscripción vigente con ese id de la institución de `currentUser` (el de la
+// sesión). `data` trae status (ACTIVE, COMPLETED o CANCELLED); el controlador ya comprobó su forma.
+// Solo cambia el estado: el número, el alumno, el curso y la fecha no se leen de `data`.
+// Devuelve { enrollment, changed }: la inscripción como quedó, con los campos de listEnrollments, y
+// si se modificó. Si ya tenía ese estado, no se modifica nada y changed es false.
+// Un alumno solo puede tener una inscripción activa: el cambio a ACTIVE se rechaza si ya tiene otra.
+// Se comprueba antes de guardar y, si otra sesión activa o crea otra después, la base lo rechaza al
+// guardar, con el mismo error.
+// Lanza un EnrollmentError si el estado no es válido (INVALID_INPUT), si la inscripción no está
+// vigente en la institución (los de findNotDeletedEnrollment) o si el alumno ya tiene otra
+// inscripción activa (STUDENT_ALREADY_ENROLLED).
+async function updateEnrollment(currentUser, enrollmentId, { status }) {
+  const { institutionId } = currentUser;
+  assertValidStatus(status);
+  const enrollment = await findNotDeletedEnrollment(institutionId, enrollmentId);
+  if (enrollment.status === status) return { enrollment: toInstitutionEnrollment(enrollment), changed: false };
+  if (status === ACTIVE_STATUS) await assertNoOtherActiveEnrollment(enrollment);
+
+  const updatedEnrollment = await saveEnrollmentStatus(institutionId, enrollment, status);
+  if (updatedEnrollment) return { enrollment: toInstitutionEnrollment(updatedEnrollment), changed: true };
+  // El UPDATE no cambió nada: otra sesión dio de baja la inscripción, o le dio ese mismo estado,
+  // después de leerla. Se busca de nuevo para saber cuál de las dos.
+  const currentEnrollment = await findNotDeletedEnrollment(institutionId, enrollmentId);
+  if (currentEnrollment.status === status) return { enrollment: toInstitutionEnrollment(currentEnrollment), changed: false };
+  throw new Error(`No se cambió el estado de la inscripción ${enrollmentId}, que está vigente`);
+}
+
 module.exports = {
   listOwnAssignmentEnrollments,
   listEnrollments,
@@ -307,6 +416,8 @@ module.exports = {
   listEnrollableStudents,
   listEnrollableCourses,
   createEnrollment,
+  getEnrollment,
+  updateEnrollment,
   formatEnrollmentNumber,
   toListedStudent,
   EnrollmentError,

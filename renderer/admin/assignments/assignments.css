@@ -112,19 +112,6 @@
   display: flex;
 }
 
-/* Materia bloqueada a la espera de elegir un curso: mismo tratamiento que el campo con
-   búsqueda bloqueado (Curso), definido en searchable-select.css. */
-
-.dropdown.is-locked .dropdown-toggle,
-.dropdown.is-locked .dropdown-toggle:hover {
-  background: #f9fafb;
-  cursor: not-allowed;
-}
-
-.dropdown.is-locked .dropdown-toggle .chevron {
-  opacity: 0.5;
-}
-
 /* Opciones con avatar (Profesor): patrón .avatar-item de base.css */
 
 .dropdown-menu-teacher,

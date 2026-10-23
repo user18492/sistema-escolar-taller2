@@ -60,6 +60,20 @@
   color: var(--color-text-tertiary);
 }
 
+/* Bloqueado (.is-locked, con el botón disabled) mientras no se puede elegir: a la espera de
+   otro campo o de sus opciones. Mismo tratamiento que el campo con búsqueda bloqueado, definido
+   en searchable-select.css. */
+
+.dropdown.is-locked .dropdown-toggle,
+.dropdown.is-locked .dropdown-toggle:hover {
+  background: #f9fafb;
+  cursor: not-allowed;
+}
+
+.dropdown.is-locked .dropdown-toggle .chevron {
+  opacity: 0.5;
+}
+
 /* ---------- Menú y opciones ---------- */
 
 .dropdown-menu {

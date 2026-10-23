@@ -193,6 +193,84 @@ const CREATE_SQL = `
     JOIN grado g ON g.grado_id = c.grado_id
 `;
 
+// La inscripción $1 de la institución $2, vigente o dada de baja (fecha_eliminacion), con los campos
+// de FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL. La institución es la del curso: la inscripción no
+// la guarda. Ninguna fila si no existe en la institución. No mira al alumno ni al curso: los trae
+// aunque estén dados de baja.
+const FIND_BY_ID_SQL = `
+  SELECT i.inscripcion_id,
+         i.fecha_inscripcion,
+         i.fecha_eliminacion,
+         ie.nombre AS estado,
+         al.alumno_id,
+         al.nombre,
+         al.apellido,
+         c.curso_id,
+         c.institucion_id,
+         c.grado_id,
+         c.division,
+         c.turno,
+         c.anio_ciclo_lectivo,
+         g.nombre AS grado_nombre,
+         g.nivel_educativo
+    FROM inscripcion i
+    JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+    JOIN alumno al ON al.alumno_id = i.alumno_id
+    JOIN curso c ON c.curso_id = i.curso_id
+    JOIN grado g ON g.grado_id = c.grado_id
+   WHERE i.inscripcion_id = $1
+     AND c.institucion_id = $2
+`;
+
+// Edición: pasa la inscripción $1 de la institución $2 al estado $3 (un valor de
+// inscripcion_estado.nombre), solo si está vigente y tiene otro estado; si no, no cambia nada. El
+// alumno, el curso y la fecha no cambian. Devuelve la fila como quedó, con los campos de
+// FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL.
+// El servicio ya comprobó todo eso, pero otra sesión pudo cambiarlo después: si la fila cambió
+// mientras el UPDATE esperaba su bloqueo, PostgreSQL vuelve a evaluar las condiciones sobre la fila
+// que dejó y, si ya no las cumple, no la cambia.
+// trg_inscripcion_coherencia (db/schema.sql) rechaza el cambio a ACTIVA si el alumno ya tiene otra
+// inscripción activa: ver isSecondActiveEnrollmentError. El resto de los controles de los triggers de
+// inscripcion no pueden fallar, porque solo cambia el estado: ck_inscripcion_misma_institucion y
+// ck_inscripcion_fecha_ciclo_lectivo se vuelven a evaluar sobre el mismo alumno, el mismo curso y la
+// misma fecha, que ya los cumplían (el alumno y el curso no cambian de institución, ni el curso de
+// ciclo lectivo, mientras tengan inscripciones), y trg_inscripcion_calificaciones_vigentes solo se
+// dispara si cambia el curso.
+const UPDATE_STATUS_SQL = `
+  WITH updated AS (
+    UPDATE inscripcion i
+       SET inscripcion_estado_id = ie.inscripcion_estado_id
+      FROM inscripcion_estado ie,
+           curso c
+     WHERE i.inscripcion_id = $1
+       AND c.curso_id = i.curso_id
+       AND c.institucion_id = $2
+       AND i.fecha_eliminacion IS NULL
+       AND ie.nombre = $3
+       AND i.inscripcion_estado_id <> ie.inscripcion_estado_id
+    RETURNING i.inscripcion_id, i.alumno_id, i.curso_id, i.inscripcion_estado_id, i.fecha_inscripcion
+  )
+  SELECT i.inscripcion_id,
+         i.fecha_inscripcion,
+         ie.nombre AS estado,
+         al.alumno_id,
+         al.nombre,
+         al.apellido,
+         c.curso_id,
+         c.institucion_id,
+         c.grado_id,
+         c.division,
+         c.turno,
+         c.anio_ciclo_lectivo,
+         g.nombre AS grado_nombre,
+         g.nivel_educativo
+    FROM updated i
+    JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+    JOIN alumno al ON al.alumno_id = i.alumno_id
+    JOIN curso c ON c.curso_id = i.curso_id
+    JOIN grado g ON g.grado_id = c.grado_id
+`;
+
 // La inscripción activa del alumno $1, si tiene una: la misma que cuenta trg_inscripcion_coherencia
 // para la regla de una sola activa por alumno, así que puede ser de un curso dado de baja. Si hubiera
 // más de una (la regla no lo permite), la más antigua.
@@ -208,8 +286,8 @@ const FIND_ACTIVE_BY_STUDENT_SQL = `
 `;
 
 // Restricciones de los triggers de inscripcion (con los nombres que les da db/schema.sql) que
-// rechazan un alta por un motivo previsto: el alumno ya tiene otra inscripción activa, o el año de
-// la fecha de inscripción (la del día) no es el ciclo lectivo del curso.
+// rechazan un alta o una edición por un motivo previsto: el alumno ya tiene otra inscripción activa,
+// o el año de la fecha de inscripción (la del día) no es el ciclo lectivo del curso (solo en el alta).
 const ONE_ACTIVE_CONSTRAINT = 'ck_inscripcion_alumno_una_activa';
 const SCHOOL_YEAR_CONSTRAINT = 'ck_inscripcion_fecha_ciclo_lectivo';
 
@@ -265,6 +343,7 @@ function toInstitutionEnrollment(row) {
     enrollmentDate: row.fecha_inscripcion,
     status: STATUS_BY_COLUMN_VALUE[row.estado],
     isActive: row.estado === 'ACTIVA',
+    deletedAt: row.fecha_eliminacion,
   });
 }
 
@@ -365,6 +444,24 @@ async function create(institutionId, { studentId, courseId, educationLevel }) {
   return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
 }
 
+// La inscripción `enrollmentId` (un inscripcion_id) de la institución, vigente o dada de baja, con su
+// alumno, su curso y su estado, como findPageNotDeletedByInstitution, y `deletedAt`, el instante de
+// su baja lógica (null si está vigente); null si no existe en la institución.
+async function findById(enrollmentId, institutionId) {
+  const { rows } = await query(FIND_BY_ID_SQL, [enrollmentId, institutionId]);
+  return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
+}
+
+// Pasa la inscripción vigente `enrollmentId` (un inscripcion_id) de la institución al estado `status`
+// (de STATUSES), sin cambiar nada más, y la devuelve como quedó, con su alumno, su curso y su estado,
+// como findPageNotDeletedByInstitution; null si no cambió nada: no existe en la institución, está
+// dada de baja o ya tenía ese estado. PostgreSQL rechaza el cambio a ACTIVE si el alumno ya tiene
+// otra inscripción activa (ver isSecondActiveEnrollmentError).
+async function updateStatus(enrollmentId, institutionId, status) {
+  const { rows } = await query(UPDATE_STATUS_SQL, [enrollmentId, institutionId, COLUMN_VALUE_BY_STATUS[status]]);
+  return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
+}
+
 // La inscripción activa del alumno `studentId` (un alumno_id), solo con su id y el de su curso
 // (`courseId`); null si no tiene ninguna.
 async function findActiveByStudent(studentId) {
@@ -373,7 +470,7 @@ async function findActiveByStudent(studentId) {
 }
 
 // true si `error` es el rechazo de trg_inscripcion_coherencia a una segunda inscripción activa del
-// mismo alumno: solo puede tener una.
+// mismo alumno, al crearla o al pasarla a activa: solo puede tener una.
 function isSecondActiveEnrollmentError(error) {
   return error?.code === '23514' && error.constraint === ONE_ACTIVE_CONSTRAINT;
 }
@@ -391,6 +488,8 @@ module.exports = {
   findPositionNotDeletedByInstitution,
   findNotDeletedByInstitution,
   create,
+  findById,
+  updateStatus,
   findActiveByStudent,
   isSecondActiveEnrollmentError,
   isDateOutOfSchoolYearError,

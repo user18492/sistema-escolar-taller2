@@ -59,6 +59,13 @@ function isEnrollmentData(value) {
   );
 }
 
+// Un objeto con `status` (un string): que sea uno de los estados lo comprueba el servicio. Si trae
+// otros campos (p. ej., el alumno, el curso o la fecha), el servicio no los usa: solo se edita el
+// estado.
+function isEnrollmentUpdateData(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && isString(value.status);
+}
+
 // `enrollmentId` es el id de una inscripción cuya página se pide en lugar de `page` (la recién
 // creada), o null.
 // Nunca rechaza: los errores previstos (filtros con valores inválidos) llevan su mensaje y el
@@ -133,6 +140,43 @@ async function createEnrollment(currentUser, data) {
   }
 }
 
+// Nunca rechaza: los errores previstos (la inscripción no está vigente en la institución) llevan su
+// mensaje y el resto, uno genérico con el detalle en la consola.
+async function getEnrollment(currentUser, enrollmentId) {
+  if (!isId(enrollmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la inscripción.');
+  }
+  try {
+    return { ok: true, enrollment: await enrollmentService.getEnrollment(currentUser, enrollmentId) };
+  } catch (error) {
+    if (error instanceof EnrollmentError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al consultar la inscripción:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo cargar la inscripción. Intentá nuevamente.');
+  }
+}
+
+// Nunca rechaza: los errores previstos (estado inválido, inscripción que no está vigente, alumno con
+// otra inscripción activa) llevan su mensaje y el resto, uno genérico con el detalle en la consola.
+async function updateEnrollment(currentUser, enrollmentId, data) {
+  if (!isId(enrollmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la inscripción.');
+  }
+  if (!isEnrollmentUpdateData(data)) {
+    return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');
+  }
+  try {
+    return { ok: true, ...(await enrollmentService.updateEnrollment(currentUser, enrollmentId, data)) };
+  } catch (error) {
+    if (error instanceof EnrollmentError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al guardar la inscripción:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudieron guardar los cambios. Intentá nuevamente.');
+  }
+}
+
 // `teacherAssignmentId` es el id de una asignación del profesor de la sesión: que esté a su cargo
 // lo comprueba el servicio.
 // Nunca rechaza: los errores previstos (los de la asignación) llevan su mensaje y el resto, uno
@@ -163,6 +207,8 @@ function registerEnrollmentHandlers(browserWindow) {
   handleProtected(browserWindow, 'enrollments:list-enrollable-students', ['SECRETARIO'], listEnrollableStudents);
   handleProtected(browserWindow, 'enrollments:list-enrollable-courses', ['SECRETARIO'], listEnrollableCourses);
   handleProtected(browserWindow, 'enrollments:create', ['SECRETARIO'], createEnrollment);
+  handleProtected(browserWindow, 'enrollments:get', ['SECRETARIO'], getEnrollment);
+  handleProtected(browserWindow, 'enrollments:update', ['SECRETARIO'], updateEnrollment);
   handleProtected(browserWindow, 'enrollments:list-by-own-assignment', ['PROFESOR'], listOwnAssignmentEnrollments);
 }
 

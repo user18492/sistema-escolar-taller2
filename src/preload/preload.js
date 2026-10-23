@@ -305,6 +305,21 @@ contextBridge.exposeInMainWorld('api', {
     // ya tiene una inscripción activa (solo puede tener una; el mensaje da su número), y
     // COURSE_OUT_OF_SCHOOL_YEAR, que el curso no es del ciclo lectivo del año en curso.
     create: (data) => ipcRenderer.invoke('enrollments:create', data),
+    // Solo SECRETARIO. Resuelve { ok: true, enrollment } con la inscripción vigente con ese id
+    // (inscripcion_id) de su institución, de cualquier ciclo lectivo y en cualquier estado (mismos
+    // campos que list), o { ok: false, error: { code, message } }: ENROLLMENT_NOT_FOUND indica que
+    // no existe en la institución y ENROLLMENT_DELETED, que fue eliminada.
+    get: (enrollmentId) => ipcRenderer.invoke('enrollments:get', enrollmentId),
+    // Solo SECRETARIO. Cambia el estado de la inscripción vigente con ese id (inscripcion_id) de su
+    // institución. `data` es { status }, con status 'ACTIVE', 'COMPLETED' o 'CANCELLED': solo se edita
+    // el estado; el número, el alumno, el curso y la fecha no cambian. Resuelve
+    // { ok: true, enrollment, changed } con la inscripción como quedó (mismos campos que list) y
+    // changed false si ya tenía ese estado, en cuyo caso no se modificó nada, o
+    // { ok: false, error: { code, message } }, sin cambiar nada: INVALID_INPUT indica datos o un
+    // estado inválidos; ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get, y
+    // STUDENT_ALREADY_ENROLLED, que se la quiso activar y el alumno ya tiene otra inscripción activa
+    // (solo puede tener una; el mensaje da su número).
+    update: (enrollmentId, data) => ipcRenderer.invoke('enrollments:update', enrollmentId, data),
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la
     // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo: las activas
     // y las finalizadas del curso, sin las canceladas ({ id, number, enrollmentDate, student }, con

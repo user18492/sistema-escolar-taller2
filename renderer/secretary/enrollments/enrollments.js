@@ -11,7 +11,11 @@
 // (listEnrollableStudents, listEnrollableCourses). El resultado se avisa con un toast
 // (toast.component.js): si se creó, la tabla pasa a la página donde quedó, con el total
 // recalculado; si no, el modal sigue abierto con lo elegido.
-// Editar y Eliminar siguen siendo maqueta: interacción puramente visual, sin guardar nada.
+// Editar solo cambia el estado: el modal pide la inscripción al abrirse (window.api.enrollments.get)
+// para marcar su estado actual y guarda el elegido (window.api.enrollments.update). También se avisa
+// con un toast: si se guardó, la tabla vuelve a pedir la página a la vista, con los mismos filtros;
+// si no, el modal sigue abierto con el estado elegido.
+// Eliminar sigue siendo maqueta: interacción puramente visual, sin guardar nada.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -260,6 +264,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const errorDescription = (error) =>
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
 
+  // Descripción de un toast de éxito del alta o de la edición. `isShown` dice si la inscripción quedó
+  // a la vista después de volver a pedir la tabla: si no (false), porque no coincide con los filtros
+  // activos, se aclara; si la tabla no llegó (null), no.
+  const withShownNote = (description, isShown) =>
+    (isShown === false ? `${description} No se muestra en la tabla porque no coincide con los filtros aplicados.` : description);
+
   // Campos con búsqueda integrada (Alumno y Curso): componente compartido
   // searchable-select.component.js. El valor muestra solo el nombre, reiniciar el campo
   // conserva el filtro por nivel y cambiar de nivel vuelve a filtrar la lista en el momento.
@@ -440,10 +450,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // "Se registró la inscripción INS-000041 de Camila Álvarez en 1° A, Mañana, Primaria."
-  const createdDescription = ({ number, student, course }, isShown) => {
-    const description = `Se registró la inscripción ${number} de ${student.firstName} ${student.lastName} en ${courseName(course)}.`;
-    return isShown === false ? `${description} No se muestra en la tabla porque no coincide con los filtros aplicados.` : description;
-  };
+  const createdDescription = ({ number, student, course }, isShown) =>
+    withShownNote(`Se registró la inscripción ${number} de ${student.firstName} ${student.lastName} en ${courseName(course)}.`, isShown);
 
   // Crea la inscripción con lo elegido; el proceso principal vuelve a validar todo antes de
   // guardarla. Si la crea, la tabla se actualiza antes de liberar el modal (refreshAfterCreate), así
@@ -507,51 +515,181 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Modal: Editar inscripción ----------
 
   const editOverlay = document.getElementById('editEnrollmentOverlay');
+  const editModal = editOverlay.querySelector('.modal');
+  const editModalBody = editOverlay.querySelector('.modal-body');
   const cancelEditEnrollmentBtn = document.getElementById('cancelEditEnrollmentBtn');
   const saveEnrollmentBtn = document.getElementById('saveEnrollmentBtn');
 
   const statusDropdown = editOverlay.querySelector('[data-filter="edit-enrollment-status"]');
+  const statusToggle = statusDropdown.querySelector('.dropdown-toggle');
   const statusLabel = statusDropdown.querySelector('.dropdown-label');
   const statusOptions = statusDropdown.querySelectorAll('.dropdown-option');
 
-  // Ícono "Editar" que abrió el modal: recupera el foco al cerrarlo.
-  let editTrigger = null;
+  // Texto del botón principal, en reposo y mientras se espera la respuesta
+  const SAVE_TEXT = saveEnrollmentBtn.textContent;
+  const SAVING_TEXT = 'Guardando…';
 
-  // Marca la opción de estado cuyo texto coincide con el de la fila, replicando lo
-  // que hace el listener del dropdown al elegirla con el ratón.
-  function selectStatus(optionLabel) {
+  // Códigos con los que el proceso principal avisa que la inscripción ya no está vigente (otra
+  // sesión la dio de baja): la fila quedó vieja y la página se vuelve a pedir
+  const NO_LONGER_EDITABLE_CODES = ['ENROLLMENT_NOT_FOUND', 'ENROLLMENT_DELETED'];
+
+  // inscripcion_id de la inscripción que se edita, tomado del data-enrollment-id de su fila
+  let editingEnrollmentId = null;
+  let isSavingEdit = false;
+  // Ícono "Editar" que abrió el modal: recupera el foco al cerrarlo, si su fila sigue en la tabla
+  let editTrigger = null;
+  // Posición en la página de la fila de editTrigger, solo para devolver el foco a la que ocupe su
+  // lugar si esa fila ya no se muestra
+  let triggerRowIndex = 0;
+  // Cambia cada vez que el modal se abre o se cierra: descarta la respuesta de get que llegue tarde,
+  // de una inscripción que ya no se edita
+  let editRequestId = 0;
+
+  // ACTIVE, COMPLETED o CANCELLED, el estado marcado
+  const selectedStatus = () => statusDropdown.querySelector('.dropdown-option.selected')?.dataset.value ?? '';
+
+  // Estado bloqueado, sin ninguno marcado y con `text` en su etiqueta, y Guardar deshabilitado:
+  // mientras llega la inscripción
+  const lockStatus = (text) => {
     statusOptions.forEach((option) => {
-      const selected = option.textContent.trim() === optionLabel;
-      option.classList.toggle('selected', selected);
-      option.setAttribute('aria-selected', String(selected));
-      if (selected) statusLabel.textContent = option.textContent.trim();
+      option.classList.remove('selected');
+      option.setAttribute('aria-selected', 'false');
+    });
+    statusDropdown.classList.add('is-locked');
+    statusToggle.disabled = true;
+    statusLabel.textContent = text;
+    statusLabel.classList.add('placeholder');
+    saveEnrollmentBtn.disabled = true;
+  };
+
+  // Marca `status` como dropdown.component.js marca la opción elegida, y habilita Estado y Guardar
+  const showStatus = (status) => {
+    statusOptions.forEach((option) => {
+      const isSelected = option.dataset.value === status;
+      option.classList.toggle('selected', isSelected);
+      option.setAttribute('aria-selected', String(isSelected));
+      if (isSelected) statusLabel.textContent = option.textContent.trim();
     });
     statusLabel.classList.remove('placeholder');
+    statusDropdown.classList.remove('is-locked');
+    statusToggle.disabled = false;
+    saveEnrollmentBtn.disabled = false;
+  };
+
+  // Mientras se espera la respuesta, el cuerpo del modal queda inerte, como en Nueva inscripción
+  const setEditSaving = (saving) => {
+    isSavingEdit = saving;
+    editModalBody.inert = saving;
+    editModal.setAttribute('aria-busy', String(saving));
+    [cancelEditEnrollmentBtn, saveEnrollmentBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
+    saveEnrollmentBtn.textContent = saving ? SAVING_TEXT : SAVE_TEXT;
+  };
+
+  // Pide la inscripción que se edita y marca su estado actual: el de la base, no el de la fila, que
+  // puede haber quedado viejo. Si no llega, no hay nada que editar: el modal se cierra y un toast dice
+  // por qué; si ya no está vigente, antes se vuelve a pedir la página de la tabla.
+  async function loadEditingEnrollment() {
+    const requestId = editRequestId;
+    let response;
+    try {
+      response = await window.api?.enrollments?.get(editingEnrollmentId);
+    } catch (error) {
+      console.error('Error al cargar la inscripción:', error);
+    }
+    // Mientras se esperaba se cerró el modal
+    if (requestId !== editRequestId) return;
+    if (response?.ok) {
+      showStatus(response.enrollment.status);
+      // Mientras Estado estaba bloqueado, el foco quedó en Cancelar: pasa al campo, salvo que se haya
+      // movido
+      if (document.activeElement === cancelEditEnrollmentBtn) statusToggle.focus();
+      return;
+    }
+    if (NO_LONGER_EDITABLE_CODES.includes(response?.error?.code)) {
+      await loadEnrollments(pagination.page);
+      if (requestId !== editRequestId) return;
+    }
+    closeEditModal();
+    showToast({ type: 'error', title: 'No se pudo cargar la inscripción', description: errorDescription(response?.error) });
   }
 
-  statusOptions.forEach((option) => {
-    option.addEventListener('click', () => {
-      statusLabel.classList.remove('placeholder');
-    });
-  });
-
+  // `trigger` es el botón Editar de `row`: la inscripción se identifica solo por el
+  // data-enrollment-id de la fila (el inscripcion_id), y su estado llega del proceso principal.
   function openEditModal(row, trigger) {
     editTrigger = trigger;
-    selectStatus(row.cells[4].textContent.trim());
+    editingEnrollmentId = Number(row.dataset.enrollmentId);
+    triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+    editRequestId += 1;
+    lockStatus('Cargando estado…');
 
     closeAllDropdowns();
     closeAllSearchableMenus();
     document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     editOverlay.classList.add('is-open');
-    editOverlay.querySelector('.modal').scrollTop = 0;
-    statusDropdown.querySelector('.dropdown-toggle').focus();
+    editModal.scrollTop = 0;
+    // Estado está bloqueado hasta que llegue la inscripción (loadEditingEnrollment)
+    cancelEditEnrollmentBtn.focus();
+    loadEditingEnrollment();
   }
 
+  // Si la tabla se volvió a dibujar (después de guardar, o porque la inscripción ya no está vigente),
+  // el foco pasa a Editar en la fila de la inscripción o, si ya no se muestra, en la que quedó en su
+  // lugar (o en la última de la página); sin filas, a Nueva inscripción
+  const editFocusTarget = () => {
+    if (editTrigger?.isConnected) return editTrigger;
+    const ownButton = tbody.querySelector(`tr[data-enrollment-id="${editingEnrollmentId}"] [data-action="edit"]`);
+    if (ownButton) return ownButton;
+    const buttons = tbody.querySelectorAll('[data-action="edit"]');
+    return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openEnrollmentModalBtn;
+  };
+
   function closeEditModal() {
+    editRequestId += 1;
     editOverlay.classList.remove('is-open');
     closeAllDropdowns();
-    editTrigger.focus();
+    editFocusTarget().focus();
   }
+
+  // "La inscripción INS-000012 de Camila Álvarez ahora está cancelada." o, si ya tenía ese estado,
+  // "... ya estaba cancelada."
+  const updatedToast = ({ number, student, status }, changed, isShown) => {
+    const statusText = (statusLabels[status] ?? status).toLowerCase();
+    const subject = `La inscripción ${number} de ${student.firstName} ${student.lastName}`;
+    return changed
+      ? { title: 'Inscripción actualizada', description: withShownNote(`${subject} ahora está ${statusText}.`, isShown) }
+      : { title: 'Inscripción sin cambios', description: withShownNote(`${subject} ya estaba ${statusText}.`, isShown) };
+  };
+
+  // Guarda el estado elegido; el proceso principal vuelve a validar todo antes de guardarlo. Si lo
+  // guarda (o si ya lo tenía), la tabla vuelve a pedir la página a la vista con los filtros aplicados
+  // antes de liberar el modal, así al cerrarse ya muestra el estado nuevo, y un toast lo avisa. Si no,
+  // el toast dice por qué y el modal sigue abierto con el estado elegido; si la inscripción ya no está
+  // vigente, antes se vuelve a pedir la página.
+  const saveEditedEnrollment = async () => {
+    setEditSaving(true);
+    let response;
+    try {
+      response = await window.api?.enrollments?.update(editingEnrollmentId, { status: selectedStatus() });
+    } catch (error) {
+      console.error('Error al guardar la inscripción:', error);
+    }
+    const error = response?.error;
+    let isShown = null;
+    if (response?.ok) {
+      const shownEnrollments = await loadEnrollments(pagination.page);
+      isShown = shownEnrollments && shownEnrollments.some(({ id }) => id === response.enrollment.id);
+    } else if (NO_LONGER_EDITABLE_CODES.includes(error?.code)) {
+      await loadEnrollments(pagination.page);
+    }
+    setEditSaving(false);
+
+    if (response?.ok) {
+      closeEditModal();
+      showToast({ type: 'success', ...updatedToast(response.enrollment, response.changed, isShown) });
+      return;
+    }
+    showToast({ type: 'error', title: 'No se pudo guardar la inscripción', description: errorDescription(error) });
+  };
 
   // Por delegación: las filas se generan con cada página que llega del proceso principal
   tbody.addEventListener('click', (event) => {
@@ -559,19 +697,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (button) openEditModal(button.closest('tr'), button);
   });
 
-  cancelEditEnrollmentBtn.addEventListener('click', closeEditModal);
+  cancelEditEnrollmentBtn.addEventListener('click', () => {
+    if (!isSavingEdit) closeEditModal();
+  });
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
   // El foco con Tab se retiene en el modal mediante modal-focus-trap.component.js.
-  // Escape: mismo criterio que en Nueva inscripción.
+  // Escape: mismo criterio que en Nueva inscripción. Mientras se carga la inscripción sí lo cierra.
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && editOverlay.classList.contains('is-open')) closeEditModal();
+    if (event.key === 'Escape' && editOverlay.classList.contains('is-open') && !isSavingEdit) closeEditModal();
   });
 
   saveEnrollmentBtn.addEventListener('click', () => {
-    // Vista puramente visual: el guardado real se conecta cuando exista la capa de servicios/IPC.
-    closeEditModal();
+    if (isSavingEdit) return;
+    saveEditedEnrollment();
   });
 
   // ---------- Modal: Eliminar inscripción ----------
