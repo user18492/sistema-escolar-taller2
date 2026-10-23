@@ -282,15 +282,15 @@ contextBridge.exposeInMainWorld('api', {
     // email }), las dos listas en el orden de list, o { ok: false, error: { code, message } }.
     listFilterOptions: () => ipcRenderer.invoke('enrollments:list-filter-options'),
     // Solo SECRETARIO. Lo que ofrece el formulario de alta en Alumno: resuelve { ok: true, students }
-    // con los alumnos vigentes y activos de su institución (sin los dados de baja ni los egresados),
-    // por apellido y nombre ({ id, firstName, lastName, dni }, con dni solo los dígitos), o
-    // { ok: false, error: { code, message } }. Incluye a los que ya tienen una inscripción activa:
-    // create los rechaza.
+    // con los alumnos vigentes y activos de su institución que no tienen una inscripción activa (sin
+    // los dados de baja, los egresados ni los ya inscriptos: un alumno solo puede tener una), por
+    // apellido y nombre ({ id, firstName, lastName, dni }, con dni solo los dígitos), o
+    // { ok: false, error: { code, message } }.
     listEnrollableStudents: () => ipcRenderer.invoke('enrollments:list-enrollable-students'),
     // Solo SECRETARIO. Lo que ofrece el formulario de alta en Curso: resuelve { ok: true, courses }
-    // con los cursos vigentes de su institución, de todos los ciclos lectivos (mismos campos y orden
-    // que courses.list), o { ok: false, error: { code, message } }. El formulario muestra los del
-    // nivel educativo elegido.
+    // con los cursos vigentes de su institución del ciclo lectivo del año en curso (mismos campos que
+    // courses.list, por nivel educativo, grado, división y turno), o
+    // { ok: false, error: { code, message } }. El formulario muestra los del nivel educativo elegido.
     listEnrollableCourses: () => ipcRenderer.invoke('enrollments:list-enrollable-courses'),
     // Solo SECRETARIO. Inscribe a un alumno en un curso de su institución. `data` es
     // { studentId, educationLevel, courseId }: el id de un alumno de listEnrollableStudents, 'PRIMARY'

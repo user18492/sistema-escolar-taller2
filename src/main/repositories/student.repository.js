@@ -34,9 +34,13 @@ const EXISTS_NOT_DELETED_SQL = `
 `;
 
 // Alumnos vigentes (sin baja lógica) y activos (de estado ACTIVO, un valor de alumno_estado.nombre)
-// de una institución, sin los egresados ni los dados de baja: los que se pueden inscribir en un
-// curso. Mismo orden que FIND_BY_INSTITUTION_SQL.
-const FIND_ACTIVE_BY_INSTITUTION_SQL = `
+// de una institución que no tienen una inscripción activa (de estado ACTIVA, un valor de
+// inscripcion_estado.nombre): los que se pueden inscribir en un curso. Quedan afuera los egresados,
+// los dados de baja y los que ya están inscriptos, porque un alumno solo puede tener una inscripción
+// activa. La activa se busca como la busca trg_inscripcion_coherencia (db/schema.sql) para esa
+// regla: cuenta aunque sea de un curso dado de baja o de un ciclo lectivo anterior. Mismo orden que
+// FIND_BY_INSTITUTION_SQL.
+const FIND_ENROLLABLE_BY_INSTITUTION_SQL = `
   SELECT a.alumno_id,
          a.nombre,
          a.apellido,
@@ -46,6 +50,11 @@ const FIND_ACTIVE_BY_INSTITUTION_SQL = `
    WHERE a.institucion_id = $1
      AND a.fecha_eliminacion IS NULL
      AND e.nombre = 'ACTIVO'
+     AND NOT EXISTS (SELECT 1
+                       FROM inscripcion i
+                       JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+                      WHERE i.alumno_id = a.alumno_id
+                        AND ie.nombre = 'ACTIVA')
    ORDER BY a.apellido, a.nombre, a.alumno_id
 `;
 
@@ -246,10 +255,11 @@ async function findByInstitution(institutionId) {
   return rows.map(toStudent);
 }
 
-// Alumnos vigentes y activos de la institución, ordenados por apellido y nombre, solo con su nombre,
-// su apellido y su dni: los demás campos quedan undefined.
-async function findActiveByInstitution(institutionId) {
-  const { rows } = await query(FIND_ACTIVE_BY_INSTITUTION_SQL, [institutionId]);
+// Alumnos vigentes y activos de la institución sin una inscripción activa (los que se pueden
+// inscribir), ordenados por apellido y nombre, solo con su nombre, su apellido y su dni: los demás
+// campos quedan undefined.
+async function findEnrollableByInstitution(institutionId) {
+  const { rows } = await query(FIND_ENROLLABLE_BY_INSTITUTION_SQL, [institutionId]);
   return rows.map(toStudent);
 }
 
@@ -371,7 +381,7 @@ function isAlreadyDeletedError(error) {
 
 module.exports = {
   findByInstitution,
-  findActiveByInstitution,
+  findEnrollableByInstitution,
   findById,
   existsNotDeleted,
   findTakenFields,

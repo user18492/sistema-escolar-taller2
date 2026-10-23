@@ -24,6 +24,27 @@ const FIND_BY_INSTITUTION_SQL = `
    ORDER BY c.anio_ciclo_lectivo DESC, g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id
 `;
 
+// Los cursos vigentes de una institución del ciclo lectivo del año en curso, con el nombre y el
+// nivel educativo de su grado, en el orden de FIND_BY_INSTITUTION_SQL. El año en curso lo resuelve
+// la base (CURRENT_DATE), con el mismo reloj que la fecha de una inscripción nueva, cuyo año
+// trg_inscripcion_fecha_ciclo_lectivo (db/schema.sql) exige que sea el ciclo lectivo del curso.
+const FIND_IN_CURRENT_SCHOOL_YEAR_BY_INSTITUTION_SQL = `
+  SELECT c.curso_id,
+         c.institucion_id,
+         c.grado_id,
+         c.division,
+         c.turno,
+         c.anio_ciclo_lectivo,
+         g.nombre AS grado_nombre,
+         g.nivel_educativo
+    FROM curso c
+    JOIN grado g ON g.grado_id = c.grado_id
+   WHERE c.institucion_id = $1
+     AND c.fecha_eliminacion IS NULL
+     AND c.anio_ciclo_lectivo = EXTRACT(YEAR FROM CURRENT_DATE)::INT
+   ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id
+`;
+
 // Cantidad de cursos vigentes de una institución (sin los dados de baja), de todos los ciclos
 // lectivos: los que lista FIND_BY_INSTITUTION_SQL sin filtrar por ciclo.
 const COUNT_BY_INSTITUTION_SQL = `
@@ -168,6 +189,13 @@ async function findByInstitution(institutionId, schoolYear = null) {
   return rows.map(toCourse);
 }
 
+// Cursos vigentes de la institución del ciclo lectivo del año en curso, según el reloj de la base,
+// ordenados por nivel educativo, grado, división y turno.
+async function findInCurrentSchoolYearByInstitution(institutionId) {
+  const { rows } = await query(FIND_IN_CURRENT_SCHOOL_YEAR_BY_INSTITUTION_SQL, [institutionId]);
+  return rows.map(toCourse);
+}
+
 // Cantidad de cursos vigentes de la institución, de todos los ciclos lectivos.
 async function countByInstitution(institutionId) {
   const { rows } = await query(COUNT_BY_INSTITUTION_SQL, [institutionId]);
@@ -238,6 +266,7 @@ function isUnknownGradeError(error) {
 
 module.exports = {
   findByInstitution,
+  findInCurrentSchoolYearByInstitution,
   countByInstitution,
   findActiveById,
   create,

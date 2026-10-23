@@ -163,25 +163,27 @@ async function listEnrollmentFilterOptions(currentUser) {
 const ENROLLABLE_STUDENT_STATUS = 'ACTIVE';
 
 // Alumnos que ofrece el formulario de alta: los vigentes (sin baja lógica) y activos de la
-// institución de `currentUser` (el de la sesión), sin los egresados, por apellido y nombre. Cada uno
-// con su id y los campos de toListedStudent. Están también los que ya tienen una inscripción activa:
-// el alta los rechaza (ver createEnrollment).
+// institución de `currentUser` (el de la sesión) que no tienen una inscripción activa, por apellido y
+// nombre. Cada uno con su id y los campos de toListedStudent. Quedan afuera los egresados y los que
+// ya están inscriptos: un alumno solo puede tener una inscripción activa.
 async function listEnrollableStudents(currentUser) {
-  const students = await studentRepository.findActiveByInstitution(currentUser.institutionId);
+  const students = await studentRepository.findEnrollableByInstitution(currentUser.institutionId);
   return students.map((student) => ({ id: student.id, ...toListedStudent(student) }));
 }
 
-// Cursos que ofrece el formulario de alta: los vigentes de la institución de `currentUser`, de todos
-// los ciclos lectivos, con los campos y el orden de listCourses (course.service.js). El formulario
-// muestra los del nivel educativo elegido.
+// Cursos que ofrece el formulario de alta: los vigentes de la institución de `currentUser` del ciclo
+// lectivo del año en curso, el único en el que se puede inscribir, con los campos de listCourses
+// (course.service.js), por nivel educativo, grado, división y turno. El formulario muestra los del
+// nivel educativo elegido.
 async function listEnrollableCourses(currentUser) {
-  const courses = await courseRepository.findByInstitution(currentUser.institutionId);
+  const courses = await courseRepository.findInCurrentSchoolYearByInstitution(currentUser.institutionId);
   return courses.map(toListedCourse);
 }
 
 // Los ids del alta llegan del renderer y la lista que tiene a la vista puede haber quedado vieja:
-// otra sesión dio de baja al alumno o al curso, o pasó al alumno a egresado. Por eso se buscan de
-// nuevo antes de guardar, y cada motivo tiene su error.
+// otra sesión dio de baja al alumno o al curso, pasó al alumno a egresado o lo inscribió, o cambió
+// el año. Por eso se buscan de nuevo antes de guardar, y cada motivo tiene su error: los dos últimos
+// los informa la base al guardar (saveEnrollment).
 
 // Lanza el EnrollmentError INVALID_INPUT si el nivel educativo no es PRIMARY ni SECONDARY.
 function assertValidEducationLevel(educationLevel) {

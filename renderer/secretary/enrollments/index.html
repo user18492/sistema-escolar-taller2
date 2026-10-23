@@ -175,7 +175,8 @@
                 </button>
               </div>
               <!-- El alumno se identifica por "Apellido, Nombre" y, como dato secundario, por su DNI.
-                   enrollments.js carga las opciones: los alumnos vigentes y activos de la institución. -->
+                   enrollments.js carga las opciones: los alumnos vigentes y activos de la institución
+                   sin una inscripción activa. -->
               <ul class="dropdown-menu dropdown-menu-enrollment" role="listbox" hidden>
                 <li class="dropdown-empty" hidden>Sin resultados</li>
               </ul>
@@ -199,7 +200,8 @@
           </div>
 
           <!-- Curso depende del nivel educativo: arranca bloqueado y solo lista los cursos de ese nivel.
-               enrollments.js carga las opciones: los cursos vigentes de la institución. -->
+               enrollments.js carga las opciones: los cursos vigentes de la institución del ciclo
+               lectivo actual. -->
           <div class="form-field">
             <label>Curso</label>
             <div class="field field-searchable dropdown-searchable is-locked" data-role="new-enrollment-course-select">
