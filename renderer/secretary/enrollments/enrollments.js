@@ -365,8 +365,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Pide los alumnos que se pueden inscribir y los cursos del ciclo lectivo actual: las opciones de
   // Alumno y de Curso. Se piden al cargar la vista y se vuelven a pedir al abrir el modal si no
-  // llegaron, si hubo un alta (el alumno inscripto deja de estar en Alumno) o si el proceso principal
-  // avisó que quedaron viejas. Mientras se espera, Alumno y Curso quedan bloqueados; el nivel
+  // llegaron, si hubo un alta (el alumno inscripto deja de estar en Alumno), una baja (si era activa,
+  // su alumno vuelve a estar) o si el proceso principal avisó que quedaron viejas. Mientras se espera, Alumno y Curso quedan bloqueados; el nivel
   // educativo elegido se conserva.
   async function loadFormOptions() {
     if (isLoadingFormOptions) return;
@@ -421,8 +421,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openEnrollmentModal() {
     resetEnrollmentForm();
-    // Las listas no llegaron al cargar la vista, cambiaron con un alta o quedaron viejas: se vuelven
-    // a pedir
+    // Las listas no llegaron al cargar la vista, cambiaron con un alta o una baja o quedaron viejas:
+    // se vuelven a pedir
     if (!hasFormOptions) loadFormOptions();
     closeAllDropdowns();
     closeAllSearchableMenus();
@@ -762,6 +762,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (response?.ok) {
+      // Si era activa, ya no cuenta para la regla de una sola activa por alumno y su alumno vuelve a
+      // poder inscribirse: las listas del alta se vuelven a pedir al reabrir el modal
+      hasFormOptions = false;
       showToast({ type: 'success', title: 'Inscripción eliminada', description: deletedDescription(response.enrollment) });
       return;
     }

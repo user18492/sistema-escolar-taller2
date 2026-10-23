@@ -486,7 +486,10 @@ CREATE TABLE inscripcion_estado (
 -- Secretario desde el listado de inscripciones, sin cambiar el estado ni el resto de la fila. La
 -- baja de un alumno (sp_alumno_dar_de_baja, más abajo) no la hace: pasa sus inscripciones activas a
 -- CANCELADA, pero no las da de baja, para conservar todo su historial.
--- Ninguna regla la tiene en cuenta todavía: una inscripción dada de baja sigue contando para todas
+-- La baja lógica solo la tienen en cuenta la regla de una sola inscripción activa por alumno
+-- (trg_inscripcion_coherencia), para la que una inscripción dada de baja no cuenta como activa, y
+-- sp_alumno_dar_de_baja, que solo cancela las vigentes. Para las demás reglas, una inscripción dada
+-- de baja sigue contando
 CREATE TABLE inscripcion (
     inscripcion_id         INT   GENERATED ALWAYS AS IDENTITY,
     alumno_id              INT   NOT NULL,
@@ -509,12 +512,17 @@ CREATE INDEX idx_inscripcion_curso_id ON inscripcion(curso_id);
 CREATE INDEX idx_inscripcion_inscripcion_estado_id ON inscripcion(inscripcion_estado_id);
 
 -- Coherencia de una inscripción con las filas que referencia: el alumno y el curso son de la misma
--- institución y, si la inscripción es activa, el alumno no tiene otra activa. Las demás no cuentan:
--- un alumno puede tener cualquier cantidad de canceladas y finalizadas. Por eso un cambio de curso
--- primero pasa la inscripción actual a CANCELADA y después crea la nueva.
+-- institución y, si la inscripción es activa y vigente (sin baja lógica), el alumno no tiene otra
+-- activa y vigente. Las demás no cuentan: un alumno puede tener cualquier cantidad de canceladas y
+-- finalizadas, y de inscripciones dadas de baja en cualquier estado, también activas (la baja no
+-- cambia el estado). Por eso un cambio de curso primero pasa la inscripción actual a CANCELADA y
+-- después crea la nueva, y un alumno cuya inscripción activa se dio de baja se puede volver a
+-- inscribir. Si a una inscripción activa se le quita la baja, vuelve a contar y se valida igual.
 -- "Activa" es una fila de inscripcion_estado y no un valor fijo, así que un índice único parcial no
 -- puede expresar la regla. En su lugar, FOR NO KEY UPDATE retiene la fila del alumno hasta el fin
 -- de la transacción: otra inscripción simultánea del mismo alumno espera y, al seguir, ya ve esta.
+-- La baja lógica de una inscripción es un UPDATE y también pasa por acá, así que retiene al alumno:
+-- una inscripción simultánea espera a que termine y, al seguir, ya no cuenta la dada de baja.
 -- También espera un cambio simultáneo de institución del alumno o del curso (retenido con
 -- FOR SHARE), cuyos triggers están más abajo. Si una fila referenciada no existe, las comparaciones
 -- dan NULL y no fallan: la rechaza después su clave foránea
@@ -550,11 +558,13 @@ BEGIN
     END IF;
 
     IF v_estado = 'ACTIVA'
+       AND NEW.fecha_eliminacion IS NULL
        AND EXISTS (SELECT 1
                      FROM inscripcion i
                      JOIN inscripcion_estado e ON e.inscripcion_estado_id = i.inscripcion_estado_id
                     WHERE i.alumno_id = NEW.alumno_id
                       AND i.inscripcion_id <> NEW.inscripcion_id
+                      AND i.fecha_eliminacion IS NULL
                       AND e.nombre = 'ACTIVA') THEN
         RAISE EXCEPTION 'El alumno % ya tiene una inscripción activa', NEW.alumno_id
             USING ERRCODE = 'check_violation',
@@ -657,7 +667,7 @@ CREATE TRIGGER trg_curso_inscripciones
 -- las calificaciones ni a las evaluaciones: todo es su historial, que se conserva completo para
 -- cuando se lo restaure.
 -- Devuelve en p_inscripciones_canceladas cuántas inscripciones canceló (0 o 1, porque un alumno
--- tiene una sola activa).
+-- tiene una sola activa vigente: trg_inscripcion_coherencia).
 -- Es todo o nada sin hacer COMMIT ni ROLLBACK: un CALL fuera de una transacción es una transacción
 -- en sí mismo, y si falla cualquiera de sus pasos (un RAISE de acá o el de un trigger), PostgreSQL
 -- deshace todo lo que había hecho. Llamado dentro de una transacción, forma parte de ella.

@@ -282,9 +282,10 @@ contextBridge.exposeInMainWorld('api', {
     // email }), las dos listas en el orden de list, o { ok: false, error: { code, message } }.
     listFilterOptions: () => ipcRenderer.invoke('enrollments:list-filter-options'),
     // Solo SECRETARIO. Lo que ofrece el formulario de alta en Alumno: resuelve { ok: true, students }
-    // con los alumnos vigentes y activos de su institución que no tienen una inscripción activa (sin
-    // los dados de baja, los egresados ni los ya inscriptos: un alumno solo puede tener una), por
-    // apellido y nombre ({ id, firstName, lastName, dni }, con dni solo los dígitos), o
+    // con los alumnos vigentes y activos de su institución que no tienen una inscripción vigente y
+    // activa (sin los dados de baja, los egresados ni los ya inscriptos: un alumno solo puede tener
+    // una, y una inscripción dada de baja no cuenta), por apellido y nombre
+    // ({ id, firstName, lastName, dni }, con dni solo los dígitos), o
     // { ok: false, error: { code, message } }.
     listEnrollableStudents: () => ipcRenderer.invoke('enrollments:list-enrollable-students'),
     // Solo SECRETARIO. Lo que ofrece el formulario de alta en Curso: resuelve { ok: true, courses }
@@ -302,7 +303,7 @@ contextBridge.exposeInMainWorld('api', {
     // STUDENT_NOT_ACTIVE, que el alumno no existe en la institución, fue eliminado o no está activo;
     // COURSE_NOT_FOUND, COURSE_DELETED y COURSE_LEVEL_MISMATCH, que el curso no existe en la
     // institución, fue eliminado o es de otro nivel educativo; STUDENT_ALREADY_ENROLLED, que el alumno
-    // ya tiene una inscripción activa (solo puede tener una; el mensaje da su número), y
+    // ya tiene una inscripción vigente y activa (solo puede tener una; el mensaje da su número), y
     // COURSE_OUT_OF_SCHOOL_YEAR, que el curso no es del ciclo lectivo del año en curso.
     create: (data) => ipcRenderer.invoke('enrollments:create', data),
     // Solo SECRETARIO. Resuelve { ok: true, enrollment } con la inscripción vigente con ese id
@@ -317,8 +318,8 @@ contextBridge.exposeInMainWorld('api', {
     // changed false si ya tenía ese estado, en cuyo caso no se modificó nada, o
     // { ok: false, error: { code, message } }, sin cambiar nada: INVALID_INPUT indica datos o un
     // estado inválidos; ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get, y
-    // STUDENT_ALREADY_ENROLLED, que se la quiso activar y el alumno ya tiene otra inscripción activa
-    // (solo puede tener una; el mensaje da su número).
+    // STUDENT_ALREADY_ENROLLED, que se la quiso activar y el alumno ya tiene otra inscripción vigente
+    // y activa (solo puede tener una; el mensaje da su número).
     update: (enrollmentId, data) => ipcRenderer.invoke('enrollments:update', enrollmentId, data),
     // Solo SECRETARIO. Baja lógica de la inscripción vigente con ese id (inscripcion_id) de su
     // institución, si no tiene calificaciones vigentes: deja de listarse, y su estado, su alumno, su
