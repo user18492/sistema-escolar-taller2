@@ -328,9 +328,9 @@ contextBridge.exposeInMainWorld('api', {
     // ENROLLMENT_ALREADY_DELETED, que ya había sido eliminada (p. ej., desde otra sesión).
     delete: (enrollmentId) => ipcRenderer.invoke('enrollments:delete', enrollmentId),
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la
-    // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo: las activas
-    // y las finalizadas del curso, sin las canceladas ({ id, number, enrollmentDate, student }, con
-    // number el número de inscripción, 'INS-' y el id con al menos seis dígitos, INS-000012;
+    // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo: las
+    // vigentes, activas y finalizadas, del curso, sin las canceladas ni las dadas de baja
+    // ({ id, number, enrollmentDate, student }, con number el número de inscripción, 'INS-' y el id con al menos seis dígitos, INS-000012;
     // enrollmentDate el día de la inscripción, 'AAAA-MM-DD', y student { firstName, lastName, dni },
     // el alumno, con dni solo los dígitos), o { ok: false, error: { code, message } }:
     // TEACHER_ASSIGNMENT_NOT_FOUND indica que la asignación no existe, que fue dada de baja o que es
@@ -389,10 +389,10 @@ contextBridge.exposeInMainWorld('api', {
     // (evaluacion_id), si es de la asignación docente vigente con ese id (asignacion_docente_id) y
     // esa asignación está a su cargo ({ id, title, evaluationDate }, como en
     // evaluations.listByOwnAssignment), y con sus calificaciones: una por cada inscripción del
-    // curso de la asignación, activa o finalizada (sin las canceladas), tenga o no una nota cargada
-    // ({ enrollmentId, student, value, isEnrollmentActive }, con enrollmentId el id de la
-    // inscripción, que identifica la fila; student { firstName, lastName, dni }, el alumno, con dni
-    // solo los dígitos; value la nota, un número de 0 a 10 con hasta dos decimales, o null si
+    // curso de la asignación, vigente, activa o finalizada (sin las canceladas ni las dadas de
+    // baja), tenga o no una nota cargada ({ enrollmentId, student, value, isEnrollmentActive }, con
+    // enrollmentId el id de la inscripción, que identifica la fila; student
+    // { firstName, lastName, dni }, el alumno, con dni solo los dígitos; value la nota, un número de 0 a 10 con hasta dos decimales, o null si
     // todavía no fue calificado o su calificación se dio de baja, e isEnrollmentActive false si la
     // inscripción está finalizada: su nota es de solo lectura, no se puede cargar, corregir ni dar
     // de baja), o
@@ -438,8 +438,9 @@ contextBridge.exposeInMainWorld('api', {
     // { ok: false, error: { code, message } }.
     getAdminSummary: () => ipcRenderer.invoke('dashboard:get-admin-summary'),
     // Solo SECRETARIO. Resuelve { ok: true, summary } con los indicadores de la vista Inicio para su
-    // institución ({ activeEnrollmentCount }, un entero: las inscripciones activas del ciclo lectivo
-    // del año en curso, sin las de años anteriores; 0 si ese año todavía no tiene ninguna), o
+    // institución ({ activeEnrollmentCount }, un entero: las inscripciones vigentes y activas del
+    // ciclo lectivo del año en curso, sin las dadas de baja ni las de años anteriores; 0 si ese año
+    // todavía no tiene ninguna), o
     // { ok: false, error: { code, message } }.
     getSecretarySummary: () => ipcRenderer.invoke('dashboard:get-secretary-summary'),
   },

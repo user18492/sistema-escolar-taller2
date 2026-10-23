@@ -29,8 +29,9 @@ async function getAdminSummary(currentUser) {
 
 // Indicadores de la vista Inicio del Secretario para la institución de `currentUser` (el de la
 // sesión):
-//   - activeEnrollmentCount: inscripciones activas del ciclo lectivo del año en curso. El año lo
-//     resuelve la consulta del repositorio: acá no se calcula ni se reinicia nada.
+//   - activeEnrollmentCount: inscripciones vigentes (sin baja lógica) y activas del ciclo lectivo
+//     del año en curso. El año lo resuelve la consulta del repositorio: acá no se calcula ni se
+//     reinicia nada.
 async function getSecretarySummary(currentUser) {
   const activeEnrollmentCount = await enrollmentRepository.countActiveInCurrentSchoolYear(currentUser.institutionId);
   return { activeEnrollmentCount };

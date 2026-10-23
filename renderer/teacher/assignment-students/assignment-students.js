@@ -4,8 +4,8 @@
 // Hasta que llegan, cada dato muestra una raya.
 // Si la asignación no existe o no está a cargo del profesor de la sesión, o si la carga falla, la
 // tarjeta y la tabla se ocultan y queda solo el mensaje de error.
-// La tabla muestra las inscripciones activas y finalizadas del curso de esa asignación (las
-// canceladas no llegan), que devuelve el proceso principal
+// La tabla muestra las inscripciones vigentes, activas y finalizadas, del curso de esa asignación
+// (las canceladas y las dadas de baja no llegan), que devuelve el proceso principal
 // (window.api.enrollments.listByOwnAssignment) con el mismo id, y el filtro Alumno, con una opción
 // por inscripción, las filtra en memoria. La lista filtrada se pagina en memoria, 10 por página,
 // con <table-pagination>.

@@ -50,10 +50,10 @@ function toListedScore(enrollment, score) {
 }
 
 // Calificaciones de una evaluación vigente de una asignación docente vigente a cargo de
-// `currentUser` (el profesor de la sesión): una por cada inscripción activa o finalizada del curso
-// de la asignación, en el orden de las inscripciones (por alumno), tenga o no una nota cargada. Las
-// inscripciones canceladas no se listan, ni sus calificaciones. Una calificación dada de baja no
-// cuenta: su inscripción se lista igual, sin nota.
+// `currentUser` (el profesor de la sesión): una por cada inscripción vigente, activa o finalizada,
+// del curso de la asignación, en el orden de las inscripciones (por alumno), tenga o no una nota
+// cargada. Las inscripciones canceladas o dadas de baja no se listan, ni sus calificaciones. Una
+// calificación dada de baja no cuenta: su inscripción se lista igual, sin nota.
 // Los ids llegan del renderer, así que antes se comprueba que la asignación sea suya y que la
 // evaluación sea de esa asignación (getOwnAssignmentEvaluation): el curso sale de la asignación y
 // nunca de lo que envía el renderer.

@@ -53,8 +53,8 @@ function toListedEnrollment({ id, student, enrollmentDate }) {
 }
 
 // Inscripciones del curso de una asignación docente vigente a cargo de `currentUser` (el profesor
-// de la sesión): las activas y las finalizadas del curso, sin las canceladas, en el orden del
-// repositorio. El id de la asignación llega del renderer, así que antes se comprueba que sea suya
+// de la sesión): las vigentes, activas y finalizadas del curso, sin las canceladas ni las dadas de
+// baja, en el orden del repositorio. El id de la asignación llega del renderer, así que antes se comprueba que sea suya
 // (getOwnTeacherAssignment): el curso sale de esa asignación y nunca de lo que envía el renderer.
 // Lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la
 // asignación no existe, fue dada de baja o es de otro profesor.

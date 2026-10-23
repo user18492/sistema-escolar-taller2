@@ -5,11 +5,12 @@ const { Course } = require('../models/course.model');
 const { EDUCATION_LEVEL_BY_COLUMN_VALUE, COLUMN_VALUE_BY_EDUCATION_LEVEL } = require('./grade.repository');
 const { SHIFT_BY_COLUMN_VALUE, COLUMN_VALUE_BY_SHIFT } = require('./course.repository');
 
-// Listado de las inscripciones de un curso, con su alumno: las activas y las finalizadas (valores
-// de inscripcion_estado.nombre), que son las que cuentan para el promedio. Las canceladas quedan
-// afuera: el alumno dejó de cursar ese curso. No hace falta la institución: el alumno es de la
-// misma que el curso (trg_inscripcion_coherencia, db/schema.sql). `activa` indica si el estado de
-// la inscripción es ACTIVA; si no, es FINALIZADA.
+// Listado de las inscripciones vigentes (sin baja lógica) de un curso, con su alumno: las activas y
+// las finalizadas (valores de inscripcion_estado.nombre), que son las que cuentan para el promedio.
+// Las canceladas quedan afuera: el alumno dejó de cursar ese curso. Las dadas de baja también, en
+// cualquier estado. No hace falta la institución: el alumno es de la misma que el curso
+// (trg_inscripcion_coherencia, db/schema.sql). `activa` indica si el estado de la inscripción es
+// ACTIVA; si no, es FINALIZADA.
 // El orden es total: el alumno (por apellido y nombre; alumno_id mantiene juntas las de dos alumnos
 // que se llaman igual) y, si un alumno tiene más de una inscripción en el curso, la más antigua
 // primero (inscripcion_id), así dos consultas sobre los mismos datos dan siempre el mismo orden.
@@ -26,21 +27,24 @@ const FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL = `
     JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
     JOIN alumno al ON al.alumno_id = i.alumno_id
    WHERE i.curso_id = $1
+     AND i.fecha_eliminacion IS NULL
      AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
    ORDER BY al.apellido, al.nombre, al.alumno_id, i.inscripcion_id
 `;
 
-// Cantidad de inscripciones activas (de estado ACTIVA, un valor de inscripcion_estado.nombre) de una
-// institución en el ciclo lectivo del año en curso. La institución y el ciclo lectivo son los del
-// curso: la inscripción no los guarda. El año en curso lo resuelve la base (CURRENT_DATE), así que
-// las de ciclos anteriores quedan afuera sin que nadie las descuente: la cuenta vuelve a 0 cuando
-// empieza un año. Solo cuenta el estado de la inscripción, no el del alumno ni la baja del curso.
+// Cantidad de inscripciones vigentes (sin baja lógica) y activas (de estado ACTIVA, un valor de
+// inscripcion_estado.nombre) de una institución en el ciclo lectivo del año en curso. La institución
+// y el ciclo lectivo son los del curso: la inscripción no los guarda. El año en curso lo resuelve la
+// base (CURRENT_DATE), así que las de ciclos anteriores quedan afuera sin que nadie las descuente: la
+// cuenta vuelve a 0 cuando empieza un año. Solo cuentan la baja y el estado de la inscripción, no el
+// estado del alumno ni la baja del curso.
 const COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL = `
   SELECT COUNT(*)::INT AS total
     FROM inscripcion i
     JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
     JOIN curso c ON c.curso_id = i.curso_id
    WHERE c.institucion_id = $1
+     AND i.fecha_eliminacion IS NULL
      AND ie.nombre = 'ACTIVA'
      AND c.anio_ciclo_lectivo = EXTRACT(YEAR FROM CURRENT_DATE)::INT
 `;
@@ -455,15 +459,16 @@ async function findNotDeletedByInstitution(institutionId) {
   }));
 }
 
-// Inscripciones activas y finalizadas del curso `courseId` (un curso_id), sin las canceladas,
-// ordenadas por alumno (apellido y nombre). Que el curso se pueda consultar lo comprueba el
-// servicio.
+// Inscripciones vigentes, activas y finalizadas del curso `courseId` (un curso_id), sin las
+// canceladas ni las dadas de baja, ordenadas por alumno (apellido y nombre). Que el curso se pueda
+// consultar lo comprueba el servicio.
 async function findActiveOrFinishedByCourse(courseId) {
   const { rows } = await query(FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL, [courseId]);
   return rows.map(toEnrollment);
 }
 
-// Cantidad de inscripciones activas de la institución en el ciclo lectivo del año en curso.
+// Cantidad de inscripciones vigentes y activas de la institución en el ciclo lectivo del año en
+// curso.
 async function countActiveInCurrentSchoolYear(institutionId) {
   const { rows } = await query(COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL, [institutionId]);
   return rows[0].total;
