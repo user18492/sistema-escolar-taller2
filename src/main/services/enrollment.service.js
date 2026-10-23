@@ -409,6 +409,32 @@ async function updateEnrollment(currentUser, enrollmentId, { status }) {
   throw new Error(`No se cambió el estado de la inscripción ${enrollmentId}, que está vigente`);
 }
 
+// ---------- Baja ----------
+
+// Baja lógica de la inscripción vigente con ese id de la institución de `currentUser` (el de la
+// sesión): completa su fecha de baja y deja de listarse. No cambia nada más: ni su estado, ni su
+// alumno, ni su curso, ni su fecha, ni sus calificaciones. Devuelve la inscripción dada de baja, con
+// los campos de listEnrollments.
+// El id llega del renderer y la fila que tiene a la vista puede haber quedado vieja, así que no se
+// confía en ella: la baja solo marca una inscripción vigente de la institución y, si no marca nada,
+// se busca de nuevo para saber por qué.
+// Lanza un EnrollmentError si no existe en la institución (ENROLLMENT_NOT_FOUND; una de otra
+// institución cuenta como inexistente) o si ya estaba dada de baja, p. ej., desde otra sesión
+// (ENROLLMENT_ALREADY_DELETED).
+async function deleteEnrollment(currentUser, enrollmentId) {
+  const { institutionId } = currentUser;
+  const deletedEnrollment = await enrollmentRepository.markAsDeleted(enrollmentId, institutionId);
+  if (deletedEnrollment) return toInstitutionEnrollment(deletedEnrollment);
+  const enrollment = await enrollmentRepository.findById(enrollmentId, institutionId);
+  if (!enrollment) {
+    throw new EnrollmentError('ENROLLMENT_NOT_FOUND', 'La inscripción ya no existe.');
+  }
+  if (enrollment.deletedAt) {
+    throw new EnrollmentError('ENROLLMENT_ALREADY_DELETED', 'La inscripción ya había sido eliminada.');
+  }
+  throw new Error(`No se dio de baja la inscripción ${enrollmentId}, que está vigente`);
+}
+
 module.exports = {
   listOwnAssignmentEnrollments,
   listEnrollments,
@@ -418,6 +444,7 @@ module.exports = {
   createEnrollment,
   getEnrollment,
   updateEnrollment,
+  deleteEnrollment,
   formatEnrollmentNumber,
   toListedStudent,
   EnrollmentError,

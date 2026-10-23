@@ -482,9 +482,10 @@ CREATE TABLE inscripcion_estado (
 
 -- Inscripciones: un alumno cursa un curso. A lo largo del tiempo, un alumno pasa por muchos cursos
 -- y un curso tiene muchos alumnos.
--- Lo que cambia a lo largo de su vida es su estado. La baja lógica (fecha_eliminacion) no la hace
--- todavía ninguna operación: la baja de un alumno (sp_alumno_dar_de_baja, más abajo) pasa sus
--- inscripciones activas a CANCELADA, pero no las da de baja, para conservar todo su historial.
+-- Lo que cambia a lo largo de su vida es su estado. La baja lógica (fecha_eliminacion) la hace el
+-- Secretario desde el listado de inscripciones, sin cambiar el estado ni el resto de la fila. La
+-- baja de un alumno (sp_alumno_dar_de_baja, más abajo) no la hace: pasa sus inscripciones activas a
+-- CANCELADA, pero no las da de baja, para conservar todo su historial.
 -- Ninguna regla la tiene en cuenta todavía: una inscripción dada de baja sigue contando para todas
 CREATE TABLE inscripcion (
     inscripcion_id         INT   GENERATED ALWAYS AS IDENTITY,

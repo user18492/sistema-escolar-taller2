@@ -177,6 +177,23 @@ async function updateEnrollment(currentUser, enrollmentId, data) {
   }
 }
 
+// Nunca rechaza: los errores previstos (la inscripción no existe en la institución o ya estaba dada
+// de baja) llevan su mensaje y el resto, uno genérico con el detalle en la consola.
+async function deleteEnrollment(currentUser, enrollmentId) {
+  if (!isId(enrollmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la inscripción.');
+  }
+  try {
+    return { ok: true, enrollment: await enrollmentService.deleteEnrollment(currentUser, enrollmentId) };
+  } catch (error) {
+    if (error instanceof EnrollmentError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al eliminar la inscripción:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo eliminar la inscripción. Intentá nuevamente.');
+  }
+}
+
 // `teacherAssignmentId` es el id de una asignación del profesor de la sesión: que esté a su cargo
 // lo comprueba el servicio.
 // Nunca rechaza: los errores previstos (los de la asignación) llevan su mensaje y el resto, uno
@@ -209,6 +226,7 @@ function registerEnrollmentHandlers(browserWindow) {
   handleProtected(browserWindow, 'enrollments:create', ['SECRETARIO'], createEnrollment);
   handleProtected(browserWindow, 'enrollments:get', ['SECRETARIO'], getEnrollment);
   handleProtected(browserWindow, 'enrollments:update', ['SECRETARIO'], updateEnrollment);
+  handleProtected(browserWindow, 'enrollments:delete', ['SECRETARIO'], deleteEnrollment);
   handleProtected(browserWindow, 'enrollments:list-by-own-assignment', ['PROFESOR'], listOwnAssignmentEnrollments);
 }
 

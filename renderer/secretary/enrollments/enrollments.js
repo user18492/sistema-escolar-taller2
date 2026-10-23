@@ -15,7 +15,10 @@
 // para marcar su estado actual y guarda el elegido (window.api.enrollments.update). También se avisa
 // con un toast: si se guardó, la tabla vuelve a pedir la página a la vista, con los mismos filtros;
 // si no, el modal sigue abierto con el estado elegido.
-// Eliminar sigue siendo maqueta: interacción puramente visual, sin guardar nada.
+// Eliminar pide confirmación en "Eliminar inscripción" (confirm-modal.component.js) y solo al
+// confirmar da de baja la inscripción (window.api.enrollments.delete), que deja de listarse: la tabla
+// vuelve a pedir la página a la vista con los mismos filtros, con el total recalculado, o la anterior
+// si quedó vacía. El resultado también se avisa con un toast y el modal se cierra siempre.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -128,8 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Opciones del filtro de `header`, antes de .dropdown-empty; column-filter.js las lee al usarlas.
   // `filter` es lo que filtra esa columna en activeFilters: al volver a llenarlas (después de un
-  // alta), las elegidas siguen marcadas y, si alguna ya no llega (otra sesión dio de baja al
-  // alumno), deja de filtrar. El embudo se actualiza.
+  // alta o una baja), las elegidas siguen marcadas y, si alguna ya no llega (se dio de baja la
+  // inscripción, u otra sesión dio de baja al alumno), deja de filtrar. El embudo se actualiza.
   const fillOptions = (header, filter, options) => {
     const list = header.querySelector('[role="listbox"]');
     const emptyState = list.querySelector('.dropdown-empty');
@@ -152,8 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pide las opciones de Número de inscripción (el número, con el alumno debajo) y de Alumno (el
   // alumno, con su email debajo): todas las inscripciones que lista la tabla sin filtros y sus
   // alumnos, no solo los de la página a la vista. Se vuelven a pedir después de un alta, para sumar
-  // la inscripción nueva y su alumno. Si no llegan la primera vez, las dos listas quedan vacías con
-  // el motivo.
+  // la inscripción nueva y su alumno, y después de una baja, para quitarlos. Si no llegan la primera
+  // vez, las dos listas quedan vacías con el motivo.
   async function loadFilterOptions() {
     let response;
     try {
@@ -538,9 +541,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let isSavingEdit = false;
   // Ícono "Editar" que abrió el modal: recupera el foco al cerrarlo, si su fila sigue en la tabla
   let editTrigger = null;
-  // Posición en la página de la fila de editTrigger, solo para devolver el foco a la que ocupe su
-  // lugar si esa fila ya no se muestra
+  // Posición en la página de la fila del botón que abrió el último modal (Editar o Eliminar), solo
+  // para devolver el foco a la que ocupe su lugar si esa fila ya no se muestra
   let triggerRowIndex = 0;
+
+  // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
+  // página), o "Nueva inscripción" si la tabla quedó sin inscripciones
+  const focusAfterRemoval = (action) => {
+    const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
+    return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openEnrollmentModalBtn;
+  };
   // Cambia cada vez que el modal se abre o se cierra: descarta la respuesta de get que llegue tarde,
   // de una inscripción que ya no se edita
   let editRequestId = 0;
@@ -637,10 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // lugar (o en la última de la página); sin filas, a Nueva inscripción
   const editFocusTarget = () => {
     if (editTrigger?.isConnected) return editTrigger;
-    const ownButton = tbody.querySelector(`tr[data-enrollment-id="${editingEnrollmentId}"] [data-action="edit"]`);
-    if (ownButton) return ownButton;
-    const buttons = tbody.querySelectorAll('[data-action="edit"]');
-    return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openEnrollmentModalBtn;
+    return tbody.querySelector(`tr[data-enrollment-id="${editingEnrollmentId}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
   };
 
   function closeEditModal() {
@@ -716,12 +723,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar inscripción ----------
 
-  // Componente compartido confirm-modal.component.js. Vista puramente visual: la eliminación
-  // real se conecta con onConfirm cuando exista la capa de servicios/IPC.
+  // Códigos con los que el proceso principal avisa que la inscripción ya no está vigente (no existe u
+  // otra sesión la dio de baja): la fila quedó vieja y la tabla se vuelve a pedir
+  const NO_LONGER_DELETABLE_CODES = ['ENROLLMENT_NOT_FOUND', 'ENROLLMENT_ALREADY_DELETED'];
+
+  // Después de una baja, la inscripción deja de ser opción del filtro Número de inscripción, y su
+  // alumno del filtro Alumno si no le queda otra (si estaban elegidos, dejan de filtrar: fillOptions),
+  // y la tabla vuelve a pedir la página a la vista con los filtros aplicados: ya sin la inscripción y
+  // con el total y la paginación recalculados. Si era la única fila de la última página, esa página
+  // ya no existe y el proceso principal devuelve la anterior.
+  const refreshAfterDelete = async () => {
+    await loadFilterOptions();
+    await loadEnrollments(pagination.page);
+  };
+
+  // "Se eliminó la inscripción INS-000041 de Camila Álvarez en 1° A, Mañana, Primaria."
+  const deletedDescription = ({ number, student, course }) =>
+    `Se eliminó la inscripción ${number} de ${student.firstName} ${student.lastName} en ${courseName(course)}.`;
+
+  // El id sale del data-enrollment-id de la fila del botón (el inscripcion_id), no de su posición en
+  // la tabla; el proceso principal vuelve a comprobar que la inscripción exista en la institución y
+  // siga vigente. Si la da de baja, o si ya no estaba vigente, la tabla se actualiza antes de liberar
+  // el modal, así al cerrarse ya no la muestra. Avisa el resultado con un toast y no resuelve ningún
+  // mensaje, así el modal se cierra siempre.
+  const deleteEnrollment = async (trigger) => {
+    const row = trigger.closest('tr');
+    let response;
+    try {
+      response = await window.api?.enrollments?.delete(Number(row?.dataset.enrollmentId));
+    } catch (error) {
+      console.error('Error al eliminar la inscripción:', error);
+    }
+    const error = response?.error;
+    if (response?.ok || NO_LONGER_DELETABLE_CODES.includes(error?.code)) {
+      // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
+      triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+      await refreshAfterDelete();
+    }
+
+    if (response?.ok) {
+      showToast({ type: 'success', title: 'Inscripción eliminada', description: deletedDescription(response.enrollment) });
+      return;
+    }
+    showToast({ type: 'error', title: 'No se pudo eliminar la inscripción', description: errorDescription(error) });
+  };
+
+  // Componente compartido confirm-modal.component.js: lo abre el ícono Eliminar de cada fila, espera
+  // la respuesta abierto y después se cierra; Cancelar o Escape lo cierran sin hacer nada. Si la fila
+  // ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
   setupConfirmModal(document.getElementById('deleteEnrollmentOverlay'), {
     beforeOpen: () => {
       closeAllDropdowns();
       closeAllSearchableMenus();
     },
+    onConfirm: deleteEnrollment,
+    fallbackFocus: () => focusAfterRemoval('delete'),
   });
 });

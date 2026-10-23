@@ -271,6 +271,49 @@ const UPDATE_STATUS_SQL = `
     JOIN grado g ON g.grado_id = c.grado_id
 `;
 
+// Baja lógica: completa la fecha_eliminacion de la inscripción $1 de la institución $2, solo si está
+// vigente; si no, no cambia nada. El estado, el alumno, el curso y la fecha de inscripción no
+// cambian, y la baja no llega a sus calificaciones. Devuelve la fila como quedó, con los campos de
+// FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL.
+// Solo marca una inscripción vigente, así una segunda baja (repetida o simultánea) no pisa la fecha
+// de la primera: si la fila cambió mientras el UPDATE esperaba su bloqueo, PostgreSQL vuelve a
+// evaluar las condiciones sobre la fila que dejó y, si ya no las cumple, no la cambia.
+// Ningún trigger de inscripcion puede rechazar la baja: trg_inscripcion_coherencia y
+// trg_inscripcion_fecha_ciclo_lectivo se vuelven a evaluar sobre el mismo alumno, el mismo curso, el
+// mismo estado y la misma fecha, que ya los cumplían, y trg_inscripcion_calificaciones_vigentes solo
+// se dispara si cambia el curso.
+const MARK_AS_DELETED_SQL = `
+  WITH deleted AS (
+    UPDATE inscripcion i
+       SET fecha_eliminacion = NOW()
+      FROM curso c
+     WHERE i.inscripcion_id = $1
+       AND c.curso_id = i.curso_id
+       AND c.institucion_id = $2
+       AND i.fecha_eliminacion IS NULL
+    RETURNING i.inscripcion_id, i.alumno_id, i.curso_id, i.inscripcion_estado_id, i.fecha_inscripcion
+  )
+  SELECT i.inscripcion_id,
+         i.fecha_inscripcion,
+         ie.nombre AS estado,
+         al.alumno_id,
+         al.nombre,
+         al.apellido,
+         c.curso_id,
+         c.institucion_id,
+         c.grado_id,
+         c.division,
+         c.turno,
+         c.anio_ciclo_lectivo,
+         g.nombre AS grado_nombre,
+         g.nivel_educativo
+    FROM deleted i
+    JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+    JOIN alumno al ON al.alumno_id = i.alumno_id
+    JOIN curso c ON c.curso_id = i.curso_id
+    JOIN grado g ON g.grado_id = c.grado_id
+`;
+
 // La inscripción activa del alumno $1, si tiene una: la misma que cuenta trg_inscripcion_coherencia
 // para la regla de una sola activa por alumno, así que puede ser de un curso dado de baja. Si hubiera
 // más de una (la regla no lo permite), la más antigua.
@@ -462,6 +505,15 @@ async function updateStatus(enrollmentId, institutionId, status) {
   return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
 }
 
+// Da de baja la inscripción vigente `enrollmentId` (un inscripcion_id) de la institución, que deja de
+// listarse, sin cambiar nada más, y la devuelve con su alumno, su curso y su estado, como
+// findPageNotDeletedByInstitution; null si no cambió nada: no existe en la institución o ya estaba
+// dada de baja.
+async function markAsDeleted(enrollmentId, institutionId) {
+  const { rows } = await query(MARK_AS_DELETED_SQL, [enrollmentId, institutionId]);
+  return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
+}
+
 // La inscripción activa del alumno `studentId` (un alumno_id), solo con su id y el de su curso
 // (`courseId`); null si no tiene ninguna.
 async function findActiveByStudent(studentId) {
@@ -490,6 +542,7 @@ module.exports = {
   create,
   findById,
   updateStatus,
+  markAsDeleted,
   findActiveByStudent,
   isSecondActiveEnrollmentError,
   isDateOutOfSchoolYearError,
