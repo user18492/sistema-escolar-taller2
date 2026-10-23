@@ -1,6 +1,7 @@
 const enrollmentRepository = require('../repositories/enrollment.repository');
 const studentRepository = require('../repositories/student.repository');
 const courseRepository = require('../repositories/course.repository');
+const scoreRepository = require('../repositories/score.repository');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const teacherAssignmentService = require('./teacher-assignment.service');
 const { toListedCourse } = require('./course.service');
@@ -413,14 +414,17 @@ async function updateEnrollment(currentUser, enrollmentId, { status }) {
 
 // Baja lógica de la inscripción vigente con ese id de la institución de `currentUser` (el de la
 // sesión): completa su fecha de baja y deja de listarse. No cambia nada más: ni su estado, ni su
-// alumno, ni su curso, ni su fecha, ni sus calificaciones. Devuelve la inscripción dada de baja, con
-// los campos de listEnrollments.
+// alumno, ni su curso, ni su fecha. Devuelve la inscripción dada de baja, con los campos de
+// listEnrollments.
+// Una inscripción con calificaciones vigentes no se da de baja: las dadas de baja no cuentan, y las
+// de una evaluación dada de baja sí, porque siguen vigentes. Se comprueba al guardar, así que vale
+// también si el profesor carga una nota mientras tanto.
 // El id llega del renderer y la fila que tiene a la vista puede haber quedado vieja, así que no se
-// confía en ella: la baja solo marca una inscripción vigente de la institución y, si no marca nada,
-// se busca de nuevo para saber por qué.
+// confía en ella: la baja solo marca una inscripción vigente de la institución y sin calificaciones
+// vigentes y, si no marca nada, se busca de nuevo para saber por qué.
 // Lanza un EnrollmentError si no existe en la institución (ENROLLMENT_NOT_FOUND; una de otra
-// institución cuenta como inexistente) o si ya estaba dada de baja, p. ej., desde otra sesión
-// (ENROLLMENT_ALREADY_DELETED).
+// institución cuenta como inexistente), si ya estaba dada de baja, p. ej., desde otra sesión
+// (ENROLLMENT_ALREADY_DELETED) o si tiene calificaciones vigentes (ENROLLMENT_HAS_SCORES).
 async function deleteEnrollment(currentUser, enrollmentId) {
   const { institutionId } = currentUser;
   const deletedEnrollment = await enrollmentRepository.markAsDeleted(enrollmentId, institutionId);
@@ -432,7 +436,15 @@ async function deleteEnrollment(currentUser, enrollmentId) {
   if (enrollment.deletedAt) {
     throw new EnrollmentError('ENROLLMENT_ALREADY_DELETED', 'La inscripción ya había sido eliminada.');
   }
-  throw new Error(`No se dio de baja la inscripción ${enrollmentId}, que está vigente`);
+  if (await scoreRepository.existsNotDeletedByEnrollment(enrollmentId)) {
+    throw new EnrollmentError(
+      'ENROLLMENT_HAS_SCORES',
+      'La inscripción tiene calificaciones cargadas. Solo se puede eliminar una inscripción sin calificaciones.'
+    );
+  }
+  // Otra sesión le dio de baja las calificaciones después del UPDATE: ya se puede dar de baja, pero
+  // no se reintenta sola.
+  throw new Error(`No se dio de baja la inscripción ${enrollmentId}, que está vigente y sin calificaciones vigentes`);
 }
 
 module.exports = {

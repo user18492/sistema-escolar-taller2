@@ -321,11 +321,12 @@ contextBridge.exposeInMainWorld('api', {
     // (solo puede tener una; el mensaje da su número).
     update: (enrollmentId, data) => ipcRenderer.invoke('enrollments:update', enrollmentId, data),
     // Solo SECRETARIO. Baja lógica de la inscripción vigente con ese id (inscripcion_id) de su
-    // institución: deja de listarse, y su estado, su alumno, su curso, su fecha y sus calificaciones
-    // no cambian. Resuelve { ok: true, enrollment } con la inscripción dada de baja (mismos campos
-    // que list) o { ok: false, error: { code, message } }, sin cambiar nada: INVALID_INPUT indica un
-    // id inválido; ENROLLMENT_NOT_FOUND, que no existe en la institución, y
-    // ENROLLMENT_ALREADY_DELETED, que ya había sido eliminada (p. ej., desde otra sesión).
+    // institución, si no tiene calificaciones vigentes: deja de listarse, y su estado, su alumno, su
+    // curso y su fecha no cambian. Resuelve { ok: true, enrollment } con la inscripción dada de baja
+    // (mismos campos que list) o { ok: false, error: { code, message } }, sin cambiar nada:
+    // INVALID_INPUT indica un id inválido; ENROLLMENT_NOT_FOUND, que no existe en la institución;
+    // ENROLLMENT_ALREADY_DELETED, que ya había sido eliminada (p. ej., desde otra sesión), y
+    // ENROLLMENT_HAS_SCORES, que tiene calificaciones vigentes (las dadas de baja no cuentan).
     delete: (enrollmentId) => ipcRenderer.invoke('enrollments:delete', enrollmentId),
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la
     // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo: las

@@ -14,6 +14,15 @@ const FIND_BY_EVALUATION_SQL = `
      AND ca.fecha_eliminacion IS NULL
 `;
 
+// Si la inscripción $1 tiene alguna calificación vigente, de cualquier evaluación: también de una
+// dada de baja, cuyas calificaciones siguen vigentes.
+const EXISTS_NOT_DELETED_BY_ENROLLMENT_SQL = `
+  SELECT EXISTS (SELECT 1
+                   FROM calificacion ca
+                  WHERE ca.inscripcion_id = $1
+                    AND ca.fecha_eliminacion IS NULL) AS has_scores
+`;
+
 // Alta: la nota de una inscripción que no tiene una calificación vigente en la evaluación. Devuelve
 // la fila creada.
 const CREATE_SQL = `
@@ -68,6 +77,14 @@ function toScore(row) {
 async function findByEvaluation(evaluationId) {
   const { rows } = await query(FIND_BY_EVALUATION_SQL, [evaluationId]);
   return rows.map(toScore);
+}
+
+// true si la inscripción `enrollmentId` (un inscripcion_id) tiene alguna calificación vigente, en
+// cualquier evaluación (también en una dada de baja); false si no tiene ninguna o si todas se dieron
+// de baja.
+async function existsNotDeletedByEnrollment(enrollmentId) {
+  const { rows } = await query(EXISTS_NOT_DELETED_BY_ENROLLMENT_SQL, [enrollmentId]);
+  return rows[0].has_scores;
 }
 
 // Carga la nota `value` de la inscripción `enrollmentId` (un inscripcion_id) en la evaluación
@@ -125,6 +142,7 @@ function isEnrollmentNotActiveError(error) {
 
 module.exports = {
   findByEvaluation,
+  existsNotDeletedByEnrollment,
   create,
   update,
   markAsDeleted,

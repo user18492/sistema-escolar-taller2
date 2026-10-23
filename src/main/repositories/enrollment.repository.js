@@ -1,4 +1,4 @@
-const { query } = require('../database/connection');
+const { query, runInTransaction } = require('../database/connection');
 const { Enrollment } = require('../models/enrollment.model');
 const { Student } = require('../models/student.model');
 const { Course } = require('../models/course.model');
@@ -275,9 +275,23 @@ const UPDATE_STATUS_SQL = `
     JOIN grado g ON g.grado_id = c.grado_id
 `;
 
+// Bloquea la inscripción $1 de la institución $2 hasta el fin de la transacción, solo si está
+// vigente. Ninguna fila si no existe en la institución o ya está dada de baja. Es el bloqueo que
+// toma después MARK_AS_DELETED_SQL, pero antes de que busque calificaciones: ver markAsDeleted.
+const LOCK_NOT_DELETED_SQL = `
+  SELECT i.inscripcion_id
+    FROM inscripcion i
+    JOIN curso c ON c.curso_id = i.curso_id
+   WHERE i.inscripcion_id = $1
+     AND c.institucion_id = $2
+     AND i.fecha_eliminacion IS NULL
+     FOR NO KEY UPDATE OF i
+`;
+
 // Baja lógica: completa la fecha_eliminacion de la inscripción $1 de la institución $2, solo si está
-// vigente; si no, no cambia nada. El estado, el alumno, el curso y la fecha de inscripción no
-// cambian, y la baja no llega a sus calificaciones. Devuelve la fila como quedó, con los campos de
+// vigente y no tiene calificaciones vigentes (las dadas de baja no cuentan; las de una evaluación
+// dada de baja sí, porque siguen vigentes); si no, no cambia nada. El estado, el alumno, el curso y
+// la fecha de inscripción no cambian. Devuelve la fila como quedó, con los campos de
 // FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL.
 // Solo marca una inscripción vigente, así una segunda baja (repetida o simultánea) no pisa la fecha
 // de la primera: si la fila cambió mientras el UPDATE esperaba su bloqueo, PostgreSQL vuelve a
@@ -295,6 +309,10 @@ const MARK_AS_DELETED_SQL = `
        AND c.curso_id = i.curso_id
        AND c.institucion_id = $2
        AND i.fecha_eliminacion IS NULL
+       AND NOT EXISTS (SELECT 1
+                         FROM calificacion ca
+                        WHERE ca.inscripcion_id = i.inscripcion_id
+                          AND ca.fecha_eliminacion IS NULL)
     RETURNING i.inscripcion_id, i.alumno_id, i.curso_id, i.inscripcion_estado_id, i.fecha_inscripcion
   )
   SELECT i.inscripcion_id,
@@ -510,13 +528,23 @@ async function updateStatus(enrollmentId, institutionId, status) {
   return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
 }
 
-// Da de baja la inscripción vigente `enrollmentId` (un inscripcion_id) de la institución, que deja de
-// listarse, sin cambiar nada más, y la devuelve con su alumno, su curso y su estado, como
-// findPageNotDeletedByInstitution; null si no cambió nada: no existe en la institución o ya estaba
-// dada de baja.
+// Da de baja la inscripción vigente `enrollmentId` (un inscripcion_id) de la institución, si no tiene
+// calificaciones vigentes: deja de listarse, sin cambiar nada más, y la devuelve con su alumno, su
+// curso y su estado, como findPageNotDeletedByInstitution; null si no cambió nada: no existe en la
+// institución, ya estaba dada de baja o tiene calificaciones vigentes.
 async function markAsDeleted(enrollmentId, institutionId) {
-  const { rows } = await query(MARK_AS_DELETED_SQL, [enrollmentId, institutionId]);
-  return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
+  // En una transacción, con la fila bloqueada antes de buscar calificaciones: trg_calificacion_coherencia
+  // (db/schema.sql) retiene la inscripción FOR SHARE al cargar, corregir o dar de baja una nota, así
+  // que una carga o una baja simultánea termina antes de que el UPDATE, que es otra sentencia, busque
+  // calificaciones, y este ya la ve. En una sola sentencia no la vería: PostgreSQL buscaría con la
+  // foto de los datos tomada antes de esperar el bloqueo.
+  return runInTransaction(async (transactionQuery) => {
+    const locked = await transactionQuery(LOCK_NOT_DELETED_SQL, [enrollmentId, institutionId]);
+    if (locked.rows.length === 0) return null;
+
+    const { rows } = await transactionQuery(MARK_AS_DELETED_SQL, [enrollmentId, institutionId]);
+    return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
+  });
 }
 
 // La inscripción activa del alumno `studentId` (un alumno_id), solo con su id y el de su curso

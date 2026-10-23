@@ -177,8 +177,9 @@ async function updateEnrollment(currentUser, enrollmentId, data) {
   }
 }
 
-// Nunca rechaza: los errores previstos (la inscripción no existe en la institución o ya estaba dada
-// de baja) llevan su mensaje y el resto, uno genérico con el detalle en la consola.
+// Nunca rechaza: los errores previstos (la inscripción no existe en la institución, ya estaba dada
+// de baja o tiene calificaciones) llevan su mensaje y el resto, uno genérico con el detalle en la
+// consola.
 async function deleteEnrollment(currentUser, enrollmentId) {
   if (!isId(enrollmentId)) {
     return failure('INVALID_INPUT', 'No se pudo identificar la inscripción.');
