@@ -32,6 +32,16 @@ const FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL = `
    ORDER BY al.apellido, al.nombre, al.alumno_id, i.inscripcion_id
 `;
 
+// Si la inscripción $1 es del curso $2 y está dada de baja (baja lógica), en cualquier estado. Una
+// que no existe o que es de otro curso da false, igual que una vigente.
+const IS_DELETED_IN_COURSE_SQL = `
+  SELECT EXISTS (SELECT 1
+                   FROM inscripcion i
+                  WHERE i.inscripcion_id = $1
+                    AND i.curso_id = $2
+                    AND i.fecha_eliminacion IS NOT NULL) AS is_deleted
+`;
+
 // Cantidad de inscripciones vigentes (sin baja lógica) y activas (de estado ACTIVA, un valor de
 // inscripcion_estado.nombre) de una institución en el ciclo lectivo del año en curso. La institución
 // y el ciclo lectivo son los del curso: la inscripción no los guarda. El año en curso lo resuelve la
@@ -489,6 +499,13 @@ async function findActiveOrFinishedByCourse(courseId) {
   return rows.map(toEnrollment);
 }
 
+// true si la inscripción `enrollmentId` (un inscripcion_id) es del curso `courseId` (un curso_id) y
+// está dada de baja; false si está vigente, si no existe o si es de otro curso.
+async function isDeletedInCourse(enrollmentId, courseId) {
+  const { rows } = await query(IS_DELETED_IN_COURSE_SQL, [enrollmentId, courseId]);
+  return rows[0].is_deleted;
+}
+
 // Cantidad de inscripciones vigentes y activas de la institución en el ciclo lectivo del año en
 // curso.
 async function countActiveInCurrentSchoolYear(institutionId) {
@@ -571,6 +588,7 @@ function isDateOutOfSchoolYearError(error) {
 
 module.exports = {
   findActiveOrFinishedByCourse,
+  isDeletedInCourse,
   countActiveInCurrentSchoolYear,
   countNotDeletedByInstitution,
   findPageNotDeletedByInstitution,

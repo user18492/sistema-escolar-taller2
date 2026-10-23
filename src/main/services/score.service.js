@@ -31,6 +31,30 @@ function isScoreValue(value) {
   );
 }
 
+// ---------- Inscripción vigente ----------
+
+// La inscripción del alumno se dio de baja (baja lógica): sus calificaciones se conservan, pero ya
+// no se cargan, no se corrigen ni se dan de baja. `action` completa el mensaje.
+function enrollmentDeletedError(action) {
+  return new ScoreError(
+    'ENROLLMENT_DELETED',
+    `La inscripción del alumno fue eliminada: su calificación no se puede ${action}.`
+  );
+}
+
+// La inscripción `enrollmentId` del curso `courseId` (el de la asignación) tiene que estar vigente,
+// sin baja lógica. Una dada de baja ya no se lista (listOwnEvaluationScores), pero la vista del
+// profesor pudo quedar abierta desde antes de la baja y el id llega del renderer: se comprueba acá,
+// antes de escribir. PostgreSQL lo vuelve a comprobar al escribir (trg_calificacion_coherencia,
+// db/schema.sql), por si la baja llega en el medio, y ese rechazo se traduce al mismo error.
+// Solo se busca en el curso de la asignación: una inscripción que no existe o es de otro curso pasa
+// y la rechaza después PostgreSQL, como siempre. Lanza enrollmentDeletedError(action).
+async function assertEnrollmentNotDeleted(courseId, enrollmentId, action) {
+  if (await enrollmentRepository.isDeletedInCourse(enrollmentId, courseId)) {
+    throw enrollmentDeletedError(action);
+  }
+}
+
 // ---------- Calificaciones de una evaluación del profesor ----------
 
 // Lista explícita de campos, como toListedCourse (course.service.js): lo que muestran de cada
@@ -104,10 +128,12 @@ async function createOrUpdateScore(evaluationId, enrollmentId, value) {
 // después se inserta otra vez.
 // La nota tiene que ser un número de 0 a 10 con hasta dos decimales: si no, no se guarda nada y se
 // lanza un ScoreError INVALID_SCORE.
-// La inscripción tiene que ser del curso de la asignación y estar activa. Las dos reglas las aplica
-// PostgreSQL al guardar (trg_calificacion_coherencia, db/schema.sql), así que valen también si la
-// inscripción cambia mientras tanto: se lanza un ScoreError ENROLLMENT_NOT_FOUND si no existe o es
-// de otro curso, sin distinguir los casos, y ENROLLMENT_NOT_ACTIVE si fue finalizada o cancelada.
+// La inscripción tiene que ser del curso de la asignación, estar vigente (sin baja lógica) y estar
+// activa. Las tres reglas las aplica PostgreSQL al guardar (trg_calificacion_coherencia,
+// db/schema.sql), así que valen también si la inscripción cambia mientras tanto; la baja, además,
+// se comprueba antes (assertEnrollmentNotDeleted). Se lanza un ScoreError ENROLLMENT_NOT_FOUND si
+// no existe o es de otro curso, sin distinguir los casos, ENROLLMENT_DELETED si se dio de baja y
+// ENROLLMENT_NOT_ACTIVE si fue finalizada o cancelada.
 // También lanza los errores de getOwnAssignmentEvaluation: TEACHER_ASSIGNMENT_NOT_FOUND y
 // EVALUATION_NOT_FOUND.
 async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluationId, { enrollmentId, value }) {
@@ -117,11 +143,12 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
       `La calificación tiene que ser un número de ${MIN_SCORE_VALUE} a ${MAX_SCORE_VALUE}, con hasta dos decimales.`
     );
   }
-  const { evaluation } = await evaluationService.getOwnAssignmentEvaluation(
+  const { teacherAssignment, evaluation } = await evaluationService.getOwnAssignmentEvaluation(
     currentUser,
     teacherAssignmentId,
     evaluationId
   );
+  await assertEnrollmentNotDeleted(teacherAssignment.course.id, enrollmentId, 'cargar ni modificar');
 
   let score;
   try {
@@ -129,6 +156,9 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
   } catch (error) {
     if (scoreRepository.isEnrollmentNotInCourseError(error)) {
       throw new ScoreError('ENROLLMENT_NOT_FOUND', 'El alumno no está inscripto en el curso de esta evaluación.');
+    }
+    if (scoreRepository.isEnrollmentDeletedError(error)) {
+      throw enrollmentDeletedError('cargar ni modificar');
     }
     if (scoreRepository.isEnrollmentNotActiveError(error)) {
       throw new ScoreError(
@@ -154,22 +184,29 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
 // listOwnEvaluationScores, sin nota.
 // Lanza un ScoreError SCORE_NOT_FOUND si la inscripción no tiene una calificación vigente en la
 // evaluación: nunca la tuvo, ya se dio de baja o la inscripción no existe o es de otro curso, sin
-// distinguir los casos. La inscripción tiene que estar activa, como al cargar la nota o corregirla:
-// la regla la aplica PostgreSQL al dar de baja (trg_calificacion_coherencia, db/schema.sql) y se
-// lanza un ScoreError ENROLLMENT_NOT_ACTIVE si fue finalizada o cancelada.
+// distinguir los casos. La inscripción tiene que estar vigente y activa, como al cargar la nota o
+// corregirla: las dos reglas las aplica PostgreSQL al dar de baja (trg_calificacion_coherencia,
+// db/schema.sql), y la baja de la inscripción, además, se comprueba antes
+// (assertEnrollmentNotDeleted). Se lanza un ScoreError ENROLLMENT_DELETED si la inscripción se dio
+// de baja, tenga o no una calificación vigente, y ENROLLMENT_NOT_ACTIVE si fue finalizada o
+// cancelada.
 // También lanza los errores de getOwnAssignmentEvaluation: TEACHER_ASSIGNMENT_NOT_FOUND y
 // EVALUATION_NOT_FOUND.
 async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evaluationId, enrollmentId) {
-  const { evaluation } = await evaluationService.getOwnAssignmentEvaluation(
+  const { teacherAssignment, evaluation } = await evaluationService.getOwnAssignmentEvaluation(
     currentUser,
     teacherAssignmentId,
     evaluationId
   );
+  await assertEnrollmentNotDeleted(teacherAssignment.course.id, enrollmentId, 'eliminar');
 
   let deletedScore;
   try {
     deletedScore = await scoreRepository.markAsDeleted(evaluation.id, enrollmentId);
   } catch (error) {
+    if (scoreRepository.isEnrollmentDeletedError(error)) {
+      throw enrollmentDeletedError('eliminar');
+    }
     if (scoreRepository.isEnrollmentNotActiveError(error)) {
       throw new ScoreError(
         'ENROLLMENT_NOT_ACTIVE',

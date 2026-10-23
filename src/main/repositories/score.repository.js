@@ -55,11 +55,12 @@ const MARK_AS_DELETED_SQL = `
   RETURNING calificacion_id, evaluacion_id, inscripcion_id, nota
 `;
 
-// Restricciones de calificacion, con los nombres que les da db/schema.sql. Las dos últimas las
+// Restricciones de calificacion, con los nombres que les da db/schema.sql. Las tres últimas las
 // informa trg_calificacion_coherencia, al cargar una nota, al corregirla y al darla de baja.
 const UNIQUE_CONSTRAINT = 'uq_calificacion_evaluacion_inscripcion';
 const ENROLLMENT_FOREIGN_KEY = 'fk_calificacion_inscripcion';
 const SAME_COURSE_CONSTRAINT = 'ck_calificacion_mismo_curso';
+const NOT_DELETED_ENROLLMENT_CONSTRAINT = 'ck_calificacion_inscripcion_vigente';
 const ACTIVE_ENROLLMENT_CONSTRAINT = 'ck_calificacion_inscripcion_activa';
 
 // pg devuelve NUMERIC como texto ('7.25'): la nota se entrega como número.
@@ -90,9 +91,9 @@ async function existsNotDeletedByEnrollment(enrollmentId) {
 // Carga la nota `value` de la inscripción `enrollmentId` (un inscripcion_id) en la evaluación
 // `evaluationId` y devuelve la calificación creada. PostgreSQL rechaza el alta si la inscripción ya
 // tiene una calificación vigente en esa evaluación (isDuplicateError; una dada de baja no cuenta),
-// si no es del curso de la evaluación (isEnrollmentNotInCourseError) o si no está activa
-// (isEnrollmentNotActiveError). Que la evaluación se pueda calificar y que la nota sea válida lo
-// comprueba el servicio.
+// si no es del curso de la evaluación (isEnrollmentNotInCourseError), si está dada de baja
+// (isEnrollmentDeletedError) o si no está activa (isEnrollmentNotActiveError). Que la evaluación
+// se pueda calificar y que la nota sea válida lo comprueba el servicio.
 async function create(evaluationId, enrollmentId, value) {
   const { rows } = await query(CREATE_SQL, [evaluationId, enrollmentId, value]);
   return toScore(rows[0]);
@@ -100,8 +101,9 @@ async function create(evaluationId, enrollmentId, value) {
 
 // Cambia por `value` la nota de la calificación vigente que la inscripción `enrollmentId` tiene en
 // la evaluación `evaluationId` y la devuelve como quedó; null si no tiene ninguna (todavía no fue
-// calificada o su calificación se dio de baja). PostgreSQL rechaza el cambio si la inscripción dejó
-// de estar activa (isEnrollmentNotActiveError). Lo demás lo comprueba el servicio, como en create.
+// calificada o su calificación se dio de baja). PostgreSQL rechaza el cambio si la inscripción se
+// dio de baja (isEnrollmentDeletedError) o dejó de estar activa (isEnrollmentNotActiveError). Lo
+// demás lo comprueba el servicio, como en create.
 async function update(evaluationId, enrollmentId, value) {
   const { rows } = await query(UPDATE_SQL, [evaluationId, enrollmentId, value]);
   return rows.length > 0 ? toScore(rows[0]) : null;
@@ -111,8 +113,9 @@ async function update(evaluationId, enrollmentId, value) {
 // `evaluationId`: deja de listarse y de contar para el índice único, así que a la inscripción se le
 // puede cargar otra nota en esa evaluación. Devuelve la calificación dada de baja, con la nota que
 // tenía; null si la inscripción no tiene ninguna vigente (nunca la tuvo o ya se dio de baja).
-// PostgreSQL rechaza la baja si la inscripción dejó de estar activa (isEnrollmentNotActiveError).
-// Que la evaluación se pueda calificar lo comprueba el servicio.
+// PostgreSQL rechaza la baja si la inscripción se dio de baja (isEnrollmentDeletedError) o dejó de
+// estar activa (isEnrollmentNotActiveError). Que la evaluación se pueda calificar lo comprueba el
+// servicio.
 async function markAsDeleted(evaluationId, enrollmentId) {
   const { rows } = await query(MARK_AS_DELETED_SQL, [evaluationId, enrollmentId]);
   return rows.length > 0 ? toScore(rows[0]) : null;
@@ -134,6 +137,12 @@ function isEnrollmentNotInCourseError(error) {
   );
 }
 
+// true si `error` indica que la inscripción está dada de baja (baja lógica), aunque siga activa:
+// sus calificaciones se conservan, pero no se cargan, no se corrigen ni se dan de baja.
+function isEnrollmentDeletedError(error) {
+  return error?.code === '23514' && error.constraint === NOT_DELETED_ENROLLMENT_CONSTRAINT;
+}
+
 // true si `error` indica que la inscripción no está activa (fue finalizada o cancelada): sus
 // calificaciones se conservan, pero no se cargan, no se corrigen ni se dan de baja.
 function isEnrollmentNotActiveError(error) {
@@ -148,5 +157,6 @@ module.exports = {
   markAsDeleted,
   isDuplicateError,
   isEnrollmentNotInCourseError,
+  isEnrollmentDeletedError,
   isEnrollmentNotActiveError,
 };

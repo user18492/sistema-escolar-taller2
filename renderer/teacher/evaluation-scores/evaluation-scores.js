@@ -19,6 +19,9 @@
 // que se puede modificar: la da de baja (baja lógica, window.api.scores.delete) después de
 // confirmarlo en un modal (confirm-modal.component.js). La fila se conserva, porque el alumno sigue
 // inscripto en el curso: su campo queda vacío y admite otra nota.
+// Si al guardar o al eliminar una calificación el proceso principal responde que la inscripción
+// del alumno se dio de baja (la vista estaba abierta desde antes de la baja), un toast lo avisa y
+// la lista se vuelve a pedir, sin esa inscripción.
 
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
@@ -70,6 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let scores = [];
   // La inscripción elegida en el filtro Alumno, por su id. Vacío (nada elegido) no filtra.
   let selectedEnrollmentIds = [];
+  // true mientras reloadScores le quita el foco al campo que se estaba editando: lo escrito no se
+  // guarda, pasa a la fila nueva
+  let isReleasingFocus = false;
 
   // Cargando, error o sin resultados, en una única fila de todo el ancho
   const showMessage = (message) => {
@@ -133,7 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // así no se cruzan dos guardados de la misma calificación. El encabezado muestra "Guardando…"
   // hasta la respuesta y después el resultado. Si no se pudo guardar, un toast avisa el motivo y el
   // campo vuelve a mostrar la nota guardada; si fue porque la inscripción dejó de estar activa,
-  // queda además deshabilitado.
+  // queda además deshabilitado, y si fue porque se dio de baja, la lista se vuelve a pedir
+  // (reloadScores) y la fila deja de mostrarse. reloadScores espera a este guardado, así que acá no
+  // se la espera.
   const saveScore = async (score, value, stepper) => {
     score.savingValue = value;
     stepper.inert = true;
@@ -161,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // La fila pudo generarse de nuevo mientras tanto (otra página u otro filtro)
     refreshRow(score);
+    if (response?.error?.code === 'ENROLLMENT_DELETED') reloadScores();
   };
 
   // `score` es la calificación de la fila, de la que salen la nota guardada y si se puede editar
@@ -212,8 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // cambió, se guarda. Una calificación ya cargada no se quita vaciando el campo, sino con
     // Eliminar, que pide confirmación: si el campo quedó vacío, vuelve la guardada y un toast lo
     // explica, salvo que el foco haya pasado justamente al Eliminar de su fila. El guardado en
-    // curso queda en `pendingSave`, para la baja que se confirme mientras tanto.
+    // curso queda en `pendingSave`, para la baja que se confirme mientras tanto. Si el foco lo quita
+    // reloadScores, no hace nada.
     input.addEventListener('blur', (event) => {
+      if (isReleasingFocus) return;
       const typed = parseScore(input.value);
       const value = typed === null ? null : clamp(typed);
       const isRemoval = value === null && score.value !== null;
@@ -300,9 +311,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Opciones de Alumno: una por inscripción, en el orden de la tabla y antes de .dropdown-empty;
   // column-filter.js las lee al usarlas.
+  // Llegan sin marcar, así que, si la lista se vuelve a pedir, el filtro deja de aplicarse y su
+  // embudo se actualiza.
   const fillFilterOptions = () => {
     const studentList = studentHeader.querySelector('[role="listbox"]');
     studentList.replaceChildren(...scores.map(createStudentOption), studentList.querySelector('.dropdown-empty'));
+    selectedEnrollmentIds = [];
+    studentHeader.dispatchEvent(new Event('column-filter-refresh'));
   };
 
   // Muestra la página `page` (por defecto, la actual) de las calificaciones que pasan el filtro (10
@@ -340,6 +355,46 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows();
   }
 
+  // Vuelve a pedir la lista, que quedó vieja: una inscripción se dio de baja con la vista abierta y
+  // deja de mostrarse. Las filas se quitan enseguida y la lista se pide cuando terminan los
+  // guardados en curso, así ya los trae. El campo o el botón Eliminar que tenía el foco lo recupera
+  // en la fila nueva de su inscripción, si está a la vista; el campo, con lo que se estaba
+  // escribiendo, sin guardarlo: se guarda al salir de él, como siempre. Si la lista ya se estaba
+  // volviendo a pedir, espera ese pedido.
+  let reloading = null;
+  const reloadScores = () => {
+    reloading ??= (async () => {
+      const focused = tbody.contains(document.activeElement) ? document.activeElement : null;
+      const enrollmentId = focused?.closest('tr')?.dataset.enrollmentId;
+      const draft = focused?.matches('.numeric-stepper-input')
+        ? { value: focused.value, start: focused.selectionStart, end: focused.selectionEnd }
+        : null;
+      isReleasingFocus = true;
+      focused?.blur();
+      isReleasingFocus = false;
+      showMessage('Cargando calificaciones…');
+      await Promise.all(scores.map(({ pendingSave }) => pendingSave));
+      await loadScores();
+
+      const row = enrollmentId && tbody.querySelector(`tr[data-enrollment-id="${enrollmentId}"]`);
+      if (!row) return;
+      if (!draft) {
+        row.querySelector('[data-action="delete"]:not(:disabled)')?.focus();
+        return;
+      }
+      const input = row.querySelector('.numeric-stepper-input');
+      if (input.disabled) return;
+      // El evento input lo valida y actualiza − y +, como al escribirlo
+      input.value = draft.value;
+      input.dispatchEvent(new Event('input'));
+      input.focus();
+      input.setSelectionRange(draft.start, draft.end);
+    })().finally(() => {
+      reloading = null;
+    });
+    return reloading;
+  };
+
   // El filtro de Alumno avisa sus cambios (column-filter.js). Si lo que filtra no cambió ("Limpiar
   // filtro" sin nada elegido), la tabla y la página quedan como están; eso incluye a los avisos
   // previos a la carga, cuando todavía no hay opciones que elegir.
@@ -356,15 +411,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar calificación ----------
 
-  // Fila de la última calificación que se pidió eliminar
+  // Fila de la última calificación que se pidió eliminar y su posición en la página, para devolver
+  // el foco a la que ocupe su lugar si deja de mostrarse
   let deletedScoreRow = null;
+  let deletedRowIndex = 0;
 
   // Da de baja la calificación de la fila del botón: la inscripción sale de su data-enrollment-id
   // (el inscripcion_id, fijado al crearla) y se envía con los ids de la URL. La fila no se quita ni
   // se oculta: lo que cambia es su campo, que queda vacío, y Eliminar deja de estar disponible. Si
   // la nota se estaba guardando (el clic en Eliminar sacó el foco del campo), la baja espera a que
   // termine. Sin calificación que dar de baja (ya la eliminó otra sesión), el campo también queda
-  // vacío; si la inscripción dejó de estar activa, queda deshabilitado con su nota.
+  // vacío; si la inscripción dejó de estar activa, queda deshabilitado con su nota, y si se dio de
+  // baja, la lista se vuelve a pedir antes de avisar, sin su fila.
   // Avisa el resultado con un toast y no resuelve ningún mensaje, así el modal se cierra siempre.
   const deleteScore = async (trigger) => {
     deletedScoreRow = trigger.closest('tr');
@@ -389,6 +447,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       return;
     }
+    if (errorCode === 'ENROLLMENT_DELETED') {
+      deletedRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(deletedScoreRow));
+      await reloadScores();
+    }
     showToast({
       type: 'error',
       title: 'No se pudo eliminar la calificación',
@@ -397,10 +459,17 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
-  // cierra. Si Eliminar quedó deshabilitado, el foco pasa al campo de la calificación de su fila.
+  // cierra. Si Eliminar quedó deshabilitado, el foco pasa al campo de la calificación de su fila; si
+  // la fila dejó de mostrarse, al de la que quedó en su lugar (o la última de la página), si se
+  // puede editar.
   setupConfirmModal(document.getElementById('deleteScoreOverlay'), {
     onConfirm: deleteScore,
-    fallbackFocus: () => deletedScoreRow?.querySelector('.numeric-stepper-input'),
+    fallbackFocus: () => {
+      const row = deletedScoreRow?.isConnected
+        ? deletedScoreRow
+        : tbody.rows[Math.min(deletedRowIndex, tbody.rows.length - 1)];
+      return row?.querySelector('.numeric-stepper-input:not(:disabled)');
+    },
   });
 
   loadScores();

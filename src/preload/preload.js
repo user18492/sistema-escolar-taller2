@@ -413,8 +413,9 @@ contextBridge.exposeInMainWorld('api', {
     // Resuelve { ok: true, score } con la nota como quedó guardada
     // ({ enrollmentId, value }) o { ok: false, error: { code, message } }, sin guardar nada:
     // INVALID_SCORE indica que la nota no es un número de 0 a 10 con hasta dos decimales;
-    // ENROLLMENT_NOT_FOUND, que la inscripción no existe o no es del curso de la asignación, y
-    // ENROLLMENT_NOT_ACTIVE, que fue finalizada o cancelada; además,
+    // ENROLLMENT_NOT_FOUND, que la inscripción no existe o no es del curso de la asignación;
+    // ENROLLMENT_DELETED, que fue dada de baja (ya no está en listByOwnEvaluation, que quedó
+    // vieja), y ENROLLMENT_NOT_ACTIVE, que fue finalizada o cancelada; además,
     // TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     save: (teacherAssignmentId, evaluationId, data) =>
       ipcRenderer.invoke('scores:save', teacherAssignmentId, evaluationId, data),
@@ -425,8 +426,9 @@ contextBridge.exposeInMainWorld('api', {
     // { ok: true, score } con la calificación del alumno como quedó ({ enrollmentId, value: null })
     // o { ok: false, error: { code, message } }, sin modificar nada: SCORE_NOT_FOUND indica
     // que el alumno no tiene una calificación en la evaluación (nunca la tuvo, ya se dio de baja o
-    // la inscripción no existe o no es del curso de la asignación, sin distinguir entre esos casos)
-    // y ENROLLMENT_NOT_ACTIVE, que la inscripción fue finalizada o cancelada; además,
+    // la inscripción no existe o no es del curso de la asignación, sin distinguir entre esos casos);
+    // ENROLLMENT_DELETED, que la inscripción fue dada de baja, tenga o no una calificación (como en
+    // save), y ENROLLMENT_NOT_ACTIVE, que fue finalizada o cancelada; además,
     // TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     delete: (teacherAssignmentId, evaluationId, enrollmentId) =>
       ipcRenderer.invoke('scores:delete', teacherAssignmentId, evaluationId, enrollmentId),

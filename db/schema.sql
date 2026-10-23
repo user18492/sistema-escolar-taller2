@@ -468,8 +468,8 @@ CREATE INDEX idx_alumno_alumno_estado_id ON alumno(alumno_estado_id);
 --     no cuenta para el promedio.
 -- Un cambio de curso cancela la inscripción actual y crea otra, activa, en el curso destino.
 -- La base hace cumplir la primera regla: trg_calificacion_coherencia (más abajo) solo acepta
--- cargar, corregir o dar de baja calificaciones de inscripciones activas. La segunda la aplican
--- las consultas que calculan promedios
+-- cargar, corregir o dar de baja calificaciones de inscripciones activas, y además vigentes (sin
+-- baja lógica). La segunda la aplican las consultas que calculan promedios
 CREATE TABLE inscripcion_estado (
     inscripcion_estado_id  INT          GENERATED ALWAYS AS IDENTITY,
     nombre                 VARCHAR(50)  NOT NULL,
@@ -487,9 +487,10 @@ CREATE TABLE inscripcion_estado (
 -- baja de un alumno (sp_alumno_dar_de_baja, más abajo) no la hace: pasa sus inscripciones activas a
 -- CANCELADA, pero no las da de baja, para conservar todo su historial.
 -- La baja lógica solo la tienen en cuenta la regla de una sola inscripción activa por alumno
--- (trg_inscripcion_coherencia), para la que una inscripción dada de baja no cuenta como activa, y
--- sp_alumno_dar_de_baja, que solo cancela las vigentes. Para las demás reglas, una inscripción dada
--- de baja sigue contando
+-- (trg_inscripcion_coherencia), para la que una inscripción dada de baja no cuenta como activa;
+-- sp_alumno_dar_de_baja, que solo cancela las vigentes, y trg_calificacion_coherencia, que no
+-- acepta cargar, corregir ni dar de baja calificaciones de una inscripción dada de baja, aunque
+-- siga activa. Para las demás reglas, una inscripción dada de baja sigue contando
 CREATE TABLE inscripcion (
     inscripcion_id         INT   GENERATED ALWAYS AS IDENTITY,
     alumno_id              INT   NOT NULL,
@@ -663,7 +664,8 @@ CREATE TRIGGER trg_curso_inscripciones
 -- Baja lógica de un alumno de la institución: completa su fecha_eliminacion, sin cambiar su estado,
 -- y pasa sus inscripciones vigentes y activas a CANCELADA, sin darlas de baja: su fecha_eliminacion
 -- sigue en NULL. Así ya no se lo puede calificar: trg_calificacion_coherencia (más abajo) solo
--- acepta inscripciones activas. Las finalizadas y las canceladas no cambian, y la baja no llega a
+-- acepta inscripciones activas y vigentes, así que tampoco una activa que ya estaba dada de baja,
+-- que no se cancela. Las finalizadas y las canceladas no cambian, y la baja no llega a
 -- las calificaciones ni a las evaluaciones: todo es su historial, que se conserva completo para
 -- cuando se lo restaure.
 -- Devuelve en p_inscripciones_canceladas cuántas inscripciones canceló (0 o 1, porque un alumno
@@ -880,24 +882,29 @@ CREATE UNIQUE INDEX uq_calificacion_evaluacion_inscripcion
 CREATE INDEX idx_calificacion_inscripcion_id ON calificacion(inscripcion_id);
 
 -- Coherencia de una calificación con las filas que referencia: la inscripción es del curso de la
--- asignación de la evaluación y está activa. Se valida al cargarla y cada vez que se modifica,
--- para corregirla o para darla de baja: las de una inscripción que dejó de estar activa
--- (finalizada o cancelada) se conservan como están, y ya no se pueden corregir ni dar de baja.
--- Por eso el trigger valida también la baja, y no lleva el
+-- asignación de la evaluación, está vigente (sin baja lógica) y está activa. La baja lógica de la
+-- inscripción no cambia su estado, así que se valida aparte: una activa dada de baja sigue siendo
+-- ACTIVA. Se valida al cargar la calificación y cada vez que se modifica, para corregirla o para
+-- darla de baja: las de una inscripción que dejó de estar activa (finalizada o cancelada) o que se
+-- dio de baja se conservan como están, y ya no se pueden corregir ni dar de baja.
+-- Por eso el trigger valida también la baja de la calificación, y no lleva el
 -- WHEN (NEW.fecha_eliminacion IS NULL) de los de asignacion_docente y evaluacion.
 -- FOR SHARE retiene las filas de la evaluación, de su asignación y de la inscripción hasta el fin
 -- de la transacción: un cambio simultáneo de asignación o de curso espera y, al seguir, su trigger
--- (más abajo) ya ve cómo quedó esta calificación; uno de estado de la inscripción también espera,
--- y sigue con la calificación ya guardada. Si una fila referenciada no existe, las comparaciones
--- dan NULL y no fallan: la rechaza después su clave foránea
+-- (más abajo) ya ve cómo quedó esta calificación; uno de estado o una baja lógica de la inscripción
+-- también espera, y sigue con la calificación ya guardada. Al revés, si la inscripción cambió de
+-- estado o se dio de baja primero, la calificación espera a que termine y se valida con la fila
+-- como quedó. Si una fila referenciada no existe, las comparaciones dan NULL y no fallan: la
+-- rechaza después su clave foránea
 CREATE FUNCTION fn_calificacion_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_asignacion_docente_id  INT;
-    v_evaluacion_curso_id    INT;
-    v_inscripcion_curso_id   INT;
-    v_inscripcion_estado_id  INT;
-    v_estado                 VARCHAR(50);
+    v_asignacion_docente_id          INT;
+    v_evaluacion_curso_id            INT;
+    v_inscripcion_curso_id           INT;
+    v_inscripcion_estado_id          INT;
+    v_inscripcion_fecha_eliminacion  TIMESTAMPTZ;
+    v_estado                         VARCHAR(50);
 BEGIN
     -- Sin JOIN de la evaluación con su asignación ni de la inscripción con su estado, como en
     -- fn_asignacion_docente_coherencia: si la fila cambió mientras esperaba el bloqueo, PostgreSQL
@@ -915,8 +922,8 @@ BEGIN
      WHERE a.asignacion_docente_id = v_asignacion_docente_id
        FOR SHARE;
 
-    SELECT i.curso_id, i.inscripcion_estado_id
-      INTO v_inscripcion_curso_id, v_inscripcion_estado_id
+    SELECT i.curso_id, i.inscripcion_estado_id, i.fecha_eliminacion
+      INTO v_inscripcion_curso_id, v_inscripcion_estado_id, v_inscripcion_fecha_eliminacion
       FROM inscripcion i
      WHERE i.inscripcion_id = NEW.inscripcion_id
        FOR SHARE;
@@ -931,6 +938,14 @@ BEGIN
                         NEW.inscripcion_id, NEW.evaluacion_id
             USING ERRCODE = 'check_violation',
                   CONSTRAINT = 'ck_calificacion_mismo_curso';
+    END IF;
+
+    -- Antes que el estado: una inscripción dada de baja se rechaza por la baja, sea cual sea su
+    -- estado
+    IF v_inscripcion_fecha_eliminacion IS NOT NULL THEN
+        RAISE EXCEPTION 'La inscripción % está dada de baja', NEW.inscripcion_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_calificacion_inscripcion_vigente';
     END IF;
 
     IF v_estado <> 'ACTIVA' THEN
@@ -950,8 +965,8 @@ CREATE TRIGGER trg_calificacion_coherencia
 
 -- Una inscripción con calificaciones vigentes conserva su curso: son de evaluaciones de ese curso.
 -- Las dadas de baja no cuentan: quitada una nota cargada por error, la inscripción puede cambiar
--- de curso. El estado sí puede cambiar: solo se exige que esté activa al cargar, corregir o dar de
--- baja una calificación
+-- de curso. El estado sí puede cambiar, y la inscripción también se puede dar de baja: solo se
+-- exige que esté activa y vigente al cargar, corregir o dar de baja una calificación
 CREATE FUNCTION fn_inscripcion_calificaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
