@@ -33,16 +33,36 @@ const EXISTS_NOT_DELETED_SQL = `
      AND fecha_eliminacion IS NULL
 `;
 
-// El alumno $1 de la institución $2, vigente o dado de baja, con lo que la restauración comprueba
-// antes de hacerla.
+// Alumnos vigentes (sin baja lógica) y activos (de estado ACTIVO, un valor de alumno_estado.nombre)
+// de una institución, sin los egresados ni los dados de baja: los que se pueden inscribir en un
+// curso. Mismo orden que FIND_BY_INSTITUTION_SQL.
+const FIND_ACTIVE_BY_INSTITUTION_SQL = `
+  SELECT a.alumno_id,
+         a.nombre,
+         a.apellido,
+         a.dni
+    FROM alumno a
+    JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
+   WHERE a.institucion_id = $1
+     AND a.fecha_eliminacion IS NULL
+     AND e.nombre = 'ACTIVO'
+   ORDER BY a.apellido, a.nombre, a.alumno_id
+`;
+
+// El alumno $1 de la institución $2, vigente o dado de baja, con lo que la restauración y el alta de
+// una inscripción comprueban antes de hacerlas.
 const FIND_BY_ID_SQL = `
-  SELECT alumno_id,
-         dni,
-         email,
-         fecha_eliminacion
-    FROM alumno
-   WHERE alumno_id = $1
-     AND institucion_id = $2
+  SELECT a.alumno_id,
+         a.nombre,
+         a.apellido,
+         a.dni,
+         a.email,
+         a.fecha_eliminacion,
+         e.nombre AS estado
+    FROM alumno a
+    JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
+   WHERE a.alumno_id = $1
+     AND a.institucion_id = $2
 `;
 
 // Si $2 (dni) y $3 (email) ya los tiene un alumno vigente de la institución distinto de $4 (null en
@@ -226,9 +246,16 @@ async function findByInstitution(institutionId) {
   return rows.map(toStudent);
 }
 
-// El alumno con ese id en la institución, vigente o dado de baja, solo con su dni, su email y su
-// fecha de baja (`deletedAt`, null si está vigente): los demás campos quedan undefined. null si no
-// existe en la institución.
+// Alumnos vigentes y activos de la institución, ordenados por apellido y nombre, solo con su nombre,
+// su apellido y su dni: los demás campos quedan undefined.
+async function findActiveByInstitution(institutionId) {
+  const { rows } = await query(FIND_ACTIVE_BY_INSTITUTION_SQL, [institutionId]);
+  return rows.map(toStudent);
+}
+
+// El alumno con ese id en la institución, vigente o dado de baja, solo con su nombre, su apellido,
+// su dni, su email, su estado y su fecha de baja (`deletedAt`, null si está vigente): los demás
+// campos quedan undefined. null si no existe en la institución.
 async function findById(studentId, institutionId) {
   const { rows } = await query(FIND_BY_ID_SQL, [studentId, institutionId]);
   return rows.length > 0 ? toStudent(rows[0]) : null;
@@ -344,6 +371,7 @@ function isAlreadyDeletedError(error) {
 
 module.exports = {
   findByInstitution,
+  findActiveByInstitution,
   findById,
   existsNotDeleted,
   findTakenFields,

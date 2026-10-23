@@ -268,16 +268,43 @@ contextBridge.exposeInMainWorld('api', {
     // Cada inscripción es { id, number, enrollmentDate, status, student, course }, con number y
     // enrollmentDate como en listByOwnAssignment, status uno de los estados, student
     // { firstName, lastName } y course como en courses.list. `total` es cuántas pasan los filtros y
-    // `page`, la página devuelta: si la pedida ya no existe, la última (con ninguna, la 1). Llegan
-    // siempre en el mismo orden: por alumno (apellido y nombre). Resuelve
-    // { ok: false, error: { code, message } } si no: INVALID_INPUT indica filtros o página inválidos.
-    list: (filters, page, pageSize) => ipcRenderer.invoke('enrollments:list', filters, page, pageSize),
+    // `page`, la página devuelta: si la pedida ya no existe, la última (con ninguna, la 1). Con
+    // `enrollmentId` (el id de una inscripción, p. ej. la que devolvió create), se devuelve en cambio
+    // la página donde está, si pasa los filtros; si no, la página `page`. Llegan siempre en el mismo
+    // orden: por alumno (apellido y nombre). Resuelve { ok: false, error: { code, message } } si no:
+    // INVALID_INPUT indica filtros, página o enrollmentId inválidos.
+    list: (filters, page, pageSize, enrollmentId = null) =>
+      ipcRenderer.invoke('enrollments:list', filters, page, pageSize, enrollmentId),
     // Solo SECRETARIO. Las opciones de los filtros Número de inscripción y Alumno: resuelve
     // { ok: true, enrollments, students } con todas las inscripciones que lista list sin filtros,
     // también sin las de alumnos dados de baja ({ id, number, student }, con number como en list y
     // student { firstName, lastName }), y sus alumnos, una vez cada uno ({ id, firstName, lastName,
     // email }), las dos listas en el orden de list, o { ok: false, error: { code, message } }.
     listFilterOptions: () => ipcRenderer.invoke('enrollments:list-filter-options'),
+    // Solo SECRETARIO. Lo que ofrece el formulario de alta en Alumno: resuelve { ok: true, students }
+    // con los alumnos vigentes y activos de su institución (sin los dados de baja ni los egresados),
+    // por apellido y nombre ({ id, firstName, lastName, dni }, con dni solo los dígitos), o
+    // { ok: false, error: { code, message } }. Incluye a los que ya tienen una inscripción activa:
+    // create los rechaza.
+    listEnrollableStudents: () => ipcRenderer.invoke('enrollments:list-enrollable-students'),
+    // Solo SECRETARIO. Lo que ofrece el formulario de alta en Curso: resuelve { ok: true, courses }
+    // con los cursos vigentes de su institución, de todos los ciclos lectivos (mismos campos y orden
+    // que courses.list), o { ok: false, error: { code, message } }. El formulario muestra los del
+    // nivel educativo elegido.
+    listEnrollableCourses: () => ipcRenderer.invoke('enrollments:list-enrollable-courses'),
+    // Solo SECRETARIO. Inscribe a un alumno en un curso de su institución. `data` es
+    // { studentId, educationLevel, courseId }: el id de un alumno de listEnrollableStudents, 'PRIMARY'
+    // o 'SECONDARY' y el id de un curso de listEnrollableCourses de ese nivel. La inscripción nace
+    // siempre activa, con la fecha del día y su número (INS-XXXXXX) armado con el id que le da la
+    // base: ni el estado ni la fecha se eligen. Resuelve { ok: true, enrollment } con la inscripción
+    // creada (mismos campos que list) o { ok: false, error: { code, message } }, sin crear nada:
+    // INVALID_INPUT indica datos o un nivel educativo inválidos; STUDENT_NOT_FOUND, STUDENT_DELETED y
+    // STUDENT_NOT_ACTIVE, que el alumno no existe en la institución, fue eliminado o no está activo;
+    // COURSE_NOT_FOUND, COURSE_DELETED y COURSE_LEVEL_MISMATCH, que el curso no existe en la
+    // institución, fue eliminado o es de otro nivel educativo; STUDENT_ALREADY_ENROLLED, que el alumno
+    // ya tiene una inscripción activa (solo puede tener una; el mensaje da su número), y
+    // COURSE_OUT_OF_SCHOOL_YEAR, que el curso no es del ciclo lectivo del año en curso.
+    create: (data) => ipcRenderer.invoke('enrollments:create', data),
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la
     // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo: las activas
     // y las finalizadas del curso, sin las canceladas ({ id, number, enrollmentDate, student }, con

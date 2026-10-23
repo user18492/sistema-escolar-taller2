@@ -121,6 +121,98 @@ const FIND_NOT_DELETED_BY_INSTITUTION_SQL = `
    ORDER BY al.apellido, al.nombre, al.alumno_id, i.inscripcion_id
 `;
 
+// Posición de la inscripción $9 entre las de FILTERED_NOT_DELETED_BY_INSTITUTION_SQL, en el orden de
+// FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL: cuántas la preceden (0 si es la primera). Ninguna
+// fila si la inscripción no pasa los filtros. La comparación de filas sigue el mismo orden total que
+// el ORDER BY del listado: apellido, nombre, alumno_id e inscripcion_id.
+const FIND_POSITION_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
+  WITH filtered AS (
+    SELECT al.apellido,
+           al.nombre,
+           al.alumno_id,
+           i.inscripcion_id
+    ${FILTERED_NOT_DELETED_BY_INSTITUTION_SQL}
+  )
+  SELECT (SELECT COUNT(*)::INT
+            FROM filtered f
+           WHERE (f.apellido, f.nombre, f.alumno_id, f.inscripcion_id)
+                 < (t.apellido, t.nombre, t.alumno_id, t.inscripcion_id)) AS preceding_count
+    FROM filtered t
+   WHERE t.inscripcion_id = $9
+`;
+
+// Alta: inscribe al alumno $1 en el curso $2, siempre ACTIVA, con la fecha del día (DEFAULT
+// CURRENT_DATE de inscripcion.fecha_inscripcion). Solo inserta si el alumno está vigente y ACTIVO,
+// y el curso está vigente y es del nivel educativo $4, los dos de la institución $3; si no, no
+// inserta nada. Devuelve la fila creada con los campos de FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL.
+// El servicio ya comprobó todo eso, pero otra sesión pudo cambiarlo después. FOR NO KEY UPDATE (el
+// alumno) y FOR SHARE (el curso) son los mismos bloqueos que toman después trg_inscripcion_coherencia
+// y trg_inscripcion_fecha_ciclo_lectivo (db/schema.sql), pero antes de comprobar las condiciones: una
+// baja, un egreso o un cambio simultáneo del alumno o del curso espera a que termine esta inscripción
+// o, si llegó antes, las condiciones se vuelven a evaluar sobre la fila que dejó y no se inserta nada.
+// Los triggers rechazan el alta si el alumno ya tiene una inscripción activa o si el curso no es
+// del ciclo lectivo del año en curso: ver isSecondActiveEnrollmentError e isDateOutOfSchoolYearError.
+const CREATE_SQL = `
+  WITH created AS (
+    INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id)
+    SELECT al.alumno_id,
+           c.curso_id,
+           (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'ACTIVA')
+      FROM alumno al
+     CROSS JOIN curso c
+     WHERE al.alumno_id = $1
+       AND al.institucion_id = $3
+       AND al.fecha_eliminacion IS NULL
+       AND al.alumno_estado_id = (SELECT alumno_estado_id FROM alumno_estado WHERE nombre = 'ACTIVO')
+       AND c.curso_id = $2
+       AND c.institucion_id = $3
+       AND c.fecha_eliminacion IS NULL
+       AND c.grado_id IN (SELECT grado_id FROM grado WHERE nivel_educativo = $4)
+       FOR NO KEY UPDATE OF al
+       FOR SHARE OF c
+    RETURNING inscripcion_id, alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion
+  )
+  SELECT i.inscripcion_id,
+         i.fecha_inscripcion,
+         ie.nombre AS estado,
+         al.alumno_id,
+         al.nombre,
+         al.apellido,
+         c.curso_id,
+         c.institucion_id,
+         c.grado_id,
+         c.division,
+         c.turno,
+         c.anio_ciclo_lectivo,
+         g.nombre AS grado_nombre,
+         g.nivel_educativo
+    FROM created i
+    JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+    JOIN alumno al ON al.alumno_id = i.alumno_id
+    JOIN curso c ON c.curso_id = i.curso_id
+    JOIN grado g ON g.grado_id = c.grado_id
+`;
+
+// La inscripción activa del alumno $1, si tiene una: la misma que cuenta trg_inscripcion_coherencia
+// para la regla de una sola activa por alumno, así que puede ser de un curso dado de baja. Si hubiera
+// más de una (la regla no lo permite), la más antigua.
+const FIND_ACTIVE_BY_STUDENT_SQL = `
+  SELECT i.inscripcion_id,
+         i.curso_id
+    FROM inscripcion i
+    JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+   WHERE i.alumno_id = $1
+     AND ie.nombre = 'ACTIVA'
+   ORDER BY i.inscripcion_id
+   LIMIT 1
+`;
+
+// Restricciones de los triggers de inscripcion (con los nombres que les da db/schema.sql) que
+// rechazan un alta por un motivo previsto: el alumno ya tiene otra inscripción activa, o el año de
+// la fecha de inscripción (la del día) no es el ciclo lectivo del curso.
+const ONE_ACTIVE_CONSTRAINT = 'ck_inscripcion_alumno_una_activa';
+const SCHOOL_YEAR_CONSTRAINT = 'ck_inscripcion_fecha_ciclo_lectivo';
+
 // La base guarda el estado de la inscripción en español (ck_inscripcion_estado_nombre,
 // db/schema.sql); el resto del sistema usa estos códigos.
 const STATUS_BY_COLUMN_VALUE = {
@@ -213,6 +305,18 @@ async function findPageNotDeletedByInstitution(institutionId, filters, { offset,
   return rows.map(toInstitutionEnrollment);
 }
 
+// Posición de la inscripción `enrollmentId` (un inscripcion_id) entre las vigentes de alumnos
+// vigentes de la institución que pasan `filters` (como en countNotDeletedByInstitution), en el orden
+// de findPageNotDeletedByInstitution: cuántas la preceden (0 si es la primera). null si no es una de
+// ellas (no existe, es de otra institución o no pasa los filtros).
+async function findPositionNotDeletedByInstitution(institutionId, filters, enrollmentId) {
+  const { rows } = await query(FIND_POSITION_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL, [
+    ...filterParams(institutionId, filters),
+    enrollmentId,
+  ]);
+  return rows.length > 0 ? rows[0].preceding_count : null;
+}
+
 // Todas las inscripciones vigentes de alumnos vigentes de la institución, sin filtrar, ordenadas
 // como findPageNotDeletedByInstitution. Cada una trae solo su id y su alumno (id, nombre, apellido y
 // email).
@@ -243,11 +347,52 @@ async function countActiveInCurrentSchoolYear(institutionId) {
   return rows[0].total;
 }
 
+// Inscribe al alumno `studentId` (un alumno_id) en el curso `courseId` (un curso_id) de la
+// institución: la inscripción nace vigente, ACTIVA y con la fecha del día. `educationLevel` es el
+// nivel educativo elegido (PRIMARY o SECONDARY), que tiene que ser el del grado del curso. Devuelve
+// la inscripción creada, con su alumno, su curso y su estado, como findPageNotDeletedByInstitution;
+// null si el alumno no está vigente y activo en la institución, o si el curso no está vigente en
+// ella o es de otro nivel educativo. PostgreSQL rechaza el alta si el alumno ya tiene una
+// inscripción activa (ver isSecondActiveEnrollmentError) o si el curso no es del ciclo lectivo del
+// año en curso (ver isDateOutOfSchoolYearError).
+async function create(institutionId, { studentId, courseId, educationLevel }) {
+  const { rows } = await query(CREATE_SQL, [
+    studentId,
+    courseId,
+    institutionId,
+    COLUMN_VALUE_BY_EDUCATION_LEVEL[educationLevel],
+  ]);
+  return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
+}
+
+// La inscripción activa del alumno `studentId` (un alumno_id), solo con su id y el de su curso
+// (`courseId`); null si no tiene ninguna.
+async function findActiveByStudent(studentId) {
+  const { rows } = await query(FIND_ACTIVE_BY_STUDENT_SQL, [studentId]);
+  return rows.length > 0 ? new Enrollment({ id: rows[0].inscripcion_id, courseId: rows[0].curso_id }) : null;
+}
+
+// true si `error` es el rechazo de trg_inscripcion_coherencia a una segunda inscripción activa del
+// mismo alumno: solo puede tener una.
+function isSecondActiveEnrollmentError(error) {
+  return error?.code === '23514' && error.constraint === ONE_ACTIVE_CONSTRAINT;
+}
+
+// true si `error` indica que el año de la fecha de inscripción no es el ciclo lectivo del curso.
+function isDateOutOfSchoolYearError(error) {
+  return error?.code === '23514' && error.constraint === SCHOOL_YEAR_CONSTRAINT;
+}
+
 module.exports = {
   findActiveOrFinishedByCourse,
   countActiveInCurrentSchoolYear,
   countNotDeletedByInstitution,
   findPageNotDeletedByInstitution,
+  findPositionNotDeletedByInstitution,
   findNotDeletedByInstitution,
+  create,
+  findActiveByStudent,
+  isSecondActiveEnrollmentError,
+  isDateOutOfSchoolYearError,
   STATUSES,
 };
