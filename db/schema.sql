@@ -18,10 +18,10 @@ BEGIN;
 CREATE TABLE institucion (
     institucion_id    INT           GENERATED ALWAYS AS IDENTITY,
     nombre            VARCHAR(150)  NOT NULL,
-    direccion_calle   VARCHAR(150),
-    direccion_altura  VARCHAR(20),
-    email             VARCHAR(254),
-    telefono          VARCHAR(13),
+    direccion_calle   VARCHAR(150)  NOT NULL,
+    direccion_altura  VARCHAR(20)   NOT NULL,
+    email             VARCHAR(254)  NOT NULL,
+    telefono          VARCHAR(13)   NOT NULL,
     -- Solo los dígitos (10 a 13), sin espacios, guiones ni +
     cuit              VARCHAR(13)   NOT NULL,
     -- Con guiones: XX-XXXXXXXX-X
@@ -29,6 +29,11 @@ CREATE TABLE institucion (
     CONSTRAINT pk_institucion PRIMARY KEY (institucion_id),
     CONSTRAINT uq_institucion_cuit UNIQUE (cuit),
     CONSTRAINT ck_institucion_nombre CHECK (nombre = btrim(nombre) AND nombre <> ''),
+    CONSTRAINT ck_institucion_direccion_calle CHECK (direccion_calle = btrim(direccion_calle) AND direccion_calle <> ''),
+    CONSTRAINT ck_institucion_direccion_altura CHECK (direccion_altura = btrim(direccion_altura) AND direccion_altura <> ''),
+    -- Mismo formato que ck_usuario_email, sin exigir minúsculas: el email de la institución no se
+    -- usa para buscarla
+    CONSTRAINT ck_institucion_email CHECK (email = btrim(email) AND email <> '' AND email ~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'),
     CONSTRAINT ck_institucion_cuit CHECK (cuit ~ '^[0-9]{2}-[0-9]{8}-[0-9]$'),
     CONSTRAINT ck_institucion_telefono CHECK (telefono ~ '^[0-9]{10,13}$')
 );
