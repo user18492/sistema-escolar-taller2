@@ -14,7 +14,7 @@
 
 (() => {
   const scriptUrl = document.currentScript.src;
-  const logoUrl = new URL('../../../resources/logotipo_header.png', scriptUrl).href;
+  const logoUrl = new URL('../../../resources/logotipo_header.svg', scriptUrl).href;
   const loginUrl = new URL('../../auth/login/index.html', scriptUrl).href;
   const settingsUrl = new URL('../../profile/settings/index.html', scriptUrl).href;
   // Nombre visible de cada rol (usuario_roles.nombre), igual que en la vista Usuarios.

@@ -31,25 +31,19 @@ app-sidebar {
   padding: 0;
 }
 
+/* El SVG ya viene recortado al logotipo, sin los márgenes transparentes del PNG. */
 .sidebar-logo {
-  position: relative;
   width: 232px;
-  height: 30px;
-  overflow: hidden;
 }
 
-/* Encuadra el logotipo respetando los márgenes transparentes del PNG original. */
 .sidebar-logo img {
-  position: absolute;
-  width: 456px;
-  max-width: none;
+  display: block;
+  width: 100%;
   height: auto;
-  left: -112px;
-  top: -63px;
 }
 
 .sidebar-institution {
-  margin-top: 4px;
+  margin-top: 10px;
   font-size: 16px;
   line-height: 24px;
   color: var(--color-text-secondary);

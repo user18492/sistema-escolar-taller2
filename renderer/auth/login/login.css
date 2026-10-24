@@ -29,29 +29,21 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-/* Encuadra el logotipo respetando los márgenes transparentes del PNG original:
-   mismo recorte que .sidebar-logo, en proporción al ancho elegido aquí. */
+/* El SVG ya viene recortado al logotipo, sin los márgenes transparentes del PNG. */
 .login-logo {
-  --logo-width: 200px;
-  position: relative;
-  width: var(--logo-width);
-  height: calc(var(--logo-width) * 30 / 232);
+  width: 200px;
   margin-inline: auto;
-  overflow: hidden;
 }
 
 .login-logo img {
-  position: absolute;
-  width: calc(var(--logo-width) * 456 / 232);
-  max-width: none;
+  display: block;
+  width: 100%;
   height: auto;
-  left: calc(var(--logo-width) * -112 / 232);
-  top: calc(var(--logo-width) * -63 / 232);
 }
 
 /* Separado del logotipo solo por espacio vertical, sin línea divisoria. */
 .login-title {
-  margin-top: 16px;
+  margin-top: 21px;
   font-size: 19px;
   font-weight: 700;
   letter-spacing: -0.01em;
