@@ -455,8 +455,9 @@ async function deleteEnrollment(currentUser, enrollmentId) {
 
 // Lista explícita de campos: lo que dice el comprobante. La inscripción va con los campos de
 // listEnrollments, salvo `student`, que trae los datos personales del alumno: `dni` y `phone` son
-// solo los dígitos y `birthDate`, 'AAAA-MM-DD'. `institution` es la de la inscripción (el nombre y el
-// CUIT, con guiones) e `issueDate`, el día de emisión ('AAAA-MM-DD').
+// solo los dígitos y `birthDate`, 'AAAA-MM-DD'. `institution` es la de la inscripción, con los datos
+// del encabezado (el CUIT con guiones y el teléfono, solo los dígitos), e `issueDate`, el día de
+// emisión ('AAAA-MM-DD').
 function toEnrollmentReceipt(enrollment, student, institution, issueDate) {
   return {
     ...toInstitutionEnrollment(enrollment),
@@ -470,7 +471,14 @@ function toEnrollmentReceipt(enrollment, student, institution, issueDate) {
       email: student.email,
       phone: student.phone,
     },
-    institution: { name: institution.name, cuit: institution.cuit },
+    institution: {
+      name: institution.name,
+      cuit: institution.cuit,
+      street: institution.street,
+      streetNumber: institution.streetNumber,
+      email: institution.email,
+      phone: institution.phone,
+    },
     issueDate: toIsoDate(issueDate),
   };
 }
