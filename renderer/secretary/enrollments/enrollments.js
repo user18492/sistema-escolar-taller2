@@ -19,6 +19,7 @@
 // confirmar da de baja la inscripción (window.api.enrollments.delete), que deja de listarse: la tabla
 // vuelve a pedir la página a la vista con los mismos filtros, con el total recalculado, o la anterior
 // si quedó vacía. El resultado también se avisa con un toast y el modal se cierra siempre.
+// Imprimir comprobante (data-action="print") es solo visual por ahora: el clic no hace nada.
 
 document.addEventListener('DOMContentLoaded', () => {
 
