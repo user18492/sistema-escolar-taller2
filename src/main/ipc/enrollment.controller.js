@@ -2,6 +2,7 @@ const { handleProtected } = require('./protected-handler');
 const { failure } = require('./ipc-response');
 const enrollmentService = require('../services/enrollment.service');
 const { TeacherAssignmentError } = require('../services/teacher-assignment.service');
+const { PdfError } = require('../services/pdf.service');
 
 const { EnrollmentError } = enrollmentService;
 
@@ -195,6 +196,25 @@ async function deleteEnrollment(currentUser, enrollmentId) {
   }
 }
 
+// Nunca rechaza: los errores previstos (la inscripción no está vigente en la institución, el sistema
+// no pudo abrir el PDF) llevan su mensaje y el resto (al generar o guardar el PDF), uno genérico con
+// el detalle en la consola.
+async function openEnrollmentReceipt(currentUser, enrollmentId) {
+  if (!isId(enrollmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la inscripción.');
+  }
+  try {
+    await enrollmentService.openEnrollmentReceipt(currentUser, enrollmentId);
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof EnrollmentError || error instanceof PdfError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al generar el comprobante de la inscripción:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudo abrir el comprobante. Intentá nuevamente.');
+  }
+}
+
 // `teacherAssignmentId` es el id de una asignación del profesor de la sesión: que esté a su cargo
 // lo comprueba el servicio.
 // Nunca rechaza: los errores previstos (los de la asignación) llevan su mensaje y el resto, uno
@@ -228,6 +248,7 @@ function registerEnrollmentHandlers(browserWindow) {
   handleProtected(browserWindow, 'enrollments:get', ['SECRETARIO'], getEnrollment);
   handleProtected(browserWindow, 'enrollments:update', ['SECRETARIO'], updateEnrollment);
   handleProtected(browserWindow, 'enrollments:delete', ['SECRETARIO'], deleteEnrollment);
+  handleProtected(browserWindow, 'enrollments:open-receipt', ['SECRETARIO'], openEnrollmentReceipt);
   handleProtected(browserWindow, 'enrollments:list-by-own-assignment', ['PROFESOR'], listOwnAssignmentEnrollments);
 }
 

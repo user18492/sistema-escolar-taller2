@@ -19,7 +19,9 @@
 // confirmar da de baja la inscripción (window.api.enrollments.delete), que deja de listarse: la tabla
 // vuelve a pedir la página a la vista con los mismos filtros, con el total recalculado, o la anterior
 // si quedó vacía. El resultado también se avisa con un toast y el modal se cierra siempre.
-// Imprimir comprobante (data-action="print") es solo visual por ahora: el clic no hace nada.
+// Imprimir comprobante (data-action="print") le pide al proceso principal que genere el comprobante
+// en PDF y lo abra con el visor de PDF predeterminado (window.api.enrollments.openReceipt), desde
+// donde se imprime o se guarda. Si no se pudo, lo avisa con un toast.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -542,11 +544,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let isSavingEdit = false;
   // Ícono "Editar" que abrió el modal: recupera el foco al cerrarlo, si su fila sigue en la tabla
   let editTrigger = null;
-  // Posición en la página de la fila del botón que abrió el último modal (Editar o Eliminar), solo
-  // para devolver el foco a la que ocupe su lugar si esa fila ya no se muestra
+  // Posición en la página de la fila del botón que abrió el último modal (Editar o Eliminar) o del
+  // último Imprimir que falló, solo para devolver el foco a la que ocupe su lugar si esa fila ya no
+  // se muestra
   let triggerRowIndex = 0;
 
-  // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
+  // El botón de `action` (edit, delete o print) de la fila que quedó en su lugar (o de la última de la
   // página), o "Nueva inscripción" si la tabla quedó sin inscripciones
   const focusAfterRemoval = (action) => {
     const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
@@ -782,5 +785,48 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     onConfirm: deleteEnrollment,
     fallbackFocus: () => focusAfterRemoval('delete'),
+  });
+
+  // ---------- Imprimir comprobante ----------
+
+  // Inscripciones (inscripcion_id) cuyo comprobante se está generando: otro clic en Imprimir de la
+  // misma fila mientras tanto no lo vuelve a pedir, así no se abre dos veces
+  const printingEnrollmentIds = new Set();
+
+  // El id sale del data-enrollment-id de la fila del botón (el inscripcion_id); el proceso principal
+  // vuelve a comprobar que la inscripción exista en la institución y siga vigente. Si el comprobante
+  // se abre, el visor de PDF ya es el aviso y la vista no muestra nada. Si no, un toast dice por qué;
+  // si la inscripción ya no está vigente (los mismos códigos que en Editar), antes se vuelve a pedir
+  // la página de la tabla y, si el foco estaba en el botón, pasa a Imprimir en la fila que quedó en
+  // su lugar.
+  const openReceipt = async (trigger) => {
+    const row = trigger.closest('tr');
+    const enrollmentId = Number(row.dataset.enrollmentId);
+    if (printingEnrollmentIds.has(enrollmentId)) return;
+    printingEnrollmentIds.add(enrollmentId);
+    let response;
+    try {
+      response = await window.api?.enrollments?.openReceipt(enrollmentId);
+    } catch (error) {
+      console.error('Error al abrir el comprobante:', error);
+    }
+    printingEnrollmentIds.delete(enrollmentId);
+    if (response?.ok) return;
+
+    const error = response?.error;
+    if (NO_LONGER_EDITABLE_CODES.includes(error?.code)) {
+      const hadFocus = document.activeElement === trigger;
+      // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
+      triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+      await loadEnrollments(pagination.page);
+      if (hadFocus && !trigger.isConnected) focusAfterRemoval('print').focus();
+    }
+    showToast({ type: 'error', title: 'No se pudo abrir el comprobante', description: errorDescription(error) });
+  };
+
+  // Por delegación, como Editar
+  tbody.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="print"]');
+    if (button) openReceipt(button);
   });
 });

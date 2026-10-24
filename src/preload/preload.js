@@ -329,6 +329,15 @@ contextBridge.exposeInMainWorld('api', {
     // ENROLLMENT_ALREADY_DELETED, que ya había sido eliminada (p. ej., desde otra sesión), y
     // ENROLLMENT_HAS_SCORES, que tiene calificaciones vigentes (las dadas de baja no cuentan).
     delete: (enrollmentId) => ipcRenderer.invoke('enrollments:delete', enrollmentId),
+    // Solo SECRETARIO. Genera el comprobante en PDF de la inscripción vigente con ese id
+    // (inscripcion_id) de su institución, de cualquier ciclo lectivo y en cualquier estado, y lo abre
+    // con el visor de PDF predeterminado del sistema, desde donde se imprime o se guarda: la
+    // aplicación no abre ventanas ni diálogos propios. Resuelve { ok: true } cuando se abrió el visor
+    // (sin un programa para los PDF, Windows muestra su diálogo para elegir uno y también resuelve
+    // así), o { ok: false, error: { code, message } }: INVALID_INPUT indica un id inválido;
+    // ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get, y PDF_VIEWER_UNAVAILABLE, que
+    // el sistema no pudo abrir el PDF.
+    openReceipt: (enrollmentId) => ipcRenderer.invoke('enrollments:open-receipt', enrollmentId),
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la
     // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo: las
     // vigentes, activas y finalizadas, del curso, sin las canceladas ni las dadas de baja

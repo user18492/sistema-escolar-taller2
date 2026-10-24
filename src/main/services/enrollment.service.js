@@ -4,8 +4,10 @@ const courseRepository = require('../repositories/course.repository');
 const scoreRepository = require('../repositories/score.repository');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const teacherAssignmentService = require('./teacher-assignment.service');
+const pdfService = require('./pdf.service');
 const { toListedCourse } = require('./course.service');
 const { toIsoDate } = require('./user.service');
+const { buildEnrollmentReceiptHtml } = require('../templates/enrollment-receipt.template');
 
 // Error previsto, con un mensaje apto para la UI (como StudentError en student.service.js).
 class EnrollmentError extends Error {
@@ -448,6 +450,23 @@ async function deleteEnrollment(currentUser, enrollmentId) {
   throw new Error(`No se dio de baja la inscripción ${enrollmentId}, que está vigente y sin calificaciones vigentes`);
 }
 
+// ---------- Comprobante ----------
+
+// Abre en el visor de PDF predeterminado el comprobante de la inscripción vigente con ese id de la
+// institución de `currentUser` (el de la sesión), con el contenido de buildEnrollmentReceiptHtml
+// (enrollment-receipt.template.js). Como Editar, vale para una de cualquier ciclo lectivo y en
+// cualquier estado. El id llega del renderer y la fila que tiene a la vista puede haber quedado
+// vieja, así que la inscripción se busca de nuevo antes de generarlo.
+// Lanza los EnrollmentError de findNotDeletedEnrollment y el PdfError PDF_VIEWER_UNAVAILABLE de
+// pdfService.openHtmlAsPdf, si no se pudo abrir.
+async function openEnrollmentReceipt(currentUser, enrollmentId) {
+  const enrollment = toInstitutionEnrollment(await findNotDeletedEnrollment(currentUser.institutionId, enrollmentId));
+  await pdfService.openHtmlAsPdf(
+    buildEnrollmentReceiptHtml(enrollment),
+    `Comprobante de inscripción ${enrollment.number}.pdf`
+  );
+}
+
 module.exports = {
   listOwnAssignmentEnrollments,
   listEnrollments,
@@ -458,6 +477,7 @@ module.exports = {
   getEnrollment,
   updateEnrollment,
   deleteEnrollment,
+  openEnrollmentReceipt,
   formatEnrollmentNumber,
   toListedStudent,
   EnrollmentError,
