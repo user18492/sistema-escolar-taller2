@@ -2,6 +2,7 @@ const enrollmentRepository = require('../repositories/enrollment.repository');
 const studentRepository = require('../repositories/student.repository');
 const courseRepository = require('../repositories/course.repository');
 const scoreRepository = require('../repositories/score.repository');
+const institutionRepository = require('../repositories/institution.repository');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const teacherAssignmentService = require('./teacher-assignment.service');
 const pdfService = require('./pdf.service');
@@ -452,18 +453,47 @@ async function deleteEnrollment(currentUser, enrollmentId) {
 
 // ---------- Comprobante ----------
 
+// Lista explícita de campos: lo que dice el comprobante. La inscripción va con los campos de
+// listEnrollments, salvo `student`, que trae los datos personales del alumno: `dni` y `phone` son
+// solo los dígitos y `birthDate`, 'AAAA-MM-DD'. `institution` es la de la inscripción (el nombre y el
+// CUIT, con guiones) e `issueDate`, el día de emisión ('AAAA-MM-DD').
+function toEnrollmentReceipt(enrollment, student, institution, issueDate) {
+  return {
+    ...toInstitutionEnrollment(enrollment),
+    student: {
+      firstName: student.firstName,
+      lastName: student.lastName,
+      dni: student.dni,
+      birthDate: toIsoDate(student.birthDate),
+      street: student.street,
+      streetNumber: student.streetNumber,
+      email: student.email,
+      phone: student.phone,
+    },
+    institution: { name: institution.name, cuit: institution.cuit },
+    issueDate: toIsoDate(issueDate),
+  };
+}
+
 // Abre en el visor de PDF predeterminado el comprobante de la inscripción vigente con ese id de la
 // institución de `currentUser` (el de la sesión), con el contenido de buildEnrollmentReceiptHtml
-// (enrollment-receipt.template.js). Como Editar, vale para una de cualquier ciclo lectivo y en
-// cualquier estado. El id llega del renderer y la fila que tiene a la vista puede haber quedado
-// vieja, así que la inscripción se busca de nuevo antes de generarlo.
+// (enrollment-receipt.template.js): los datos de la inscripción, de su alumno y de la institución,
+// tal como están en la base al generarlo, y la fecha del día como fecha de emisión. Como Editar,
+// vale para una de cualquier ciclo lectivo y en cualquier estado. El id llega del renderer y la fila
+// que tiene a la vista puede haber quedado vieja, así que la inscripción se busca de nuevo antes de
+// generarlo. El alumno es siempre de la misma institución (trg_inscripcion_coherencia, db/schema.sql)
+// y se lo busca aunque esté dado de baja.
 // Lanza los EnrollmentError de findNotDeletedEnrollment y el PdfError PDF_VIEWER_UNAVAILABLE de
 // pdfService.openHtmlAsPdf, si no se pudo abrir.
 async function openEnrollmentReceipt(currentUser, enrollmentId) {
-  const enrollment = toInstitutionEnrollment(await findNotDeletedEnrollment(currentUser.institutionId, enrollmentId));
+  const { institutionId } = currentUser;
+  const enrollment = await findNotDeletedEnrollment(institutionId, enrollmentId);
+  const student = await studentRepository.findById(enrollment.student.id, institutionId);
+  const institution = await institutionRepository.findById(institutionId);
+  const receipt = toEnrollmentReceipt(enrollment, student, institution, new Date());
   await pdfService.openHtmlAsPdf(
-    buildEnrollmentReceiptHtml(enrollment),
-    `Comprobante de inscripción ${enrollment.number}.pdf`
+    buildEnrollmentReceiptHtml(receipt),
+    `Comprobante de inscripción ${receipt.number}.pdf`
   );
 }
 

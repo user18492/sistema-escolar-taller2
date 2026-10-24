@@ -59,14 +59,20 @@ const FIND_ENROLLABLE_BY_INSTITUTION_SQL = `
    ORDER BY a.apellido, a.nombre, a.alumno_id
 `;
 
-// El alumno $1 de la institución $2, vigente o dado de baja, con lo que la restauración y el alta de
-// una inscripción comprueban antes de hacerlas.
+// El alumno $1 de la institución $2, vigente o dado de baja, con los campos de
+// FIND_BY_INSTITUTION_SQL: lo que la restauración y el alta de una inscripción comprueban antes de
+// hacerlas y lo que muestra el comprobante de una inscripción.
 const FIND_BY_ID_SQL = `
   SELECT a.alumno_id,
+         a.institucion_id,
          a.nombre,
          a.apellido,
-         a.dni,
          a.email,
+         a.telefono,
+         a.direccion_calle,
+         a.direccion_altura,
+         a.dni,
+         a.fecha_nacimiento,
          a.fecha_eliminacion,
          e.nombre AS estado
     FROM alumno a
@@ -264,9 +270,9 @@ async function findEnrollableByInstitution(institutionId) {
   return rows.map(toStudent);
 }
 
-// El alumno con ese id en la institución, vigente o dado de baja, solo con su nombre, su apellido,
-// su dni, su email, su estado y su fecha de baja (`deletedAt`, null si está vigente): los demás
-// campos quedan undefined. null si no existe en la institución.
+// El alumno con ese id en la institución, vigente o dado de baja, con todos sus datos, como
+// findByInstitution, y su fecha de baja (`deletedAt`, null si está vigente). null si no existe en la
+// institución.
 async function findById(studentId, institutionId) {
   const { rows } = await query(FIND_BY_ID_SQL, [studentId, institutionId]);
   return rows.length > 0 ? toStudent(rows[0]) : null;
