@@ -1,0 +1,1979 @@
+{
+  "version": 1,
+  "takenAt": "2026-10-25T18:20:49.771Z",
+  "commit": "e3247ea655a02fa250930b579976cb30b2f3c496",
+  "branch": "restricciones",
+  "dirty": false,
+  "changedFiles": [
+    "package.json"
+  ],
+  "today": "2026-10-25",
+  "year": 2026,
+  "environment": {
+    "node": "24.19.0",
+    "electron": "44.0.0",
+    "postgres": "PostgreSQL 18.6 on x86_64-windows"
+  },
+  "tests": {
+    "db.concurrency.one-active-enrollment": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "4e9644648ec6",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.last-admin": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "63aea07e27d9",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.invariants": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.safety.guards": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "b5eb61ee53c4",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.detection.pg-notice": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "2d648be60933",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.detection.invariant-violation": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "4be1ae3d6872",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.detection.console-error": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "7d52178bfcc7",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.detection.invariants": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.users.format-checks": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "befac20f578a",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.users.unique-among-current": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "7d23c37e7c79",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.users.role-institution-immutable": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d8eb7362e1b7",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.users.last-admin": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "6eb4beb47328",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.users.teacher-with-assignments": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "76b8d9e4f409",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.users.invariants": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.course-checks": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "838f6edeea3f",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.course-unique-among-current": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "0a48c308c779",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.course-locked-by-dependents": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "e6450dbf9694",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.assignment-coherence": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "b8ba8bf9e920",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.assignment-unique-subject": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "ac49ced0b5c6",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.assignment-course-locked": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "5f2eaaab1ac5",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.deleted-course-editable": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d3ec7b3d1ff9",
+      "kind": "current",
+      "affectedBy": [
+        "administrador-cursos"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.assignment-suspended-teacher": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "c45ee5aff93b",
+      "kind": "current",
+      "affectedBy": [
+        "administrador-usuarios",
+        "administrador-docencia"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.invariants": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.student-checks": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "e467493d6d42",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.enrollment-coherence": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "1e3cd31b213e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.one-active": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "db19dd7ad054",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.student-delete-procedure": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "a3ea64481b9f",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.deleted-student-enrollable": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "183bc4c1c13b",
+      "kind": "current",
+      "affectedBy": [
+        "secretario-alumnos",
+        "secretario-inscripciones"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.completed-in-current-cycle": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "8a4903455b98",
+      "kind": "current",
+      "affectedBy": [
+        "secretario-inscripciones",
+        "ciclo-lectivo"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.invariants": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.evaluation-rules": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "9afcd6345b5d",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.score-coherence": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "797638265801",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.score-frozen-after-enrollment-change": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "2c46b9e0e48e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.locked-by-scores": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "55d358c8f0d0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.evaluation-delete-keeps-scores": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "4623fea9e7b8",
+      "kind": "current",
+      "affectedBy": [
+        "profesor-evaluaciones"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.score-on-future-evaluation": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "33797c889a24",
+      "kind": "current",
+      "affectedBy": [
+        "profesor-calificaciones"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.invariants": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.schema.load-clean": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "509ef3b090de",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.schema.naming-conventions": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "9991a25dc0bb",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.schema.app-constraint-names": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "2af7dc4e28c6",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.schema.inventory": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "40f96eb62071",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.schema.inventory-no-removals": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "c44c391e7079",
+      "kind": "current",
+      "affectedBy": [
+        "*"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.schema.seed-users": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "4585f61b272c",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.schema.seed-content": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "0ca4da9ea62d",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.schema.invariants": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.users.list": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "0a36ed699b06",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.users.create": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "074bb85abc2f",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.users.create-rejections": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "32b59a97cc30",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.users.suspend": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "bb9bd0a21d1b",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.users.delete-restore": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "2eb17f236de4",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.users.delete-teacher-with-assignments": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "a1d5f8bad299",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.users.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.courses.grades": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "3ec769861376",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.courses.list": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "280ae23e9cc0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.courses.create-update-delete": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "6bda62678432",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.courses.delete-with-assignments": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "cc6119314081",
+      "kind": "current",
+      "affectedBy": [
+        "administrador-cursos"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.courses.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.assignments.list": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "2dbe8ded1516",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.assignments.form-options": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d5833bdd5074",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.assignments.create-update-delete": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "6b64b1f8bdd8",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.assignments.create-unavailable-teacher": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "e189f5e7cbbf",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.assignments.update-keeps-suspended-teacher": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "bbd18cd50cba",
+      "kind": "current",
+      "affectedBy": [
+        "administrador-docencia",
+        "administrador-usuarios"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.assignments.delete-with-evaluations": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "01b709605247",
+      "kind": "current",
+      "affectedBy": [
+        "administrador-docencia"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.assignments.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.dashboard.summary": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "fd625b930696",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.dashboard.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.unexpected-error": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "9be983dfaf46",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.unexpected-rejection": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d3d23d811374",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.handler-throws": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "39babc1eb901",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.no-response": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "e91aeb13c9d9",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.renderer-console-and-uncaught": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "217b9f427d79",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.main-uncaught": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "89b2d913f387",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.missing-resource": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "2fc233ecab06",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.error-toast": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "9f498d641c5d",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.dialog": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "0a27cf707e1e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.pg-notice": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "4e2f82da27f3",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.slow-call": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "2e82c77be270",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.load-error-visible": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "3bfcabcc0ff2",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.clipboard-isolated": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "9ccb91d4058d",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.renderer-crash": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "ffdee7a00d4e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.detection.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.minimal.admin": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "db4d0e78719c",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.minimal.secretary": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "fed3c15c830a",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.minimal.teacher": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "20db64fa1e28",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.minimal.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.handlers.exposed-have-handlers": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "251aceb22ee8",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.handlers.no-missing-handler-errors": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "a86bef324afe",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.handlers.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.permissions.table-matches-preload": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "6ce9407d869b",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.permissions.matrix": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "faba983c10a4",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.permissions.destructive-matrix": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "bc7d0f3ec2ba",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.permissions.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.students.list": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "bc803b061740",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.students.create": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "050cc38a0344",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.students.create-rejections": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "bc993584a241",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.students.update": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "2d9bcf258e54",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.students.delete-restore": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "3a87509a79c3",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.students.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.enrollments.list": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "b4a7b88ab8eb",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.enrollments.form-options": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "94f968388f4b",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.enrollments.create": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "dcf1a646ce86",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.enrollments.update-status": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "f6d27d1ef764",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.enrollments.update-to-completed": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "f51dbf38150d",
+      "kind": "current",
+      "affectedBy": [
+        "secretario-inscripciones",
+        "ciclo-lectivo"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.enrollments.delete": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "dfff6cad76ae",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.enrollments.receipt": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "a841f71695ab",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.enrollments.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.dashboard.summary": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "615edc04ec90",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.dashboard.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.session.login-single-account": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "9a1dbc368686",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.session.login-account-choice": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "4baec70f42c9",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.session.logout-discards-pending": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "0d436491c41d",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.session.login-rejections": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "f30b18950ac0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.session.remembered-account": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "f683ebc20cc4",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.session.suspended-session-cut": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "4be03d169944",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.session.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.profile.get-and-update": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "54138ceeeeae",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.profile.update-duplicate": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "53c303dc3ad6",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.profile.delete-guards": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "81e4fe71a453",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.profile.delete-own-account": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "56d548e36086",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.profile.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.teacher.assignments": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "1a02aae4f35f",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.teacher.students": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "3a8518ba1687",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.teacher.evaluations": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "aa8a1caf957e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.teacher.scores": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "78c00fef8247",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.teacher.evaluation-delete-keeps-scores": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "4f6c7c3e1734",
+      "kind": "current",
+      "affectedBy": [
+        "profesor-evaluaciones"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.teacher.score-on-future-evaluation": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "f4dad753b4a1",
+      "kind": "current",
+      "affectedBy": [
+        "profesor-calificaciones"
+      ],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.teacher.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.window.maximize-restore": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "31780df4380e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.window.minimize": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "823ba455094b",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.window.close": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "fc755133aa98",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.known-bugs.column-filter-enter": {
+      "layer": "ui",
+      "status": "known-fail",
+      "hash": "2e6dc148e348",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": {
+        "reason": "column-filter.js: el Enter cierra el panel, mueve el foco al botón del filtro y el keypress siguiente lo vuelve a abrir (bug previo, sin corregir).",
+        "until": "2026-12-31"
+      }
+    },
+    "ui.known-bugs.grade-filter-keyboard": {
+      "layer": "ui",
+      "status": "known-fail",
+      "hash": "94a1ae51c740",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": {
+        "reason": "grade-dropdown.js: Espacio o Enter sobre la fila de un nivel marca sus grados pero no emite column-filter-change, así que la tabla no se filtra hasta el próximo cambio (hallazgo previo, sin corregir).",
+        "until": "2026-12-31"
+      }
+    },
+    "ui.known-bugs.enrollment-edit-refreshes-create-list": {
+      "layer": "ui",
+      "status": "known-fail",
+      "hash": "117b098fc675",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": {
+        "reason": "enrollments.js: una edición que cambia el estado a o desde Activa no invalida la lista de alumnos del alta, que queda vieja hasta recargar la vista (problema previo, avisado y sin corregir).",
+        "until": "2026-12-31"
+      }
+    },
+    "ui.known-bugs.modal-resize-console": {
+      "layer": "ui",
+      "status": "known-fail",
+      "hash": "aca96629cf14",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": {
+        "reason": "modal-resize.js emite \"ResizeObserver loop completed with undelivered notifications\" cada vez que cambia el alto de un modal (problema previo, sin corregir). known-issues.js lo tolera en las demás pruebas.",
+        "until": "2026-12-31"
+      }
+    },
+    "ui.known-bugs.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.login.account-choice-and-remember": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "1792c852686d",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.login.invalid-credentials": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "87b454520f89",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.login.suspended-session-cut": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "57121b57cbff",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.login.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.minimal.admin": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d1f50eca7d8f",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.minimal.secretary": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "5aa297d2084e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.minimal.teacher": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "f35efd99c936",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.minimal.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.views.table-matches-renderer": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "621bb17c6cd4",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.views.walk-anonymous": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "aba8fd0a7718",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.views.walk-admin": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "552324ec5f26",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.views.walk-secretary": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "4186b47fbfc0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.views.walk-teacher": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "a21b48e72f85",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.views.blocked-views": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d56cac77db9e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.views.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "startup.app.db-down": {
+      "layer": "startup",
+      "status": "pass",
+      "hash": "45471fe6d817",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "startup.app.db-missing": {
+      "layer": "startup",
+      "status": "pass",
+      "hash": "6cd62a19cbc6",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "startup.app.normal-start": {
+      "layer": "startup",
+      "status": "pass",
+      "hash": "02fe25bfc3fb",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "startup.app.login-db-hang": {
+      "layer": "startup",
+      "status": "known-fail",
+      "hash": "52fdd0eb942c",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": {
+        "reason": "connection.js no configura query_timeout ni statement_timeout: con una conexión ya abierta en el pool, el login queda en \"Ingresando…\" indefinidamente (hallazgo previo, sin corregir).",
+        "until": "2026-12-31"
+      }
+    },
+    "startup.app.invariants": {
+      "layer": "startup",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    }
+  },
+  "channels": {
+    "auth:forget-remembered-email": {
+      "calls": 2,
+      "ok": 2,
+      "tests": 2
+    },
+    "auth:get-current-user": {
+      "calls": 78,
+      "ok": 78,
+      "tests": 24
+    },
+    "auth:get-remembered-email": {
+      "calls": 53,
+      "ok": 53,
+      "tests": 30
+    },
+    "auth:login": {
+      "calls": 92,
+      "ok": 84,
+      "tests": 71
+    },
+    "auth:logout": {
+      "calls": 112,
+      "ok": 112,
+      "tests": 79
+    },
+    "auth:select-institution": {
+      "calls": 5,
+      "ok": 3,
+      "tests": 3
+    },
+    "courses:create": {
+      "calls": 4,
+      "ok": 3,
+      "tests": 3
+    },
+    "courses:delete": {
+      "calls": 4,
+      "ok": 2,
+      "tests": 2
+    },
+    "courses:list": {
+      "calls": 5,
+      "ok": 5,
+      "tests": 5
+    },
+    "courses:update": {
+      "calls": 1,
+      "ok": 1,
+      "tests": 1
+    },
+    "dashboard:get-admin-summary": {
+      "calls": 7,
+      "ok": 7,
+      "tests": 7
+    },
+    "dashboard:get-secretary-summary": {
+      "calls": 8,
+      "ok": 8,
+      "tests": 8
+    },
+    "enrollments:create": {
+      "calls": 5,
+      "ok": 3,
+      "tests": 3
+    },
+    "enrollments:delete": {
+      "calls": 3,
+      "ok": 1,
+      "tests": 1
+    },
+    "enrollments:get": {
+      "calls": 3,
+      "ok": 2,
+      "tests": 3
+    },
+    "enrollments:list": {
+      "calls": 8,
+      "ok": 8,
+      "tests": 5
+    },
+    "enrollments:list-by-own-assignment": {
+      "calls": 5,
+      "ok": 4,
+      "tests": 4
+    },
+    "enrollments:list-enrollable-courses": {
+      "calls": 5,
+      "ok": 5,
+      "tests": 5
+    },
+    "enrollments:list-enrollable-students": {
+      "calls": 5,
+      "ok": 5,
+      "tests": 5
+    },
+    "enrollments:list-filter-options": {
+      "calls": 5,
+      "ok": 5,
+      "tests": 4
+    },
+    "enrollments:open-receipt": {
+      "calls": 5,
+      "ok": 3,
+      "tests": 3
+    },
+    "enrollments:update": {
+      "calls": 5,
+      "ok": 5,
+      "tests": 3
+    },
+    "evaluations:create": {
+      "calls": 8,
+      "ok": 5,
+      "tests": 5
+    },
+    "evaluations:delete": {
+      "calls": 3,
+      "ok": 2,
+      "tests": 2
+    },
+    "evaluations:list-by-own-assignment": {
+      "calls": 3,
+      "ok": 3,
+      "tests": 3
+    },
+    "evaluations:update": {
+      "calls": 1,
+      "ok": 1,
+      "tests": 1
+    },
+    "grades:list": {
+      "calls": 8,
+      "ok": 6,
+      "tests": 8
+    },
+    "profile:delete": {
+      "calls": 3,
+      "ok": 1,
+      "tests": 2
+    },
+    "profile:get": {
+      "calls": 7,
+      "ok": 7,
+      "tests": 5
+    },
+    "profile:update": {
+      "calls": 4,
+      "ok": 3,
+      "tests": 2
+    },
+    "scores:delete": {
+      "calls": 2,
+      "ok": 1,
+      "tests": 1
+    },
+    "scores:list-by-own-evaluation": {
+      "calls": 8,
+      "ok": 6,
+      "tests": 4
+    },
+    "scores:save": {
+      "calls": 9,
+      "ok": 7,
+      "tests": 5
+    },
+    "students:create": {
+      "calls": 6,
+      "ok": 3,
+      "tests": 4
+    },
+    "students:delete": {
+      "calls": 2,
+      "ok": 1,
+      "tests": 1
+    },
+    "students:list": {
+      "calls": 5,
+      "ok": 4,
+      "tests": 5
+    },
+    "students:restore": {
+      "calls": 2,
+      "ok": 1,
+      "tests": 1
+    },
+    "students:update": {
+      "calls": 2,
+      "ok": 1,
+      "tests": 1
+    },
+    "teacher-assignments:create": {
+      "calls": 5,
+      "ok": 3,
+      "tests": 4
+    },
+    "teacher-assignments:delete": {
+      "calls": 3,
+      "ok": 2,
+      "tests": 2
+    },
+    "teacher-assignments:get-own": {
+      "calls": 14,
+      "ok": 11,
+      "tests": 4
+    },
+    "teacher-assignments:list": {
+      "calls": 3,
+      "ok": 3,
+      "tests": 3
+    },
+    "teacher-assignments:list-assignable-courses": {
+      "calls": 4,
+      "ok": 4,
+      "tests": 4
+    },
+    "teacher-assignments:list-assignable-subjects": {
+      "calls": 6,
+      "ok": 6,
+      "tests": 5
+    },
+    "teacher-assignments:list-assignable-teachers": {
+      "calls": 4,
+      "ok": 4,
+      "tests": 4
+    },
+    "teacher-assignments:list-own": {
+      "calls": 8,
+      "ok": 7,
+      "tests": 7
+    },
+    "teacher-assignments:update": {
+      "calls": 2,
+      "ok": 2,
+      "tests": 2
+    },
+    "users:create": {
+      "calls": 4,
+      "ok": 1,
+      "tests": 2
+    },
+    "users:delete": {
+      "calls": 4,
+      "ok": 1,
+      "tests": 3
+    },
+    "users:list": {
+      "calls": 3,
+      "ok": 3,
+      "tests": 3
+    },
+    "users:restore": {
+      "calls": 2,
+      "ok": 1,
+      "tests": 1
+    },
+    "users:update": {
+      "calls": 2,
+      "ok": 1,
+      "tests": 2
+    },
+    "window:close": {
+      "calls": 1,
+      "ok": 1,
+      "tests": 1
+    },
+    "window:is-maximized": {
+      "calls": 95,
+      "ok": 95,
+      "tests": 37
+    },
+    "window:minimize": {
+      "calls": 1,
+      "ok": 1,
+      "tests": 1
+    },
+    "window:toggle-maximize": {
+      "calls": 2,
+      "ok": 2,
+      "tests": 1
+    }
+  },
+  "inventory": {
+    "tables": {
+      "alumno": "f832da21f88133fccd75f08f6db285a5",
+      "alumno_estado": "abbe5b8594787c01c37558d36eea9263",
+      "asignacion_docente": "337ef2bf66f21dbb9103739fbbf33f5a",
+      "calificacion": "49776367ce4f586ef4926d351839e80a",
+      "curso": "01306e7f7641952179b8d490dd31c769",
+      "evaluacion": "897e1bbacd5a28da1bb150c8edbd6ce4",
+      "grado": "342efe0ef2f84bf399214e14d2761cbc",
+      "grado_materia": "e4f00960191797ac7feb8863ed22a297",
+      "inscripcion": "7c61ef0feeb7f47385b88dc1d3df0938",
+      "inscripcion_estado": "71ef124009ff2b88e39caa70f685241a",
+      "institucion": "785ae1aec18b02e173a9cf1aa50a7238",
+      "materia": "65e425aea3944d0d4a645221832ef999",
+      "usuario": "dc567304d41ae64b28a48d3f90a587e2",
+      "usuario_rol": "f619500f03d5f66f3441b120155cb9e4"
+    },
+    "columns": {
+      "alumno_estado.alumno_estado_id": "75063d5f741c08e7083196e63929a15b",
+      "alumno_estado.nombre": "22f60803afe8e2d1f1639f15122d9260",
+      "alumno.alumno_estado_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "alumno.alumno_id": "75063d5f741c08e7083196e63929a15b",
+      "alumno.apellido": "34a792ea4ae3ebfdabbf5ebb0b0b3eb9",
+      "alumno.direccion_altura": "f68e5087553e50ea46fbaf0dd9cbd9d5",
+      "alumno.direccion_calle": "7cdf1ccbed6a3bc30d8899fe7b21abe6",
+      "alumno.dni": "2f4acb036c4224c544f1234a1816c0ef",
+      "alumno.email": "a1f96f5c44eb8d0a00211706fc97f2dd",
+      "alumno.fecha_eliminacion": "a6de39030547f1fcf57f463376f7d7c3",
+      "alumno.fecha_nacimiento": "c5b742838ea310a599993e6322cc8faf",
+      "alumno.institucion_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "alumno.nombre": "34a792ea4ae3ebfdabbf5ebb0b0b3eb9",
+      "alumno.telefono": "11ac1aaeee5b5be8ed2666cfc6cc023c",
+      "asignacion_docente.asignacion_docente_id": "75063d5f741c08e7083196e63929a15b",
+      "asignacion_docente.curso_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "asignacion_docente.fecha_eliminacion": "a6de39030547f1fcf57f463376f7d7c3",
+      "asignacion_docente.grado_materia_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "asignacion_docente.usuario_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "calificacion.calificacion_id": "75063d5f741c08e7083196e63929a15b",
+      "calificacion.evaluacion_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "calificacion.fecha_eliminacion": "a6de39030547f1fcf57f463376f7d7c3",
+      "calificacion.inscripcion_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "calificacion.nota": "36660cb41d685c6b78ecb46e48111c8a",
+      "curso.anio_ciclo_lectivo": "5c30c1573b1ac1d49a3567ff67260296",
+      "curso.curso_id": "75063d5f741c08e7083196e63929a15b",
+      "curso.division": "2ddaa3079c943ffda835376fce6994df",
+      "curso.fecha_eliminacion": "a6de39030547f1fcf57f463376f7d7c3",
+      "curso.grado_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "curso.institucion_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "curso.turno": "51adee7533377ea9a818437f484787b2",
+      "evaluacion.asignacion_docente_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "evaluacion.evaluacion_id": "75063d5f741c08e7083196e63929a15b",
+      "evaluacion.fecha_eliminacion": "a6de39030547f1fcf57f463376f7d7c3",
+      "evaluacion.fecha_evaluacion": "c5b742838ea310a599993e6322cc8faf",
+      "evaluacion.titulo": "34a792ea4ae3ebfdabbf5ebb0b0b3eb9",
+      "grado_materia.grado_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "grado_materia.grado_materia_id": "75063d5f741c08e7083196e63929a15b",
+      "grado_materia.materia_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "grado.grado_id": "75063d5f741c08e7083196e63929a15b",
+      "grado.nivel_educativo": "ab09e8763008dc7a109bf30e19ce7849",
+      "grado.nombre": "22f60803afe8e2d1f1639f15122d9260",
+      "inscripcion_estado.inscripcion_estado_id": "75063d5f741c08e7083196e63929a15b",
+      "inscripcion_estado.nombre": "22f60803afe8e2d1f1639f15122d9260",
+      "inscripcion.alumno_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "inscripcion.curso_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "inscripcion.fecha_eliminacion": "a6de39030547f1fcf57f463376f7d7c3",
+      "inscripcion.fecha_inscripcion": "a76215f6f1259341f15bff41abe2373a",
+      "inscripcion.inscripcion_estado_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "inscripcion.inscripcion_id": "75063d5f741c08e7083196e63929a15b",
+      "institucion.cuit": "11ac1aaeee5b5be8ed2666cfc6cc023c",
+      "institucion.direccion_altura": "f68e5087553e50ea46fbaf0dd9cbd9d5",
+      "institucion.direccion_calle": "7cdf1ccbed6a3bc30d8899fe7b21abe6",
+      "institucion.email": "a1f96f5c44eb8d0a00211706fc97f2dd",
+      "institucion.institucion_id": "75063d5f741c08e7083196e63929a15b",
+      "institucion.nombre": "7cdf1ccbed6a3bc30d8899fe7b21abe6",
+      "institucion.telefono": "11ac1aaeee5b5be8ed2666cfc6cc023c",
+      "materia.materia_id": "75063d5f741c08e7083196e63929a15b",
+      "materia.nombre": "34a792ea4ae3ebfdabbf5ebb0b0b3eb9",
+      "usuario_rol.nombre": "22f60803afe8e2d1f1639f15122d9260",
+      "usuario_rol.usuario_rol_id": "75063d5f741c08e7083196e63929a15b",
+      "usuario.apellido": "34a792ea4ae3ebfdabbf5ebb0b0b3eb9",
+      "usuario.dni": "2f4acb036c4224c544f1234a1816c0ef",
+      "usuario.email": "a1f96f5c44eb8d0a00211706fc97f2dd",
+      "usuario.estado": "567bd49a4471258acb7282c505e8746c",
+      "usuario.fecha_eliminacion": "a6de39030547f1fcf57f463376f7d7c3",
+      "usuario.fecha_nacimiento": "c5b742838ea310a599993e6322cc8faf",
+      "usuario.imagen_url": "e77aa415db8bf530c1aa99707fbf08df",
+      "usuario.institucion_id": "5c30c1573b1ac1d49a3567ff67260296",
+      "usuario.nombre": "34a792ea4ae3ebfdabbf5ebb0b0b3eb9",
+      "usuario.password_hash": "440be4ed8f34d4b2fe6a521148565709",
+      "usuario.usuario_id": "75063d5f741c08e7083196e63929a15b",
+      "usuario.usuario_rol_id": "5c30c1573b1ac1d49a3567ff67260296"
+    },
+    "constraints": {
+      "ck_alumno_estado_nombre": "0e8f9abab97cce6d37986f84c8b18978",
+      "ck_alumno_telefono": "aa7bbc879f6f8c7b2f29c7379d9b8b3c",
+      "ck_calificacion_nota": "e80709be9e966412bbaad386de1442b6",
+      "ck_curso_anio_ciclo_lectivo": "74a4791d9b91b8a0984aa5b5302ec7df",
+      "ck_curso_division": "0147cd11d527f92f4ddb239f36aabe46",
+      "ck_curso_turno": "dac74e8fcbfc21102593fc1ab94955c5",
+      "ck_grado_nivel_educativo": "b21c64a34da60d8467084cbed2cf54a6",
+      "ck_inscripcion_estado_nombre": "f10fb33231d41ea04cb741d2c044a560",
+      "ck_institucion_cuit": "11e926512a9a1bb77ca4b13699df9813",
+      "ck_institucion_direccion_altura": "48e8346f58b5b732fb22f8e6d2a7d680",
+      "ck_institucion_direccion_calle": "feb1943cf43fe597eba5635e1722ef0b",
+      "ck_institucion_email": "470306c3e73856fc8ae180693d422ea8",
+      "ck_institucion_nombre": "9396ffcd33033b0ab4184c4397f12d60",
+      "ck_institucion_telefono": "388dcc5a86d0e53c69c5a84459687caf",
+      "ck_usuario_apellido": "0e82240ea769ac701b6b69f3fa0d1808",
+      "ck_usuario_baja_suspendido": "fb2202b9e886c02095673f01c8ac1282",
+      "ck_usuario_dni": "c2668d9e5c611f5b30442b3d6cef48ac",
+      "ck_usuario_email": "24c11e5ddaa08393cf35044c2abe2a7b",
+      "ck_usuario_nombre": "12cf1af60ba62999f23e463cc47c7ee0",
+      "ck_usuario_password_hash": "cce084c826d533ccf618b4b0e1bd2a77",
+      "ck_usuario_rol_nombre": "a8ab17eb322d734159838895448c9c83",
+      "fk_alumno_alumno_estado": "41313bd2a60c8cccd9ca57bc1a544768",
+      "fk_alumno_institucion": "76eb71495c3b50d1d4ede29e7858e7fd",
+      "fk_asignacion_docente_curso": "d07ef8fd4a1366e7676a83383f1b45e1",
+      "fk_asignacion_docente_grado_materia": "dbfde5d1971a0613fdbd585993c4bc79",
+      "fk_asignacion_docente_usuario": "b011012edbbf802f0b7536bc3b23ab11",
+      "fk_calificacion_evaluacion": "33990d4f23dc033096445eb039fc02e0",
+      "fk_calificacion_inscripcion": "de766d928a26f164253c54da8c55855a",
+      "fk_curso_grado": "a235e8ecb4953a0d8c9a76bbe17e7f87",
+      "fk_curso_institucion": "1028ef9498c2b2f613255fac38aa8b51",
+      "fk_evaluacion_asignacion_docente": "92abc92841abd82c063e6b7062b8661a",
+      "fk_grado_materia_grado": "30e3cb079391fd47e3972b052c6703b1",
+      "fk_grado_materia_materia": "effebf6f48868bd2dbda27a560413d3b",
+      "fk_inscripcion_alumno": "7bb4e05b681aee1f88a5f59b25bb5b2c",
+      "fk_inscripcion_curso": "f4b7a3c107062f81a2ce3c1efd381cd3",
+      "fk_inscripcion_inscripcion_estado": "ab491b8ceca98a9f9f3846ae22507763",
+      "fk_usuario_institucion": "57059971ddec82e15d63aae344d214c0",
+      "fk_usuario_usuario_rol": "141ad2a31571894aaadb27c78628b0fd",
+      "pk_alumno": "ca86a2c7624b7c11cb00f1409f71d085",
+      "pk_alumno_estado": "0f8ac4934db6dfb639fd71bb34fc75df",
+      "pk_asignacion_docente": "ec287dae1b9e20d151e684a9fb37dcd5",
+      "pk_calificacion": "e3e9a3d7e097764e909c4dc1c30be2c1",
+      "pk_curso": "0b354fb29e73e5322269b30ddd9e39a1",
+      "pk_evaluacion": "dfe361706c0be14a5a9a56093cbede27",
+      "pk_grado": "a6e0637c048e015d65e4df3a807092e1",
+      "pk_grado_materia": "cd3904645d05e1ab808d38f22924d3ff",
+      "pk_inscripcion": "82dc9b395c7a1fe886b768ead7a0a6a1",
+      "pk_inscripcion_estado": "59ff2cc2a614f6dbec0a9ea36993c36b",
+      "pk_institucion": "37c7af47dbe8355099cf81729b1da368",
+      "pk_materia": "3f6fab582d42f229b4838760b872a10c",
+      "pk_usuario": "4d5e929774522307124d71de3adad3ee",
+      "pk_usuario_rol": "bcc6edd84a29816ae7d52b2aecb2c6c1",
+      "uq_alumno_estado_nombre": "8aca3ec5f6991a3bd896f6409b0b1160",
+      "uq_alumno_institucion_dni": "58a977bb3c72a8170666d128d93e17cf",
+      "uq_alumno_institucion_email": "6517b6942469cfec961ab017d498c13c",
+      "uq_grado_materia_grado_materia": "b1a2203c9321407795eb12494b2c4c64",
+      "uq_grado_nombre_nivel_educativo": "997f50fdab1e2c73ad557b663e2f5444",
+      "uq_inscripcion_estado_nombre": "7096df12706f3751dadd013ceca3336c",
+      "uq_institucion_cuit": "ceff861f6d4f1330cd3ae05d7a54a95c",
+      "uq_materia_nombre": "e091e038ce4067b212a3851ea2491020",
+      "uq_usuario_rol_nombre": "5183c0e0554d9031dfea4cfc28b02e07"
+    },
+    "indexes": {
+      "idx_alumno_alumno_estado_id": "e4a80bf184ade18374fcb38ad03b6b9d",
+      "idx_asignacion_docente_grado_materia_id": "5c405cbeaa4b63efaf1720b4294b6302",
+      "idx_asignacion_docente_usuario_id": "3f950c0f59ef20b405af63e70c001794",
+      "idx_calificacion_inscripcion_id": "73736396905261440d90d7b8f0c03e0b",
+      "idx_curso_grado_id": "346c69cb3fed35ed545fa290cbab7b83",
+      "idx_grado_materia_materia_id": "105f9f9c20a8dd50781e94882ec246c2",
+      "idx_inscripcion_alumno_id": "a7c75575d77d32f22926e861ce9cd60a",
+      "idx_inscripcion_curso_id": "11e08ba755e60baa58165faad7e5ecfb",
+      "idx_inscripcion_inscripcion_estado_id": "63fa3eca7dcdea1e20842f0f5b86f068",
+      "idx_usuario_institucion_id": "bdd6b7ea5089dcbfac93ab50af885c71",
+      "idx_usuario_usuario_rol_id": "d5f38e6b656485e85ad81568fbb2a096",
+      "pk_alumno": "ad12075ef6b34df59b238a4ab8ed626c",
+      "pk_alumno_estado": "a3dd05c612f0daf80145d82f16295a5e",
+      "pk_asignacion_docente": "f9e9809424c212b08cec74f6cfe27384",
+      "pk_calificacion": "1180f3f0b13716ab58016ed409872bcc",
+      "pk_curso": "c3e503f95bc9296a324915b2343b8bca",
+      "pk_evaluacion": "0754f978ad0d05b22c7e9637a432d597",
+      "pk_grado": "c102cbe2a0d206a692b365275befa1eb",
+      "pk_grado_materia": "d8edf71f5374901584b23dd1eac0e84d",
+      "pk_inscripcion": "a6973c9779714efba2327ccc3751c753",
+      "pk_inscripcion_estado": "ceecf74b61bfa3e464e9249c2c3538cd",
+      "pk_institucion": "044f5b756d0d191b430221dfa14c55ee",
+      "pk_materia": "b822b9d299b7f21a5cfc20d715e3a9e7",
+      "pk_usuario": "315faf62234241e2383af3115adc5940",
+      "pk_usuario_rol": "b30b075a46f679a8133a5e5d157c7304",
+      "uq_alumno_estado_nombre": "28d8ae68bbabe8bec057c40f152da370",
+      "uq_alumno_institucion_dni": "a123faff15ffaaf7e559a414cd41fbf2",
+      "uq_alumno_institucion_email": "7d2a452c582bba444d6426faebf9008c",
+      "uq_asignacion_docente_curso_grado_materia": "93a4f82f915246664ecb356e217d89ba",
+      "uq_calificacion_evaluacion_inscripcion": "fb0b49f0cbcb588ac88f7b9fc4e8c5db",
+      "uq_curso_institucion_grado_division_turno_anio_ciclo_lectivo": "2017da3842e2e8ec9218a24e29a68094",
+      "uq_evaluacion_asignacion_docente_titulo": "7f0f1d32fd5420a8e36cf5f7cc62fad0",
+      "uq_grado_materia_grado_materia": "f8de68954263c1f3a917b85c3a4d4dfa",
+      "uq_grado_nombre_nivel_educativo": "7ee16bda982356bafe7471ab9d0589ca",
+      "uq_inscripcion_estado_nombre": "527924b56245671f3c7d396be8b054ce",
+      "uq_institucion_cuit": "19cd85968a666895c0500f43aae7af6d",
+      "uq_materia_nombre": "c7497eaac75e9b004f0ef719e316ae96",
+      "uq_usuario_institucion_usuario_rol_dni": "541067794b5de3bf77b00e1290f96a30",
+      "uq_usuario_institucion_usuario_rol_email": "582d956038f072ef2d864dd0574914b1",
+      "uq_usuario_rol_nombre": "11c26606a36a31768407f703c2a42fd3"
+    },
+    "triggers": {
+      "trg_alumno_inscripciones": "e42f1cce62984f2a107f9774eb874be9",
+      "trg_asignacion_docente_calificaciones_vigentes": "6a92c73f2a9d43aa64c62655826b9940",
+      "trg_asignacion_docente_coherencia": "6487fdd95a68021dbd7337c5fbf5fa7d",
+      "trg_asignacion_docente_evaluaciones_vigentes": "dd73b4f5ca866870cdd5157066eeca00",
+      "trg_calificacion_coherencia": "a2394f50d36c9fa6aca3336d957b92b6",
+      "trg_curso_asignaciones_vigentes": "714d12fe786e4f0f1632cecd6666ed0a",
+      "trg_curso_evaluaciones_vigentes": "11be18cd6a33df924b6ea3acc6feb8c5",
+      "trg_curso_inscripciones": "5eb0f9cb35afd4da69a8c9339886ae07",
+      "trg_evaluacion_calificaciones_vigentes": "48cfb24e61a7b6b218c6e908946d3eb4",
+      "trg_evaluacion_fecha_ciclo_lectivo": "2384b21c33d3497200bc94dfff941680",
+      "trg_inscripcion_calificaciones_vigentes": "985018458d35478004b3632caf9357ea",
+      "trg_inscripcion_coherencia": "4ed211d6e49957eba321ac4215d7e168",
+      "trg_inscripcion_fecha_ciclo_lectivo": "a9f5e2142931b2994870f4d8650f4e15",
+      "trg_usuario_asignaciones_vigentes": "d5282f7c626a7f6fd653fe9395074d01",
+      "trg_usuario_rol_institucion_inmutables": "56fb4142f3797c2f3aa05bb9ddfcc625",
+      "trg_usuario_ultimo_administrador": "d70bf770a1f4c183a4b1f436ee681941"
+    },
+    "functions": {
+      "fn_alumno_inscripciones()": "7257ffcef80d3368e7f03050d65b21db",
+      "fn_asignacion_docente_calificaciones_vigentes()": "6d0b70809c221f4569d22b6e5ba8dc79",
+      "fn_asignacion_docente_coherencia()": "81443559c1aa3c2356343cf3580c199e",
+      "fn_asignacion_docente_evaluaciones_vigentes()": "947434d531ab94eeedc64578d988604b",
+      "fn_calificacion_coherencia()": "e724e825460127f3dc769fcfc1c1f36a",
+      "fn_curso_asignaciones_vigentes()": "c9a75078acb975690736b5990c5e88ab",
+      "fn_curso_evaluaciones_vigentes()": "80a727e252b223e94e1e7ce605c79243",
+      "fn_curso_inscripciones()": "580e977bdbae90a3b77fbf3f4119d865",
+      "fn_evaluacion_calificaciones_vigentes()": "c7aa6e410139e2fd2d43189c5b648b4f",
+      "fn_evaluacion_fecha_ciclo_lectivo()": "a77b259cb5f8e27d2d32603642cd0091",
+      "fn_inscripcion_calificaciones_vigentes()": "79b34b87dd6abdc7d791886acab7ed44",
+      "fn_inscripcion_coherencia()": "48cdb710b76094a8269e9cfa07464c1c",
+      "fn_inscripcion_fecha_ciclo_lectivo()": "9f6cc5161d053f82e11f04021c884192",
+      "fn_usuario_asignaciones_vigentes()": "7e9d4390a8a045cdace2beec3d31768b",
+      "fn_usuario_rol_institucion_inmutables()": "f0b9057322ec96ebad06e5d4c7f791d8",
+      "fn_usuario_ultimo_administrador()": "70c9b4d4f4efaa31f01cdac94d06586c"
+    },
+    "procedures": {
+      "sp_alumno_dar_de_baja(IN p_alumno_id integer, IN p_institucion_id integer, OUT p_inscripciones_canceladas integer)": "542db928c3c702246317fbb59b1f8bf6"
+    }
+  }
+}
