@@ -39,6 +39,7 @@ module.exports = {
     'courses:update': { roles: ['ADMIN'], args: [NO_ID, {}] },
     'courses:delete': { roles: ['ADMIN'], args: [NO_ID] },
     'grades:list': { roles: ['ADMIN'], args: [] },
+    'school-years:get-current': { roles: ROLES, args: [] },
 
     'teacher-assignments:list': { roles: ['ADMIN'], args: [] },
     'teacher-assignments:list-assignable-teachers': { roles: ['ADMIN'], args: [] },

@@ -1,7 +1,7 @@
 // Capa startup: arranque de la aplicación con su main.js real, cada escenario en su propio proceso de
 // Electron con un tiempo máximo (lib/electron/startup-app.js). Base caída, base inexistente,
-// arranque normal (ventana, bandeja, ocultar y salir) y base que deja de responder con la
-// aplicación abierta (bug conocido del login).
+// arranque normal (ventana, bandeja, ocultar y salir), cierre de los ciclos lectivos vencidos y
+// base que deja de responder con la aplicación abierta (bug conocido del login).
 const fs = require('node:fs');
 const net = require('node:net');
 const path = require('node:path');
@@ -21,9 +21,10 @@ function freePort() {
 }
 
 // Lanza el escenario y devuelve lo que escribió la aplicación, el código de salida y si hubo que
-// cortarla por tiempo.
+// cortarla por tiempo. `scenario.dir`, si llega, nombra la carpeta de la corrida en lugar de
+// `scenario.name` (dos pruebas con el mismo escenario).
 function runScenario(t, scenario) {
-  const dir = path.join(t.runDir, `startup-${scenario.name}`);
+  const dir = path.join(t.runDir, `startup-${scenario.dir ?? scenario.name}`);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
   const resultFile = path.join(dir, 'outcome.json');
@@ -87,6 +88,33 @@ group('startup.app', 'Arranque de la aplicación (main.js)', () => {
     t.check(result.outcome.quitAt && result.outcome.quitAt - steps.quitRequestedAt < 5000, 'Salir cerró la aplicación', result.outcome);
     t.equal(result.code, 0, 'Código de salida');
     checkEvents(t, result.outcome.events);
+  });
+
+  test('closes-past-school-years', 'Al arrancar, una inscripción activa de un ciclo cerrado pasa a finalizada; una cancelada y una activa dada de baja no cambian', async (t) => {
+    const { fixtures } = t;
+    const enrollments = await fixtures.inSchoolYear(fixtures.year - 1, async () => {
+      const course = await fixtures.createCourse();
+      const enroll = async (options = {}) => fixtures.enroll({ studentId: (await fixtures.createStudent()).id, courseId: course.id, ...options });
+      return {
+        active: await enroll(),
+        cancelled: await enroll({ status: 'CANCELADA' }),
+        deleted: await enroll({ deleted: true }),
+      };
+    });
+    const rowsOf = () => t.sql(`
+      SELECT i.inscripcion_id, i.alumno_id, i.curso_id, e.nombre AS estado, i.fecha_inscripcion::TEXT, i.fecha_eliminacion::TEXT
+        FROM inscripcion i JOIN inscripcion_estado e USING (inscripcion_estado_id)
+       WHERE i.inscripcion_id = ANY($1) ORDER BY i.inscripcion_id`, [Object.values(enrollments)]);
+    const before = await rowsOf();
+
+    const result = await runScenario(t, { name: 'ok', dir: 'closes-past-school-years', dbName: t.dbName });
+    t.require(!result.timedOut && result.outcome, 'La aplicación no terminó al pedir Salir', result);
+    t.equal(result.outcome.dialogs, [], 'Sin diálogos de error');
+    t.check(result.outcome.steps.windowOpened && result.outcome.steps.loginView, 'Abrió la ventana con el login', result.outcome.steps);
+    checkEvents(t, result.outcome.events);
+
+    const expected = before.map((row) => (row.inscripcion_id === enrollments.active ? { ...row, estado: 'FINALIZADA' } : row));
+    t.equal(await rowsOf(), expected, 'Solo la activa y vigente cambió, y solo su estado');
   });
 
   test('login-db-hang', 'Si la base deja de responder con la aplicación abierta, el login responde con un error en un tiempo razonable', {

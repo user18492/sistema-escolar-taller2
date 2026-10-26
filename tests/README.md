@@ -61,7 +61,7 @@ hubo fallas). La línea base (`tests/baseline/baseline.json`) sí se versiona.
 | `db` | node | El esquema y el seed cargan sin errores ni avisos; convenciones de nombres; toda restricción que nombra `src/main` existe; inventario de tablas, columnas, restricciones, índices, triggers, funciones y procedimientos; reglas de triggers y restricciones (cada intento en una transacción que se deshace); bloqueos con dos sesiones; guardas de seguridad de la suite. |
 | `main` | Electron con `src/main` real | Cada función de `window.api` tiene su canal y su handler; matriz de permisos de todos los canales por rol y sin sesión (`main/permissions.table.js`); un caso de uso completo de cada rol por la API del preload, comprobado en la base; flujo mínimo por IPC; controles de la ventana; pruebas que provocan fallas para confirmar la detección. |
 | `ui` | Electron con `src/main` real | Pocos flujos con mouse y teclado reales: el flujo mínimo, el login (elección de cuenta, cuenta recordada, credenciales inválidas, sesión cortada); recorrido de todas las vistas de cada rol (`ui/views.table.js`) y bloqueo de las vistas de otro rol; bugs conocidos. |
-| `startup` | node, que lanza `main.js` real | Arranque con la base caída o inexistente (diálogo y cierre), arranque normal (ventana, ✕ que oculta, bandeja y Salir) y base que deja de responder con la app abierta. |
+| `startup` | node, que lanza `main.js` real | Arranque con la base caída o inexistente (diálogo y cierre), arranque normal (ventana, ✕ que oculta, bandeja y Salir), cierre de los ciclos lectivos vencidos al arrancar y base que deja de responder con la app abierta. |
 
 El **flujo general mínimo** (`--minimal`) encadena los tres roles, por IPC (`main/minimal-flow.test.js`)
 y con la interfaz (`ui/minimal-flow.test.js`): el administrador crea un curso del ciclo actual y le
@@ -122,15 +122,17 @@ La base toma la fecha de una única función, `fn_fecha_actual()` (`db/schema.sq
 del ciclo lectivo (lo de un ciclo cerrado queda en solo lectura y en uno futuro no se carga nada), la
 fecha de inscripción por defecto y el seed, que carga siempre el ciclo lectivo actual. Las pruebas
 toman la fecha de la base (`lib/clock.js`) y crean sus propios cursos del ciclo actual. El proceso
-principal y el renderer todavía usan su propio reloj para el ciclo lectivo (partes 01 y 02 de
-`plans/ciclo-lectivo/`), así que la corrida no empieza si el reloj de la base y el de la PC no dan la
-misma fecha.
+principal ya toma de la base la fecha y el año del ciclo lectivo (`school-years:get-current`, el
+rechazo `SCHOOL_YEAR_CLOSED` y el cierre de los ciclos al arrancar, parte 01 de
+`plans/ciclo-lectivo/`); solo el renderer, hasta la parte 02, sigue con su propio reloj para el ciclo
+lectivo, así que la corrida no empieza si el reloj de la base y el de la PC no dan la misma fecha.
 
 `TEST_TODAY=AAAA-MM-DD npm test` congela la fecha: reemplaza `fn_fecha_actual()` en la plantilla de la
 corrida, antes de cargar el seed (que así carga el ciclo de esa fecha), y en cada copia, nunca en la
-base del `.env`. Hasta las partes 01 y 02, el backend y el renderer siguen con su propio reloj para el
-ciclo, así que una fecha de otro año solo sirve para la capa `db` (`npm test -- --layer db`; en
-PowerShell, `$env:TEST_TODAY = 'AAAA-MM-DD'` antes de correrla).
+base del `.env`. Hasta la parte 02, el renderer sigue con su propio reloj para el ciclo (y el proceso
+principal, para las edades de usuarios y alumnos), así que una fecha de otro año solo sirve para la
+capa `db` (`npm test -- --layer db`; en PowerShell, `$env:TEST_TODAY = 'AAAA-MM-DD'` antes de
+correrla).
 
 **La línea base vale para el año en que se tomó**, y el informe advierte cuando la corrida es de otro:
 el seed ya no queda en un ciclo cerrado, porque carga el de la fecha de la corrida, pero cambian los
@@ -239,6 +241,8 @@ las vistas y el error de `modal-resize.js`.
 - La foto de perfil (subida y recorte en `avatar-editor`): solo se usa sin foto.
 - La vista Reportes del Secretario y los botones sin función todavía (solo se comprueba que cargan).
 - La apariencia (medidas, colores, capturas comparadas): las capturas solo se guardan para depurar.
-- Fechas de otros años y el cambio de año en las capas `main`, `ui` y `startup`: hasta las partes 01 y
-  02 de `plans/ciclo-lectivo/`, el backend y el renderer usan su propio reloj y `TEST_TODAY` solo
-  congela la base, así que con otro año solo sirve la capa `db`.
+- Fechas de otros años y el cambio de año en las capas `main`, `ui` y `startup`: hasta la parte 02 de
+  `plans/ciclo-lectivo/`, el renderer usa su propio reloj para el ciclo lectivo (y el proceso
+  principal, para las edades) y `TEST_TODAY` solo congela la base, así que con otro año solo sirve la
+  capa `db`. Los datos de un ciclo cerrado sí se prueban, con `fixtures.inSchoolYear`, en las capas
+  `db`, `main` y `startup`.
