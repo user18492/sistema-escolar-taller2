@@ -106,17 +106,32 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.logout();
   });
 
-  test('evaluation-delete-keeps-scores', 'Hoy la baja de una evaluación conserva vigentes sus calificaciones', {
-    kind: 'current',
-    affectedBy: ['profesor-evaluaciones'],
+  test('evaluation-delete-keeps-scores', 'La baja de una evaluación da de baja sus calificaciones vigentes y conserva sus filas', {
+    history: [{ plan: 'plans/profesor-evaluaciones/00-base-de-datos-y-backend.md', date: '2026-10-26', change: 'Después de evaluations.delete la calificación ya no sigue vigente: la evaluación queda sin calificaciones vigentes y la fila de la nota se conserva, con su nota y su fecha de baja' }],
   }, async (t) => {
     await t.login(t.data.teacher);
     const { assignment, enrollmentId } = t.data;
     const { evaluation } = await t.ok('evaluations.create', assignment.id, { title: 'Con notas', evaluationDate: t.today });
     await t.ok('scores.save', assignment.id, evaluation.id, { enrollmentId, value: 5 });
     await t.ok('evaluations.delete', assignment.id, evaluation.id);
-    const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM calificacion WHERE evaluacion_id = $1 AND fecha_eliminacion IS NULL`, [evaluation.id]);
-    t.equal(count, 1, 'La calificación sigue vigente');
+    const scores = await t.sql(`SELECT nota::TEXT AS nota, fecha_eliminacion IS NOT NULL AS baja FROM calificacion WHERE evaluacion_id = $1`, [evaluation.id]);
+    t.equal(scores, [{ nota: '5.00', baja: true }], 'La evaluación quedó sin calificaciones vigentes y la nota se conserva dada de baja');
+    await t.logout();
+  });
+
+  test('evaluation-delete-completed-scores', 'Una evaluación con calificaciones de inscripciones finalizadas no se da de baja', async (t) => {
+    await t.login(t.data.teacher);
+    const { assignment, evaluationId, finished } = t.data;
+    const state = () => t.sqlOne(`
+      SELECT e.fecha_eliminacion IS NULL AS vigente,
+             (SELECT COUNT(*)::INT FROM calificacion c WHERE c.evaluacion_id = e.evaluacion_id AND c.fecha_eliminacion IS NULL) AS vigentes,
+             EXISTS (SELECT 1 FROM calificacion c WHERE c.evaluacion_id = e.evaluacion_id AND c.inscripcion_id = $2
+                        AND c.fecha_eliminacion IS NULL) AS con_la_finalizada
+        FROM evaluacion e WHERE e.evaluacion_id = $1`, [evaluationId, finished]);
+    const before = await state();
+    t.require(before?.vigente && before.con_la_finalizada, 'La evaluación del setup tiene que estar vigente y con la nota de la finalizada', before);
+    await t.rejects('EVALUATION_HAS_COMPLETED_SCORES', 'evaluations.delete', assignment.id, evaluationId);
+    t.equal(await state(), before, 'La evaluación y sus calificaciones siguen vigentes');
     await t.logout();
   });
 

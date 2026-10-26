@@ -352,8 +352,20 @@ group('db.scores', 'Reglas de evaluaciones y calificaciones', {
     const lastDay = `${fixtures.year}-12-31`;
     const futureDate = fixtures.today < lastDay ? lastDay : null;
     const futureEvaluation = futureDate ? await fixtures.createEvaluation({ assignmentId: assignment.id, date: futureDate }) : null;
+    // Baja en cascada: una evaluación propia con la nota vigente de scoredEnrollment, una ya dada de
+    // baja (de enrollmentId) y la de una inscripción que se canceló después de calificarla. No se
+    // usa evaluationId, porque otras pruebas dan de baja todas sus calificaciones con un UPDATE
+    const cascadeEvaluation = await fixtures.createEvaluation({ assignmentId: assignment.id });
+    await fixtures.score({ evaluationId: cascadeEvaluation, enrollmentId: scoredEnrollment });
+    const cascadeDeletedScore = await fixtures.score({ evaluationId: cascadeEvaluation, enrollmentId });
+    await fixtures.db.query(`UPDATE calificacion SET fecha_eliminacion = now() WHERE calificacion_id = $1`, [cascadeDeletedScore]);
+    const laterCancelledStudent = await fixtures.createStudent();
+    const laterCancelledEnrollment = await fixtures.enroll({ studentId: laterCancelledStudent.id, courseId: course.id });
+    await fixtures.score({ evaluationId: cascadeEvaluation, enrollmentId: laterCancelledEnrollment });
+    await fixtures.setEnrollmentStatus(laterCancelledEnrollment, 'CANCELADA');
     return { teacher, course, assignment, student, enrollmentId, evaluationId, otherCourse, otherAssignment, otherEvaluation,
-      cancelledEnrollment, deletedEnrollment, scoredEnrollment, scoreId, futureDate, futureEvaluation };
+      cancelledEnrollment, deletedEnrollment, scoredEnrollment, scoreId, futureDate, futureEvaluation,
+      cascadeEvaluation, cascadeDeletedScore };
   },
 }, () => {
   const scoreSql = (evaluationId, enrollmentId, value = 7) => ({
@@ -407,15 +419,71 @@ group('db.scores', 'Reglas de evaluaciones y calificaciones', {
     }, 'ck_evaluacion_calificaciones_vigentes');
   });
 
-  test('evaluation-delete-keeps-scores', 'Hoy la baja de una evaluación conserva vigentes sus calificaciones', {
-    kind: 'current',
-    affectedBy: ['profesor-evaluaciones'],
+  test('evaluation-delete-keeps-scores', 'La baja de una evaluación da de baja todas sus calificaciones vigentes, también la de una inscripción cancelada', {
+    history: [{ plan: 'plans/profesor-evaluaciones/00-base-de-datos-y-backend.md', date: '2026-10-26', change: 'La baja de una evaluación ya no conserva vigentes sus calificaciones: ahora, sobre cascadeEvaluation, deja 0 vigentes, las dos que lo estaban (una de una inscripción cancelada) quedan con la fecha de baja de la evaluación y la ya dada de baja conserva la suya' }],
   }, async (t) => {
+    const { cascadeEvaluation, cascadeDeletedScore } = t.data;
+    // Como texto: un Date de JS perdería los microsegundos
+    const before = await t.sqlOne(`SELECT fecha_eliminacion::TEXT AS fecha FROM calificacion WHERE calificacion_id = $1`, [cascadeDeletedScore]);
     const result = await attempt(t.db, [
-      { sql: `UPDATE evaluacion SET fecha_eliminacion = now() WHERE evaluacion_id = $1`, params: [t.data.evaluationId] },
-      { sql: `SELECT COUNT(*)::INT AS count FROM calificacion WHERE evaluacion_id = $1 AND fecha_eliminacion IS NULL`, params: [t.data.evaluationId] },
+      { sql: `UPDATE evaluacion SET fecha_eliminacion = now() WHERE evaluacion_id = $1`, params: [cascadeEvaluation] },
+      {
+        sql: `SELECT COUNT(*) FILTER (WHERE c.fecha_eliminacion IS NULL)::INT AS vigentes,
+                     COUNT(*) FILTER (WHERE c.calificacion_id <> $2 AND c.fecha_eliminacion = e.fecha_eliminacion)::INT AS con_la_fecha_de_la_evaluacion,
+                     bool_and(c.fecha_eliminacion::TEXT = $3) FILTER (WHERE c.calificacion_id = $2) AS conserva_su_fecha
+                FROM calificacion c JOIN evaluacion e ON e.evaluacion_id = c.evaluacion_id
+               WHERE c.evaluacion_id = $1`,
+        params: [cascadeEvaluation, cascadeDeletedScore, before.fecha],
+      },
     ]);
-    t.check(result.ok && result.rows[0].count > 0, 'Las calificaciones siguen vigentes después de la baja de la evaluación', result);
+    t.check(result.ok, 'La baja de la evaluación no debería rechazarse', result);
+    t.equal(result.rows?.[0], { vigentes: 0, con_la_fecha_de_la_evaluacion: 2, conserva_su_fecha: true },
+      'Las vigentes quedan dadas de baja con la fecha de la evaluación y la ya dada de baja conserva la suya');
+  });
+
+  test('evaluation-delete-completed-scores', 'Una evaluación con calificaciones vigentes de inscripciones finalizadas no se da de baja', async (t) => {
+    // La finalizada del ciclo actual hoy se acepta (db.enrollments.completed-in-current-cycle); si
+    // secretario-inscripciones la prohíbe, ese plan adapta esta prueba
+    const { cascadeEvaluation, scoredEnrollment } = t.data;
+    await rejects(t, 'baja con la nota de una inscripción finalizada', [
+      {
+        sql: `UPDATE inscripcion SET inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'FINALIZADA') WHERE inscripcion_id = $1`,
+        params: [scoredEnrollment],
+      },
+      { sql: `UPDATE evaluacion SET fecha_eliminacion = now() WHERE evaluacion_id = $1`, params: [cascadeEvaluation] },
+    ], 'ck_calificacion_inscripcion_finalizada');
+  });
+
+  test('evaluation-deleted-frozen', 'Una evaluación dada de baja no se modifica ni se restaura', async (t) => {
+    const { otherEvaluation, assignment } = t.data;
+    const markAsDeleted = { sql: `UPDATE evaluacion SET fecha_eliminacion = now() WHERE evaluacion_id = $1`, params: [otherEvaluation] };
+    const changes = [
+      ['cambiar el título', `UPDATE evaluacion SET titulo = titulo || ' (corregida)' WHERE evaluacion_id = $1`, []],
+      ['cambiar la fecha', `UPDATE evaluacion SET fecha_evaluacion = $2 WHERE evaluacion_id = $1`, [`${t.year}-01-01`]],
+      ['cambiar la asignación', `UPDATE evaluacion SET asignacion_docente_id = $2 WHERE evaluacion_id = $1`, [assignment.id]],
+      ['restaurarla', `UPDATE evaluacion SET fecha_eliminacion = NULL WHERE evaluacion_id = $1`, []],
+      ['cambiar la fecha de baja', `UPDATE evaluacion SET fecha_eliminacion = now() - interval '1 day' WHERE evaluacion_id = $1`, []],
+    ];
+    for (const [label, sql, params] of changes) {
+      await rejects(t, label, [markAsDeleted, { sql, params: [otherEvaluation, ...params] }], 'ck_evaluacion_vigente');
+    }
+  });
+
+  test('evaluation-deleted-assignment', 'En una asignación dada de baja no se crea ni se edita una evaluación, pero sí se da de baja', async (t) => {
+    const { otherAssignment, otherEvaluation } = t.data;
+    const deleteAssignment = {
+      sql: `UPDATE asignacion_docente SET fecha_eliminacion = now() WHERE asignacion_docente_id = $1`, params: [otherAssignment.id],
+    };
+    await rejects(t, 'crear una evaluación', [deleteAssignment, {
+      sql: `INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion) VALUES ($1, 'En una asignación dada de baja', $2)`,
+      params: [otherAssignment.id, t.today],
+    }], 'ck_evaluacion_asignacion_vigente');
+    await rejects(t, 'editar el título', [deleteAssignment, {
+      sql: `UPDATE evaluacion SET titulo = titulo || ' (corregida)' WHERE evaluacion_id = $1`, params: [otherEvaluation],
+    }], 'ck_evaluacion_asignacion_vigente');
+    await passes(t, 'dar de baja la evaluación', [deleteAssignment, {
+      sql: `UPDATE evaluacion SET fecha_eliminacion = now() WHERE evaluacion_id = $1`, params: [otherEvaluation],
+    }]);
   });
 
   test('score-on-future-evaluation', 'Una evaluación con fecha futura no se califica, y una calificada no pasa a una fecha futura', {
@@ -445,17 +513,19 @@ group('db.scores', 'Reglas de evaluaciones y calificaciones', {
     }
   });
 
-  test('score-deleted-evaluation', 'En una evaluación dada de baja no se carga ni se corrige una nota, pero sí se da de baja', async (t) => {
+  test('score-deleted-evaluation', 'En una evaluación dada de baja no se carga una nota, y las que tenía ya se dieron de baja con ella', {
+    history: [{ plan: 'plans/profesor-evaluaciones/00-base-de-datos-y-backend.md', date: '2026-10-26', change: 'Después de la baja de la evaluación, corregir scoreId o darla de baja ya no se rechaza con ck_calificacion_evaluacion_vigente ni pasa: los dos se rechazan con ck_calificacion_vigente, porque la baja en cascada ya la dio de baja; cargar una nota sigue rechazándose con ck_calificacion_evaluacion_vigente' }],
+  }, async (t) => {
     const { evaluationId, enrollmentId, scoreId } = t.data;
     const deleteEvaluation = { sql: `UPDATE evaluacion SET fecha_eliminacion = now() WHERE evaluacion_id = $1`, params: [evaluationId] };
     await rejects(t, 'cargar una nota', [deleteEvaluation, scoreSql(evaluationId, enrollmentId)], 'ck_calificacion_evaluacion_vigente');
     await rejects(t, 'corregir una nota', [
       deleteEvaluation,
       { sql: `UPDATE calificacion SET nota = 9 WHERE calificacion_id = $1`, params: [scoreId] },
-    ], 'ck_calificacion_evaluacion_vigente');
-    await passes(t, 'dar de baja la nota de una inscripción activa', [
+    ], 'ck_calificacion_vigente');
+    await rejects(t, 'dar de baja la nota de una inscripción activa', [
       deleteEvaluation,
       { sql: `UPDATE calificacion SET fecha_eliminacion = now() WHERE calificacion_id = $1`, params: [scoreId] },
-    ]);
+    ], 'ck_calificacion_vigente');
   });
 });

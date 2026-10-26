@@ -129,6 +129,14 @@ module.exports = [
            WHERE c.fecha_eliminacion IS NULL AND e.fecha_evaluacion > fn_fecha_actual()`,
   },
   {
+    id: 'evaluacion-baja-sin-calificaciones',
+    description: 'Una evaluación dada de baja no tiene calificaciones vigentes',
+    // La baja da de baja sus calificaciones en la misma operación, y después no se pueden cargar
+    // (plans/profesor-evaluaciones/00-base-de-datos-y-backend.md)
+    sql: `SELECT c.calificacion_id FROM calificacion c JOIN evaluacion e ON e.evaluacion_id = c.evaluacion_id
+           WHERE e.fecha_eliminacion IS NOT NULL AND c.fecha_eliminacion IS NULL`,
+  },
+  {
     id: 'inscripcion-baja-sin-calificaciones',
     description: 'Una inscripción dada de baja no tiene calificaciones vigentes',
     // La baja se rechaza con calificaciones vigentes y, después de la baja, no se pueden cargar

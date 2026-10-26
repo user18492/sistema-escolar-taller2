@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "takenAt": "2026-10-26T18:24:54.665Z",
-  "commit": "27670f330a4aaf4abc0b6e9b501eeaec072601b6",
+  "takenAt": "2026-10-26T19:06:13.099Z",
+  "commit": "388cfe6a797a4b401d93d853f69b3808ed3adacd",
   "branch": "restricciones",
   "dirty": true,
   "changedFiles": [
     "db/schema.sql",
-    "db/seed.sql",
-    "renderer/teacher/evaluation-scores/evaluation-scores.js",
+    "src/main/repositories/enrollment.repository.js",
     "src/main/repositories/evaluation.repository.js",
     "src/main/repositories/score.repository.js",
+    "src/main/services/enrollment.service.js",
     "src/main/services/evaluation.service.js",
-    "src/main/services/score.service.js",
+    "src/main/services/teacher-assignment.service.js",
     "src/preload/preload.js"
   ],
   "today": "2026-10-26",
@@ -62,6 +62,24 @@
       "layer": "db",
       "status": "pass",
       "hash": "baa468f5ec2a",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.evaluation-deleted-assignment": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "5c1333999e93",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.evaluation-delete-pending-score": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "3a0530a5a535",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -375,11 +393,36 @@
     "db.scores.evaluation-delete-keeps-scores": {
       "layer": "db",
       "status": "pass",
-      "hash": "4623fea9e7b8",
-      "kind": "current",
-      "affectedBy": [
-        "profesor-evaluaciones"
-      ],
+      "hash": "17e2ca285b41",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "db.scores.evaluation-delete-completed-scores": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "37f42fc7a5df",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.evaluation-deleted-frozen": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "6923f64e5816",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.evaluation-deleted-assignment": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "4873893d0aca",
+      "kind": "stable",
+      "affectedBy": [],
       "historyCount": 0,
       "knownFailure": null
     },
@@ -404,10 +447,10 @@
     "db.scores.score-deleted-evaluation": {
       "layer": "db",
       "status": "pass",
-      "hash": "4fbd41c379ea",
+      "hash": "c6daebf79088",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "db.scores.invariants": {
@@ -1322,11 +1365,18 @@
     "main.teacher.evaluation-delete-keeps-scores": {
       "layer": "main",
       "status": "pass",
-      "hash": "4f6c7c3e1734",
-      "kind": "current",
-      "affectedBy": [
-        "profesor-evaluaciones"
-      ],
+      "hash": "30c009a1ce53",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "main.teacher.evaluation-delete-completed-scores": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "6165b79904eb",
+      "kind": "stable",
+      "affectedBy": [],
       "historyCount": 0,
       "knownFailure": null
     },
@@ -1696,14 +1746,14 @@
       "tests": 37
     },
     "auth:login": {
-      "calls": 104,
-      "ok": 96,
-      "tests": 78
+      "calls": 105,
+      "ok": 97,
+      "tests": 79
     },
     "auth:logout": {
-      "calls": 130,
-      "ok": 130,
-      "tests": 89
+      "calls": 131,
+      "ok": 131,
+      "tests": 90
     },
     "auth:select-institution": {
       "calls": 5,
@@ -1796,9 +1846,9 @@
       "tests": 6
     },
     "evaluations:delete": {
-      "calls": 4,
+      "calls": 5,
       "ok": 2,
-      "tests": 3
+      "tests": 4
     },
     "evaluations:list-by-own-assignment": {
       "calls": 5,
@@ -2175,8 +2225,10 @@
       "trg_curso_ciclo_lectivo": "c6995f295b17e6729c2c93f5f71496a2",
       "trg_curso_evaluaciones_vigentes": "11be18cd6a33df924b6ea3acc6feb8c5",
       "trg_curso_inscripciones": "5eb0f9cb35afd4da69a8c9339886ae07",
+      "trg_evaluacion_baja_calificaciones": "5dd2930ac1562f7d53d6d735178f0664",
       "trg_evaluacion_calificaciones_vigentes": "48cfb24e61a7b6b218c6e908946d3eb4",
       "trg_evaluacion_ciclo_lectivo": "e16b4050625d245d1377d2acf7b2949a",
+      "trg_evaluacion_coherencia": "b0448332dc9db66baea2828a52ab9448",
       "trg_evaluacion_fecha_ciclo_lectivo": "2384b21c33d3497200bc94dfff941680",
       "trg_evaluacion_futura_calificaciones_vigentes": "3dc3ee9b1648d20899bd67ec47e3f310",
       "trg_inscripcion_calificaciones_vigentes": "985018458d35478004b3632caf9357ea",
@@ -2195,14 +2247,16 @@
       "fn_asignacion_docente_coherencia()": "be81732b06dd38d2a0c92d4b4205d0ce",
       "fn_asignacion_docente_evaluaciones_vigentes()": "947434d531ab94eeedc64578d988604b",
       "fn_calificacion_ciclo_lectivo()": "0b862df14d069da6a2becbd9d3422125",
-      "fn_calificacion_coherencia()": "deb60b6bb3df384e644ac9187fa32054",
+      "fn_calificacion_coherencia()": "205eaf8808ed5721327a13950c6e8b49",
       "fn_ciclo_lectivo_estado(p_anio integer)": "c60cb6c60d85f8d87a99480f49bee9c3",
       "fn_curso_asignaciones_vigentes()": "c9a75078acb975690736b5990c5e88ab",
       "fn_curso_ciclo_lectivo()": "43f4f8e537ea04d59fa1d3fd3ded4ae6",
       "fn_curso_evaluaciones_vigentes()": "80a727e252b223e94e1e7ce605c79243",
       "fn_curso_inscripciones()": "580e977bdbae90a3b77fbf3f4119d865",
+      "fn_evaluacion_baja_calificaciones()": "3f6a57454a70e425c7f87c5ff763c8b3",
       "fn_evaluacion_calificaciones_vigentes()": "c7aa6e410139e2fd2d43189c5b648b4f",
       "fn_evaluacion_ciclo_lectivo()": "9dc18266aa9bbbc54c2e7c0e0d3213f3",
+      "fn_evaluacion_coherencia()": "00fc3b29280731f49078c6e3e330dab8",
       "fn_evaluacion_fecha_ciclo_lectivo()": "a77b259cb5f8e27d2d32603642cd0091",
       "fn_evaluacion_futura_calificaciones_vigentes()": "5314558cde3398799d410ecb5f2c955e",
       "fn_fecha_actual()": "cd69e9a211ca93ea8fe666ab6c82fe02",
