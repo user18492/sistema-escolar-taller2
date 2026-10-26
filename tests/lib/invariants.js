@@ -121,6 +121,14 @@ module.exports = [
     sql: `SELECT calificacion_id FROM calificacion WHERE nota < 0 OR nota > 10 OR nota <> round(nota, 2)`,
   },
   {
+    id: 'calificacion-fecha-pasada',
+    description: 'Una calificación vigente es de una evaluación con fecha de hoy o anterior',
+    // Se califica a partir de la fecha de la evaluación, y una calificada no pasa a una fecha futura
+    // (plans/profesor-calificaciones.md)
+    sql: `SELECT c.calificacion_id FROM calificacion c JOIN evaluacion e USING (evaluacion_id)
+           WHERE c.fecha_eliminacion IS NULL AND e.fecha_evaluacion > fn_fecha_actual()`,
+  },
+  {
     id: 'inscripcion-baja-sin-calificaciones',
     description: 'Una inscripción dada de baja no tiene calificaciones vigentes',
     // La baja se rechaza con calificaciones vigentes y, después de la baja, no se pueden cargar

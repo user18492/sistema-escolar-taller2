@@ -1,16 +1,17 @@
 {
   "version": 1,
-  "takenAt": "2026-10-26T14:46:51.147Z",
-  "commit": "85accc387f7bf56aa49b9a7490885415f8af9c47",
+  "takenAt": "2026-10-26T18:24:54.665Z",
+  "commit": "27670f330a4aaf4abc0b6e9b501eeaec072601b6",
   "branch": "restricciones",
   "dirty": true,
   "changedFiles": [
     "db/schema.sql",
-    "renderer/admin/assignments/assignments.js",
-    "src/main/repositories/teacher-assignment.repository.js",
-    "src/main/repositories/user.repository.js",
-    "src/main/services/teacher-assignment.service.js",
-    "src/main/services/user.service.js",
+    "db/seed.sql",
+    "renderer/teacher/evaluation-scores/evaluation-scores.js",
+    "src/main/repositories/evaluation.repository.js",
+    "src/main/repositories/score.repository.js",
+    "src/main/services/evaluation.service.js",
+    "src/main/services/score.service.js",
     "src/preload/preload.js"
   ],
   "today": "2026-10-26",
@@ -43,6 +44,24 @@
       "layer": "db",
       "status": "pass",
       "hash": "1e20b3d5c52c",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.score-deleted-evaluation": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "49af6bb34e6e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.evaluation-future-with-score": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "baa468f5ec2a",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -367,11 +386,27 @@
     "db.scores.score-on-future-evaluation": {
       "layer": "db",
       "status": "pass",
-      "hash": "33797c889a24",
-      "kind": "current",
-      "affectedBy": [
-        "profesor-calificaciones"
-      ],
+      "hash": "15104f5dc663",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "db.scores.score-deleted-frozen": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "a55c69014459",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.score-deleted-evaluation": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "4fbd41c379ea",
+      "kind": "stable",
+      "affectedBy": [],
       "historyCount": 0,
       "knownFailure": null
     },
@@ -1298,12 +1333,10 @@
     "main.teacher.score-on-future-evaluation": {
       "layer": "main",
       "status": "pass",
-      "hash": "f4dad753b4a1",
-      "kind": "current",
-      "affectedBy": [
-        "profesor-calificaciones"
-      ],
-      "historyCount": 0,
+      "hash": "db29df61100e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.teacher.invariants": {
@@ -1507,6 +1540,24 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "ui.scores.future-evaluation-read-only": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "f2049be36bbd",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.scores.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "ui.views.table-matches-renderer": {
       "layer": "ui",
       "status": "pass",
@@ -1635,24 +1686,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 88,
-      "ok": 88,
-      "tests": 27
+      "calls": 93,
+      "ok": 93,
+      "tests": 28
     },
     "auth:get-remembered-email": {
-      "calls": 61,
-      "ok": 61,
-      "tests": 35
+      "calls": 64,
+      "ok": 64,
+      "tests": 37
     },
     "auth:login": {
-      "calls": 103,
-      "ok": 95,
-      "tests": 77
+      "calls": 104,
+      "ok": 96,
+      "tests": 78
     },
     "auth:logout": {
-      "calls": 127,
-      "ok": 127,
-      "tests": 87
+      "calls": 130,
+      "ok": 130,
+      "tests": 89
     },
     "auth:select-institution": {
       "calls": 5,
@@ -1740,8 +1791,8 @@
       "tests": 4
     },
     "evaluations:create": {
-      "calls": 9,
-      "ok": 5,
+      "calls": 10,
+      "ok": 6,
       "tests": 6
     },
     "evaluations:delete": {
@@ -1750,14 +1801,14 @@
       "tests": 3
     },
     "evaluations:list-by-own-assignment": {
-      "calls": 4,
-      "ok": 4,
-      "tests": 4
+      "calls": 5,
+      "ok": 5,
+      "tests": 5
     },
     "evaluations:update": {
-      "calls": 2,
-      "ok": 1,
-      "tests": 2
+      "calls": 4,
+      "ok": 2,
+      "tests": 3
     },
     "grades:list": {
       "calls": 8,
@@ -1780,22 +1831,22 @@
       "tests": 2
     },
     "school-years:get-current": {
-      "calls": 22,
-      "ok": 22,
-      "tests": 12
+      "calls": 25,
+      "ok": 25,
+      "tests": 13
     },
     "scores:delete": {
-      "calls": 3,
-      "ok": 1,
-      "tests": 2
+      "calls": 4,
+      "ok": 2,
+      "tests": 3
     },
     "scores:list-by-own-evaluation": {
-      "calls": 8,
-      "ok": 6,
-      "tests": 4
+      "calls": 10,
+      "ok": 8,
+      "tests": 5
     },
     "scores:save": {
-      "calls": 10,
+      "calls": 11,
       "ok": 7,
       "tests": 6
     },
@@ -1835,9 +1886,9 @@
       "tests": 3
     },
     "teacher-assignments:get-own": {
-      "calls": 16,
-      "ok": 13,
-      "tests": 5
+      "calls": 20,
+      "ok": 17,
+      "tests": 6
     },
     "teacher-assignments:list": {
       "calls": 4,
@@ -1860,9 +1911,9 @@
       "tests": 5
     },
     "teacher-assignments:list-own": {
-      "calls": 9,
-      "ok": 8,
-      "tests": 8
+      "calls": 10,
+      "ok": 9,
+      "tests": 9
     },
     "teacher-assignments:update": {
       "calls": 5,
@@ -1900,9 +1951,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 110,
-      "ok": 110,
-      "tests": 42
+      "calls": 118,
+      "ok": 118,
+      "tests": 44
     },
     "window:minimize": {
       "calls": 1,
@@ -2127,6 +2178,7 @@
       "trg_evaluacion_calificaciones_vigentes": "48cfb24e61a7b6b218c6e908946d3eb4",
       "trg_evaluacion_ciclo_lectivo": "e16b4050625d245d1377d2acf7b2949a",
       "trg_evaluacion_fecha_ciclo_lectivo": "2384b21c33d3497200bc94dfff941680",
+      "trg_evaluacion_futura_calificaciones_vigentes": "3dc3ee9b1648d20899bd67ec47e3f310",
       "trg_inscripcion_calificaciones_vigentes": "985018458d35478004b3632caf9357ea",
       "trg_inscripcion_ciclo_lectivo": "eadfffb57b636b836a771a6883e7d303",
       "trg_inscripcion_coherencia": "4ed211d6e49957eba321ac4215d7e168",
@@ -2143,7 +2195,7 @@
       "fn_asignacion_docente_coherencia()": "be81732b06dd38d2a0c92d4b4205d0ce",
       "fn_asignacion_docente_evaluaciones_vigentes()": "947434d531ab94eeedc64578d988604b",
       "fn_calificacion_ciclo_lectivo()": "0b862df14d069da6a2becbd9d3422125",
-      "fn_calificacion_coherencia()": "e724e825460127f3dc769fcfc1c1f36a",
+      "fn_calificacion_coherencia()": "deb60b6bb3df384e644ac9187fa32054",
       "fn_ciclo_lectivo_estado(p_anio integer)": "c60cb6c60d85f8d87a99480f49bee9c3",
       "fn_curso_asignaciones_vigentes()": "c9a75078acb975690736b5990c5e88ab",
       "fn_curso_ciclo_lectivo()": "43f4f8e537ea04d59fa1d3fd3ded4ae6",
@@ -2152,6 +2204,7 @@
       "fn_evaluacion_calificaciones_vigentes()": "c7aa6e410139e2fd2d43189c5b648b4f",
       "fn_evaluacion_ciclo_lectivo()": "9dc18266aa9bbbc54c2e7c0e0d3213f3",
       "fn_evaluacion_fecha_ciclo_lectivo()": "a77b259cb5f8e27d2d32603642cd0091",
+      "fn_evaluacion_futura_calificaciones_vigentes()": "5314558cde3398799d410ecb5f2c955e",
       "fn_fecha_actual()": "cd69e9a211ca93ea8fe666ab6c82fe02",
       "fn_inscripcion_calificaciones_vigentes()": "79b34b87dd6abdc7d791886acab7ed44",
       "fn_inscripcion_ciclo_lectivo()": "06b9c593cd527f9c9ebe114fd54a8d0f",

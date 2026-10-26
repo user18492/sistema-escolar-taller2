@@ -120,16 +120,27 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.logout();
   });
 
-  test('score-on-future-evaluation', 'Hoy se puede calificar una evaluación con fecha futura', {
-    kind: 'current',
-    affectedBy: ['profesor-calificaciones'],
+  test('score-on-future-evaluation', 'Una evaluación con fecha futura no se califica, y una calificada no pasa a una fecha futura', {
+    history: [{ plan: 'plans/profesor-calificaciones.md', date: '2026-10-26', change: 'Calificar una evaluación con fecha futura ya no se acepta: ahora espera EVALUATION_IN_FUTURE sin dejar filas; además, pasar a una fecha futura una evaluación calificada espera INVALID_INPUT con fieldErrors.evaluationDate, y después de dar de baja la nota se guarda' }],
   }, async (t) => {
     const lastDay = `${t.year}-12-31`;
     if (t.today >= lastDay) return t.warn('Hoy es el último día del ciclo: no hay fecha futura que probar');
     await t.login(t.data.teacher);
     const { assignment, enrollmentId } = t.data;
-    const { evaluation } = await t.ok('evaluations.create', assignment.id, { title: 'Futura', evaluationDate: lastDay });
-    await t.ok('scores.save', assignment.id, evaluation.id, { enrollmentId, value: 6 });
+    const { evaluation: future } = await t.ok('evaluations.create', assignment.id, { title: 'Futura', evaluationDate: lastDay });
+    await t.rejects('EVALUATION_IN_FUTURE', 'scores.save', assignment.id, future.id, { enrollmentId, value: 6 });
+    const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM calificacion WHERE evaluacion_id = $1`, [future.id]);
+    t.equal(count, 0, 'La evaluación con fecha futura quedó sin calificaciones');
+
+    const { evaluation: scored } = await t.ok('evaluations.create', assignment.id, { title: 'Calificada hoy', evaluationDate: t.today });
+    await t.ok('scores.save', assignment.id, scored.id, { enrollmentId, value: 7 });
+    const dateOf = async () => (await t.sqlOne(`SELECT to_char(fecha_evaluacion, 'YYYY-MM-DD') AS fecha FROM evaluacion WHERE evaluacion_id = $1`, [scored.id])).fecha;
+    const moved = await t.rejects('INVALID_INPUT', 'evaluations.update', assignment.id, scored.id, { title: 'Calificada hoy', evaluationDate: lastDay });
+    t.check(moved?.error?.fieldErrors?.evaluationDate, 'El rechazo marca la fecha', moved);
+    t.equal(await dateOf(), t.today, 'La fecha no cambió');
+    await t.ok('scores.delete', assignment.id, scored.id, enrollmentId);
+    await t.ok('evaluations.update', assignment.id, scored.id, { title: 'Calificada hoy', evaluationDate: lastDay });
+    t.equal(await dateOf(), lastDay, 'Sin calificaciones vigentes, la evaluación pasó a la fecha futura');
     await t.logout();
   });
 });

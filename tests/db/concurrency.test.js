@@ -1,6 +1,7 @@
 // Capa de base de datos: dos sesiones a la vez. Las reglas que dependen de otras filas (una sola
-// inscripción activa, el último administrador, el profesor activo de una asignación) se sostienen
-// con bloqueos de fila: la segunda operación espera a la primera y, al seguir, ya la ve.
+// inscripción activa, el último administrador, el profesor activo de una asignación, la evaluación
+// vigente y ya tomada de una calificación) se sostienen con bloqueos de fila: la segunda operación
+// espera a la primera y, al seguir, ya la ve.
 const { group, test } = require('../lib/framework');
 const { connectSuite } = require('../lib/pg-admin');
 const { isPending } = require('../lib/sql');
@@ -20,7 +21,11 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     const adminB = await fixtures.createUser({ institutionId: institution.id, role: 'ADMIN' });
     const teacher = await fixtures.createUser({ role: 'PROFESOR' });
     const assignment = await fixtures.assign({ teacherId: teacher.id, courseId: (await fixtures.createCourse()).id });
-    return { courseA, courseB, student, adminA, adminB, teacher, assignment };
+    // Calificaciones: una evaluación de hoy para cada prueba, porque la primera confirma la baja de
+    // la suya
+    const grading = await fixtures.teacherScenario();
+    const secondEvaluationId = await fixtures.createEvaluation({ assignmentId: grading.assignment.id });
+    return { courseA, courseB, student, adminA, adminB, teacher, assignment, grading: { ...grading, secondEvaluationId } };
   },
 }, () => {
   test('one-active-enrollment', 'Dos inscripciones activas simultáneas del mismo alumno: la segunda espera y se rechaza', async (t) => {
@@ -95,5 +100,55 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
       await other.end();
     }
     t.equal(await t.sqlOne(`SELECT estado FROM usuario WHERE usuario_id = $1`, [teacher.id]), { estado: false }, 'El profesor quedó suspendido');
+  });
+
+  test('score-deleted-evaluation', 'Se da de baja la evaluación mientras se le carga una nota: la carga espera y se rechaza', async (t) => {
+    const { evaluationId, enrollmentId } = t.data.grading;
+    const other = await second(t);
+    let committed = false;
+    try {
+      await t.db.query('BEGIN');
+      await t.db.query(`UPDATE evaluacion SET fecha_eliminacion = now() WHERE evaluacion_id = $1`, [evaluationId]);
+      await other.query('BEGIN');
+      const pending = other.query(`INSERT INTO calificacion (evaluacion_id, inscripcion_id, nota) VALUES ($1, $2, 7)`, [evaluationId, enrollmentId])
+        .then(() => ({ ok: true }), (error) => ({ ok: false, constraint: error.constraint }));
+      t.check(await isPending(pending), 'La carga no esperó el bloqueo de la evaluación');
+      await t.db.query('COMMIT');
+      committed = true;
+      const result = await pending;
+      t.check(!result.ok && result.constraint === 'ck_calificacion_evaluacion_vigente', 'La carga no se rechazó', result);
+      await other.query('ROLLBACK');
+    } finally {
+      if (!committed) await t.db.query('ROLLBACK').catch(() => {});
+      await other.end();
+    }
+    const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM calificacion WHERE evaluacion_id = $1`, [evaluationId]);
+    t.equal(count, 0, 'La evaluación dada de baja quedó sin calificaciones');
+  });
+
+  test('evaluation-future-with-score', 'Se pasa la evaluación a una fecha futura mientras se le carga una nota: el cambio espera y se rechaza', async (t) => {
+    const { secondEvaluationId, enrollmentId } = t.data.grading;
+    const lastDay = `${t.year}-12-31`;
+    if (t.today >= lastDay) return t.warn('Hoy es el último día del ciclo: no hay fecha futura que probar');
+    const other = await second(t);
+    let committed = false;
+    try {
+      await t.db.query('BEGIN');
+      await t.db.query(`INSERT INTO calificacion (evaluacion_id, inscripcion_id, nota) VALUES ($1, $2, 7)`, [secondEvaluationId, enrollmentId]);
+      await other.query('BEGIN');
+      const pending = other.query(`UPDATE evaluacion SET fecha_evaluacion = $2 WHERE evaluacion_id = $1`, [secondEvaluationId, lastDay])
+        .then(() => ({ ok: true }), (error) => ({ ok: false, constraint: error.constraint }));
+      t.check(await isPending(pending), 'El cambio de fecha no esperó el bloqueo de la evaluación');
+      await t.db.query('COMMIT');
+      committed = true;
+      const result = await pending;
+      t.check(!result.ok && result.constraint === 'ck_evaluacion_futura_calificaciones_vigentes', 'El cambio de fecha no se rechazó', result);
+      await other.query('ROLLBACK');
+    } finally {
+      if (!committed) await t.db.query('ROLLBACK').catch(() => {});
+      await other.end();
+    }
+    const { fecha } = await t.sqlOne(`SELECT to_char(fecha_evaluacion, 'YYYY-MM-DD') AS fecha FROM evaluacion WHERE evaluacion_id = $1`, [secondEvaluationId]);
+    t.equal(fecha, t.today, 'La evaluación conservó su fecha');
   });
 });
