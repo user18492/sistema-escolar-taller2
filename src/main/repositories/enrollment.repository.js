@@ -166,7 +166,8 @@ const FIND_POSITION_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
 // o, si llegó antes, las condiciones se vuelven a evaluar sobre la fila que dejó y no se inserta nada.
 // Los triggers rechazan el alta si el alumno ya tiene una inscripción vigente y activa (una dada de
 // baja no cuenta) o si el curso no es del ciclo lectivo del año en curso: ver
-// isSecondActiveEnrollmentError e isDateOutOfSchoolYearError.
+// isSecondActiveEnrollmentError, isClosedSchoolYearError (un curso de un ciclo cerrado) e
+// isDateOutOfSchoolYearError.
 const CREATE_SQL = `
   WITH created AS (
     INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id)
@@ -366,8 +367,10 @@ const FIND_ACTIVE_BY_STUDENT_SQL = `
 
 // Restricciones de los triggers de inscripcion (con los nombres que les da db/schema.sql) que
 // rechazan un alta o una edición por un motivo previsto: el alumno ya tiene otra inscripción activa,
-// o el año de la fecha de inscripción (la del día) no es el ciclo lectivo del curso (solo en el alta).
+// el curso es de un ciclo lectivo cerrado, o el año de la fecha de inscripción (la del día) no es el
+// ciclo lectivo del curso (solo en el alta).
 const ONE_ACTIVE_CONSTRAINT = 'ck_inscripcion_alumno_una_activa';
+const CLOSED_SCHOOL_YEAR_CONSTRAINT = 'ck_inscripcion_ciclo_lectivo_cerrado';
 const SCHOOL_YEAR_CONSTRAINT = 'ck_inscripcion_fecha_ciclo_lectivo';
 
 // La base guarda el estado de la inscripción en español (ck_inscripcion_estado_nombre,
@@ -520,7 +523,7 @@ async function countActiveInCurrentSchoolYear(institutionId) {
 // null si el alumno no está vigente y activo en la institución, o si el curso no está vigente en
 // ella o es de otro nivel educativo. PostgreSQL rechaza el alta si el alumno ya tiene una
 // inscripción vigente y activa (ver isSecondActiveEnrollmentError) o si el curso no es del ciclo
-// lectivo del año en curso (ver isDateOutOfSchoolYearError).
+// lectivo del año en curso (ver isClosedSchoolYearError e isDateOutOfSchoolYearError).
 async function create(institutionId, { studentId, courseId, educationLevel }) {
   const { rows } = await query(CREATE_SQL, [
     studentId,
@@ -586,6 +589,12 @@ function isDateOutOfSchoolYearError(error) {
   return error?.code === '23514' && error.constraint === SCHOOL_YEAR_CONSTRAINT;
 }
 
+// true si `error` es el rechazo de trg_inscripcion_ciclo_lectivo a una inscripción de un curso de un
+// ciclo lectivo cerrado: ese ciclo queda en solo lectura.
+function isClosedSchoolYearError(error) {
+  return error?.code === '23514' && error.constraint === CLOSED_SCHOOL_YEAR_CONSTRAINT;
+}
+
 module.exports = {
   findActiveOrFinishedByCourse,
   isDeletedInCourse,
@@ -601,5 +610,6 @@ module.exports = {
   findActiveByStudent,
   isSecondActiveEnrollmentError,
   isDateOutOfSchoolYearError,
+  isClosedSchoolYearError,
   STATUSES,
 };

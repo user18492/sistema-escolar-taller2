@@ -255,8 +255,9 @@ async function alreadyEnrolledError(student, course) {
 // Si PostgreSQL rechaza el alta por una restricción de db/schema.sql, lanza un EnrollmentError:
 // STUDENT_ALREADY_ENROLLED si el alumno ya tiene una inscripción vigente y activa
 // (ck_inscripcion_alumno_una_activa) y COURSE_OUT_OF_SCHOOL_YEAR si el curso no es del ciclo lectivo
-// del año en curso (ck_inscripcion_fecha_ciclo_lectivo: la fecha de inscripción es la del día, y su
-// año tiene que ser el ciclo lectivo del curso).
+// del año en curso: ck_inscripcion_ciclo_lectivo_cerrado si es de un ciclo cerrado, que queda en
+// solo lectura, y ck_inscripcion_fecha_ciclo_lectivo si no (la fecha de inscripción es la del día, y
+// su año tiene que ser el ciclo lectivo del curso). Los dos dan el mismo mensaje.
 async function saveEnrollment(institutionId, student, course) {
   try {
     return await enrollmentRepository.create(institutionId, {
@@ -268,7 +269,7 @@ async function saveEnrollment(institutionId, student, course) {
     if (enrollmentRepository.isSecondActiveEnrollmentError(error)) {
       throw await alreadyEnrolledError(student, course);
     }
-    if (enrollmentRepository.isDateOutOfSchoolYearError(error)) {
+    if (enrollmentRepository.isClosedSchoolYearError(error) || enrollmentRepository.isDateOutOfSchoolYearError(error)) {
       throw new EnrollmentError(
         'COURSE_OUT_OF_SCHOOL_YEAR',
         `El curso elegido es del ciclo lectivo ${course.schoolYear}: solo se puede inscribir en un curso durante el año de su ciclo lectivo.`

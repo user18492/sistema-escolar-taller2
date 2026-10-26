@@ -11,8 +11,40 @@
 --     ck_<tabla>_<regla> como el de la restricción incumplida.
 --   - Los procedimientos almacenados se llaman sp_<tabla>_<acción>. Sus errores previstos usan los
 --     códigos de condición de PostgreSQL que correspondan, y cada uno documenta los suyos.
+--   - La fecha actual sale siempre de fn_fecha_actual() (más abajo), nunca de CURRENT_DATE: es la
+--     única fuente de la fecha y del ciclo lectivo actuales.
 
 BEGIN;
+
+-- Fecha y ciclo lectivo actuales.
+-- El ciclo lectivo actual es el año calendario en curso, de enero a diciembre; los anteriores están
+-- cerrados (solo lectura) y los posteriores son futuros (todavía no existen). Las reglas que dependen
+-- del ciclo lectivo usan estas funciones, y no CURRENT_DATE, para que la fecha tenga una sola fuente
+
+-- La fecha actual. Su firma no cambia: sin parámetros, DATE, LANGUAGE sql y STABLE, porque la suite de
+-- pruebas la reemplaza con CREATE OR REPLACE para congelar la fecha en sus bases (tests/lib/clock.js)
+CREATE FUNCTION fn_fecha_actual() RETURNS DATE
+LANGUAGE sql STABLE AS $$
+    SELECT CURRENT_DATE
+$$;
+
+-- El año del ciclo lectivo actual: el de la fecha actual
+CREATE FUNCTION fn_anio_ciclo_lectivo_actual() RETURNS INT
+LANGUAGE sql STABLE AS $$
+    SELECT EXTRACT(YEAR FROM fn_fecha_actual())::INT
+$$;
+
+-- Estado del ciclo lectivo p_anio respecto del actual: 'CERRADO' (anterior), 'ACTUAL' o 'FUTURO'
+-- (posterior). Es STRICT: con un año NULL devuelve NULL, sin evaluar nada. Así, en los triggers, una
+-- fila referenciada que no existe no se rechaza acá, sino después, por su clave foránea
+CREATE FUNCTION fn_ciclo_lectivo_estado(p_anio INT) RETURNS TEXT
+LANGUAGE sql STABLE STRICT AS $$
+    SELECT CASE
+               WHEN p_anio < fn_anio_ciclo_lectivo_actual() THEN 'CERRADO'
+               WHEN p_anio > fn_anio_ciclo_lectivo_actual() THEN 'FUTURO'
+               ELSE 'ACTUAL'
+           END
+$$;
 
 -- Instituciones
 CREATE TABLE institucion (
@@ -257,6 +289,50 @@ CREATE UNIQUE INDEX uq_curso_institucion_grado_division_turno_anio_ciclo_lectivo
 -- abarca a los cursos vigentes, los únicos que se listan
 CREATE INDEX idx_curso_grado_id ON curso(grado_id);
 
+-- Un curso solo se crea, se edita o se da de baja en el ciclo lectivo actual: los de un ciclo
+-- cerrado quedan en solo lectura, como historial, y en un ciclo futuro todavía no se carga nada. La
+-- misma regla, con su propio trigger, rige para las asignaciones docentes, las inscripciones, las
+-- evaluaciones y las calificaciones, cada una con el ciclo lectivo de su curso.
+-- En un UPDATE se controla primero el ciclo que tenía la fila y después el ciclo al que pasa: nada se
+-- mueve desde un ciclo cerrado ni hacia uno. Por eso el ciclo lectivo de un curso ya no cambia, y los
+-- triggers de las demás tablas no necesitan retener el curso para leerlo. La baja lógica también es
+-- un UPDATE: el trigger no lleva WHEN
+CREATE FUNCTION fn_curso_ciclo_lectivo() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_anios   INT[] := ARRAY[NEW.anio_ciclo_lectivo];
+    v_anio    INT;
+    v_estado  TEXT;
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        v_anios := OLD.anio_ciclo_lectivo || v_anios;
+    END IF;
+
+    FOREACH v_anio IN ARRAY v_anios LOOP
+        v_estado := fn_ciclo_lectivo_estado(v_anio);
+
+        IF v_estado = 'CERRADO' THEN
+            RAISE EXCEPTION 'El curso % es del ciclo lectivo %, que está cerrado', NEW.curso_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_curso_ciclo_lectivo_cerrado';
+        END IF;
+
+        IF v_estado = 'FUTURO' THEN
+            RAISE EXCEPTION 'El curso % es del ciclo lectivo %, que todavía no empezó', NEW.curso_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_curso_ciclo_lectivo_futuro';
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_curso_ciclo_lectivo
+    BEFORE INSERT OR UPDATE ON curso
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_curso_ciclo_lectivo();
+
 -- Asignaciones docentes: un profesor dicta en un curso una materia del plan de estudios de su grado
 CREATE TABLE asignacion_docente (
     asignacion_docente_id  INT  GENERATED ALWAYS AS IDENTITY,
@@ -287,6 +363,54 @@ CREATE UNIQUE INDEX uq_asignacion_docente_curso_grado_materia
 -- las asignaciones vigentes
 CREATE INDEX idx_asignacion_docente_usuario_id ON asignacion_docente(usuario_id);
 CREATE INDEX idx_asignacion_docente_grado_materia_id ON asignacion_docente(grado_materia_id);
+
+-- Una asignación docente solo se crea, se edita o se da de baja en el ciclo lectivo actual: el de su
+-- curso, como en trg_curso_ciclo_lectivo. En un cambio de curso se controla primero el que tenía y
+-- después el nuevo. Si el curso no existe, su año queda en NULL y no falla: la rechaza después su
+-- clave foránea
+CREATE FUNCTION fn_asignacion_docente_ciclo_lectivo() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_cursos    INT[] := ARRAY[NEW.curso_id];
+    v_curso_id  INT;
+    v_anio      INT;
+    v_estado    TEXT;
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        v_cursos := OLD.curso_id || v_cursos;
+    END IF;
+
+    FOREACH v_curso_id IN ARRAY v_cursos LOOP
+        SELECT c.anio_ciclo_lectivo
+          INTO v_anio
+          FROM curso c
+         WHERE c.curso_id = v_curso_id;
+
+        v_estado := fn_ciclo_lectivo_estado(v_anio);
+
+        IF v_estado = 'CERRADO' THEN
+            RAISE EXCEPTION 'El curso % de la asignación docente % es del ciclo lectivo %, que está cerrado',
+                            v_curso_id, NEW.asignacion_docente_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_asignacion_docente_ciclo_lectivo_cerrado';
+        END IF;
+
+        IF v_estado = 'FUTURO' THEN
+            RAISE EXCEPTION 'El curso % de la asignación docente % es del ciclo lectivo %, que todavía no empezó',
+                            v_curso_id, NEW.asignacion_docente_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_asignacion_docente_ciclo_lectivo_futuro';
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_asignacion_docente_ciclo_lectivo
+    BEFORE INSERT OR UPDATE ON asignacion_docente
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_asignacion_docente_ciclo_lectivo();
 
 -- Coherencia de una asignación vigente con las filas que referencia: el usuario es un profesor
 -- vigente, es de la misma institución que el curso y la materia es del grado del curso. Las dadas
@@ -490,19 +614,23 @@ CREATE TABLE inscripcion_estado (
 -- Lo que cambia a lo largo de su vida es su estado. La baja lógica (fecha_eliminacion) la hace el
 -- Secretario desde el listado de inscripciones, sin cambiar el estado ni el resto de la fila. La
 -- baja de un alumno (sp_alumno_dar_de_baja, más abajo) no la hace: pasa sus inscripciones activas a
--- CANCELADA, pero no las da de baja, para conservar todo su historial.
+-- CANCELADA, pero no las da de baja, para conservar todo su historial. El cierre del ciclo lectivo
+-- (sp_inscripcion_finalizar_ciclos_cerrados, más abajo) pasa a FINALIZADA las activas de los ciclos
+-- cerrados.
 -- La baja lógica solo la tienen en cuenta la regla de una sola inscripción activa por alumno
 -- (trg_inscripcion_coherencia), para la que una inscripción dada de baja no cuenta como activa;
--- sp_alumno_dar_de_baja, que solo cancela las vigentes, y trg_calificacion_coherencia, que no
--- acepta cargar, corregir ni dar de baja calificaciones de una inscripción dada de baja, aunque
--- siga activa. Para las demás reglas, una inscripción dada de baja sigue contando
+-- sp_alumno_dar_de_baja y sp_inscripcion_finalizar_ciclos_cerrados, que solo cancelan o finalizan
+-- las vigentes; la excepción de trg_inscripcion_ciclo_lectivo, que solo deja finalizar las vigentes,
+-- y trg_calificacion_coherencia, que no acepta cargar, corregir ni dar de baja calificaciones de una
+-- inscripción dada de baja, aunque siga activa. Para las demás reglas, una inscripción dada de baja
+-- sigue contando
 CREATE TABLE inscripcion (
     inscripcion_id         INT   GENERATED ALWAYS AS IDENTITY,
     alumno_id              INT   NOT NULL,
     curso_id               INT   NOT NULL,
     inscripcion_estado_id  INT   NOT NULL,
-    fecha_inscripcion      DATE  NOT NULL DEFAULT CURRENT_DATE,
-    -- Su año es el ciclo lectivo del curso
+    fecha_inscripcion      DATE  NOT NULL DEFAULT fn_fecha_actual(),
+    -- Por defecto, la fecha actual. Su año es el ciclo lectivo del curso
     fecha_eliminacion      TIMESTAMPTZ,
     -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva
 
@@ -516,6 +644,87 @@ CREATE TABLE inscripcion (
 CREATE INDEX idx_inscripcion_alumno_id ON inscripcion(alumno_id);
 CREATE INDEX idx_inscripcion_curso_id ON inscripcion(curso_id);
 CREATE INDEX idx_inscripcion_inscripcion_estado_id ON inscripcion(inscripcion_estado_id);
+
+-- Una inscripción solo se crea, se edita o se da de baja en el ciclo lectivo actual: el de su curso,
+-- como en trg_curso_ciclo_lectivo. En un cambio de curso se controla primero el que tenía y después
+-- el nuevo. Si el curso no existe, su año queda en NULL y no falla: la rechaza después su clave
+-- foránea.
+-- Excepción: en un ciclo cerrado se acepta pasar una inscripción vigente de ACTIVA a FINALIZADA sin
+-- cambiar nada más (ni el alumno, ni el curso, ni la fecha, ni la baja lógica). Es la única
+-- modificación que admite un ciclo cerrado, y la hace el cierre del ciclo
+-- (sp_inscripcion_finalizar_ciclos_cerrados, más abajo): sin ella, las activas de un ciclo cerrado
+-- quedarían activas para siempre y sus alumnos no podrían inscribirse en el ciclo siguiente
+CREATE FUNCTION fn_inscripcion_ciclo_lectivo() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_cursos           INT[] := ARRAY[NEW.curso_id];
+    v_curso_id         INT;
+    v_anio             INT;
+    v_estado           TEXT;
+    v_estado_anterior  VARCHAR(50);
+    v_estado_nuevo     VARCHAR(50);
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        SELECT e.nombre
+          INTO v_estado_anterior
+          FROM inscripcion_estado e
+         WHERE e.inscripcion_estado_id = OLD.inscripcion_estado_id;
+
+        SELECT e.nombre
+          INTO v_estado_nuevo
+          FROM inscripcion_estado e
+         WHERE e.inscripcion_estado_id = NEW.inscripcion_estado_id;
+
+        SELECT c.anio_ciclo_lectivo
+          INTO v_anio
+          FROM curso c
+         WHERE c.curso_id = OLD.curso_id;
+
+        IF fn_ciclo_lectivo_estado(v_anio) = 'CERRADO'
+           AND v_estado_anterior = 'ACTIVA'
+           AND v_estado_nuevo = 'FINALIZADA'
+           AND NEW.alumno_id = OLD.alumno_id
+           AND NEW.curso_id = OLD.curso_id
+           AND NEW.fecha_inscripcion = OLD.fecha_inscripcion
+           AND OLD.fecha_eliminacion IS NULL
+           AND NEW.fecha_eliminacion IS NULL THEN
+            RETURN NEW;
+        END IF;
+
+        v_cursos := OLD.curso_id || v_cursos;
+    END IF;
+
+    FOREACH v_curso_id IN ARRAY v_cursos LOOP
+        SELECT c.anio_ciclo_lectivo
+          INTO v_anio
+          FROM curso c
+         WHERE c.curso_id = v_curso_id;
+
+        v_estado := fn_ciclo_lectivo_estado(v_anio);
+
+        IF v_estado = 'CERRADO' THEN
+            RAISE EXCEPTION 'El curso % de la inscripción % es del ciclo lectivo %, que está cerrado',
+                            v_curso_id, NEW.inscripcion_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_inscripcion_ciclo_lectivo_cerrado';
+        END IF;
+
+        IF v_estado = 'FUTURO' THEN
+            RAISE EXCEPTION 'El curso % de la inscripción % es del ciclo lectivo %, que todavía no empezó',
+                            v_curso_id, NEW.inscripcion_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_inscripcion_ciclo_lectivo_futuro';
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_inscripcion_ciclo_lectivo
+    BEFORE INSERT OR UPDATE ON inscripcion
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_inscripcion_ciclo_lectivo();
 
 -- Coherencia de una inscripción con las filas que referencia: el alumno y el curso son de la misma
 -- institución y, si la inscripción es activa y vigente (sin baja lógica), el alumno no tiene otra
@@ -643,7 +852,9 @@ CREATE TRIGGER trg_alumno_inscripciones
     EXECUTE FUNCTION fn_alumno_inscripciones();
 
 -- Un curso con inscripciones conserva su institución y su ciclo lectivo: las fechas de sus
--- inscripciones son de ese año. El grado sí puede cambiar: la inscripción no depende de él
+-- inscripciones son de ese año. El grado sí puede cambiar: la inscripción no depende de él.
+-- Un cambio de ciclo lectivo ya lo rechaza antes trg_curso_ciclo_lectivo, para cualquier curso: este
+-- trigger solo llega a rechazar el cambio de institución
 CREATE FUNCTION fn_curso_inscripciones() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -737,6 +948,47 @@ BEGIN
 END;
 $$;
 
+-- Cierre de los ciclos lectivos: pasa a FINALIZADA las inscripciones activas y vigentes de los cursos
+-- de ciclos cerrados (anteriores al actual), sin cambiar nada más: es la excepción que admite
+-- trg_inscripcion_ciclo_lectivo. Las canceladas, las finalizadas y las dadas de baja no cambian. Así,
+-- la primera inscripción de un alumno en el ciclo nuevo no choca con una activa del anterior.
+-- Devuelve en p_inscripciones_finalizadas cuántas inscripciones finalizó.
+-- Es idempotente: una segunda llamada ya no encuentra activas en los ciclos cerrados y devuelve 0.
+-- Está pensado para que lo llame el proceso principal cada vez que se inicia la aplicación.
+-- Es todo o nada sin hacer COMMIT ni ROLLBACK, como sp_alumno_dar_de_baja. No tiene errores
+-- previstos. Si dos llamadas se cruzan, la segunda espera el bloqueo de cada fila que la primera ya
+-- finalizó y, al seguir, PostgreSQL vuelve a evaluar las condiciones sobre la fila como quedó: ya no
+-- está activa y no la cuenta
+CREATE PROCEDURE sp_inscripcion_finalizar_ciclos_cerrados(
+    OUT p_inscripciones_finalizadas  INT
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_activa_id      INT;
+    v_finalizada_id  INT;
+BEGIN
+    SELECT e.inscripcion_estado_id
+      INTO v_activa_id
+      FROM inscripcion_estado e
+     WHERE e.nombre = 'ACTIVA';
+
+    SELECT e.inscripcion_estado_id
+      INTO v_finalizada_id
+      FROM inscripcion_estado e
+     WHERE e.nombre = 'FINALIZADA';
+
+    UPDATE inscripcion i
+       SET inscripcion_estado_id = v_finalizada_id
+      FROM curso c
+     WHERE c.curso_id = i.curso_id
+       AND c.anio_ciclo_lectivo < fn_anio_ciclo_lectivo_actual()
+       AND i.inscripcion_estado_id = v_activa_id
+       AND i.fecha_eliminacion IS NULL;
+
+    GET DIAGNOSTICS p_inscripciones_finalizadas = ROW_COUNT;
+END;
+$$;
+
 -- Evaluaciones: las que un profesor toma en una asignación docente, es decir, en una materia de un
 -- curso
 CREATE TABLE evaluacion (
@@ -761,6 +1013,56 @@ CREATE TABLE evaluacion (
 CREATE UNIQUE INDEX uq_evaluacion_asignacion_docente_titulo
     ON evaluacion (asignacion_docente_id, titulo)
     WHERE fecha_eliminacion IS NULL;
+
+-- Una evaluación solo se crea, se edita o se da de baja en el ciclo lectivo actual: el del curso de
+-- su asignación, como en trg_curso_ciclo_lectivo. En un cambio de asignación se controla primero la
+-- que tenía y después la nueva. Sin bloqueos: una asignación solo cambia de curso dentro del ciclo
+-- actual (trg_asignacion_docente_ciclo_lectivo), y el ciclo de un curso no cambia. Si la asignación
+-- no existe, su año queda en NULL y no falla: la rechaza después su clave foránea
+CREATE FUNCTION fn_evaluacion_ciclo_lectivo() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_asignaciones           INT[] := ARRAY[NEW.asignacion_docente_id];
+    v_asignacion_docente_id  INT;
+    v_anio                   INT;
+    v_estado                 TEXT;
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        v_asignaciones := OLD.asignacion_docente_id || v_asignaciones;
+    END IF;
+
+    FOREACH v_asignacion_docente_id IN ARRAY v_asignaciones LOOP
+        SELECT c.anio_ciclo_lectivo
+          INTO v_anio
+          FROM asignacion_docente a
+          JOIN curso c ON c.curso_id = a.curso_id
+         WHERE a.asignacion_docente_id = v_asignacion_docente_id;
+
+        v_estado := fn_ciclo_lectivo_estado(v_anio);
+
+        IF v_estado = 'CERRADO' THEN
+            RAISE EXCEPTION 'La asignación docente % de la evaluación % es del ciclo lectivo %, que está cerrado',
+                            v_asignacion_docente_id, NEW.evaluacion_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_evaluacion_ciclo_lectivo_cerrado';
+        END IF;
+
+        IF v_estado = 'FUTURO' THEN
+            RAISE EXCEPTION 'La asignación docente % de la evaluación % es del ciclo lectivo %, que todavía no empezó',
+                            v_asignacion_docente_id, NEW.evaluacion_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_evaluacion_ciclo_lectivo_futuro';
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_evaluacion_ciclo_lectivo
+    BEFORE INSERT OR UPDATE ON evaluacion
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_evaluacion_ciclo_lectivo();
 
 -- El año de la fecha de una evaluación vigente es el ciclo lectivo del curso de su asignación. Las
 -- dadas de baja no se validan. FOR SHARE retiene las filas de la asignación y del curso hasta el
@@ -830,7 +1132,9 @@ CREATE TRIGGER trg_asignacion_docente_evaluaciones_vigentes
     EXECUTE FUNCTION fn_asignacion_docente_evaluaciones_vigentes();
 
 -- Un curso con evaluaciones vigentes conserva su ciclo lectivo. Cuentan las de todas sus
--- asignaciones, también las dadas de baja: sus evaluaciones siguen vigentes
+-- asignaciones, también las dadas de baja: sus evaluaciones siguen vigentes.
+-- Un cambio de ciclo lectivo ya lo rechaza antes trg_curso_ciclo_lectivo, para cualquier curso, así
+-- que este trigger ya no llega a rechazar nada: se conserva como segunda barrera
 CREATE FUNCTION fn_curso_evaluaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -885,6 +1189,58 @@ CREATE UNIQUE INDEX uq_calificacion_evaluacion_inscripcion
     WHERE fecha_eliminacion IS NULL;
 
 CREATE INDEX idx_calificacion_inscripcion_id ON calificacion(inscripcion_id);
+
+-- Una calificación solo se carga, se corrige o se da de baja en el ciclo lectivo actual: el del curso
+-- de la asignación de su evaluación, como en trg_curso_ciclo_lectivo. En un cambio de evaluación se
+-- controla primero la que tenía y después la nueva. Sin bloqueos, como en
+-- trg_evaluacion_ciclo_lectivo: una evaluación solo cambia de asignación, y una asignación de curso,
+-- dentro del ciclo actual. Si la evaluación no existe, su año queda en NULL y no falla: la rechaza
+-- después su clave foránea
+CREATE FUNCTION fn_calificacion_ciclo_lectivo() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_evaluaciones   INT[] := ARRAY[NEW.evaluacion_id];
+    v_evaluacion_id  INT;
+    v_anio           INT;
+    v_estado         TEXT;
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        v_evaluaciones := OLD.evaluacion_id || v_evaluaciones;
+    END IF;
+
+    FOREACH v_evaluacion_id IN ARRAY v_evaluaciones LOOP
+        SELECT c.anio_ciclo_lectivo
+          INTO v_anio
+          FROM evaluacion e
+          JOIN asignacion_docente a ON a.asignacion_docente_id = e.asignacion_docente_id
+          JOIN curso c ON c.curso_id = a.curso_id
+         WHERE e.evaluacion_id = v_evaluacion_id;
+
+        v_estado := fn_ciclo_lectivo_estado(v_anio);
+
+        IF v_estado = 'CERRADO' THEN
+            RAISE EXCEPTION 'La evaluación % de la calificación % es del ciclo lectivo %, que está cerrado',
+                            v_evaluacion_id, NEW.calificacion_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_calificacion_ciclo_lectivo_cerrado';
+        END IF;
+
+        IF v_estado = 'FUTURO' THEN
+            RAISE EXCEPTION 'La evaluación % de la calificación % es del ciclo lectivo %, que todavía no empezó',
+                            v_evaluacion_id, NEW.calificacion_id, v_anio
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_calificacion_ciclo_lectivo_futuro';
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_calificacion_ciclo_lectivo
+    BEFORE INSERT OR UPDATE ON calificacion
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_calificacion_ciclo_lectivo();
 
 -- Coherencia de una calificación con las filas que referencia: la inscripción es del curso de la
 -- asignación de la evaluación, está vigente (sin baja lógica) y está activa. La baja lógica de la
