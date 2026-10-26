@@ -22,6 +22,9 @@
 // Imprimir comprobante (data-action="print") le pide al proceso principal que genere el comprobante
 // en PDF y lo abra con el visor de PDF predeterminado (window.api.enrollments.openReceipt), desde
 // donde se imprime o se guarda. Si no se pudo, lo avisa con un toast.
+// El ciclo lectivo actual llega con cada página, de la base (school-year.js): las inscripciones de
+// un ciclo cerrado se ven en solo lectura, con Editar y Eliminar deshabilitados e Imprimir
+// habilitado.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -108,8 +111,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // La fecha llega como 'AAAA-MM-DD' y se muestra como DD/MM/AAAA
   const toDisplayDate = (isoDate) => (isoDate ? isoDate.split('-').reverse().join('/') : '');
 
+  // El ciclo lectivo actual ({ year, today }), que llega con cada página: null hasta la primera
+  let currentSchoolYear = null;
+
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
-  // inscripcion_id en data-enrollment-id; el número de inscripción llega ya armado.
+  // inscripcion_id en data-enrollment-id; el número de inscripción llega ya armado. La de una
+  // inscripción de un ciclo cerrado lleva Editar y Eliminar deshabilitados, con el motivo como title;
+  // <row-actions> lo lee al conectarse.
   const createRow = (enrollment) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.enrollmentId = String(enrollment.id);
@@ -121,6 +129,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const badge = row.querySelector('status-badge');
     badge.setAttribute('status', enrollment.status.toLowerCase());
     badge.setAttribute('label', statusLabels[enrollment.status] ?? enrollment.status);
+    const { schoolYear } = enrollment.course;
+    if (schoolYear < currentSchoolYear.year) {
+      row.querySelector('row-actions').setAttribute('read-only-title', closedSchoolYearTitle(schoolYear));
+    }
     return row;
   };
 
@@ -191,25 +203,32 @@ document.addEventListener('DOMContentLoaded', () => {
   // de página. Mientras se espera, la tabla conserva sus filas; si no tenía (al cargar la vista,
   // después de un error o sin resultados), muestra que está cargando.
   // Con `enrollmentId` (una inscripción recién creada), el proceso principal devuelve en cambio la
-  // página donde quedó, si pasa los filtros. Devuelve las inscripciones que quedaron en la tabla, o
-  // null si no llegaron o si un pedido posterior reemplazó a este.
+  // página donde quedó, si pasa los filtros. Junto con la página se pide el ciclo lectivo actual, que
+  // dice qué inscripciones son de solo lectura: si no llega alguno de los dos, la tabla muestra el
+  // error. Devuelve las inscripciones que quedaron en la tabla, o null si no llegaron o si un pedido
+  // posterior reemplazó a este.
   async function loadEnrollments(page, enrollmentId = null) {
     listRequestId += 1;
     const requestId = listRequestId;
     table.setAttribute('aria-busy', 'true');
     if (!tbody.querySelector('tr[data-enrollment-id]')) showMessage('Cargando inscripciones…');
     let response;
+    let schoolYear = null;
     try {
-      response = await window.api?.enrollments?.list(activeFilters, page, pagination.pageSize, enrollmentId);
+      [response, schoolYear] = await Promise.all([
+        window.api?.enrollments?.list(activeFilters, page, pagination.pageSize, enrollmentId),
+        loadCurrentSchoolYear(),
+      ]);
     } catch (error) {
       console.error('Error al cargar las inscripciones:', error);
     }
     if (requestId !== listRequestId) return null;
     table.setAttribute('aria-busy', 'false');
-    if (!response?.ok) {
+    if (!response?.ok || !schoolYear) {
       showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
       return null;
     }
+    currentSchoolYear = schoolYear;
     pagination.update({ total: response.total, page: response.page });
     if (response.enrollments.length) tbody.replaceChildren(...response.enrollments.map(createRow));
     else showMessage(hasActiveFilters() ? 'Ninguna inscripción coincide con los filtros.' : 'No hay inscripciones registradas.');
@@ -550,9 +569,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let triggerRowIndex = 0;
 
   // El botón de `action` (edit, delete o print) de la fila que quedó en su lugar (o de la última de la
-  // página), o "Nueva inscripción" si la tabla quedó sin inscripciones
+  // página), o "Nueva inscripción" si la tabla quedó sin inscripciones. Saltea los deshabilitados
+  // (Editar y Eliminar de un ciclo cerrado), que no toman el foco.
   const focusAfterRemoval = (action) => {
-    const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
+    const buttons = tbody.querySelectorAll(`[data-action="${action}"]:not(:disabled)`);
     return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openEnrollmentModalBtn;
   };
   // Cambia cada vez que el modal se abre o se cierra: descarta la respuesta de get que llegue tarde,
@@ -646,12 +666,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loadEditingEnrollment();
   }
 
-  // Si la tabla se volvió a dibujar (después de guardar, o porque la inscripción ya no está vigente),
-  // el foco pasa a Editar en la fila de la inscripción o, si ya no se muestra, en la que quedó en su
-  // lugar (o en la última de la página); sin filas, a Nueva inscripción
+  // Si la tabla se volvió a dibujar (después de guardar, o porque la inscripción quedó vieja), el foco
+  // pasa a Editar en la fila de la inscripción o, si ya no se muestra o quedó en solo lectura, en la
+  // que quedó en su lugar (o en la última de la página); sin filas, a Nueva inscripción
   const editFocusTarget = () => {
     if (editTrigger?.isConnected) return editTrigger;
-    return tbody.querySelector(`tr[data-enrollment-id="${editingEnrollmentId}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
+    return tbody.querySelector(`tr[data-enrollment-id="${editingEnrollmentId}"] [data-action="edit"]:not(:disabled)`) ?? focusAfterRemoval('edit');
   };
 
   function closeEditModal() {
@@ -675,7 +695,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // guarda (o si ya lo tenía), la tabla vuelve a pedir la página a la vista con los filtros aplicados
   // antes de liberar el modal, así al cerrarse ya muestra el estado nuevo, y un toast lo avisa. Si no,
   // el toast dice por qué y el modal sigue abierto con el estado elegido; si la inscripción ya no está
-  // vigente, antes se vuelve a pedir la página.
+  // vigente, o si su ciclo lectivo se cerró con la vista abierta desde antes del cambio de año, antes
+  // se vuelve a pedir la página.
   const saveEditedEnrollment = async () => {
     setEditSaving(true);
     let response;
@@ -689,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (response?.ok) {
       const shownEnrollments = await loadEnrollments(pagination.page);
       isShown = shownEnrollments && shownEnrollments.some(({ id }) => id === response.enrollment.id);
-    } else if (NO_LONGER_EDITABLE_CODES.includes(error?.code)) {
+    } else if (NO_LONGER_EDITABLE_CODES.includes(error?.code) || error?.code === 'SCHOOL_YEAR_CLOSED') {
       await loadEnrollments(pagination.page);
     }
     setEditSaving(false);
@@ -748,8 +769,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // El id sale del data-enrollment-id de la fila del botón (el inscripcion_id), no de su posición en
   // la tabla; el proceso principal vuelve a comprobar que la inscripción exista en la institución y
   // siga vigente. Si la da de baja, o si ya no estaba vigente, la tabla se actualiza antes de liberar
-  // el modal, así al cerrarse ya no la muestra. Avisa el resultado con un toast y no resuelve ningún
-  // mensaje, así el modal se cierra siempre.
+  // el modal, así al cerrarse ya no la muestra; si su ciclo lectivo se cerró con la vista abierta
+  // desde antes del cambio de año, la tabla vuelve a pedir la página, que la muestra en solo lectura.
+  // Avisa el resultado con un toast y no resuelve ningún mensaje, así el modal se cierra siempre.
   const deleteEnrollment = async (trigger) => {
     const row = trigger.closest('tr');
     let response;
@@ -763,6 +785,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
       triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
       await refreshAfterDelete();
+    } else if (error?.code === 'SCHOOL_YEAR_CLOSED') {
+      // La fila va a quedar en solo lectura, sin Eliminar que tome el foco
+      triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+      await loadEnrollments(pagination.page);
     }
 
     if (response?.ok) {

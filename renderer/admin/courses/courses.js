@@ -8,6 +8,8 @@
 // lógica, window.api.courses.delete) después de confirmarlo en un modal (confirm-modal.component.js).
 // El resultado de las tres operaciones se avisa con un toast (toast.component.js), salvo el error de
 // la división, que se marca en el formulario.
+// El ciclo lectivo actual llega con la lista, de la base (school-year.js): los cursos de un ciclo
+// cerrado se ven en solo lectura, con Editar y Eliminar deshabilitados.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -39,6 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // En el orden en que llegan del proceso principal
   let courses = [];
   let isLoaded = false;
+  // El ciclo lectivo actual ({ year, today }), que llega con la lista: null hasta entonces
+  let currentSchoolYear = null;
 
   // Un grado se repite entre niveles educativos (hay un 1° de primaria y otro de secundaria): se lo
   // identifica con los dos datos
@@ -81,7 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
-  // curso_id en data-course-id.
+  // curso_id en data-course-id. La de un curso de un ciclo cerrado lleva Editar y Eliminar
+  // deshabilitados, con el motivo como title; <row-actions> lo lee al conectarse.
   const createRow = (course) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.courseId = String(course.id);
@@ -95,6 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
     texts.forEach((text, index) => {
       row.cells[index].textContent = text ?? '';
     });
+    if (course.schoolYear < currentSchoolYear.year) {
+      row.querySelector('row-actions').setAttribute('read-only-title', closedSchoolYearTitle(course.schoolYear));
+    }
     return row;
   };
 
@@ -108,24 +116,29 @@ document.addEventListener('DOMContentLoaded', () => {
     else showMessage(courses.length ? 'Ningún curso coincide con los filtros.' : 'No hay cursos registrados.');
   };
 
-  // Punto de entrada también para volver a pedir la lista cuando la que está en memoria quede
-  // vieja. Conserva la página y los filtros.
+  // Pide la lista junto con el ciclo lectivo actual, que dice qué cursos son de solo lectura: si no
+  // llega alguno de los dos, la tabla muestra el error. Punto de entrada también para volver a
+  // pedirlos cuando la lista que está en memoria quede vieja. Conserva la página y los filtros.
   async function loadCourses() {
     isLoaded = false;
     showMessage('Cargando cursos…');
     let response;
+    let schoolYear = null;
     try {
-      response = await window.api?.courses?.list();
+      [response, schoolYear] = await Promise.all([window.api?.courses?.list(), loadCurrentSchoolYear()]);
     } catch (error) {
       console.error('Error al cargar los cursos:', error);
     }
-    if (!response?.ok) {
+    if (!response?.ok || !schoolYear) {
       showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
       return;
     }
     courses = response.courses;
+    currentSchoolYear = schoolYear;
     isLoaded = true;
     renderRows();
+    // Nuevo curso pudo abrirse antes de que llegara el año que anuncia
+    showCycleYear();
   }
 
   // Cada filtro de columna avisa sus cambios (column-filter.js). Si lo que filtra no cambió (el
@@ -196,9 +209,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let triggerRowIndex = 0;
 
   // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
-  // página), o "Nuevo curso" si la tabla quedó sin cursos
+  // página), o "Nuevo curso" si la tabla quedó sin cursos. Saltea los deshabilitados (los de un
+  // ciclo cerrado), que no toman el foco.
   const focusAfterRemoval = (action) => {
-    const buttons = tbody.querySelectorAll(`[data-action="${action}"]`);
+    const buttons = tbody.querySelectorAll(`[data-action="${action}"]:not(:disabled)`);
     return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openCourseModalBtn;
   };
 
@@ -207,8 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const errorDescription = (error) =>
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
 
-  // El curso ya no está vigente: la lista en memoria quedó vieja y se vuelve a pedir
-  const NO_LONGER_ACTIVE_CODES = ['COURSE_NOT_FOUND', 'COURSE_ALREADY_DELETED'];
+  // El curso ya no está vigente o, con la vista abierta desde antes del cambio de año, su ciclo
+  // lectivo se cerró: la lista en memoria quedó vieja y se vuelve a pedir
+  const STALE_COURSE_CODES = ['COURSE_NOT_FOUND', 'COURSE_ALREADY_DELETED', 'SCHOOL_YEAR_CLOSED'];
 
   // "3° A de Secundaria, turno Mañana", como lo nombran los toasts del alta, la edición y la baja
   const courseName = (course) =>
@@ -262,7 +277,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const gradeCardTemplate = document.getElementById('gradeCardTemplate');
 
   const cycleYear = document.getElementById('newCourseYear');
-  cycleYear.textContent = String(new Date().getFullYear());
+  // El texto del HTML, una raya: el año mientras no llega el ciclo lectivo actual
+  const YEAR_PLACEHOLDER = cycleYear.textContent;
+
+  // Ciclo lectivo que anuncia el modal: el del curso que se edita, que lo conserva, o el actual, el
+  // de un curso nuevo
+  function showCycleYear() {
+    cycleYear.textContent = String((isEditing ? editingCourse.schoolYear : currentSchoolYear?.year) ?? YEAR_PLACEHOLDER);
+  }
 
   const shiftDropdown = courseOverlay.querySelector('[data-filter="new-course-shift"]');
   const levelDropdown = courseOverlay.querySelector('[data-filter="new-course-level"]');
@@ -435,8 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Pertenece al ciclo lectivo:'
       : 'Se creará para el ciclo lectivo:';
     createCourseBtn.textContent = modalTexts().submit;
-    // Un curso conserva su ciclo lectivo; uno nuevo es del año en curso
-    cycleYear.textContent = String(course?.schoolYear ?? new Date().getFullYear());
+    showCycleYear();
 
     if (course) {
       divisionInput.value = course.division;
@@ -452,18 +473,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function closeCourseModal() {
     courseOverlay.classList.remove('is-open');
     closeAllDropdowns();
-    // Después de guardar, o si el curso ya no está vigente, la tabla se volvió a dibujar: el foco
-    // pasa a Editar en la fila del curso o, si ya no se muestra, en la que quedó en su lugar
+    // Después de guardar, o si el curso quedó viejo, la tabla se volvió a dibujar: el foco pasa a
+    // Editar en la fila del curso o, si ya no se muestra o quedó en solo lectura, en la que quedó en
+    // su lugar
     const focusTarget = modalTrigger.isConnected
       ? modalTrigger
-      : tbody.querySelector(`tr[data-course-id="${editingCourse?.id}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
+      : tbody.querySelector(`tr[data-course-id="${editingCourse?.id}"] [data-action="edit"]:not(:disabled)`) ?? focusAfterRemoval('edit');
     focusTarget.focus();
   }
 
   // Crea el curso o guarda sus cambios, según el modo; al terminar cierra el modal y lo avisa con un
   // toast. El error de la división se marca en el formulario y los demás salen en un toast: en ambos
   // casos el modal sigue abierto con lo que se eligió. Solo se cierra si el curso que se editaba ya
-  // no está vigente.
+  // no está vigente o si su ciclo lectivo se cerró.
   const saveCourse = async () => {
     const gradeName = selectedGradeName();
     const level = selectedValue(levelDropdown);
@@ -485,10 +507,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Error al guardar el curso:', error);
     }
-    // El curso que se editaba ya no está vigente: la lista se vuelve a pedir antes de liberar el
-    // modal, que se cierra más abajo
-    const isGone = isEditing && NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
-    if (isGone) await loadCourses();
+    // El curso que se editaba quedó viejo: la lista se vuelve a pedir antes de liberar el modal, que
+    // se cierra más abajo
+    const isStale = isEditing && STALE_COURSE_CODES.includes(response?.error?.code);
+    if (isStale) await loadCourses();
     setSaving(false);
 
     if (response?.ok) {
@@ -508,7 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
       divisionInput.focus();
       return;
     }
-    if (isGone) closeCourseModal();
+    if (isStale) closeCourseModal();
     showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
   };
 
@@ -553,9 +575,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Error al eliminar el curso:', error);
     }
-    const isGone = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
-    // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
-    if (response?.ok || isGone) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+    const isStale = STALE_COURSE_CODES.includes(response?.error?.code);
+    // La fila va a dejar de mostrarse, o a quedar en solo lectura: su posición se toma antes de
+    // volver a dibujar la tabla
+    if (response?.ok || isStale) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
     if (response?.ok) {
       removeCourse(response.course.id);
       showToast({
@@ -565,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       return;
     }
-    if (isGone) await loadCourses();
+    if (isStale) await loadCourses();
     showToast({ type: 'error', title: 'No se pudo eliminar el curso', description: errorDescription(response?.error) });
   };
 

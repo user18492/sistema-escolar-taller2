@@ -8,6 +8,10 @@
 //     Eliminar lleva solo Restaurar, con ese aria-label y title.
 //   - "disabled" (opcional): las acciones no están disponibles para esa fila y sus botones quedan
 //     deshabilitados. Se puede poner y quitar con la fila ya en la tabla.
+//   - "read-only-title" (opcional): el registro de la fila es de solo lectura (p. ej., de un ciclo
+//     lectivo cerrado, school-year.js). Editar y Eliminar quedan deshabilitados y llevan ese texto
+//     como title, con su etiqueta como aria-label; Imprimir, Restaurar y "Gestionar" no cambian. Se
+//     puede poner y quitar con la fila ya en la tabla, y se suma a "disabled".
 //   - "variant" (opcional): "user" usa .user-actions/.user-action; por defecto .table-actions/.table-action.
 //   - "manage-href" (opcional): antepone un <manage-link> con ese href (requiere manage-link.component.js).
 // Los botones llevan data-action="print" / "edit" / "delete" / "restore". confirm-modal.component.js atiende
@@ -27,8 +31,11 @@
     restore: '<path d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />',
   };
 
+  // Acciones que un registro de solo lectura ("read-only-title") no ofrece
+  const READ_ONLY_ACTIONS = ['edit', 'delete'];
+
   class RowActions extends HTMLElement {
-    static observedAttributes = ['disabled'];
+    static observedAttributes = ['disabled', 'read-only-title'];
 
     connectedCallback() {
       if (this.rendered) return;
@@ -49,11 +56,9 @@
       </div>`;
 
       this.querySelectorAll('[data-action]').forEach((button) => {
-        const label = this.getAttribute(`${button.dataset.action}-label`);
-        button.setAttribute('aria-label', label);
-        button.setAttribute('title', label);
-        button.disabled = this.hasAttribute('disabled');
+        button.setAttribute('aria-label', this.getAttribute(`${button.dataset.action}-label`));
       });
+      this.syncButtons();
 
       // El href se asigna antes de conectar el <manage-link>, que lo lee al generarse
       const manageHref = this.getAttribute('manage-href');
@@ -64,12 +69,21 @@
       }
     }
 
-    // Antes de conectarse no hay botones que actualizar: connectedCallback lee el valor inicial.
-    attributeChangedCallback(_name, _oldValue, newValue) {
-      if (!this.rendered) return;
+    // Deshabilita los botones según "disabled" y "read-only-title" y les pone su title: la etiqueta
+    // de la acción o, en Editar y Eliminar de un registro de solo lectura, el motivo
+    syncButtons() {
+      const readOnlyTitle = this.getAttribute('read-only-title');
       this.querySelectorAll('[data-action]').forEach((button) => {
-        button.disabled = newValue !== null;
+        const { action } = button.dataset;
+        const isReadOnly = readOnlyTitle !== null && READ_ONLY_ACTIONS.includes(action);
+        button.disabled = this.hasAttribute('disabled') || isReadOnly;
+        button.setAttribute('title', isReadOnly ? readOnlyTitle : this.getAttribute(`${action}-label`));
       });
+    }
+
+    // Antes de conectarse no hay botones que actualizar: connectedCallback lee los valores iniciales.
+    attributeChangedCallback() {
+      if (this.rendered) this.syncButtons();
     }
   }
 

@@ -399,8 +399,8 @@ row-actions {
   outline-offset: 2px;
 }
 
-/* Acción que no está disponible para esa fila (atributo "disabled" de <row-actions>): atenuada,
-   como .btn-primary:disabled. */
+/* Acción que no está disponible para esa fila (atributos "disabled" y "read-only-title" de
+   <row-actions>): atenuada, como .btn-primary:disabled. */
 .user-action:disabled,
 .table-action:disabled {
   opacity: 0.45;
