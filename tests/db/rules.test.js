@@ -110,12 +110,18 @@ group('db.courses', 'Reglas de cursos y asignaciones docentes', {
       evaluatedCourse, evaluatedAssignment, enrolledCourse, otherGrade, otherGradeSubject };
   },
 }, () => {
-  test('course-checks', 'División, turno y ciclo lectivo con formato válido', async (t) => {
+  // Sin trg_curso_ciclo_lectivo (se vuelve a activar al deshacer el intento), que rechaza antes
+  // cualquier cambio de ciclo lectivo
+  const withoutSchoolYearRule = (statement) => ['ALTER TABLE curso DISABLE TRIGGER trg_curso_ciclo_lectivo', statement];
+
+  test('course-checks', 'División, turno y ciclo lectivo con formato válido', {
+    history: [{ plan: 'plans/ciclo-lectivo/00-base-de-datos.md', date: '2026-10-26', change: 'El ciclo fuera de rango se prueba con trg_curso_ciclo_lectivo desactivado dentro del intento: si no, lo rechaza antes como ciclo cerrado' }],
+  }, async (t) => {
     const { emptyCourse } = t.data;
     const update = (set) => ({ sql: `UPDATE curso SET ${set} WHERE curso_id = $1`, params: [emptyCourse.id] });
     await rejects(t, 'división en minúscula', update(`division = 'a'`), 'ck_curso_division');
     await rejects(t, 'turno desconocido', update(`turno = 'NOCHE'`), 'ck_curso_turno');
-    await rejects(t, 'ciclo fuera de rango', update('anio_ciclo_lectivo = 1999'), 'ck_curso_anio_ciclo_lectivo');
+    await rejects(t, 'ciclo fuera de rango', withoutSchoolYearRule(update('anio_ciclo_lectivo = 1999')), 'ck_curso_anio_ciclo_lectivo');
   });
 
   test('course-unique-among-current', 'Un curso vigente no se repite; uno dado de baja no cuenta', async (t) => {
@@ -132,11 +138,13 @@ group('db.courses', 'Reglas de cursos y asignaciones docentes', {
     ]);
   });
 
-  test('course-locked-by-dependents', 'Un curso conserva su grado con asignaciones, su ciclo con inscripciones o evaluaciones y su institución con inscripciones', async (t) => {
+  test('course-locked-by-dependents', 'Un curso conserva su grado con asignaciones, su ciclo con inscripciones o evaluaciones y su institución con inscripciones', {
+    history: [{ plan: 'plans/ciclo-lectivo/00-base-de-datos.md', date: '2026-10-26', change: 'Los dos cambios de ciclo se prueban con trg_curso_ciclo_lectivo desactivado dentro del intento: si no, los rechaza antes como ciclo futuro' }],
+  }, async (t) => {
     const { course, enrolledCourse, evaluatedCourse, otherGrade } = t.data;
     await rejects(t, 'grado con asignaciones', { sql: `UPDATE curso SET grado_id = $2 WHERE curso_id = $1`, params: [course.id, otherGrade] }, 'ck_curso_asignaciones_vigentes');
-    await rejects(t, 'ciclo con inscripciones', { sql: `UPDATE curso SET anio_ciclo_lectivo = anio_ciclo_lectivo + 1 WHERE curso_id = $1`, params: [enrolledCourse.id] }, 'ck_curso_inscripciones');
-    await rejects(t, 'ciclo con evaluaciones', { sql: `UPDATE curso SET anio_ciclo_lectivo = anio_ciclo_lectivo + 1 WHERE curso_id = $1`, params: [evaluatedCourse.id] }, 'ck_curso_evaluaciones_vigentes');
+    await rejects(t, 'ciclo con inscripciones', withoutSchoolYearRule({ sql: `UPDATE curso SET anio_ciclo_lectivo = anio_ciclo_lectivo + 1 WHERE curso_id = $1`, params: [enrolledCourse.id] }), 'ck_curso_inscripciones');
+    await rejects(t, 'ciclo con evaluaciones', withoutSchoolYearRule({ sql: `UPDATE curso SET anio_ciclo_lectivo = anio_ciclo_lectivo + 1 WHERE curso_id = $1`, params: [evaluatedCourse.id] }), 'ck_curso_evaluaciones_vigentes');
   });
 
   test('assignment-coherence', 'Una asignación vigente es de un profesor vigente de la institución del curso, con una materia de su grado', async (t) => {
@@ -198,7 +206,7 @@ group('db.enrollments', 'Reglas de alumnos e inscripciones', {
   async setup({ fixtures }) {
     const course = await fixtures.createCourse();
     const otherCourse = await fixtures.createCourse();
-    const pastCourse = await fixtures.createCourse({ year: fixtures.year - 1 });
+    const pastCourse = await fixtures.inSchoolYear(fixtures.year - 1, () => fixtures.createCourse());
     const otherInstitution = await fixtures.createInstitution();
     const foreignCourse = await fixtures.createCourse({ institutionId: otherInstitution.id });
     const student = await fixtures.createStudent();
@@ -223,11 +231,13 @@ group('db.enrollments', 'Reglas de alumnos e inscripciones', {
     await rejects(t, 'email repetido', { sql: `UPDATE alumno SET email = $2 WHERE alumno_id = $1`, params: [free.id, student.email] }, 'uq_alumno_institucion_email');
   });
 
-  test('enrollment-coherence', 'La inscripción es de la misma institución, del año del ciclo del curso, y el alumno con inscripciones conserva su institución', async (t) => {
+  test('enrollment-coherence', 'La inscripción es de la misma institución, del año del ciclo del curso y no de un ciclo cerrado, y el alumno con inscripciones conserva su institución', {
+    history: [{ plan: 'plans/ciclo-lectivo/00-base-de-datos.md', date: '2026-10-26', change: 'Un curso de un ciclo anterior ya no acepta inscripciones, ni con fecha de ese año: ahora espera ck_inscripcion_ciclo_lectivo_cerrado' }],
+  }, async (t) => {
     const { free, foreignCourse, course, student, otherInstitution, pastCourse } = t.data;
     await rejects(t, 'curso de otra institución', enrollSql(free.id, foreignCourse.id), 'ck_inscripcion_misma_institucion');
     await rejects(t, 'fecha de otro año', enrollSql(free.id, course.id, 'ACTIVA', `${t.year - 1}-12-31`), 'ck_inscripcion_fecha_ciclo_lectivo');
-    await passes(t, 'curso de un ciclo anterior con fecha de ese año', enrollSql(free.id, pastCourse.id, 'CANCELADA', `${t.year - 1}-06-01`));
+    await rejects(t, 'curso de un ciclo anterior con fecha de ese año', enrollSql(free.id, pastCourse.id, 'CANCELADA', `${t.year - 1}-06-01`), 'ck_inscripcion_ciclo_lectivo_cerrado');
     await rejects(t, 'cambio de institución con inscripciones', {
       sql: `UPDATE alumno SET institucion_id = $2 WHERE alumno_id = $1`, params: [student.id, otherInstitution.id],
     }, 'ck_alumno_inscripciones');

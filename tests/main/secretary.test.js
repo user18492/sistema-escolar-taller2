@@ -107,7 +107,7 @@ group('main.secretary.students', 'Secretario: alumnos', {
 group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
   async setup({ fixtures }) {
     const course = await fixtures.createCourse();
-    const pastCourse = await fixtures.createCourse({ year: fixtures.year - 1 });
+    const pastCourse = await fixtures.inSchoolYear(fixtures.year - 1, () => fixtures.createCourse());
     const students = [];
     for (let i = 0; i < 4; i += 1) students.push(await fixtures.createStudent());
     const active = await fixtures.enroll({ studentId: students[0].id, courseId: course.id });

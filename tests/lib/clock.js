@@ -1,18 +1,17 @@
-// "Hoy" para la suite. Hoy la fecha sale de tres relojes: la base (CURRENT_DATE, en las
-// restricciones, el alta de inscripciones y los cursos que se ofrecen), el proceso principal (año de
-// un curso nuevo o de una asignación, edad de usuarios y alumnos) y el renderer (año que anuncian
-// los formularios, validación de fechas). El seed además tiene un año fijo (2026).
+// "Hoy" para la suite. La base toma la fecha de una única función, fn_fecha_actual() (db/schema.sql),
+// que usan las restricciones del ciclo lectivo, el DEFAULT de la fecha de inscripción y el seed, que
+// carga siempre el ciclo lectivo actual. El proceso principal (año de un curso nuevo o de una
+// asignación, edad de usuarios y alumnos) y el renderer (año que anuncian los formularios,
+// validación de fechas) todavía usan su propio reloj (plans/ciclo-lectivo, partes 01 y 02).
 //
-// Mientras no exista una única fuente, las pruebas toman la fecha de la base y la suite comprueba
-// antes de empezar que los relojes coinciden. Por eso la línea base vale solo para el año en que se
-// tomó: con otro año, las filas del seed quedan en un ciclo cerrado (ver README).
+// Las pruebas toman la fecha de la base, y la suite comprueba antes de empezar que los relojes
+// coinciden.
 //
-// Preparado para congelar la fecha: cuando notas/restricciones/ciclo-lectivo.txt se implemente con
-// una única función de la base que dé la fecha y el año actuales, completar SINGLE_SOURCE con su
-// nombre. Con TEST_TODAY=AAAA-MM-DD, la suite reemplazará esa función en cada base de prueba (nunca
-// en la del .env) para que devuelva esa fecha, y las pruebas dejarán de depender del día en que
-// corren.
-const SINGLE_SOURCE = null; // p. ej. { today: 'fn_fecha_actual' }
+// Con TEST_TODAY=AAAA-MM-DD, la suite reemplaza fn_fecha_actual() en la plantilla de la corrida
+// (antes del seed, lib/pg-admin.js) y en cada base de prueba (nunca en la del .env) para que
+// devuelva esa fecha, y las pruebas dejan de depender del día en que corren. Mientras el proceso
+// principal y el renderer sigan con su propio reloj, una fecha de otro año solo sirve para la capa db.
+const SINGLE_SOURCE = { today: 'fn_fecha_actual' };
 
 function frozenDate() {
   const value = process.env.TEST_TODAY;
@@ -27,13 +26,18 @@ function frozenDate() {
   return value;
 }
 
-// Aplica la fecha congelada a una base de prueba recién clonada. Hoy no hace nada (ver arriba).
+// Sentencia que reemplaza la función de la fecha actual para que devuelva `isoDate` ('AAAA-MM-DD').
+function replaceTodaySql(isoDate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) throw new Error(`Fecha inválida: ${isoDate}`);
+  return `CREATE OR REPLACE FUNCTION ${SINGLE_SOURCE.today}() RETURNS DATE LANGUAGE sql STABLE AS $$ SELECT DATE '${isoDate}' $$`;
+}
+
+// Aplica la fecha congelada (TEST_TODAY) a una base de prueba: la plantilla antes del seed o una
+// copia recién clonada. Sin TEST_TODAY no hace nada.
 async function applyToDatabase(client) {
   const value = frozenDate();
   if (!value) return;
-  await client.query(
-    `CREATE OR REPLACE FUNCTION ${SINGLE_SOURCE.today}() RETURNS DATE LANGUAGE sql STABLE AS $$ SELECT DATE '${value}' $$`
-  );
+  await client.query(replaceTodaySql(value));
 }
 
 function localIsoDate(date = new Date()) {
@@ -45,7 +49,7 @@ function localIsoDate(date = new Date()) {
 async function today(client) {
   const frozen = frozenDate();
   if (frozen) return frozen;
-  const { rows } = await client.query(`SELECT to_char(CURRENT_DATE, 'YYYY-MM-DD') AS today`);
+  const { rows } = await client.query(`SELECT to_char(${SINGLE_SOURCE.today}(), 'YYYY-MM-DD') AS today`);
   return rows[0].today;
 }
 
@@ -74,4 +78,4 @@ function toDayMonth(isoDate) {
   return `${day}/${month}`;
 }
 
-module.exports = { SINGLE_SOURCE, frozenDate, applyToDatabase, today, year, readClocks, localIsoDate, toDayMonth };
+module.exports = { SINGLE_SOURCE, frozenDate, replaceTodaySql, applyToDatabase, today, year, readClocks, localIsoDate, toDayMonth };

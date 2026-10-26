@@ -126,11 +126,16 @@ group('db.schema', 'Esquema y seed', () => {
     }
   });
 
-  test('seed-content', 'Cada tabla del seed tiene filas y los catálogos están completos', async (t) => {
+  test('seed-content', 'Cada tabla del seed tiene filas y los catálogos están completos', {
+    history: [{ plan: 'plans/ciclo-lectivo/00-base-de-datos.md', date: '2026-10-26', change: 'El seed solo califica las evaluaciones con fecha de hoy o anterior: calificacion puede quedar vacía si todavía no hay ninguna' }],
+  }, async (t) => {
     const tables = (await t.sql(`SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY 1`)).map((row) => row.tablename);
+    // El seed solo califica las evaluaciones ya tomadas (con fecha de hoy o anterior)
+    const takenEvaluations = (await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM evaluacion WHERE fecha_evaluacion <= fn_fecha_actual()`)).count;
     for (const table of tables) {
       const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM ${table}`);
-      t.check(count > 0, `La tabla ${table} quedó vacía después del seed`);
+      const mayBeEmpty = table === 'calificacion' && takenEvaluations === 0;
+      t.check(count > 0 || mayBeEmpty, `La tabla ${table} quedó vacía después del seed`);
     }
     const roles = (await t.sql(`SELECT nombre FROM usuario_rol ORDER BY 1`)).map((row) => row.nombre);
     t.equal(roles, ['ADMIN', 'PROFESOR', 'SECRETARIO'], 'Roles del seed');

@@ -7,6 +7,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { PATHS, DB_PREFIX } = require('../config');
 const { readEnv, assertTestDbName, pgConfig, userDbName } = require('./env');
+const clock = require('./clock');
 
 const { Client } = require(require.resolve('pg', { paths: [PATHS.root] }));
 
@@ -60,11 +61,21 @@ async function dropDb(name) {
 
 // Crea la plantilla de la corrida. Devuelve la salida de psql de cada archivo, para que la capa de
 // base de datos compruebe que cargaron sin errores ni avisos. Si un archivo falla, borra la base.
+// Con TEST_TODAY, la fecha se congela entre el esquema y el seed (clock.js), así el seed carga el
+// ciclo lectivo de esa fecha.
 async function createTemplate(name) {
   assertTestDbName(name);
   await dropDb(name);
   await withAdmin((admin) => admin.query(`CREATE DATABASE ${name}`));
   const schema = runSqlFile(name, PATHS.schema);
+  if (schema.ok && clock.frozenDate()) {
+    const client = await connectSuite(name, 'template');
+    try {
+      await clock.applyToDatabase(client);
+    } finally {
+      await client.end();
+    }
+  }
   const seed = schema.ok ? runSqlFile(name, PATHS.seed) : null;
   if (!schema.ok || !seed.ok) {
     await dropDb(name);

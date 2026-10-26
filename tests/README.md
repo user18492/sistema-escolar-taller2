@@ -40,6 +40,7 @@ listo o la suite misma falló.
    medianoche y que no haya otra corrida en curso.
 2. **Crea la base de la corrida** (`sistema_escolar_suite_<id>_tpl`) desde `db/schema.sql` y
    `db/seed.sql`, igual que `db/setup-db.ps1` (psql con `ON_ERROR_STOP` y `PGCLIENTENCODING=UTF8`).
+   Con `TEST_TODAY`, congela la fecha entre los dos (ver "Fecha y ciclo lectivo").
 3. **Corre cada capa en su propio proceso** (node o Electron) con un tiempo máximo: si se cuelga, lo
    corta y las pruebas que faltaban se informan como "sin resultado".
 4. **Cada grupo de pruebas trabaja sobre una copia limpia** de esa base (`CREATE DATABASE … TEMPLATE`),
@@ -117,18 +118,23 @@ Las pruebas `*.detection.*` provocan cada tipo de falla a propósito (inyectánd
 
 ## Fecha y ciclo lectivo
 
-Hoy la fecha sale de tres relojes: la base (`CURRENT_DATE`), el proceso principal y el renderer, y el
-seed tiene un año fijo (2026). Las pruebas toman la fecha de la base (`lib/clock.js`) y crean sus
-propios cursos del ciclo actual, y la corrida no empieza si los relojes no coinciden.
+La base toma la fecha de una única función, `fn_fecha_actual()` (`db/schema.sql`): la usan las reglas
+del ciclo lectivo (lo de un ciclo cerrado queda en solo lectura y en uno futuro no se carga nada), la
+fecha de inscripción por defecto y el seed, que carga siempre el ciclo lectivo actual. Las pruebas
+toman la fecha de la base (`lib/clock.js`) y crean sus propios cursos del ciclo actual. El proceso
+principal y el renderer todavía usan su propio reloj para el ciclo lectivo (partes 01 y 02 de
+`plans/ciclo-lectivo/`), así que la corrida no empieza si el reloj de la base y el de la PC no dan la
+misma fecha.
 
-**La línea base vale solo para el año en que se tomó**: con otro año, las filas del seed quedan en un
-ciclo cerrado y cambian los resultados que dependen de ellas. El informe lo advierte.
+`TEST_TODAY=AAAA-MM-DD npm test` congela la fecha: reemplaza `fn_fecha_actual()` en la plantilla de la
+corrida, antes de cargar el seed (que así carga el ciclo de esa fecha), y en cada copia, nunca en la
+base del `.env`. Hasta las partes 01 y 02, el backend y el renderer siguen con su propio reloj para el
+ciclo, así que una fecha de otro año solo sirve para la capa `db` (`npm test -- --layer db`; en
+PowerShell, `$env:TEST_TODAY = 'AAAA-MM-DD'` antes de correrla).
 
-La suite está preparada para congelar la fecha: cuando se implemente la única fuente que propone
-`notas/restricciones/ciclo-lectivo.txt` (una función de la base que dé la fecha y el año actuales),
-completar `SINGLE_SOURCE` en `lib/clock.js` con su nombre. Desde entonces `TEST_TODAY=AAAA-MM-DD
-npm test` reemplaza esa función en cada base de prueba (nunca en la del `.env`). Hasta entonces,
-`TEST_TODAY` hace que la corrida no empiece.
+**La línea base vale para el año en que se tomó**, y el informe advierte cuando la corrida es de otro:
+el seed ya no queda en un ciclo cerrado, porque carga el de la fecha de la corrida, pero cambian los
+resultados que dependen del día (por ejemplo, cuántas evaluaciones del seed ya tienen calificaciones).
 
 ## Escribir y mantener pruebas
 
@@ -163,7 +169,12 @@ group('main.secretary.enrollments', 'Secretario: inscripciones', {
   forma de tabla van como datos (`main/permissions.table.js`, `ui/views.table.js`).
 - **Datos propios**: todo lo que una prueba crea, edita o da de baja sale de `lib/fixtures.js` o de la
   propia prueba; del seed solo se leen catálogos, instituciones y los usuarios para iniciar sesión.
-- **Fechas**: siempre `t.today` y `t.year` (de la base), nunca `new Date()`.
+- **Fechas**: siempre `t.today` y `t.year` (de la base), nunca `new Date()`; en SQL, `fn_fecha_actual()`
+  y no `CURRENT_DATE`, que no respeta `TEST_TODAY`.
+- **Otros ciclos lectivos**: la base solo acepta datos del ciclo actual, así que los de un ciclo
+  cerrado se crean con `fixtures.inSchoolYear(año, () => …)`, que los carga como en ese año y
+  confirma. Los de un ciclo futuro no deben quedar: se crean con `fixtures.asOfSchoolYear` dentro de
+  una transacción que la prueba deshace (`db/school-year.test.js`).
 
 ### Reglas para los planes
 
@@ -228,4 +239,6 @@ las vistas y el error de `modal-resize.js`.
 - La foto de perfil (subida y recorte en `avatar-editor`): solo se usa sin foto.
 - La vista Reportes del Secretario y los botones sin función todavía (solo se comprueba que cargan).
 - La apariencia (medidas, colores, capturas comparadas): las capturas solo se guardan para depurar.
-- Fechas de otros años y el cambio de año, hasta que exista la única fuente de la fecha.
+- Fechas de otros años y el cambio de año en las capas `main`, `ui` y `startup`: hasta las partes 01 y
+  02 de `plans/ciclo-lectivo/`, el backend y el renderer usan su propio reloj y `TEST_TODAY` solo
+  congela la base, así que con otro año solo sirve la capa `db`.

@@ -2,8 +2,10 @@
 // las filas del seed (catálogos, instituciones, usuarios para iniciar sesión) pero no las modifican:
 // todo lo que una prueba crea, edita o da de baja sale de acá o de la propia prueba.
 // Los datos cumplen las reglas del esquema (los triggers no se desactivan) y las del formulario, con
-// fechas calculadas a partir de "hoy" según la base (clock.js), así sirven en cualquier año.
+// fechas calculadas a partir de "hoy" según la base (clock.js), así sirven en cualquier año. Los de
+// otro ciclo lectivo, que la base solo acepta en el actual, se crean con inSchoolYear.
 const { PATHS } = require('../config');
+const { SINGLE_SOURCE, replaceTodaySql } = require('./clock');
 
 const bcrypt = require(require.resolve('bcrypt', { paths: [PATHS.root] }));
 
@@ -236,6 +238,44 @@ class Fixtures {
       [evaluationId, enrollmentId, value]
     );
     return row.calificacion_id;
+  }
+
+  // Datos de otro ciclo lectivo (`year`) que cumplen todas las reglas, cargados como en ese año: en
+  // una transacción del cliente de la suite, corre `create()` con la fecha actual de la base y
+  // this.today y this.year en el 15 de junio de `year` (así los métodos de esta clase crean datos de
+  // ese ciclo), y después restaura la definición original de la fecha y confirma. Si algo falla, se
+  // deshace todo. Ninguna otra sesión ve la fecha cambiada. Devuelve lo que devuelve `create()`.
+  // Sirve para los datos de un ciclo cerrado; los de uno futuro no deben quedar: ver asOfSchoolYear.
+  async inSchoolYear(year, create) {
+    await this.db.query('BEGIN');
+    try {
+      const result = await this.asOfSchoolYear(year, create);
+      await this.db.query('COMMIT');
+      return result;
+    } catch (error) {
+      await this.db.query('ROLLBACK');
+      throw error;
+    }
+  }
+
+  // Lo mismo que inSchoolYear, pero dentro de una transacción que abrió quien llama, que decide si se
+  // confirma o se deshace (los datos de un ciclo futuro, que se crean y se deshacen). Si `create()`
+  // falla, la fecha queda cambiada hasta que esa transacción se deshaga.
+  async asOfSchoolYear(year, create) {
+    const { definition } = await this.one(
+      `SELECT pg_get_functiondef('${SINGLE_SOURCE.today}()'::regprocedure) AS definition`);
+    const current = { today: this.today, year: this.year };
+    this.today = `${year}-06-15`;
+    this.year = year;
+    try {
+      await this.db.query(replaceTodaySql(this.today));
+      const result = await create();
+      await this.db.query(definition);
+      return result;
+    } finally {
+      this.today = current.today;
+      this.year = current.year;
+    }
   }
 
   // Escenario completo del Profesor: un profesor propio con un curso del ciclo actual, una

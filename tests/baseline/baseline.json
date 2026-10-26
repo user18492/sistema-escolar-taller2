@@ -1,13 +1,16 @@
 {
   "version": 1,
-  "takenAt": "2026-10-25T18:20:49.771Z",
-  "commit": "e3247ea655a02fa250930b579976cb30b2f3c496",
+  "takenAt": "2026-10-26T12:39:38.702Z",
+  "commit": "f5aab81cfcdc26d9d0045e276b67c830d3a047d4",
   "branch": "restricciones",
-  "dirty": false,
+  "dirty": true,
   "changedFiles": [
-    "package.json"
+    "db/schema.sql",
+    "db/seed.sql",
+    "src/main/repositories/enrollment.repository.js",
+    "src/main/services/enrollment.service.js"
   ],
-  "today": "2026-10-25",
+  "today": "2026-10-26",
   "year": 2026,
   "environment": {
     "node": "24.19.0",
@@ -144,10 +147,10 @@
     "db.courses.course-checks": {
       "layer": "db",
       "status": "pass",
-      "hash": "838f6edeea3f",
+      "hash": "6c756bfb9218",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "db.courses.course-unique-among-current": {
@@ -162,10 +165,10 @@
     "db.courses.course-locked-by-dependents": {
       "layer": "db",
       "status": "pass",
-      "hash": "e6450dbf9694",
+      "hash": "a9ae612d8e6c",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "db.courses.assignment-coherence": {
@@ -239,10 +242,10 @@
     "db.enrollments.enrollment-coherence": {
       "layer": "db",
       "status": "pass",
-      "hash": "1e3cd31b213e",
+      "hash": "02cd6e707ad0",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "db.enrollments.one-active": {
@@ -422,13 +425,76 @@
     "db.schema.seed-content": {
       "layer": "db",
       "status": "pass",
-      "hash": "0ca4da9ea62d",
+      "hash": "015d36a3e7bb",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "db.schema.invariants": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
       "knownFailure": null
     },
-    "db.schema.invariants": {
+    "db.school-year.current-date": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "cad904d624f7",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.school-year.closed-read-only": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "93e7f995d9ca",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.school-year.move-to-closed": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "28b03d79108f",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.school-year.future": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "efdbe7dea3f4",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.school-year.closing-exception": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "a1be91d0079d",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.school-year.close-procedure": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "efc1180e5a60",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.school-year.invariants": {
       "layer": "db",
       "status": "pass",
       "hash": "d97564bc2bbc",
@@ -1804,7 +1870,7 @@
       "inscripcion.alumno_id": "5c30c1573b1ac1d49a3567ff67260296",
       "inscripcion.curso_id": "5c30c1573b1ac1d49a3567ff67260296",
       "inscripcion.fecha_eliminacion": "a6de39030547f1fcf57f463376f7d7c3",
-      "inscripcion.fecha_inscripcion": "a76215f6f1259341f15bff41abe2373a",
+      "inscripcion.fecha_inscripcion": "32d4523e93094d5c87dee37d56d6d1af",
       "inscripcion.inscripcion_estado_id": "5c30c1573b1ac1d49a3567ff67260296",
       "inscripcion.inscripcion_id": "75063d5f741c08e7083196e63929a15b",
       "institucion.cuit": "11ac1aaeee5b5be8ed2666cfc6cc023c",
@@ -1939,15 +2005,20 @@
     "triggers": {
       "trg_alumno_inscripciones": "e42f1cce62984f2a107f9774eb874be9",
       "trg_asignacion_docente_calificaciones_vigentes": "6a92c73f2a9d43aa64c62655826b9940",
+      "trg_asignacion_docente_ciclo_lectivo": "520dcd30720dfb031a35521cb4f7fbc1",
       "trg_asignacion_docente_coherencia": "6487fdd95a68021dbd7337c5fbf5fa7d",
       "trg_asignacion_docente_evaluaciones_vigentes": "dd73b4f5ca866870cdd5157066eeca00",
+      "trg_calificacion_ciclo_lectivo": "91574a791b6abb41d6e1bb71d87420cc",
       "trg_calificacion_coherencia": "a2394f50d36c9fa6aca3336d957b92b6",
       "trg_curso_asignaciones_vigentes": "714d12fe786e4f0f1632cecd6666ed0a",
+      "trg_curso_ciclo_lectivo": "c6995f295b17e6729c2c93f5f71496a2",
       "trg_curso_evaluaciones_vigentes": "11be18cd6a33df924b6ea3acc6feb8c5",
       "trg_curso_inscripciones": "5eb0f9cb35afd4da69a8c9339886ae07",
       "trg_evaluacion_calificaciones_vigentes": "48cfb24e61a7b6b218c6e908946d3eb4",
+      "trg_evaluacion_ciclo_lectivo": "e16b4050625d245d1377d2acf7b2949a",
       "trg_evaluacion_fecha_ciclo_lectivo": "2384b21c33d3497200bc94dfff941680",
       "trg_inscripcion_calificaciones_vigentes": "985018458d35478004b3632caf9357ea",
+      "trg_inscripcion_ciclo_lectivo": "eadfffb57b636b836a771a6883e7d303",
       "trg_inscripcion_coherencia": "4ed211d6e49957eba321ac4215d7e168",
       "trg_inscripcion_fecha_ciclo_lectivo": "a9f5e2142931b2994870f4d8650f4e15",
       "trg_usuario_asignaciones_vigentes": "d5282f7c626a7f6fd653fe9395074d01",
@@ -1956,16 +2027,24 @@
     },
     "functions": {
       "fn_alumno_inscripciones()": "7257ffcef80d3368e7f03050d65b21db",
+      "fn_anio_ciclo_lectivo_actual()": "022a2c698204d62d15b52302336c26e3",
       "fn_asignacion_docente_calificaciones_vigentes()": "6d0b70809c221f4569d22b6e5ba8dc79",
+      "fn_asignacion_docente_ciclo_lectivo()": "a7742449dce74c6a79e00aabe9fd33fb",
       "fn_asignacion_docente_coherencia()": "81443559c1aa3c2356343cf3580c199e",
       "fn_asignacion_docente_evaluaciones_vigentes()": "947434d531ab94eeedc64578d988604b",
+      "fn_calificacion_ciclo_lectivo()": "0b862df14d069da6a2becbd9d3422125",
       "fn_calificacion_coherencia()": "e724e825460127f3dc769fcfc1c1f36a",
+      "fn_ciclo_lectivo_estado(p_anio integer)": "c60cb6c60d85f8d87a99480f49bee9c3",
       "fn_curso_asignaciones_vigentes()": "c9a75078acb975690736b5990c5e88ab",
+      "fn_curso_ciclo_lectivo()": "43f4f8e537ea04d59fa1d3fd3ded4ae6",
       "fn_curso_evaluaciones_vigentes()": "80a727e252b223e94e1e7ce605c79243",
       "fn_curso_inscripciones()": "580e977bdbae90a3b77fbf3f4119d865",
       "fn_evaluacion_calificaciones_vigentes()": "c7aa6e410139e2fd2d43189c5b648b4f",
+      "fn_evaluacion_ciclo_lectivo()": "9dc18266aa9bbbc54c2e7c0e0d3213f3",
       "fn_evaluacion_fecha_ciclo_lectivo()": "a77b259cb5f8e27d2d32603642cd0091",
+      "fn_fecha_actual()": "cd69e9a211ca93ea8fe666ab6c82fe02",
       "fn_inscripcion_calificaciones_vigentes()": "79b34b87dd6abdc7d791886acab7ed44",
+      "fn_inscripcion_ciclo_lectivo()": "06b9c593cd527f9c9ebe114fd54a8d0f",
       "fn_inscripcion_coherencia()": "48cdb710b76094a8269e9cfa07464c1c",
       "fn_inscripcion_fecha_ciclo_lectivo()": "9f6cc5161d053f82e11f04021c884192",
       "fn_usuario_asignaciones_vigentes()": "7e9d4390a8a045cdace2beec3d31768b",
@@ -1973,7 +2052,8 @@
       "fn_usuario_ultimo_administrador()": "70c9b4d4f4efaa31f01cdac94d06586c"
     },
     "procedures": {
-      "sp_alumno_dar_de_baja(IN p_alumno_id integer, IN p_institucion_id integer, OUT p_inscripciones_canceladas integer)": "542db928c3c702246317fbb59b1f8bf6"
+      "sp_alumno_dar_de_baja(IN p_alumno_id integer, IN p_institucion_id integer, OUT p_inscripciones_canceladas integer)": "542db928c3c702246317fbb59b1f8bf6",
+      "sp_inscripcion_finalizar_ciclos_cerrados(OUT p_inscripciones_finalizadas integer)": "f9720fea0e4607e471c23ea718845013"
     }
   }
 }

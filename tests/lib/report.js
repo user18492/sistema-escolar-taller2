@@ -195,7 +195,7 @@ function formatReport(report, catalog) {
   else {
     lines.push(`  línea base del commit ${report.baselineInfo.commit} (${report.baselineInfo.takenAt.slice(0, 10)})`);
     if (report.baselineInfo.year !== Number(runInfo.today.slice(0, 4))) {
-      lines.push(`  ⚠ La línea base se tomó en ${report.baselineInfo.year}: con otro año el seed queda en un ciclo cerrado y la comparación no vale (ver README).`);
+      lines.push(`  ⚠ La línea base se tomó en ${report.baselineInfo.year}: con otro año cambian los resultados que dependen de la fecha (ver README).`);
     }
     lines.push(`  regresiones: ${cmp.regressions.length ? cmp.regressions.join(', ') : 'ninguna'}`);
     if (cmp.planExpected?.length) lines.push(`  cambios esperables del plan en curso: ${cmp.planExpected.join(', ')}`);
