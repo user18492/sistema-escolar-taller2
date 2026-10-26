@@ -22,7 +22,10 @@ group('main.admin.users', 'Administrador: usuarios', {
     const assignedTeacher = await fixtures.createUser({ role: 'PROFESOR' });
     const course = await fixtures.createCourse();
     await fixtures.assign({ teacherId: assignedTeacher.id, courseId: course.id });
-    return { deletedSecretary, teacher, secretary, assignedTeacher, adminId: await fixtures.seedUserId('admin') };
+    const closedTeacher = await fixtures.createUser({ role: 'PROFESOR' });
+    const closedAssignment = await fixtures.inSchoolYear(fixtures.year - 1, async () =>
+      fixtures.assign({ teacherId: closedTeacher.id, courseId: (await fixtures.createCourse()).id }));
+    return { deletedSecretary, teacher, secretary, assignedTeacher, closedTeacher, closedAssignment, adminId: await fixtures.seedUserId('admin') };
   },
 }, () => {
   test('list', 'El listado trae a los demás usuarios de la institución, vigentes y dados de baja', async (t) => {
@@ -93,6 +96,16 @@ group('main.admin.users', 'Administrador: usuarios', {
     await t.login('admin');
     await t.rejects('USER_HAS_TEACHER_ASSIGNMENTS', 'users.delete', t.data.assignedTeacher.id);
     t.equal(await t.sqlOne(`SELECT fecha_eliminacion FROM usuario WHERE usuario_id = $1`, [t.data.assignedTeacher.id]), { fecha_eliminacion: null }, 'Sigue vigente');
+    await t.logout();
+  });
+
+  test('delete-teacher-closed-school-year', 'Un profesor con asignaciones vigentes solo de un ciclo cerrado se da de baja, y ellas siguen vigentes a su nombre', async (t) => {
+    const { closedTeacher, closedAssignment } = t.data;
+    await t.login('admin');
+    await t.ok('users.delete', closedTeacher.id);
+    t.equal(await t.sqlOne(`SELECT estado, fecha_eliminacion IS NOT NULL AS baja FROM usuario WHERE usuario_id = $1`, [closedTeacher.id]), { estado: false, baja: true }, 'Dado de baja y suspendido');
+    t.equal(await t.sqlOne(`SELECT usuario_id, fecha_eliminacion FROM asignacion_docente WHERE asignacion_docente_id = $1`, [closedAssignment.id]),
+      { usuario_id: closedTeacher.id, fecha_eliminacion: null }, 'La asignación del ciclo cerrado sigue vigente a su nombre');
     await t.logout();
   });
 });
@@ -238,14 +251,20 @@ group('main.admin.assignments', 'Administrador: asignaciones docentes', {
     await t.logout();
   });
 
-  test('update-keeps-suspended-teacher', 'Hoy la edición conserva al profesor de la asignación aunque esté suspendido', {
-    kind: 'current',
-    affectedBy: ['administrador-docencia', 'administrador-usuarios'],
+  test('update-keeps-suspended-teacher', 'La edición no conserva al profesor de la asignación si está suspendido: hay que reemplazarlo por uno activo', {
+    history: [{ plan: 'plans/administrador-usuarios.md', date: '2026-10-26', change: 'Conservar a un profesor suspendido ya no se acepta: ahora espera TEACHER_NOT_AVAILABLE sin cambiar la fila, y reemplazarlo por otro activo se guarda' }],
   }, async (t) => {
-    const { keptTeacher, keptAssignment } = t.data;
+    const { keptTeacher, keptAssignment, otherTeacher } = t.data;
     await t.db.query(`UPDATE usuario SET estado = false WHERE usuario_id = $1`, [keptTeacher.id]);
     await t.login('admin');
-    await t.ok('teacherAssignments.update', keptAssignment.id, { teacherId: keptTeacher.id, courseId: keptAssignment.courseId, subjectId: keptAssignment.subjectId });
+    const data = (teacherId) => ({ teacherId, courseId: keptAssignment.courseId, subjectId: keptAssignment.subjectId });
+    const row = () => t.sqlOne(`
+      SELECT usuario_id, curso_id, grado_materia_id, fecha_eliminacion FROM asignacion_docente WHERE asignacion_docente_id = $1`, [keptAssignment.id]);
+    const before = await row();
+    await t.rejects('TEACHER_NOT_AVAILABLE', 'teacherAssignments.update', keptAssignment.id, data(keptTeacher.id));
+    t.equal(await row(), before, 'La asignación no cambió');
+    await t.ok('teacherAssignments.update', keptAssignment.id, data(otherTeacher.id));
+    t.equal(await row(), { ...before, usuario_id: otherTeacher.id }, 'La asignación quedó con el profesor activo, con su curso y su materia');
     await t.logout();
   });
 

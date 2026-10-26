@@ -45,7 +45,10 @@ listo o la suite misma falló.
    corta y las pruebas que faltaban se informan como "sin resultado".
 4. **Cada grupo de pruebas trabaja sobre una copia limpia** de esa base (`CREATE DATABASE … TEMPLATE`),
    crea sus propios datos (`lib/fixtures.js`) y solo lee las filas del seed. Al cerrar el grupo se
-   comprueban las invariantes de datos (`lib/invariants.js`).
+   comprueban las invariantes de datos (`lib/invariants.js`). `plans/administrador-usuarios.md`
+   relajó `asignacion-coherente`: el profesor vigente se exige solo en las asignaciones de un
+   ciclo que no está cerrado, porque las de uno cerrado quedan en el histórico con el profesor
+   eliminado.
 5. **Borra todas las bases** al terminar (salvo `--keep-db`), muestra el resumen, guarda los
    resultados en `tests/results/` y los compara con la línea base.
 
@@ -60,7 +63,7 @@ hubo fallas). La línea base (`tests/baseline/baseline.json`) sí se versiona.
 |---|---|---|
 | `db` | node | El esquema y el seed cargan sin errores ni avisos; convenciones de nombres; toda restricción que nombra `src/main` existe; inventario de tablas, columnas, restricciones, índices, triggers, funciones y procedimientos; reglas de triggers y restricciones (cada intento en una transacción que se deshace); bloqueos con dos sesiones; guardas de seguridad de la suite. |
 | `main` | Electron con `src/main` real | Cada función de `window.api` tiene su canal y su handler; matriz de permisos de todos los canales por rol y sin sesión (`main/permissions.table.js`); un caso de uso completo de cada rol por la API del preload, comprobado en la base; flujo mínimo por IPC; controles de la ventana; pruebas que provocan fallas para confirmar la detección. |
-| `ui` | Electron con `src/main` real | Pocos flujos con mouse y teclado reales: el flujo mínimo, el login (elección de cuenta, cuenta recordada, credenciales inválidas, sesión cortada); recorrido de todas las vistas de cada rol (`ui/views.table.js`) y bloqueo de las vistas de otro rol; lo de un ciclo lectivo cerrado en solo lectura; bugs conocidos. |
+| `ui` | Electron con `src/main` real | Pocos flujos con mouse y teclado reales: el flujo mínimo, el login (elección de cuenta, cuenta recordada, credenciales inválidas, sesión cortada); recorrido de todas las vistas de cada rol (`ui/views.table.js`) y bloqueo de las vistas de otro rol; lo de un ciclo lectivo cerrado en solo lectura; la edición en Docencia de una asignación de un profesor suspendido, que hay que reemplazar; bugs conocidos. |
 | `startup` | node, que lanza `main.js` real | Arranque con la base caída o inexistente (diálogo y cierre), arranque normal (ventana, ✕ que oculta, bandeja y Salir), cierre de los ciclos lectivos vencidos al arrancar y base que deja de responder con la app abierta. |
 
 El **flujo general mínimo** (`--minimal`) encadena los tres roles, por IPC (`main/minimal-flow.test.js`)

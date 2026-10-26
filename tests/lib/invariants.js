@@ -42,14 +42,17 @@ module.exports = [
   },
   {
     id: 'asignacion-coherente',
-    description: 'Toda asignación vigente es de un profesor vigente de la institución del curso, con una materia del grado del curso',
+    description: 'Toda asignación vigente es de un profesor de la institución del curso, con una materia del grado del curso; el profesor está vigente salvo en las de un ciclo lectivo cerrado',
+    // Relajada por plans/administrador-usuarios.md: las de un ciclo cerrado quedan en el histórico
+    // con el profesor eliminado
     sql: `SELECT a.asignacion_docente_id FROM asignacion_docente a
            JOIN usuario u ON u.usuario_id = a.usuario_id
            JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
            JOIN curso c ON c.curso_id = a.curso_id
            JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
           WHERE a.fecha_eliminacion IS NULL
-            AND (r.nombre <> 'PROFESOR' OR u.fecha_eliminacion IS NOT NULL
+            AND (r.nombre <> 'PROFESOR'
+                 OR (u.fecha_eliminacion IS NOT NULL AND c.anio_ciclo_lectivo >= EXTRACT(YEAR FROM fn_fecha_actual()))
                  OR u.institucion_id <> c.institucion_id OR gm.grado_id <> c.grado_id)`,
   },
   {

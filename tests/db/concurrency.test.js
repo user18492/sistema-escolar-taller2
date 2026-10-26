@@ -1,6 +1,6 @@
 // Capa de base de datos: dos sesiones a la vez. Las reglas que dependen de otras filas (una sola
-// inscripción activa, el último administrador) se sostienen con bloqueos de fila: la segunda
-// operación espera a la primera y, al seguir, ya la ve.
+// inscripción activa, el último administrador, el profesor activo de una asignación) se sostienen
+// con bloqueos de fila: la segunda operación espera a la primera y, al seguir, ya la ve.
 const { group, test } = require('../lib/framework');
 const { connectSuite } = require('../lib/pg-admin');
 const { isPending } = require('../lib/sql');
@@ -18,7 +18,9 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     const institution = await fixtures.createInstitution();
     const adminA = await fixtures.createUser({ institutionId: institution.id, role: 'ADMIN' });
     const adminB = await fixtures.createUser({ institutionId: institution.id, role: 'ADMIN' });
-    return { courseA, courseB, student, adminA, adminB };
+    const teacher = await fixtures.createUser({ role: 'PROFESOR' });
+    const assignment = await fixtures.assign({ teacherId: teacher.id, courseId: (await fixtures.createCourse()).id });
+    return { courseA, courseB, student, adminA, adminB, teacher, assignment };
   },
 }, () => {
   test('one-active-enrollment', 'Dos inscripciones activas simultáneas del mismo alumno: la segunda espera y se rechaza', async (t) => {
@@ -70,5 +72,28 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     }
     // Vuelve a dejar activo al primero para las invariantes del grupo
     await t.db.query(`UPDATE usuario SET estado = true WHERE usuario_id = $1`, [adminA.id]);
+  });
+
+  test('suspended-teacher-assignment', 'Se suspende al profesor mientras se edita su asignación: la edición espera y se rechaza', async (t) => {
+    const { teacher, assignment } = t.data;
+    const other = await second(t);
+    let committed = false;
+    try {
+      await t.db.query('BEGIN');
+      await t.db.query(`UPDATE usuario SET estado = false WHERE usuario_id = $1`, [teacher.id]);
+      await other.query('BEGIN');
+      const pending = other.query(`UPDATE asignacion_docente SET usuario_id = usuario_id WHERE asignacion_docente_id = $1`, [assignment.id])
+        .then(() => ({ ok: true }), (error) => ({ ok: false, constraint: error.constraint }));
+      t.check(await isPending(pending), 'La edición no esperó el bloqueo del profesor');
+      await t.db.query('COMMIT');
+      committed = true;
+      const result = await pending;
+      t.check(!result.ok && result.constraint === 'ck_asignacion_docente_usuario_activo', 'La edición no se rechazó', result);
+      await other.query('ROLLBACK');
+    } finally {
+      if (!committed) await t.db.query('ROLLBACK').catch(() => {});
+      await other.end();
+    }
+    t.equal(await t.sqlOne(`SELECT estado FROM usuario WHERE usuario_id = $1`, [teacher.id]), { estado: false }, 'El profesor quedó suspendido');
   });
 });

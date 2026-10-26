@@ -29,7 +29,15 @@ group('db.users', 'Reglas de usuario', {
     const teacher = await fixtures.createUser({ role: 'PROFESOR' });
     const course = await fixtures.createCourse();
     await fixtures.assign({ teacherId: teacher.id, courseId: course.id });
-    return { institution, onlyAdmin, teacher, sm: await fixtures.institutionId(SEED_INSTITUTIONS.SM) };
+    // Un profesor con una sola asignación vigente, de un ciclo cerrado, y un curso del ciclo actual
+    // sin asignaciones para sumarle otra
+    const closedTeacher = await fixtures.createUser({ role: 'PROFESOR' });
+    await fixtures.inSchoolYear(fixtures.year - 1, async () => {
+      const closedCourse = await fixtures.createCourse();
+      await fixtures.assign({ teacherId: closedTeacher.id, courseId: closedCourse.id });
+    });
+    const emptyCourse = await fixtures.createCourse();
+    return { institution, onlyAdmin, teacher, closedTeacher, emptyCourse, sm: await fixtures.institutionId(SEED_INSTITUTIONS.SM) };
   },
 }, () => {
   test('format-checks', 'Formato de los datos: dado de baja suspendido, email en minúsculas, dni y hash bcrypt', async (t) => {
@@ -85,6 +93,21 @@ group('db.users', 'Reglas de usuario', {
     }, 'ck_usuario_asignaciones_vigentes');
     await passes(t, 'suspensión con asignación vigente', { sql: `UPDATE usuario SET estado = false WHERE usuario_id = $1`, params: [teacher.id] });
   });
+
+  test('teacher-closed-school-year', 'Las asignaciones vigentes de un ciclo cerrado no impiden la baja del profesor; una del ciclo actual sí', async (t) => {
+    const { closedTeacher, emptyCourse } = t.data;
+    const markAsDeleted = { sql: `UPDATE usuario SET estado = false, fecha_eliminacion = now() WHERE usuario_id = $1`, params: [closedTeacher.id] };
+    await passes(t, 'baja con una asignación vigente de un ciclo cerrado', markAsDeleted);
+    await rejects(t, 'baja con otra asignación vigente del ciclo actual', [
+      {
+        sql: `INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
+              SELECT $1, c.curso_id, gm.grado_materia_id FROM curso c JOIN grado_materia gm ON gm.grado_id = c.grado_id
+               WHERE c.curso_id = $2 ORDER BY gm.grado_materia_id LIMIT 1`,
+        params: [closedTeacher.id, emptyCourse.id],
+      },
+      markAsDeleted,
+    ], 'ck_usuario_asignaciones_vigentes');
+  });
 });
 
 group('db.courses', 'Reglas de cursos y asignaciones docentes', {
@@ -93,6 +116,7 @@ group('db.courses', 'Reglas de cursos y asignaciones docentes', {
     const secretary = await fixtures.createUser({ role: 'SECRETARIO' });
     const deletedTeacher = await fixtures.createUser({ role: 'PROFESOR', deleted: true });
     const suspendedTeacher = await fixtures.createUser({ role: 'PROFESOR', active: false });
+    const otherTeacher = await fixtures.createUser({ role: 'PROFESOR' });
     const otherInstitution = await fixtures.createInstitution();
     const foreignTeacher = await fixtures.createUser({ institutionId: otherInstitution.id, role: 'PROFESOR' });
     const course = await fixtures.createCourse();
@@ -106,7 +130,7 @@ group('db.courses', 'Reglas de cursos y asignaciones docentes', {
     await fixtures.enroll({ studentId: student.id, courseId: enrolledCourse.id });
     const otherGrade = await fixtures.gradeId('PRIMARIA', '1°');
     const otherGradeSubject = (await fixtures.subjectsOfGrade(otherGrade))[0];
-    return { teacher, secretary, deletedTeacher, suspendedTeacher, foreignTeacher, course, assignment, emptyCourse,
+    return { teacher, secretary, deletedTeacher, suspendedTeacher, otherTeacher, foreignTeacher, course, assignment, emptyCourse,
       evaluatedCourse, evaluatedAssignment, enrolledCourse, otherGrade, otherGradeSubject };
   },
 }, () => {
@@ -189,16 +213,24 @@ group('db.courses', 'Reglas de cursos y asignaciones docentes', {
     ]);
   });
 
-  test('assignment-suspended-teacher', 'Hoy la base acepta una asignación vigente de un profesor suspendido', {
-    kind: 'current',
-    affectedBy: ['administrador-usuarios', 'administrador-docencia'],
+  test('assignment-suspended-teacher', 'Una asignación vigente no se crea ni se edita con un profesor suspendido, aunque sea el que ya tiene; sí se da de baja o se le cambia el profesor', {
+    history: [{ plan: 'plans/administrador-usuarios.md', date: '2026-10-26', change: 'La base ya no acepta a un profesor suspendido en una asignación vigente: el alta, la edición que lo conserva y el cambio a uno suspendido esperan ck_asignacion_docente_usuario_activo; la baja lógica y el cambio a uno activo pasan' }],
   }, async (t) => {
-    await passes(t, 'asignación de un profesor suspendido', {
+    const { suspendedTeacher, otherTeacher, teacher, assignment, emptyCourse } = t.data;
+    const suspend = { sql: `UPDATE usuario SET estado = false WHERE usuario_id = $1`, params: [teacher.id] };
+    const updateAssignment = (set, params = []) => ({
+      sql: `UPDATE asignacion_docente SET ${set} WHERE asignacion_docente_id = $1`, params: [assignment.id, ...params],
+    });
+    await rejects(t, 'alta con un profesor suspendido', {
       sql: `INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
             SELECT $1, c.curso_id, gm.grado_materia_id FROM curso c JOIN grado_materia gm ON gm.grado_id = c.grado_id
              WHERE c.curso_id = $2 ORDER BY gm.grado_materia_id DESC LIMIT 1`,
-      params: [t.data.suspendedTeacher.id, t.data.emptyCourse.id],
-    });
+      params: [suspendedTeacher.id, emptyCourse.id],
+    }, 'ck_asignacion_docente_usuario_activo');
+    await rejects(t, 'edición que conserva al profesor después de suspenderlo', [suspend, updateAssignment('usuario_id = usuario_id')], 'ck_asignacion_docente_usuario_activo');
+    await rejects(t, 'cambio a un profesor suspendido', updateAssignment('usuario_id = $2', [suspendedTeacher.id]), 'ck_asignacion_docente_usuario_activo');
+    await passes(t, 'baja lógica de la asignación de un profesor suspendido', [suspend, updateAssignment('fecha_eliminacion = now()')]);
+    await passes(t, 'cambio del profesor suspendido por uno activo', [suspend, updateAssignment('usuario_id = $2', [otherTeacher.id])]);
   });
 });
 

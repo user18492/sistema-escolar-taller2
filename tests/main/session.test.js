@@ -119,7 +119,10 @@ group('main.profile', 'Configuración de perfil de cada rol', {
     const course = await fixtures.createCourse();
     await fixtures.assign({ teacherId: assignedTeacher.id, courseId: course.id });
     const otherSecretary = await fixtures.createUser({ role: 'SECRETARIO' });
-    return { users, onlyAdmin, assignedTeacher, otherSecretary };
+    const closedTeacher = await fixtures.createUser({ role: 'PROFESOR' });
+    const closedAssignment = await fixtures.inSchoolYear(fixtures.year - 1, async () =>
+      fixtures.assign({ teacherId: closedTeacher.id, courseId: (await fixtures.createCourse()).id }));
+    return { users, onlyAdmin, assignedTeacher, otherSecretary, closedTeacher, closedAssignment };
   },
 }, () => {
   test('get-and-update', 'Cada rol lee su perfil de la base y guarda nombre, apellido y contraseña', async (t) => {
@@ -176,5 +179,15 @@ group('main.profile', 'Configuración de perfil de cada rol', {
     t.equal(await t.sqlOne(`SELECT estado, fecha_eliminacion IS NOT NULL AS baja FROM usuario WHERE usuario_id = $1`, [user.id]), { estado: false, baja: true }, 'Cuenta suspendida y dada de baja');
     t.equal(await t.call('auth.getCurrentUser'), null, 'La sesión quedó cerrada');
     await t.rejects('INVALID_CREDENTIALS', 'auth.login', user.email, user.password, false);
+  });
+
+  test('delete-own-account-closed-school-year', 'Un profesor con asignaciones vigentes solo de un ciclo cerrado da de baja su cuenta: la sesión se cierra y ellas siguen vigentes a su nombre', async (t) => {
+    const { closedTeacher, closedAssignment } = t.data;
+    await t.login(closedTeacher);
+    await t.ok('profile.delete');
+    t.equal(await t.sqlOne(`SELECT estado, fecha_eliminacion IS NOT NULL AS baja FROM usuario WHERE usuario_id = $1`, [closedTeacher.id]), { estado: false, baja: true }, 'Cuenta suspendida y dada de baja');
+    t.equal(await t.call('auth.getCurrentUser'), null, 'La sesión quedó cerrada');
+    t.equal(await t.sqlOne(`SELECT usuario_id, fecha_eliminacion FROM asignacion_docente WHERE asignacion_docente_id = $1`, [closedAssignment.id]),
+      { usuario_id: closedTeacher.id, fecha_eliminacion: null }, 'La asignación del ciclo cerrado sigue vigente a su nombre');
   });
 });
