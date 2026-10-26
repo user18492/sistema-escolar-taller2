@@ -173,6 +173,10 @@ const UNIQUE_INDEX = 'uq_asignacion_docente_curso_grado_materia';
 // profesor de una asignación vigente no está dado de baja.
 const DELETED_TEACHER_CONSTRAINT = 'ck_asignacion_docente_usuario_vigente';
 
+// Regla que valida trg_asignacion_docente_ciclo_lectivo, con el nombre que informa (db/schema.sql):
+// una asignación de un curso de un ciclo lectivo cerrado no se crea, no se edita ni se da de baja.
+const CLOSED_SCHOOL_YEAR_CONSTRAINT = 'ck_asignacion_docente_ciclo_lectivo_cerrado';
+
 function toTeacherAssignment(row) {
   return new TeacherAssignment({
     id: row.asignacion_docente_id,
@@ -241,8 +245,9 @@ async function findActiveByIdAndTeacher(teacherAssignmentId, teacherId) {
 // la materia `subjectId` (un materia_id). Devuelve la asignación creada; null si la materia no es
 // del plan de estudios del grado del curso (o el curso no existe). Si esa materia ya tiene un
 // profesor vigente en el curso, PostgreSQL rechaza el alta (ver isDuplicateError), y también si el
-// profesor está dado de baja (ver isDeletedTeacherError). Que el profesor y el curso se puedan
-// elegir lo comprueba el servicio.
+// profesor está dado de baja (ver isDeletedTeacherError) o si el curso es de un ciclo lectivo
+// cerrado (ver isClosedSchoolYearError). Que el profesor y el curso se puedan elegir lo comprueba el
+// servicio.
 async function create({ teacherId, courseId, subjectId }) {
   const { rows } = await query(CREATE_SQL, [teacherId, courseId, subjectId]);
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
@@ -254,8 +259,9 @@ async function create({ teacherId, courseId, subjectId }) {
 // el curso no existe). Si esa materia ya tiene un profesor vigente en el curso con otra asignación,
 // PostgreSQL rechaza el cambio (ver isDuplicateError): la fila no choca consigo misma, así que
 // guardarla con el curso y la materia que ya tenía no es un duplicado. También lo rechaza si el
-// profesor está dado de baja (ver isDeletedTeacherError). Que el profesor y el curso se puedan
-// elegir lo comprueba el servicio.
+// profesor está dado de baja (ver isDeletedTeacherError) o si el curso que tenía o el nuevo es de un
+// ciclo lectivo cerrado (ver isClosedSchoolYearError). Que el profesor y el curso se puedan elegir
+// lo comprueba el servicio.
 async function update(teacherAssignmentId, institutionId, { teacherId, courseId, subjectId }) {
   const { rows } = await query(UPDATE_SQL, [teacherAssignmentId, institutionId, teacherId, courseId, subjectId]);
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
@@ -263,7 +269,8 @@ async function update(teacherAssignmentId, institutionId, { teacherId, courseId,
 
 // Da de baja la asignación, que deja de listarse y de contar para el índice único: su materia se
 // puede volver a asignar en ese curso. Devuelve la asignación dada de baja; null si no existe en la
-// institución o ya estaba dada de baja.
+// institución o ya estaba dada de baja. PostgreSQL rechaza la baja si su curso es de un ciclo
+// lectivo cerrado (ver isClosedSchoolYearError).
 async function markAsDeleted(teacherAssignmentId, institutionId) {
   const { rows } = await query(MARK_AS_DELETED_SQL, [teacherAssignmentId, institutionId]);
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
@@ -286,6 +293,12 @@ function isDeletedTeacherError(error) {
   return error?.code === '23514' && error.constraint === DELETED_TEACHER_CONSTRAINT;
 }
 
+// true si `error` indica que el curso de la asignación es de un ciclo lectivo cerrado: ese ciclo
+// queda en solo lectura.
+function isClosedSchoolYearError(error) {
+  return error?.code === '23514' && error.constraint === CLOSED_SCHOOL_YEAR_CONSTRAINT;
+}
+
 module.exports = {
   findByInstitution,
   findByTeacher,
@@ -298,4 +311,5 @@ module.exports = {
   existsInInstitution,
   isDuplicateError,
   isDeletedTeacherError,
+  isClosedSchoolYearError,
 };

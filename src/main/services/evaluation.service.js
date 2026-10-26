@@ -1,5 +1,6 @@
 const evaluationRepository = require('../repositories/evaluation.repository');
 const teacherAssignmentService = require('./teacher-assignment.service');
+const schoolYearService = require('./school-year.service');
 const { isRealDate, toIsoDate } = require('./user.service');
 
 // Error previsto, con un mensaje apto para la UI (como TeacherAssignmentError en
@@ -118,17 +119,39 @@ async function getOwnAssignmentEvaluation(currentUser, teacherAssignmentId, eval
   return { teacherAssignment, evaluation: toListedEvaluation(evaluation) };
 }
 
+// Lo de un ciclo lectivo cerrado es de solo lectura: en una asignación de un curso de un ciclo
+// anterior al actual no se crean, no se editan ni se dan de baja evaluaciones. `schoolYear` es el
+// ciclo lectivo de ese curso.
+function closedSchoolYearError(schoolYear) {
+  return new EvaluationError('SCHOOL_YEAR_CLOSED', schoolYearService.closedSchoolYearMessage(schoolYear));
+}
+
+// Lanza el EvaluationError SCHOOL_YEAR_CLOSED si el curso de `teacherAssignment` (la de
+// getOwnTeacherAssignment) es de un ciclo lectivo cerrado. Se comprueba apenas se comprueba la
+// asignación, antes de validar el formulario, para que gane a los demás errores; si el ciclo se
+// cierra en el medio, la base rechaza la escritura y ese rechazo se traduce al mismo error.
+async function assertSchoolYearNotClosed(teacherAssignment) {
+  const { schoolYear } = teacherAssignment.course;
+  if (await schoolYearService.isClosedSchoolYear(schoolYear)) {
+    throw closedSchoolYearError(schoolYear);
+  }
+}
+
 // Llama a `save` (el INSERT o el UPDATE) y devuelve su resultado. Si PostgreSQL lo rechaza por un
 // motivo previsto, no se guarda nada y lanza un EvaluationError: DUPLICATE_VALUE, con el mensaje
 // `duplicate.message` y `duplicate.title` en fieldErrors.title, si la asignación ya tiene otra
-// evaluación vigente con ese título, e INVALID_INPUT con fieldErrors.evaluationDate si la fecha no
-// es del ciclo lectivo del curso de la asignación.
-async function saveEvaluation(save, duplicate) {
+// evaluación vigente con ese título, SCHOOL_YEAR_CLOSED si `schoolYear`, el ciclo lectivo del curso
+// de la asignación, se cerró después de comprobarlo, e INVALID_INPUT con fieldErrors.evaluationDate
+// si la fecha no es de ese ciclo lectivo.
+async function saveEvaluation(save, duplicate, schoolYear) {
   try {
     return await save();
   } catch (error) {
     if (evaluationRepository.isDuplicateError(error)) {
       throw new EvaluationError('DUPLICATE_VALUE', duplicate.message, { title: duplicate.title });
+    }
+    if (evaluationRepository.isClosedSchoolYearError(error)) {
+      throw closedSchoolYearError(schoolYear);
     }
     // Otra sesión pasó la asignación a un curso de otro ciclo lectivo después de consultarla: la
     // fecha ya no es del suyo (trg_evaluacion_fecha_ciclo_lectivo, db/schema.sql).
@@ -153,14 +176,22 @@ async function saveEvaluation(save, duplicate) {
 // regla la aplica el índice único de evaluacion al insertar, así que tampoco pasan dos altas
 // simultáneas; una evaluación dada de baja no cuenta.
 // También lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment
-// si la asignación no existe, fue dada de baja o es de otro profesor.
+// si la asignación no existe, fue dada de baja o es de otro profesor, y un EvaluationError
+// SCHOOL_YEAR_CLOSED si su curso es de un ciclo lectivo cerrado, que gana a los errores del
+// formulario.
 async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, data) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
-  const values = parseEvaluationData(data, teacherAssignment.course.schoolYear);
-  const evaluation = await saveEvaluation(() => evaluationRepository.create(teacherAssignment.id, values), {
-    message: 'Ya existe una evaluación con ese título en esta asignación.',
-    title: 'Ya existe una evaluación con este título.',
-  });
+  await assertSchoolYearNotClosed(teacherAssignment);
+  const { schoolYear } = teacherAssignment.course;
+  const values = parseEvaluationData(data, schoolYear);
+  const evaluation = await saveEvaluation(
+    () => evaluationRepository.create(teacherAssignment.id, values),
+    {
+      message: 'Ya existe una evaluación con ese título en esta asignación.',
+      title: 'Ya existe una evaluación con este título.',
+    },
+    schoolYear
+  );
   return toListedEvaluation(evaluation);
 }
 
@@ -178,18 +209,22 @@ async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, d
 // título, un EvaluationError DUPLICATE_VALUE con fieldErrors.title: guardarla sin cambios no es un
 // duplicado y una dada de baja no cuenta.
 // También lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment
-// si la asignación no existe, fue dada de baja o es de otro profesor, y un EvaluationError
-// EVALUATION_NOT_FOUND si la evaluación no existe, fue dada de baja o es de otra asignación, sin
-// distinguir los casos.
+// si la asignación no existe, fue dada de baja o es de otro profesor, un EvaluationError
+// SCHOOL_YEAR_CLOSED si su curso es de un ciclo lectivo cerrado, que gana a los errores siguientes,
+// y un EvaluationError EVALUATION_NOT_FOUND si la evaluación no existe, fue dada de baja o es de
+// otra asignación, sin distinguir los casos.
 async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId, data) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
-  const values = parseEvaluationData(data, teacherAssignment.course.schoolYear);
+  await assertSchoolYearNotClosed(teacherAssignment);
+  const { schoolYear } = teacherAssignment.course;
+  const values = parseEvaluationData(data, schoolYear);
   const evaluation = await saveEvaluation(
     () => evaluationRepository.update(evaluationId, teacherAssignment.id, values),
     {
       message: 'Ya existe otra evaluación con ese título en esta asignación.',
       title: 'Ya existe otra evaluación con este título.',
-    }
+    },
+    schoolYear
   );
   if (!evaluation) throw evaluationNotFoundError();
   return toListedEvaluation(evaluation);
@@ -205,12 +240,21 @@ async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, e
 // (getOwnTeacherAssignment) y la baja solo alcanza a una evaluación de esa asignación.
 // Devuelve la evaluación dada de baja, con los campos de listOwnAssignmentEvaluations. Lanza el
 // TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la asignación
-// no existe, fue dada de baja o es de otro profesor, y un EvaluationError EVALUATION_NOT_FOUND si
-// la evaluación no existe, ya estaba dada de baja o es de otra asignación, sin distinguir los
-// casos.
+// no existe, fue dada de baja o es de otro profesor, un EvaluationError SCHOOL_YEAR_CLOSED si su
+// curso es de un ciclo lectivo cerrado y un EvaluationError EVALUATION_NOT_FOUND si la evaluación no
+// existe, ya estaba dada de baja o es de otra asignación, sin distinguir los casos.
 async function deleteOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
-  const deletedEvaluation = await evaluationRepository.markAsDeleted(evaluationId, teacherAssignment.id);
+  await assertSchoolYearNotClosed(teacherAssignment);
+  let deletedEvaluation;
+  try {
+    deletedEvaluation = await evaluationRepository.markAsDeleted(evaluationId, teacherAssignment.id);
+  } catch (error) {
+    if (evaluationRepository.isClosedSchoolYearError(error)) {
+      throw closedSchoolYearError(teacherAssignment.course.schoolYear);
+    }
+    throw error;
+  }
   if (!deletedEvaluation) throw evaluationNotFoundError();
   return toListedEvaluation(deletedEvaluation);
 }

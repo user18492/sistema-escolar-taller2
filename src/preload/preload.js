@@ -34,9 +34,14 @@ contextBridge.exposeInMainWorld('api', {
     forgetRememberedEmail: () => ipcRenderer.invoke('auth:forget-remembered-email'),
   },
   // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de profile, de users, de
-  // courses, de grades, de teacherAssignments, de students, de enrollments, de evaluations, de scores
-  // y de dashboard resuelven { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el
-  // proceso principal cierra la sesión y vuelve al login.
+  // courses, de grades, de schoolYears, de teacherAssignments, de students, de enrollments, de
+  // evaluations, de scores y de dashboard resuelven
+  // { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal cierra la
+  // sesión y vuelve al login.
+  // Lo de un ciclo lectivo cerrado (uno anterior al actual, el de schoolYears.getCurrent) es de solo
+  // lectura: las operaciones que lo editarían o lo darían de baja resuelven
+  // { ok: false, error: { code: 'SCHOOL_YEAR_CLOSED', message } } sin cambiar nada (cada una lo
+  // indica abajo), antes que los errores de los datos enviados.
   profile: {
     // Cualquier rol. Resuelve { ok: true, profile } con los datos del usuario de la sesión, leídos de
     // la base ({ firstName, lastName, dni, email, birthDate, imageUrl }, con dni solo los dígitos,
@@ -127,14 +132,15 @@ contextBridge.exposeInMainWorld('api', {
     // Resuelve { ok: true, course } con el curso como quedó (mismos campos que list) o
     // { ok: false, error: { code, message, fieldErrors } }: fieldErrors llega si la división no es
     // válida, DUPLICATE_VALUE indica que la institución ya tiene otro curso vigente igual en ese ciclo
-    // lectivo, GRADE_NOT_FOUND, que el grado no está en el catálogo, y COURSE_NOT_FOUND y
-    // COURSE_ALREADY_DELETED, que el curso ya no está vigente.
+    // lectivo, GRADE_NOT_FOUND, que el grado no está en el catálogo, COURSE_NOT_FOUND y
+    // COURSE_ALREADY_DELETED, que el curso ya no está vigente, y SCHOOL_YEAR_CLOSED, que es de un
+    // ciclo lectivo cerrado.
     update: (courseId, data) => ipcRenderer.invoke('courses:update', courseId, data),
     // Solo ADMIN. Baja lógica del curso con ese id (curso_id) de su institución: deja de listarse y su
     // grado, división y turno se pueden volver a crear en ese ciclo lectivo. Resuelve
     // { ok: true, course } con el curso dado de baja (mismos campos que list) o
     // { ok: false, error: { code, message } }; COURSE_NOT_FOUND y COURSE_ALREADY_DELETED indican que ya
-    // no está vigente.
+    // no está vigente, y SCHOOL_YEAR_CLOSED, que es de un ciclo lectivo cerrado.
     delete: (courseId) => ipcRenderer.invoke('courses:delete', courseId),
   },
   grades: {
@@ -143,6 +149,14 @@ contextBridge.exposeInMainWorld('api', {
     // entre niveles, y educationLevel 'PRIMARY' o 'SECONDARY'), o { ok: false, error: { code, message } }.
     // Llegan siempre en el mismo orden: nivel educativo (primaria antes que secundaria) y grado.
     list: () => ipcRenderer.invoke('grades:list'),
+  },
+  schoolYears: {
+    // ADMIN, SECRETARIO y PROFESOR. Resuelve { ok: true, schoolYear } con el ciclo lectivo actual, el
+    // mismo para todas las instituciones ({ year, today }, con year el año del ciclo lectivo y today
+    // la fecha del día, 'AAAA-MM-DD', los dos según la base de datos y no según el reloj de la PC),
+    // o { ok: false, error: { code, message } }. Los ciclos anteriores a `year` están cerrados: lo
+    // suyo es de solo lectura (SCHOOL_YEAR_CLOSED, más arriba).
+    getCurrent: () => ipcRenderer.invoke('school-years:get-current'),
   },
   teacherAssignments: {
     // Solo ADMIN. Resuelve { ok: true, teacherAssignments } con las asignaciones docentes vigentes de su
@@ -201,13 +215,15 @@ contextBridge.exposeInMainWorld('api', {
     // quedó (mismos campos que list) o { ok: false, error: { code, message, fieldErrors } }, sin
     // guardar nada, con los códigos de create: DUPLICATE_VALUE indica que la materia ya tiene un
     // profesor en ese curso con otra asignación (guardarla sin cambios no es un duplicado). Además,
-    // TEACHER_ASSIGNMENT_NOT_FOUND y TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente.
+    // TEACHER_ASSIGNMENT_NOT_FOUND y TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente,
+    // y SCHOOL_YEAR_CLOSED, que su curso es de un ciclo lectivo cerrado.
     update: (teacherAssignmentId, data) => ipcRenderer.invoke('teacher-assignments:update', teacherAssignmentId, data),
     // Solo ADMIN. Baja lógica de la asignación docente con ese id (asignacion_docente_id) de su
     // institución: deja de listarse y su materia vuelve a estar entre las de listAssignableSubjects
     // para ese curso. Resuelve { ok: true, teacherAssignment } con la asignación dada de baja (mismos
     // campos que list) o { ok: false, error: { code, message } }; TEACHER_ASSIGNMENT_NOT_FOUND y
-    // TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente.
+    // TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente, y SCHOOL_YEAR_CLOSED, que su
+    // curso es de un ciclo lectivo cerrado.
     delete: (teacherAssignmentId) => ipcRenderer.invoke('teacher-assignments:delete', teacherAssignmentId),
   },
   students: {
@@ -317,17 +333,19 @@ contextBridge.exposeInMainWorld('api', {
     // { ok: true, enrollment, changed } con la inscripción como quedó (mismos campos que list) y
     // changed false si ya tenía ese estado, en cuyo caso no se modificó nada, o
     // { ok: false, error: { code, message } }, sin cambiar nada: INVALID_INPUT indica datos o un
-    // estado inválidos; ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get, y
+    // estado inválidos; ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get;
     // STUDENT_ALREADY_ENROLLED, que se la quiso activar y el alumno ya tiene otra inscripción vigente
-    // y activa (solo puede tener una; el mensaje da su número).
+    // y activa (solo puede tener una; el mensaje da su número), y SCHOOL_YEAR_CLOSED, que es de un
+    // ciclo lectivo cerrado, en cualquier estado y aunque se guarde con el que ya tiene.
     update: (enrollmentId, data) => ipcRenderer.invoke('enrollments:update', enrollmentId, data),
     // Solo SECRETARIO. Baja lógica de la inscripción vigente con ese id (inscripcion_id) de su
     // institución, si no tiene calificaciones vigentes: deja de listarse, y su estado, su alumno, su
     // curso y su fecha no cambian. Resuelve { ok: true, enrollment } con la inscripción dada de baja
     // (mismos campos que list) o { ok: false, error: { code, message } }, sin cambiar nada:
     // INVALID_INPUT indica un id inválido; ENROLLMENT_NOT_FOUND, que no existe en la institución;
-    // ENROLLMENT_ALREADY_DELETED, que ya había sido eliminada (p. ej., desde otra sesión), y
-    // ENROLLMENT_HAS_SCORES, que tiene calificaciones vigentes (las dadas de baja no cuentan).
+    // ENROLLMENT_ALREADY_DELETED, que ya había sido eliminada (p. ej., desde otra sesión);
+    // SCHOOL_YEAR_CLOSED, que es de un ciclo lectivo cerrado, y ENROLLMENT_HAS_SCORES, que tiene
+    // calificaciones vigentes (las dadas de baja no cuentan).
     delete: (enrollmentId) => ipcRenderer.invoke('enrollments:delete', enrollmentId),
     // Solo SECRETARIO. Genera el comprobante en PDF de la inscripción vigente con ese id
     // (inscripcion_id) de su institución, de cualquier ciclo lectivo y en cualquier estado, y lo abre
@@ -369,7 +387,8 @@ contextBridge.exposeInMainWorld('api', {
     // vacío o no tiene letras ni números, o si la fecha no existe en el calendario o no es del
     // ciclo lectivo de la asignación, y con DUPLICATE_VALUE (la asignación ya tiene una evaluación
     // vigente con ese título, en fieldErrors.title); TEACHER_ASSIGNMENT_NOT_FOUND, como en
-    // listByOwnAssignment.
+    // listByOwnAssignment, y SCHOOL_YEAR_CLOSED, que el curso de la asignación es de un ciclo
+    // lectivo cerrado.
     create: (teacherAssignmentId, data) => ipcRenderer.invoke('evaluations:create', teacherAssignmentId, data),
     // Solo PROFESOR. Guarda el título y la fecha de la evaluación vigente con ese id
     // (evaluacion_id), si es de la asignación docente vigente con ese id (asignacion_docente_id) y
@@ -379,9 +398,9 @@ contextBridge.exposeInMainWorld('api', {
     // o { ok: false, error: { code, message, fieldErrors } }, sin guardar nada: fieldErrors llega
     // con INVALID_INPUT, como en create, y con DUPLICATE_VALUE (la asignación ya tiene otra
     // evaluación vigente con ese título, en fieldErrors.title; guardarla sin cambios no es un
-    // duplicado); TEACHER_ASSIGNMENT_NOT_FOUND, como en listByOwnAssignment, y EVALUATION_NOT_FOUND
-    // indica que la evaluación no existe, que fue dada de baja o que es de otra asignación, sin
-    // distinguir entre esos casos.
+    // duplicado); TEACHER_ASSIGNMENT_NOT_FOUND y SCHOOL_YEAR_CLOSED, como en create, y
+    // EVALUATION_NOT_FOUND indica que la evaluación no existe, que fue dada de baja o que es de otra
+    // asignación, sin distinguir entre esos casos.
     update: (teacherAssignmentId, evaluationId, data) =>
       ipcRenderer.invoke('evaluations:update', teacherAssignmentId, evaluationId, data),
     // Solo PROFESOR. Baja lógica de la evaluación vigente con ese id (evaluacion_id), si es de la
@@ -389,9 +408,9 @@ contextBridge.exposeInMainWorld('api', {
     // cargo: deja de listarse en listByOwnAssignment y su título se puede volver a usar en la
     // asignación; sus calificaciones se conservan sin cambios. Resuelve { ok: true, evaluation }
     // con la evaluación dada de baja (mismos campos que listByOwnAssignment) o
-    // { ok: false, error: { code, message } }, sin modificar nada: TEACHER_ASSIGNMENT_NOT_FOUND,
-    // como en listByOwnAssignment, y EVALUATION_NOT_FOUND indica que la evaluación no existe, que
-    // ya estaba dada de baja o que es de otra asignación, sin distinguir entre esos casos.
+    // { ok: false, error: { code, message } }, sin modificar nada: TEACHER_ASSIGNMENT_NOT_FOUND y
+    // SCHOOL_YEAR_CLOSED, como en create, y EVALUATION_NOT_FOUND indica que la evaluación no existe,
+    // que ya estaba dada de baja o que es de otra asignación, sin distinguir entre esos casos.
     delete: (teacherAssignmentId, evaluationId) =>
       ipcRenderer.invoke('evaluations:delete', teacherAssignmentId, evaluationId),
   },
@@ -424,8 +443,9 @@ contextBridge.exposeInMainWorld('api', {
     // INVALID_SCORE indica que la nota no es un número de 0 a 10 con hasta dos decimales;
     // ENROLLMENT_NOT_FOUND, que la inscripción no existe o no es del curso de la asignación;
     // ENROLLMENT_DELETED, que fue dada de baja (ya no está en listByOwnEvaluation, que quedó
-    // vieja), y ENROLLMENT_NOT_ACTIVE, que fue finalizada o cancelada; además,
-    // TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
+    // vieja), y ENROLLMENT_NOT_ACTIVE, que fue finalizada o cancelada; SCHOOL_YEAR_CLOSED, que la
+    // evaluación es de un curso de un ciclo lectivo cerrado, y además, TEACHER_ASSIGNMENT_NOT_FOUND y
+    // EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     save: (teacherAssignmentId, evaluationId, data) =>
       ipcRenderer.invoke('scores:save', teacherAssignmentId, evaluationId, data),
     // Solo PROFESOR. Baja lógica de la calificación de un alumno en esa evaluación de esa asignación
@@ -437,8 +457,8 @@ contextBridge.exposeInMainWorld('api', {
     // que el alumno no tiene una calificación en la evaluación (nunca la tuvo, ya se dio de baja o
     // la inscripción no existe o no es del curso de la asignación, sin distinguir entre esos casos);
     // ENROLLMENT_DELETED, que la inscripción fue dada de baja, tenga o no una calificación (como en
-    // save), y ENROLLMENT_NOT_ACTIVE, que fue finalizada o cancelada; además,
-    // TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
+    // save), y ENROLLMENT_NOT_ACTIVE, que fue finalizada o cancelada; SCHOOL_YEAR_CLOSED, como en
+    // save, y además, TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     delete: (teacherAssignmentId, evaluationId, enrollmentId) =>
       ipcRenderer.invoke('scores:delete', teacherAssignmentId, evaluationId, enrollmentId),
   },

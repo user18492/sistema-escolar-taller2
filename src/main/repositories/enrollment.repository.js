@@ -45,9 +45,9 @@ const IS_DELETED_IN_COURSE_SQL = `
 // Cantidad de inscripciones vigentes (sin baja lógica) y activas (de estado ACTIVA, un valor de
 // inscripcion_estado.nombre) de una institución en el ciclo lectivo del año en curso. La institución
 // y el ciclo lectivo son los del curso: la inscripción no los guarda. El año en curso lo resuelve la
-// base (CURRENT_DATE), así que las de ciclos anteriores quedan afuera sin que nadie las descuente: la
-// cuenta vuelve a 0 cuando empieza un año. Solo cuentan la baja y el estado de la inscripción, no el
-// estado del alumno ni la baja del curso.
+// base (fn_anio_ciclo_lectivo_actual, db/schema.sql), así que las de ciclos anteriores quedan afuera
+// sin que nadie las descuente: la cuenta vuelve a 0 cuando empieza un año. Solo cuentan la baja y el
+// estado de la inscripción, no el estado del alumno ni la baja del curso.
 const COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL = `
   SELECT COUNT(*)::INT AS total
     FROM inscripcion i
@@ -56,7 +56,7 @@ const COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL = `
    WHERE c.institucion_id = $1
      AND i.fecha_eliminacion IS NULL
      AND ie.nombre = 'ACTIVA'
-     AND c.anio_ciclo_lectivo = EXTRACT(YEAR FROM CURRENT_DATE)::INT
+     AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
 `;
 
 // Inscripciones vigentes (sin baja lógica) de alumnos vigentes de la institución $1 que pasan los
@@ -156,7 +156,7 @@ const FIND_POSITION_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
 `;
 
 // Alta: inscribe al alumno $1 en el curso $2, siempre ACTIVA, con la fecha del día (DEFAULT
-// CURRENT_DATE de inscripcion.fecha_inscripcion). Solo inserta si el alumno está vigente y ACTIVO,
+// fn_fecha_actual() de inscripcion.fecha_inscripcion). Solo inserta si el alumno está vigente y ACTIVO,
 // y el curso está vigente y es del nivel educativo $4, los dos de la institución $3; si no, no
 // inserta nada. Devuelve la fila creada con los campos de FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL.
 // El servicio ya comprobó todo eso, pero otra sesión pudo cambiarlo después. FOR NO KEY UPDATE (el
@@ -246,11 +246,14 @@ const FIND_BY_ID_SQL = `
 // mientras el UPDATE esperaba su bloqueo, PostgreSQL vuelve a evaluar las condiciones sobre la fila
 // que dejó y, si ya no las cumple, no la cambia.
 // trg_inscripcion_coherencia (db/schema.sql) rechaza el cambio a ACTIVA si el alumno ya tiene otra
-// inscripción vigente y activa (una dada de baja no cuenta): ver isSecondActiveEnrollmentError. El
-// resto de los controles de los triggers de inscripcion no pueden fallar, porque solo cambia el
-// estado: ck_inscripcion_misma_institucion y ck_inscripcion_fecha_ciclo_lectivo se vuelven a evaluar
-// sobre el mismo alumno, el mismo curso y la misma fecha, que ya los cumplían (el alumno y el curso
-// no cambian de institución, ni el curso de ciclo lectivo, mientras tengan inscripciones), y
+// inscripción vigente y activa (una dada de baja no cuenta): ver isSecondActiveEnrollmentError, y
+// trg_inscripcion_ciclo_lectivo, todo cambio de una inscripción de un curso de un ciclo lectivo
+// cerrado, salvo de ACTIVA a FINALIZADA, que queda para el cierre del ciclo
+// (finalizeActiveInClosedSchoolYears): ver isClosedSchoolYearError. El resto de los controles de los
+// triggers de inscripcion no pueden fallar, porque solo cambia el estado:
+// ck_inscripcion_misma_institucion y ck_inscripcion_fecha_ciclo_lectivo se vuelven a evaluar sobre el
+// mismo alumno, el mismo curso y la misma fecha, que ya los cumplían (el alumno y el curso no cambian
+// de institución, ni el curso de ciclo lectivo, mientras tengan inscripciones), y
 // trg_inscripcion_calificaciones_vigentes solo se dispara si cambia el curso.
 const UPDATE_STATUS_SQL = `
   WITH updated AS (
@@ -308,11 +311,13 @@ const LOCK_NOT_DELETED_SQL = `
 // Solo marca una inscripción vigente, así una segunda baja (repetida o simultánea) no pisa la fecha
 // de la primera: si la fila cambió mientras el UPDATE esperaba su bloqueo, PostgreSQL vuelve a
 // evaluar las condiciones sobre la fila que dejó y, si ya no las cumple, no la cambia.
-// Ningún trigger de inscripcion puede rechazar la baja: trg_inscripcion_coherencia y
-// trg_inscripcion_fecha_ciclo_lectivo se vuelven a evaluar sobre el mismo alumno, el mismo curso, el
-// mismo estado y la misma fecha, que ya los cumplían, y trg_inscripcion_calificaciones_vigentes solo
-// se dispara si cambia el curso. Si estaba activa, deja de contar para la regla de una sola
-// inscripción activa por alumno: el alumno se puede volver a inscribir.
+// trg_inscripcion_ciclo_lectivo (db/schema.sql) rechaza la baja de una inscripción de un curso de un
+// ciclo lectivo cerrado: ver isClosedSchoolYearError. Los demás triggers de inscripcion no pueden
+// rechazarla: trg_inscripcion_coherencia y trg_inscripcion_fecha_ciclo_lectivo se vuelven a evaluar
+// sobre el mismo alumno, el mismo curso, el mismo estado y la misma fecha, que ya los cumplían, y
+// trg_inscripcion_calificaciones_vigentes solo se dispara si cambia el curso. Si estaba activa, deja
+// de contar para la regla de una sola inscripción activa por alumno: el alumno se puede volver a
+// inscribir.
 const MARK_AS_DELETED_SQL = `
   WITH deleted AS (
     UPDATE inscripcion i
@@ -365,10 +370,18 @@ const FIND_ACTIVE_BY_STUDENT_SQL = `
    LIMIT 1
 `;
 
+// Cierre de los ciclos lectivos: pasa a FINALIZADA las inscripciones vigentes y activas de los
+// cursos de ciclos cerrados, sin cambiar nada más, en una sola llamada a
+// sp_inscripcion_finalizar_ciclos_cerrados (db/schema.sql). Su parámetro OUT se pasa como NULL y
+// vuelve en la única fila del resultado.
+const FINALIZE_ACTIVE_IN_CLOSED_SCHOOL_YEARS_SQL = `
+  CALL sp_inscripcion_finalizar_ciclos_cerrados(NULL)
+`;
+
 // Restricciones de los triggers de inscripcion (con los nombres que les da db/schema.sql) que
-// rechazan un alta o una edición por un motivo previsto: el alumno ya tiene otra inscripción activa,
-// el curso es de un ciclo lectivo cerrado, o el año de la fecha de inscripción (la del día) no es el
-// ciclo lectivo del curso (solo en el alta).
+// rechazan un alta, una edición o una baja por un motivo previsto: el alumno ya tiene otra
+// inscripción activa, el curso es de un ciclo lectivo cerrado, o el año de la fecha de inscripción
+// (la del día) no es el ciclo lectivo del curso (solo en el alta).
 const ONE_ACTIVE_CONSTRAINT = 'ck_inscripcion_alumno_una_activa';
 const CLOSED_SCHOOL_YEAR_CONSTRAINT = 'ck_inscripcion_ciclo_lectivo_cerrado';
 const SCHOOL_YEAR_CONSTRAINT = 'ck_inscripcion_fecha_ciclo_lectivo';
@@ -546,7 +559,9 @@ async function findById(enrollmentId, institutionId) {
 // (de STATUSES), sin cambiar nada más, y la devuelve como quedó, con su alumno, su curso y su estado,
 // como findPageNotDeletedByInstitution; null si no cambió nada: no existe en la institución, está
 // dada de baja o ya tenía ese estado. PostgreSQL rechaza el cambio a ACTIVE si el alumno ya tiene
-// otra inscripción vigente y activa (ver isSecondActiveEnrollmentError).
+// otra inscripción vigente y activa (ver isSecondActiveEnrollmentError) y todo cambio en un curso de
+// un ciclo lectivo cerrado, salvo de ACTIVE a COMPLETED (ver isClosedSchoolYearError): que eso no
+// pase lo comprueba el servicio.
 async function updateStatus(enrollmentId, institutionId, status) {
   const { rows } = await query(UPDATE_STATUS_SQL, [enrollmentId, institutionId, COLUMN_VALUE_BY_STATUS[status]]);
   return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
@@ -555,7 +570,8 @@ async function updateStatus(enrollmentId, institutionId, status) {
 // Da de baja la inscripción vigente `enrollmentId` (un inscripcion_id) de la institución, si no tiene
 // calificaciones vigentes: deja de listarse, sin cambiar nada más, y la devuelve con su alumno, su
 // curso y su estado, como findPageNotDeletedByInstitution; null si no cambió nada: no existe en la
-// institución, ya estaba dada de baja o tiene calificaciones vigentes.
+// institución, ya estaba dada de baja o tiene calificaciones vigentes. PostgreSQL rechaza la baja si
+// el curso es de un ciclo lectivo cerrado (ver isClosedSchoolYearError).
 async function markAsDeleted(enrollmentId, institutionId) {
   // En una transacción, con la fila bloqueada antes de buscar calificaciones: trg_calificacion_coherencia
   // (db/schema.sql) retiene la inscripción FOR SHARE al cargar, corregir o dar de baja una nota, así
@@ -578,6 +594,15 @@ async function findActiveByStudent(studentId) {
   return rows.length > 0 ? new Enrollment({ id: rows[0].inscripcion_id, courseId: rows[0].curso_id }) : null;
 }
 
+// Pasa a FINALIZADA las inscripciones vigentes y activas de los cursos de ciclos lectivos cerrados
+// (anteriores al actual), de todas las instituciones, sin cambiar nada más, y devuelve cuántas
+// finalizó. Las canceladas, las finalizadas y las dadas de baja no cambian. Es idempotente: una
+// segunda llamada ya no encuentra activas en los ciclos cerrados y devuelve 0.
+async function finalizeActiveInClosedSchoolYears() {
+  const { rows } = await query(FINALIZE_ACTIVE_IN_CLOSED_SCHOOL_YEARS_SQL);
+  return rows[0].p_inscripciones_finalizadas;
+}
+
 // true si `error` es el rechazo de trg_inscripcion_coherencia a una segunda inscripción vigente y
 // activa del mismo alumno, al crearla o al pasarla a activa: solo puede tener una.
 function isSecondActiveEnrollmentError(error) {
@@ -589,8 +614,8 @@ function isDateOutOfSchoolYearError(error) {
   return error?.code === '23514' && error.constraint === SCHOOL_YEAR_CONSTRAINT;
 }
 
-// true si `error` es el rechazo de trg_inscripcion_ciclo_lectivo a una inscripción de un curso de un
-// ciclo lectivo cerrado: ese ciclo queda en solo lectura.
+// true si `error` es el rechazo de trg_inscripcion_ciclo_lectivo al alta, la edición o la baja de una
+// inscripción de un curso de un ciclo lectivo cerrado: ese ciclo queda en solo lectura.
 function isClosedSchoolYearError(error) {
   return error?.code === '23514' && error.constraint === CLOSED_SCHOOL_YEAR_CONSTRAINT;
 }
@@ -608,6 +633,7 @@ module.exports = {
   updateStatus,
   markAsDeleted,
   findActiveByStudent,
+  finalizeActiveInClosedSchoolYears,
   isSecondActiveEnrollmentError,
   isDateOutOfSchoolYearError,
   isClosedSchoolYearError,
