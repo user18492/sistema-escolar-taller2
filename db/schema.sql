@@ -618,7 +618,8 @@ CREATE INDEX idx_alumno_alumno_estado_id ON alumno(alumno_estado_id);
 -- Un cambio de curso cancela la inscripción actual y crea otra, activa, en el curso destino.
 -- La base hace cumplir la primera regla: trg_calificacion_coherencia (más abajo) solo acepta
 -- cargar, corregir o dar de baja calificaciones de inscripciones activas, y además vigentes (sin
--- baja lógica). La segunda la aplican las consultas que calculan promedios
+-- baja lógica), salvo en la baja en cascada de una evaluación (trg_evaluacion_baja_calificaciones,
+-- más abajo). La segunda la aplican las consultas que calculan promedios
 CREATE TABLE inscripcion_estado (
     inscripcion_estado_id  INT          GENERATED ALWAYS AS IDENTITY,
     nombre                 VARCHAR(50)  NOT NULL,
@@ -642,8 +643,8 @@ CREATE TABLE inscripcion_estado (
 -- sp_alumno_dar_de_baja y sp_inscripcion_finalizar_ciclos_cerrados, que solo cancelan o finalizan
 -- las vigentes; la excepción de trg_inscripcion_ciclo_lectivo, que solo deja finalizar las vigentes,
 -- y trg_calificacion_coherencia, que no acepta cargar, corregir ni dar de baja calificaciones de una
--- inscripción dada de baja, aunque siga activa. Para las demás reglas, una inscripción dada de baja
--- sigue contando
+-- inscripción dada de baja, aunque siga activa, salvo en la baja en cascada de una evaluación. Para
+-- las demás reglas, una inscripción dada de baja sigue contando
 CREATE TABLE inscripcion (
     inscripcion_id         INT   GENERATED ALWAYS AS IDENTITY,
     alumno_id              INT   NOT NULL,
@@ -1020,7 +1021,9 @@ CREATE TABLE evaluacion (
     -- una fecha futura: se califica a partir de la fecha de la evaluación
     fecha_eliminacion      TIMESTAMPTZ,
     -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva, pero deja de
-    -- contar para las reglas de esta tabla
+    -- contar para las reglas de esta tabla. La baja da de baja también sus calificaciones vigentes
+    -- (trg_evaluacion_baja_calificaciones), y la dada de baja ya no se modifica ni se restaura
+    -- (trg_evaluacion_coherencia)
 
     CONSTRAINT pk_evaluacion PRIMARY KEY (evaluacion_id),
     CONSTRAINT fk_evaluacion_asignacion_docente FOREIGN KEY (asignacion_docente_id) REFERENCES asignacion_docente(asignacion_docente_id)
@@ -1085,11 +1088,63 @@ CREATE TRIGGER trg_evaluacion_ciclo_lectivo
     FOR EACH ROW
     EXECUTE FUNCTION fn_evaluacion_ciclo_lectivo();
 
--- El año de la fecha de una evaluación vigente es el ciclo lectivo del curso de su asignación. Las
--- dadas de baja no se validan. FOR SHARE retiene las filas de la asignación y del curso hasta el
--- fin de la transacción: un cambio simultáneo de curso o de ciclo lectivo espera y, al seguir, su
--- trigger (más abajo) ya ve esta evaluación. Si una fila referenciada no existe, la comparación da
--- NULL y no falla: la rechaza después su clave foránea
+-- Coherencia de una evaluación con su propia baja y con su asignación.
+-- Una evaluación dada de baja ya no se modifica: ni su título, ni su fecha, ni su asignación, ni su
+-- fecha de baja, y tampoco se restaura. Sus calificaciones ya se dieron de baja con ella
+-- (trg_evaluacion_baja_calificaciones, más abajo).
+-- Al crearla y cada vez que se edita, es decir, siempre que la fila queda vigente: su asignación está
+-- vigente (sin baja lógica). La baja de la evaluación no lo exige, así la de una asignación dada de
+-- baja se puede dar de baja.
+-- Corre después de trg_evaluacion_ciclo_lectivo (orden alfabético), así que en un ciclo lectivo
+-- cerrado gana ese rechazo. FOR SHARE retiene la fila de la asignación hasta el fin de la
+-- transacción: una baja simultánea de la asignación espera a que termine el alta o la edición; al
+-- revés, si la asignación se dio de baja primero, el alta o la edición la espera y lee la fila como
+-- quedó, así que la rechaza. Si la asignación no existe, la fecha de baja queda en NULL y no falla:
+-- la rechaza después su clave foránea
+CREATE FUNCTION fn_evaluacion_coherencia() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_asignacion_fecha_eliminacion  TIMESTAMPTZ;
+BEGIN
+    -- Antes de las consultas: una dada de baja se rechaza en cualquier cambio, también en la
+    -- restauración (fecha_eliminacion de vuelta en NULL)
+    IF TG_OP = 'UPDATE' AND OLD.fecha_eliminacion IS NOT NULL THEN
+        RAISE EXCEPTION 'La evaluación % está dada de baja', OLD.evaluacion_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_evaluacion_vigente';
+    END IF;
+
+    -- Solo al crearla o editarla: la baja de una evaluación no mira la asignación
+    IF NEW.fecha_eliminacion IS NULL THEN
+        SELECT a.fecha_eliminacion
+          INTO v_asignacion_fecha_eliminacion
+          FROM asignacion_docente a
+         WHERE a.asignacion_docente_id = NEW.asignacion_docente_id
+           FOR SHARE;
+
+        IF v_asignacion_fecha_eliminacion IS NOT NULL THEN
+            RAISE EXCEPTION 'La asignación docente % de la evaluación % está dada de baja',
+                            NEW.asignacion_docente_id, NEW.evaluacion_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_evaluacion_asignacion_vigente';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_evaluacion_coherencia
+    BEFORE INSERT OR UPDATE ON evaluacion
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_evaluacion_coherencia();
+
+-- El año de la fecha de una evaluación vigente es el ciclo lectivo del curso de su asignación. La
+-- baja no se valida, y una dada de baja ya no cambia (trg_evaluacion_coherencia). FOR SHARE
+-- retiene las filas de la asignación y del curso hasta el fin de la transacción: un cambio
+-- simultáneo de curso o de ciclo lectivo espera y, al seguir, su trigger (más abajo) ya ve esta
+-- evaluación. Si una fila referenciada no existe, la comparación da NULL y no falla: la rechaza
+-- después su clave foránea
 CREATE FUNCTION fn_evaluacion_fecha_ciclo_lectivo() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -1182,8 +1237,9 @@ CREATE TRIGGER trg_curso_evaluaciones_vigentes
 -- Calificaciones: la nota de un alumno en una evaluación. El alumno se referencia por su
 -- inscripción en el curso de la evaluación, no directamente.
 -- Quien todavía no fue calificado no tiene fila. La que existe no se borra: se corrige su nota o,
--- si se cargó por error, se da de baja (baja lógica). La dada de baja ya no se modifica ni se
--- restaura.
+-- si se cargó por error, se da de baja (baja lógica). La baja también llega con la de su
+-- evaluación (trg_evaluacion_baja_calificaciones, más abajo). La dada de baja ya no se modifica ni
+-- se restaura.
 -- Solo se califica en una evaluación vigente cuya fecha ya llegó: no en una dada de baja ni en una
 -- con fecha futura
 CREATE TABLE calificacion (
@@ -1275,8 +1331,13 @@ CREATE TRIGGER trg_calificacion_ciclo_lectivo
 -- Al darla de baja, solo lo de la inscripción: las de una inscripción que dejó de estar activa
 -- (finalizada o cancelada) o que se dio de baja se conservan como están, y ya no se pueden corregir
 -- ni dar de baja. Por eso el trigger valida también la baja de la calificación, y no lleva el
--- WHEN (NEW.fecha_eliminacion IS NULL) de los de asignacion_docente y evaluacion. La evaluación no
--- se mira en la baja, así la de una calificación puede seguir a la de su evaluación.
+-- WHEN (NEW.fecha_eliminacion IS NULL) de los de asignacion_docente y evaluacion.
+-- La excepción es la baja en cascada (trg_evaluacion_baja_calificaciones, más abajo), que se
+-- reconoce porque la evaluación ya está dada de baja: con la cascada, una evaluación dada de baja
+-- no tiene calificaciones vigentes, así que solo ella llega a esa rama. La baja en cascada no mira
+-- la inscripción, salvo la finalizada: se dan de baja también las de inscripciones canceladas o
+-- dadas de baja, pero la de una finalizada se rechaza, y con ella la baja de la evaluación, porque
+-- es histórico y tiene que seguir visible en la evaluación.
 -- Una calificación dada de baja ya no se modifica: ni su nota ni su fecha de baja, y tampoco se
 -- restaura.
 -- FOR SHARE retiene las filas de la evaluación, de su asignación y de la inscripción hasta el fin
@@ -1284,10 +1345,11 @@ CREATE TRIGGER trg_calificacion_ciclo_lectivo
 -- (más abajo) ya ve cómo quedó esta calificación; también el paso de la evaluación a una fecha
 -- futura (trg_evaluacion_futura_calificaciones_vigentes, más abajo). Uno de estado o una baja
 -- lógica de la inscripción, o una baja de la evaluación, también espera, y sigue con la calificación
--- ya guardada. Al revés, si la evaluación o la inscripción cambió primero (de fecha, de estado o
--- por una baja), la calificación espera a que termine y se valida con la fila como quedó. Si una
--- fila referenciada no existe, las comparaciones dan NULL y no fallan: la rechaza después su clave
--- foránea
+-- ya guardada: la cascada de la baja ya la ve. Al revés, si la evaluación o la inscripción cambió
+-- primero (de fecha, de estado o por una baja), la calificación espera a que termine y se valida con
+-- la fila como quedó. En la baja en cascada, la inscripción también queda retenida: un paso
+-- simultáneo a finalizada espera a que termine la baja. Si una fila referenciada no existe, las
+-- comparaciones dan NULL y no fallan: la rechaza después su clave foránea
 CREATE FUNCTION fn_calificacion_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -1335,7 +1397,8 @@ BEGIN
       FROM inscripcion_estado e
      WHERE e.inscripcion_estado_id = v_inscripcion_estado_id;
 
-    -- Solo al cargar o corregir: la baja de una calificación no mira la evaluación
+    -- Solo al cargar o corregir: en la baja de una calificación, de la evaluación solo se mira si
+    -- ya está dada de baja, para reconocer la baja en cascada (más abajo)
     IF NEW.fecha_eliminacion IS NULL THEN
         IF v_evaluacion_fecha_eliminacion IS NOT NULL THEN
             RAISE EXCEPTION 'La evaluación % está dada de baja', NEW.evaluacion_id
@@ -1356,6 +1419,18 @@ BEGIN
                         NEW.inscripcion_id, NEW.evaluacion_id
             USING ERRCODE = 'check_violation',
                   CONSTRAINT = 'ck_calificacion_mismo_curso';
+    END IF;
+
+    -- Baja en cascada de la evaluación: de la inscripción, solo se rechaza la finalizada
+    IF NEW.fecha_eliminacion IS NOT NULL AND v_evaluacion_fecha_eliminacion IS NOT NULL THEN
+        IF v_estado = 'FINALIZADA' THEN
+            RAISE EXCEPTION 'La inscripción % de la calificación % está finalizada',
+                            NEW.inscripcion_id, NEW.calificacion_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_calificacion_inscripcion_finalizada';
+        END IF;
+
+        RETURN NEW;
     END IF;
 
     -- Antes que el estado: una inscripción dada de baja se rechaza por la baja, sea cual sea su
@@ -1384,7 +1459,8 @@ CREATE TRIGGER trg_calificacion_coherencia
 -- Una inscripción con calificaciones vigentes conserva su curso: son de evaluaciones de ese curso.
 -- Las dadas de baja no cuentan: quitada una nota cargada por error, la inscripción puede cambiar
 -- de curso. El estado sí puede cambiar, y la inscripción también se puede dar de baja: solo se
--- exige que esté activa y vigente al cargar, corregir o dar de baja una calificación
+-- exige que esté activa y vigente al cargar, corregir o dar de baja una calificación, salvo en la
+-- baja en cascada de su evaluación
 CREATE FUNCTION fn_inscripcion_calificaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -1408,8 +1484,7 @@ CREATE TRIGGER trg_inscripcion_calificaciones_vigentes
     EXECUTE FUNCTION fn_inscripcion_calificaciones_vigentes();
 
 -- Una evaluación con calificaciones vigentes conserva su asignación: sus alumnos son los del curso
--- de esa asignación. Vale también para una evaluación dada de baja: sus calificaciones siguen
--- vigentes
+-- de esa asignación
 CREATE FUNCTION fn_evaluacion_calificaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -1434,8 +1509,7 @@ CREATE TRIGGER trg_evaluacion_calificaciones_vigentes
 
 -- Una evaluación con calificaciones vigentes no pasa a una fecha futura (posterior a
 -- fn_fecha_actual()): se califica a partir de su fecha (trg_calificacion_coherencia), así que una
--- evaluación calificada ya se tomó. Las dadas de baja no cuentan. Vale también para una evaluación
--- dada de baja: sus calificaciones siguen vigentes.
+-- evaluación calificada ya se tomó. Las dadas de baja no cuentan.
 -- Sin bloqueos propios: la carga o la corrección de una calificación retiene la fila de la
 -- evaluación con FOR SHARE (fn_calificacion_coherencia), así que el cambio de fecha espera a que
 -- termine y, al seguir, ya ve esa calificación; al revés, la calificación espera al cambio de fecha
@@ -1464,9 +1538,41 @@ CREATE TRIGGER trg_evaluacion_futura_calificaciones_vigentes
     WHEN (NEW.fecha_evaluacion <> OLD.fecha_evaluacion)
     EXECUTE FUNCTION fn_evaluacion_futura_calificaciones_vigentes();
 
+-- La baja de una evaluación da de baja, en la misma operación, todas sus calificaciones vigentes,
+-- con la misma fecha de baja: también las de inscripciones canceladas o dadas de baja, que el
+-- profesor no ve. Las ya dadas de baja conservan su fecha.
+-- Es un trigger, y no un procedimiento como sp_alumno_dar_de_baja: así cualquier baja de una
+-- evaluación, también un UPDATE directo, la deja sin calificaciones vigentes.
+-- Es AFTER para que trg_calificacion_coherencia ya vea la evaluación dada de baja: así reconoce la
+-- baja en cascada, que no mira la inscripción salvo la finalizada. Es todo o nada: si rechaza una
+-- calificación (la de una inscripción finalizada), falla el UPDATE de la evaluación y no cambia nada.
+-- Sin bloqueos propios: la carga o la corrección de una calificación retiene la fila de la
+-- evaluación con FOR SHARE (fn_calificacion_coherencia), así que la baja espera a que termine y su
+-- cascada ya ve esa calificación; al revés, la calificación espera a la baja y se rechaza con
+-- ck_calificacion_evaluacion_vigente
+CREATE FUNCTION fn_evaluacion_baja_calificaciones() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE calificacion
+       SET fecha_eliminacion = NEW.fecha_eliminacion
+     WHERE evaluacion_id = NEW.evaluacion_id
+       AND fecha_eliminacion IS NULL;
+
+    RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER trg_evaluacion_baja_calificaciones
+    AFTER UPDATE ON evaluacion
+    FOR EACH ROW
+    WHEN (OLD.fecha_eliminacion IS NULL AND NEW.fecha_eliminacion IS NOT NULL)
+    EXECUTE FUNCTION fn_evaluacion_baja_calificaciones();
+
 -- Una asignación con calificaciones vigentes conserva su curso. Cuentan las de todas sus
--- evaluaciones, también las de las evaluaciones dadas de baja, que
--- trg_asignacion_docente_evaluaciones_vigentes no cubre
+-- evaluaciones; las dadas de baja ya no tienen calificaciones vigentes
+-- (trg_evaluacion_baja_calificaciones), así que toda asignación que este trigger rechaza tiene
+-- evaluaciones vigentes y también la rechazaría trg_asignacion_docente_evaluaciones_vigentes: se
+-- conserva como segunda barrera
 CREATE FUNCTION fn_asignacion_docente_calificaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN

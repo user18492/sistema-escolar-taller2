@@ -463,8 +463,8 @@ async function findEnrollmentToDelete(institutionId, enrollmentId) {
 // sesión): completa su fecha de baja y deja de listarse. No cambia nada más: ni su estado, ni su
 // alumno, ni su curso, ni su fecha. Devuelve la inscripción dada de baja, con los campos de
 // listEnrollments.
-// Una inscripción con calificaciones vigentes no se da de baja: las dadas de baja no cuentan, y las
-// de una evaluación dada de baja sí, porque siguen vigentes. Se comprueba al guardar, así que vale
+// Una inscripción con calificaciones vigentes no se da de baja: las dadas de baja no cuentan, y una
+// evaluación dada de baja ya no tiene calificaciones vigentes. Se comprueba al guardar, así que vale
 // también si el profesor carga una nota mientras tanto. Una de un ciclo lectivo cerrado tampoco se
 // da de baja, tenga o no calificaciones.
 // El id llega del renderer y la fila que tiene a la vista puede haber quedado vieja, así que no se

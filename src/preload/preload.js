@@ -408,11 +408,13 @@ contextBridge.exposeInMainWorld('api', {
     // Solo PROFESOR. Baja lógica de la evaluación vigente con ese id (evaluacion_id), si es de la
     // asignación docente vigente con ese id (asignacion_docente_id) y esa asignación está a su
     // cargo: deja de listarse en listByOwnAssignment y su título se puede volver a usar en la
-    // asignación; sus calificaciones se conservan sin cambios. Resuelve { ok: true, evaluation }
-    // con la evaluación dada de baja (mismos campos que listByOwnAssignment) o
-    // { ok: false, error: { code, message } }, sin modificar nada: TEACHER_ASSIGNMENT_NOT_FOUND y
-    // SCHOOL_YEAR_CLOSED, como en create, y EVALUATION_NOT_FOUND indica que la evaluación no existe,
-    // que ya estaba dada de baja o que es de otra asignación, sin distinguir entre esos casos.
+    // asignación; en la misma operación se dan de baja también todas sus calificaciones vigentes.
+    // Resuelve { ok: true, evaluation } con la evaluación dada de baja (mismos campos que
+    // listByOwnAssignment) o { ok: false, error: { code, message } }, sin modificar nada:
+    // TEACHER_ASSIGNMENT_NOT_FOUND y SCHOOL_YEAR_CLOSED, como en create,
+    // EVALUATION_HAS_COMPLETED_SCORES, que la evaluación tiene calificaciones vigentes de
+    // inscripciones finalizadas, y EVALUATION_NOT_FOUND indica que la evaluación no existe, que ya
+    // estaba dada de baja o que es de otra asignación, sin distinguir entre esos casos.
     delete: (teacherAssignmentId, evaluationId) =>
       ipcRenderer.invoke('evaluations:delete', teacherAssignmentId, evaluationId),
   },

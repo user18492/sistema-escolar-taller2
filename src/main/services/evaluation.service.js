@@ -143,7 +143,8 @@ async function assertSchoolYearNotClosed(teacherAssignment) {
 // evaluación vigente con ese título, SCHOOL_YEAR_CLOSED si `schoolYear`, el ciclo lectivo del curso
 // de la asignación, se cerró después de comprobarlo, e INVALID_INPUT con fieldErrors.evaluationDate
 // si la fecha no es de ese ciclo lectivo o si, en la edición, la evaluación tiene calificaciones
-// vigentes y la fecha nueva es futura.
+// vigentes y la fecha nueva es futura. Si la asignación se dio de baja después de comprobarla, lanza
+// el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de ownTeacherAssignmentNotFoundError.
 async function saveEvaluation(save, duplicate, schoolYear) {
   try {
     return await save();
@@ -153,6 +154,11 @@ async function saveEvaluation(save, duplicate, schoolYear) {
     }
     if (evaluationRepository.isClosedSchoolYearError(error)) {
       throw closedSchoolYearError(schoolYear);
+    }
+    // Otra sesión dio de baja la asignación después de comprobarla (trg_evaluacion_coherencia,
+    // db/schema.sql): la vista recibe lo mismo que si ya estaba dada de baja.
+    if (evaluationRepository.isDeletedAssignmentError(error)) {
+      throw teacherAssignmentService.ownTeacherAssignmentNotFoundError();
     }
     // Otra sesión pasó la asignación a un curso de otro ciclo lectivo después de consultarla: la
     // fecha ya no es del suyo (trg_evaluacion_fecha_ciclo_lectivo, db/schema.sql).
@@ -185,9 +191,10 @@ async function saveEvaluation(save, duplicate, schoolYear) {
 // regla la aplica el índice único de evaluacion al insertar, así que tampoco pasan dos altas
 // simultáneas; una evaluación dada de baja no cuenta.
 // También lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment
-// si la asignación no existe, fue dada de baja o es de otro profesor, y un EvaluationError
-// SCHOOL_YEAR_CLOSED si su curso es de un ciclo lectivo cerrado, que gana a los errores del
-// formulario.
+// si la asignación no existe, fue dada de baja o es de otro profesor, también si otra sesión la da
+// de baja mientras tanto (la base no crea una evaluación en una asignación dada de baja), y un
+// EvaluationError SCHOOL_YEAR_CLOSED si su curso es de un ciclo lectivo cerrado, que gana a los
+// errores del formulario.
 async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, data) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   await assertSchoolYearNotClosed(teacherAssignment);
@@ -220,10 +227,11 @@ async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, d
 // fecha futura: lo rechaza PostgreSQL, con su fecha, y se lanza un EvaluationError INVALID_INPUT
 // con fieldErrors.evaluationDate (saveEvaluation).
 // También lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment
-// si la asignación no existe, fue dada de baja o es de otro profesor, un EvaluationError
-// SCHOOL_YEAR_CLOSED si su curso es de un ciclo lectivo cerrado, que gana a los errores siguientes,
-// y un EvaluationError EVALUATION_NOT_FOUND si la evaluación no existe, fue dada de baja o es de
-// otra asignación, sin distinguir los casos.
+// si la asignación no existe, fue dada de baja o es de otro profesor, también si otra sesión la da
+// de baja mientras tanto (la base no edita una evaluación de una asignación dada de baja), un
+// EvaluationError SCHOOL_YEAR_CLOSED si su curso es de un ciclo lectivo cerrado, que gana a los
+// errores siguientes, y un EvaluationError EVALUATION_NOT_FOUND si la evaluación no existe, fue
+// dada de baja o es de otra asignación, sin distinguir los casos: una dada de baja ya no se edita.
 async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId, data) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   await assertSchoolYearNotClosed(teacherAssignment);
@@ -245,15 +253,18 @@ async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, e
 
 // Baja lógica de una evaluación vigente de una asignación docente vigente a cargo de `currentUser`
 // (el profesor de la sesión): la fila queda con su fecha de baja, deja de listarse
-// (listOwnAssignmentEvaluations) y su título se puede volver a usar en la asignación. Sus
-// calificaciones se conservan sin cambios: la baja de la evaluación no las da de baja. Los dos
-// ids llegan del renderer, así que antes se comprueba que la asignación sea suya
-// (getOwnTeacherAssignment) y la baja solo alcanza a una evaluación de esa asignación.
+// (listOwnAssignmentEvaluations) y su título se puede volver a usar en la asignación. En la misma
+// operación se dan de baja todas sus calificaciones vigentes, también las de inscripciones
+// canceladas, que el profesor no ve: lo hace la base (trg_evaluacion_baja_calificaciones,
+// db/schema.sql). Los dos ids llegan del renderer, así que antes se comprueba que la asignación sea
+// suya (getOwnTeacherAssignment) y la baja solo alcanza a una evaluación de esa asignación.
 // Devuelve la evaluación dada de baja, con los campos de listOwnAssignmentEvaluations. Lanza el
 // TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la asignación
 // no existe, fue dada de baja o es de otro profesor, un EvaluationError SCHOOL_YEAR_CLOSED si su
-// curso es de un ciclo lectivo cerrado y un EvaluationError EVALUATION_NOT_FOUND si la evaluación no
-// existe, ya estaba dada de baja o es de otra asignación, sin distinguir los casos.
+// curso es de un ciclo lectivo cerrado, que gana a los errores siguientes, un EvaluationError
+// EVALUATION_HAS_COMPLETED_SCORES si la evaluación tiene calificaciones vigentes de inscripciones
+// finalizadas y un EvaluationError EVALUATION_NOT_FOUND si la evaluación no existe, ya estaba dada
+// de baja o es de otra asignación, sin distinguir los casos.
 async function deleteOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   await assertSchoolYearNotClosed(teacherAssignment);
@@ -263,6 +274,16 @@ async function deleteOwnAssignmentEvaluation(currentUser, teacherAssignmentId, e
   } catch (error) {
     if (evaluationRepository.isClosedSchoolYearError(error)) {
       throw closedSchoolYearError(teacherAssignment.course.schoolYear);
+    }
+    // Las calificaciones de inscripciones finalizadas son histórico y tienen que seguir visibles en
+    // la evaluación: la base rechaza la baja en cascada (trg_calificacion_coherencia,
+    // db/schema.sql) y no cambia nada. Sin control previo: decide la base, que ya retiene las
+    // inscripciones.
+    if (evaluationRepository.isCompletedScoresError(error)) {
+      throw new EvaluationError(
+        'EVALUATION_HAS_COMPLETED_SCORES',
+        'La evaluación tiene calificaciones de inscripciones finalizadas: no se puede eliminar.'
+      );
     }
     throw error;
   }

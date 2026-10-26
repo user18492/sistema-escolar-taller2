@@ -304,8 +304,8 @@ const LOCK_NOT_DELETED_SQL = `
 `;
 
 // Baja lógica: completa la fecha_eliminacion de la inscripción $1 de la institución $2, solo si está
-// vigente y no tiene calificaciones vigentes (las dadas de baja no cuentan; las de una evaluación
-// dada de baja sí, porque siguen vigentes); si no, no cambia nada. El estado, el alumno, el curso y
+// vigente y no tiene calificaciones vigentes (las dadas de baja no cuentan, y una evaluación dada de
+// baja ya no tiene calificaciones vigentes); si no, no cambia nada. El estado, el alumno, el curso y
 // la fecha de inscripción no cambian. Devuelve la fila como quedó, con los campos de
 // FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL.
 // Solo marca una inscripción vigente, así una segunda baja (repetida o simultánea) no pisa la fecha

@@ -14,8 +14,9 @@ const FIND_BY_EVALUATION_SQL = `
      AND ca.fecha_eliminacion IS NULL
 `;
 
-// Si la inscripción $1 tiene alguna calificación vigente, de cualquier evaluación: también de una
-// dada de baja, cuyas calificaciones siguen vigentes.
+// Si la inscripción $1 tiene alguna calificación vigente, de cualquier evaluación. Una evaluación
+// dada de baja ya no tiene calificaciones vigentes: se dieron de baja con ella
+// (trg_evaluacion_baja_calificaciones, db/schema.sql).
 const EXISTS_NOT_DELETED_BY_ENROLLMENT_SQL = `
   SELECT EXISTS (SELECT 1
                    FROM calificacion ca
@@ -59,7 +60,10 @@ const MARK_AS_DELETED_SQL = `
 // inscripción (SAME_COURSE, NOT_DELETED_ENROLLMENT y ACTIVE_ENROLLMENT) las informa
 // trg_calificacion_coherencia al cargar una nota, al corregirla y al darla de baja, y las de la
 // evaluación (DELETED_EVALUATION y FUTURE_EVALUATION), solo al cargarla o corregirla. La del ciclo
-// lectivo cerrado la informa trg_calificacion_ciclo_lectivo, en los tres casos.
+// lectivo cerrado la informa trg_calificacion_ciclo_lectivo, en los tres casos. La baja en cascada
+// de una evaluación (trg_evaluacion_baja_calificaciones) no pasa por acá: no mira si la inscripción
+// está activa ni vigente, y su rechazo por una inscripción finalizada lo traduce
+// evaluation.repository.js.
 const UNIQUE_CONSTRAINT = 'uq_calificacion_evaluacion_inscripcion';
 const ENROLLMENT_FOREIGN_KEY = 'fk_calificacion_inscripcion';
 const CLOSED_SCHOOL_YEAR_CONSTRAINT = 'ck_calificacion_ciclo_lectivo_cerrado';
@@ -87,8 +91,8 @@ async function findByEvaluation(evaluationId) {
 }
 
 // true si la inscripción `enrollmentId` (un inscripcion_id) tiene alguna calificación vigente, en
-// cualquier evaluación (también en una dada de baja); false si no tiene ninguna o si todas se dieron
-// de baja.
+// cualquier evaluación; false si no tiene ninguna o si todas se dieron de baja, también con la baja
+// de su evaluación.
 async function existsNotDeletedByEnrollment(enrollmentId) {
   const { rows } = await query(EXISTS_NOT_DELETED_BY_ENROLLMENT_SQL, [enrollmentId]);
   return rows[0].has_scores;
@@ -166,7 +170,7 @@ function isClosedSchoolYearError(error) {
 }
 
 // true si `error` indica que la evaluación se dio de baja (baja lógica): sus calificaciones se
-// conservan, pero ya no se cargan ni se corrigen.
+// dieron de baja con ella, y ya no se cargan ni se corrigen.
 function isEvaluationDeletedError(error) {
   return error?.code === '23514' && error.constraint === DELETED_EVALUATION_CONSTRAINT;
 }

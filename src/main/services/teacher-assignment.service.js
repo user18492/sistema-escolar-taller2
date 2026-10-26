@@ -78,20 +78,25 @@ async function listOwnTeacherAssignments(currentUser) {
   return teacherAssignments.map(toOwnTeacherAssignment);
 }
 
+// La asignación no está entre las vigentes a cargo del profesor de la sesión: no existe, fue dada de
+// baja o es de otro profesor, sin distinguir los casos. Lo usan también los servicios que rechazan
+// una escritura porque otra sesión dio de baja la asignación después de comprobarla.
+function ownTeacherAssignmentNotFoundError() {
+  return new TeacherAssignmentError('TEACHER_ASSIGNMENT_NOT_FOUND', 'La asignación no existe o no está a tu cargo.');
+}
+
 // La asignación docente vigente con ese id, si está a cargo de `currentUser` (el profesor de la
 // sesión): una de las de listOwnTeacherAssignments, con sus mismos campos. El id llega del
 // renderer, así que acá se comprueba que sea suya, con el profesor de la sesión.
-// Lanza un TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND si no existe, si fue dada de baja o
-// si es de otro profesor, sin distinguir los casos: quien pide un id ajeno no se entera de si esa
-// asignación existe.
+// Lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de ownTeacherAssignmentNotFoundError
+// si no existe, si fue dada de baja o si es de otro profesor, sin distinguir los casos: quien pide
+// un id ajeno no se entera de si esa asignación existe.
 async function getOwnTeacherAssignment(currentUser, teacherAssignmentId) {
   const teacherAssignment = await teacherAssignmentRepository.findActiveByIdAndTeacher(
     teacherAssignmentId,
     currentUser.id
   );
-  if (!teacherAssignment) {
-    throw new TeacherAssignmentError('TEACHER_ASSIGNMENT_NOT_FOUND', 'La asignación no existe o no está a tu cargo.');
-  }
+  if (!teacherAssignment) throw ownTeacherAssignmentNotFoundError();
   return toOwnTeacherAssignment(teacherAssignment);
 }
 
@@ -330,6 +335,7 @@ module.exports = {
   listTeacherAssignments,
   listOwnTeacherAssignments,
   getOwnTeacherAssignment,
+  ownTeacherAssignmentNotFoundError,
   listAssignableTeachers,
   listAssignableCourses,
   listAssignableSubjects,
