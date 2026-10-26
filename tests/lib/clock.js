@@ -1,16 +1,16 @@
 // "Hoy" para la suite. La base toma la fecha de una única función, fn_fecha_actual() (db/schema.sql),
 // que usan las restricciones del ciclo lectivo, el DEFAULT de la fecha de inscripción y el seed, que
-// carga siempre el ciclo lectivo actual. El proceso principal (año de un curso nuevo o de una
-// asignación, edad de usuarios y alumnos) y el renderer (año que anuncian los formularios,
-// validación de fechas) todavía usan su propio reloj (plans/ciclo-lectivo, partes 01 y 02).
+// carga siempre el ciclo lectivo actual. El proceso principal y el renderer toman de ella el ciclo
+// lectivo (school-years:get-current, plans/ciclo-lectivo); solo las edades de usuarios y alumnos y
+// las validaciones de fecha del renderer siguen con el reloj del proceso.
 //
 // Las pruebas toman la fecha de la base, y la suite comprueba antes de empezar que los relojes
 // coinciden.
 //
 // Con TEST_TODAY=AAAA-MM-DD, la suite reemplaza fn_fecha_actual() en la plantilla de la corrida
 // (antes del seed, lib/pg-admin.js) y en cada base de prueba (nunca en la del .env) para que
-// devuelva esa fecha, y las pruebas dejan de depender del día en que corren. Mientras el proceso
-// principal y el renderer sigan con su propio reloj, una fecha de otro año solo sirve para la capa db.
+// devuelva esa fecha, y las pruebas dejan de depender del día en que corren. Quedan afuera las
+// edades y las validaciones de fecha del renderer, que siguen con el reloj del proceso.
 const SINGLE_SOURCE = { today: 'fn_fecha_actual' };
 
 function frozenDate() {
