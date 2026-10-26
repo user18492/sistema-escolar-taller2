@@ -60,13 +60,13 @@ const DISABLE_MESSAGES = {
   other: {
     lastAdmin: 'Es el único administrador activo. La institución no puede quedarse sin administradores.',
     teacherAssignments:
-      'El usuario tiene asignaciones docentes vigentes. ' +
+      'El usuario tiene asignaciones docentes vigentes en el ciclo lectivo actual. ' +
       'Reasignalas a otro profesor o eliminalas en Docencia antes de eliminarlo.',
   },
   own: {
     lastAdmin: 'Sos el único administrador activo. La institución no puede quedarse sin administradores.',
     teacherAssignments:
-      'Tenés asignaciones docentes vigentes. ' +
+      'Tenés asignaciones docentes vigentes en el ciclo lectivo actual. ' +
       'Pedile a un administrador que las reasigne o las elimine antes de eliminar tu cuenta.',
   },
 };
@@ -256,8 +256,8 @@ async function saveUnique(save, operation) {
 
 // Ejecuta `save` (el UPDATE que suspende o da de baja a un usuario). La base no deja a una
 // institución sin administradores habilitados ni da de baja a quien tiene asignaciones docentes
-// vigentes: si rechaza el cambio por eso, se lanza un UserError LAST_ADMIN o
-// USER_HAS_TEACHER_ASSIGNMENTS. `account` es 'other' u 'own', como en DISABLE_MESSAGES.
+// vigentes del ciclo lectivo actual: si rechaza el cambio por eso, se lanza un UserError LAST_ADMIN
+// o USER_HAS_TEACHER_ASSIGNMENTS. `account` es 'other' u 'own', como en DISABLE_MESSAGES.
 async function saveDisabling(save, account) {
   try {
     return await save();
@@ -331,14 +331,15 @@ async function listUsers(currentUser) {
 
 // Baja lógica de un usuario de la institución de `currentUser`: la fila queda con su fecha de baja y
 // suspendida, pasa a listarse como dada de baja y no puede iniciar sesión. Devuelve al usuario como
-// quedó, con los campos de listUsers. Quien tiene asignaciones docentes vigentes, del ciclo lectivo
-// que sean, no se da de baja: antes hay que reasignarlas o darlas de baja en Docencia. Tampoco el
-// único administrador de la institución que puede usar el sistema (activo y vigente). Las dos
-// reglas las aplica la base, así que valen también para dos bajas simultáneas.
+// quedó, con los campos de listUsers. Quien tiene asignaciones docentes vigentes del ciclo lectivo
+// actual no se da de baja: antes hay que reasignarlas o darlas de baja en Docencia. Las de un ciclo
+// cerrado no lo impiden: quedan en el histórico a su nombre. Tampoco se da de baja el único
+// administrador de la institución que puede usar el sistema (activo y vigente). Las dos reglas las
+// aplica la base, así que valen también para dos bajas simultáneas.
 // Lanza un UserError si es el propio usuario de la sesión (CANNOT_DELETE_SELF), si tiene
-// asignaciones docentes vigentes (USER_HAS_TEACHER_ASSIGNMENTS), si es ese administrador
-// (LAST_ADMIN), si no existe en la institución (USER_NOT_FOUND) o si ya estaba dado de baja
-// (USER_ALREADY_DELETED).
+// asignaciones docentes vigentes del ciclo lectivo actual (USER_HAS_TEACHER_ASSIGNMENTS), si es ese
+// administrador (LAST_ADMIN), si no existe en la institución (USER_NOT_FOUND) o si ya estaba dado de
+// baja (USER_ALREADY_DELETED).
 async function deleteUser(currentUser, userId) {
   // La tabla no ofrece al usuario de la sesión, pero el id llega del renderer: se vuelve a comprobar.
   // Su cuenta se da de baja con deleteOwnAccount, que además cierra la sesión.
@@ -546,11 +547,12 @@ async function updateProfile(currentUser, data) {
 // con su fecha de baja y suspendida, no puede iniciar sesión y un administrador la puede restaurar.
 // Con la baja hecha, la sesión queda cerrada. El único administrador de la institución que puede
 // usar el sistema (activo y vigente) no se puede dar de baja: nadie más podría restaurar su cuenta
-// ni administrar las demás. Tampoco un profesor con asignaciones docentes vigentes: un
-// administrador tiene que reasignarlas o darlas de baja antes. Las dos reglas las aplica la base,
-// como en deleteUser.
+// ni administrar las demás. Tampoco un profesor con asignaciones docentes vigentes del ciclo lectivo
+// actual: un administrador tiene que reasignarlas o darlas de baja antes. Las de un ciclo cerrado no
+// lo impiden. Las dos reglas las aplica la base, como en deleteUser.
 // Lanza un UserError si es ese administrador (LAST_ADMIN), si tiene asignaciones docentes vigentes
-// (USER_HAS_TEACHER_ASSIGNMENTS) o si la cuenta ya no está vigente (USER_NOT_FOUND).
+// del ciclo lectivo actual (USER_HAS_TEACHER_ASSIGNMENTS) o si la cuenta ya no está vigente
+// (USER_NOT_FOUND).
 async function deleteOwnAccount(currentUser) {
   const user = await saveDisabling(
     () => userRepository.markAsDeleted(currentUser.id, currentUser.institutionId),

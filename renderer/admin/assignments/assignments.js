@@ -10,9 +10,10 @@
 // no tienen un profesor en él (listAssignableSubjects). El resultado se avisa con un toast
 // (toast.component.js), salvo el rechazo de la materia, que se marca en el formulario.
 // Editar guarda el profesor, el curso y la materia de una asignación
-// (window.api.teacherAssignments.update) con el mismo formulario, que ofrece además el profesor y
-// el curso que la asignación ya tiene, aunque el alta no los ofrezca, y su materia. El resultado
-// se avisa con un toast; el rechazo de la materia, además, se marca en el formulario.
+// (window.api.teacherAssignments.update) con el mismo formulario, que ofrece además el curso que la
+// asignación ya tiene, aunque el alta no lo ofrezca, y su materia; el profesor tiene que ser uno de
+// los activos, así que si el suyo está suspendido hay que elegir otro. El resultado se avisa con un
+// toast; el rechazo de la materia, además, se marca en el formulario.
 // Eliminar la da de baja (baja lógica, window.api.teacherAssignments.delete) después de confirmarlo
 // en un modal (confirm-modal.component.js) y también lo avisa con un toast: su materia vuelve a
 // ofrecerse en ese curso.
@@ -651,31 +652,32 @@ document.addEventListener('DOMContentLoaded', () => {
     (chevron.disabled ? cancelAssignmentBtn : chevron).focus();
   };
 
-  // `items` (los profesores o los cursos del alta) con `ownItem`, el de la asignación que se edita,
-  // si no estaba; sin él, o si la lista no llegó, queda como está
+  // `items` (los cursos del alta) con `ownItem`, el de la asignación que se edita, si no estaba; sin
+  // él, o si la lista no llegó, queda como está
   const withOwnItem = (items, ownItem, compare) =>
     (!items || !ownItem || items.some(({ id }) => id === ownItem.id) ? items : insertSorted(items, ownItem, compare));
 
-  // Arma las opciones de Profesor y de Curso con las listas del alta. Al editar se suman el
-  // profesor y el curso de la asignación si el alta no los ofrece (un profesor suspendido o dado de
-  // baja, un curso de otro ciclo lectivo o dado de baja): la asignación los puede conservar. Los
-  // dos campos quedan sin valor.
+  // Arma las opciones de Profesor y de Curso con las listas del alta. Al editar se suma el curso de
+  // la asignación si el alta no lo ofrece (uno de otro ciclo lectivo o dado de baja): la asignación
+  // lo puede conservar. El profesor no: tiene que ser uno de los activos, aunque sea el que ya
+  // tiene, así que a uno suspendido no se lo ofrece. Los dos campos quedan sin valor.
   const fillFormOptions = () => {
-    const teachers = withOwnItem(assignableTeachers, editingAssignment?.teacher, compareTeachers);
     const courses = withOwnItem(assignableCourses, editingAssignment?.course, compareCourses);
-    teacherSelect.setOptions((teachers ?? []).map(createTeacherOption));
+    teacherSelect.setOptions((assignableTeachers ?? []).map(createTeacherOption));
     courseSelect.setOptions((courses ?? []).map(createCourseOption));
     // De los niveles educativos quedan a la vista los que tienen algún curso
     levelOptions.forEach((option) => {
       option.hidden = !courses?.some((course) => course.educationLevel === option.dataset.value);
     });
-    teacherLockText = lockTextOf(teachers, 'No se pudieron cargar los profesores', 'No hay profesores activos');
+    teacherLockText = lockTextOf(assignableTeachers, 'No se pudieron cargar los profesores', 'No hay profesores activos');
     levelLockText = lockTextOf(courses, 'No se pudieron cargar los cursos', `No hay cursos del ciclo lectivo ${currentSchoolYear?.year ?? 'actual'}`);
   };
 
-  // Al editar, el formulario llega con el profesor, el nivel educativo y el curso de la asignación
-  // (fillFormOptions los ofrece siempre); con el curso llegan sus materias, y entre ellas la de la
-  // asignación, que queda elegida (loadSubjects).
+  // Al editar, el formulario llega con el nivel educativo y el curso de la asignación
+  // (fillFormOptions los ofrece siempre) y con su profesor, si es uno de los activos: si está
+  // suspendido no hay opción para él, Profesor queda vacío y guardar sigue deshabilitado hasta elegir
+  // otro. Con el curso llegan sus materias, y entre ellas la de la asignación, que queda elegida
+  // (loadSubjects).
   const fillEditForm = () => {
     const { teacher, course } = editingAssignment;
     const clickOption = (root, value) => {

@@ -413,16 +413,23 @@ CREATE TRIGGER trg_asignacion_docente_ciclo_lectivo
     EXECUTE FUNCTION fn_asignacion_docente_ciclo_lectivo();
 
 -- Coherencia de una asignación vigente con las filas que referencia: el usuario es un profesor
--- vigente, es de la misma institución que el curso y la materia es del grado del curso. Las dadas
--- de baja no se validan. FOR SHARE retiene las filas del usuario y del curso hasta el fin de la
--- transacción: una baja simultánea del usuario o un cambio simultáneo de grado esperan y, al
--- seguir, su trigger (más abajo) ya ve esta asignación. Si una fila referenciada no existe, las
--- comparaciones dan NULL y no fallan: la rechaza después su clave foránea
+-- activo y vigente, es de la misma institución que el curso y la materia es del grado del curso.
+-- Rige en toda alta o edición que deja la asignación vigente, aunque no cambie el profesor: la de
+-- un profesor suspendido no se edita sin reemplazarlo. Las dadas de baja no se validan, así que la
+-- de un suspendido sí se puede dar de baja. Las de un ciclo lectivo cerrado no llegan hasta acá:
+-- trg_asignacion_docente_ciclo_lectivo dispara antes (orden alfabético) y las rechaza, así que
+-- conservan su profesor. FOR SHARE retiene las filas del usuario y del curso hasta el fin de la
+-- transacción: una suspensión o una baja simultánea del usuario o un cambio simultáneo de grado
+-- esperan y, al seguir, el trigger de la baja o del grado (más abajo) ya ve esta asignación; si la
+-- suspensión o la baja llegaron antes, este control las espera y lee la fila como quedó. Si una
+-- fila referenciada no existe, las comparaciones dan NULL y no fallan: la rechaza después su clave
+-- foránea
 CREATE FUNCTION fn_asignacion_docente_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
     v_usuario_rol_id             INT;
     v_usuario_institucion_id     INT;
+    v_usuario_estado             BOOLEAN;
     v_usuario_fecha_eliminacion  TIMESTAMPTZ;
     v_rol                        VARCHAR(50);
     v_curso_institucion_id       INT;
@@ -432,9 +439,9 @@ BEGIN
     -- Sin JOIN con usuario_rol: si la fila cambia mientras espera el bloqueo, PostgreSQL vuelve a
     -- evaluar la consulta con la fila nueva del usuario pero con las filas anteriores de las demás
     -- tablas, y no devolvería nada si ya no coinciden. El rol es inmutable, así que acá lo que
-    -- puede cambiar durante la espera es la fecha de baja, que se lee de la fila nueva
-    SELECT u.usuario_rol_id, u.institucion_id, u.fecha_eliminacion
-      INTO v_usuario_rol_id, v_usuario_institucion_id, v_usuario_fecha_eliminacion
+    -- puede cambiar durante la espera es el estado o la fecha de baja, que se leen de la fila nueva
+    SELECT u.usuario_rol_id, u.institucion_id, u.estado, u.fecha_eliminacion
+      INTO v_usuario_rol_id, v_usuario_institucion_id, v_usuario_estado, v_usuario_fecha_eliminacion
       FROM usuario u
      WHERE u.usuario_id = NEW.usuario_id
        FOR SHARE;
@@ -465,6 +472,14 @@ BEGIN
         RAISE EXCEPTION 'El usuario % está dado de baja', NEW.usuario_id
             USING ERRCODE = 'check_violation',
                   CONSTRAINT = 'ck_asignacion_docente_usuario_vigente';
+    END IF;
+
+    -- Un dado de baja también está suspendido (ck_usuario_baja_suspendido): conserva el error de
+    -- arriba
+    IF NOT v_usuario_estado THEN
+        RAISE EXCEPTION 'El usuario % está suspendido', NEW.usuario_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_asignacion_docente_usuario_activo';
     END IF;
 
     IF v_usuario_institucion_id <> v_curso_institucion_id THEN
@@ -515,18 +530,23 @@ CREATE TRIGGER trg_curso_asignaciones_vigentes
     WHEN (NEW.grado_id <> OLD.grado_id OR NEW.institucion_id <> OLD.institucion_id)
     EXECUTE FUNCTION fn_curso_asignaciones_vigentes();
 
--- Un usuario con asignaciones vigentes no se da de baja, sean del ciclo lectivo que sean: quedarían
--- a nombre de un eliminado, con sus materias ocupadas y sin nadie que cargue sus evaluaciones y sus
--- notas. Antes hay que reasignarlas o darlas de baja. Es el equivalente de la clave foránea para
--- la baja lógica. Suspenderlo sí se puede: sus asignaciones lo esperan
+-- Un usuario con asignaciones vigentes del ciclo lectivo actual no se da de baja: quedarían a nombre
+-- de un eliminado, con sus materias ocupadas y sin nadie que cargue sus evaluaciones y sus notas.
+-- Antes hay que reasignarlas o darlas de baja. Es el equivalente de la clave foránea para la baja
+-- lógica. Solo cuenta el ciclo actual (de uno futuro no hay asignaciones): las de un ciclo cerrado
+-- ya no se editan ni se dan de baja (trg_asignacion_docente_ciclo_lectivo), así que quedan en el
+-- histórico con el profesor eliminado. Suspenderlo sí se puede: sus asignaciones lo esperan, pero
+-- no se editan sin reemplazarlo (trg_asignacion_docente_coherencia)
 CREATE FUNCTION fn_usuario_asignaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
     IF EXISTS (SELECT 1
                  FROM asignacion_docente a
+                 JOIN curso c ON c.curso_id = a.curso_id
                 WHERE a.usuario_id = OLD.usuario_id
-                  AND a.fecha_eliminacion IS NULL) THEN
-        RAISE EXCEPTION 'El usuario % tiene asignaciones docentes vigentes', OLD.usuario_id
+                  AND a.fecha_eliminacion IS NULL
+                  AND fn_ciclo_lectivo_estado(c.anio_ciclo_lectivo) <> 'CERRADO') THEN
+        RAISE EXCEPTION 'El usuario % tiene asignaciones docentes vigentes en el ciclo lectivo actual', OLD.usuario_id
             USING ERRCODE = 'check_violation',
                   CONSTRAINT = 'ck_usuario_asignaciones_vigentes';
     END IF;

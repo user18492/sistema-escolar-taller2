@@ -317,8 +317,8 @@ const UNIQUE_CONSTRAINT_FIELDS = {
 };
 
 // Reglas de usuario que validan triggers, con el nombre que informa cada una (db/schema.sql): quien
-// tiene asignaciones docentes vigentes no se da de baja, y el único administrador habilitado de una
-// institución no se suspende ni se da de baja.
+// tiene asignaciones docentes vigentes del ciclo lectivo actual no se da de baja, y el único
+// administrador habilitado de una institución no se suspende ni se da de baja.
 const TEACHER_ASSIGNMENTS_CONSTRAINT = 'ck_usuario_asignaciones_vigentes';
 const LAST_ADMIN_CONSTRAINT = 'ck_usuario_ultimo_administrador';
 
@@ -370,8 +370,8 @@ async function countNotDeleted(institutionId) {
 
 // Da de baja al usuario, que queda además suspendido. Devuelve el usuario como quedó, sin
 // password_hash; null si no existe en la institución o ya estaba dado de baja. PostgreSQL rechaza
-// la baja de quien tiene asignaciones docentes vigentes y la del único administrador habilitado de
-// la institución: ver isTeacherAssignmentsError e isLastAdminError.
+// la baja de quien tiene asignaciones docentes vigentes del ciclo lectivo actual y la del único
+// administrador habilitado de la institución: ver isTeacherAssignmentsError e isLastAdminError.
 async function markAsDeleted(userId, institutionId) {
   const { rows } = await query(MARK_AS_DELETED_SQL, [userId, institutionId]);
   return rows.length > 0 ? toUser(rows[0]) : null;
@@ -529,7 +529,7 @@ function duplicateFieldOf(error) {
 }
 
 // true si `error` indica que el usuario no se puede dar de baja porque tiene asignaciones docentes
-// vigentes.
+// vigentes del ciclo lectivo actual.
 function isTeacherAssignmentsError(error) {
   return error?.code === '23514' && error.constraint === TEACHER_ASSIGNMENTS_CONSTRAINT;
 }

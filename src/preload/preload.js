@@ -65,7 +65,7 @@ contextBridge.exposeInMainWorld('api', {
     // { ok: true } con la sesión ya cerrada (getCurrentUser pasa a informar null) o
     // { ok: false, error: { code, message } }, sin cambiar nada: LAST_ADMIN indica que es el único
     // administrador activo y vigente de su institución, que no se puede dar de baja, y
-    // USER_HAS_TEACHER_ASSIGNMENTS, que tiene asignaciones docentes vigentes.
+    // USER_HAS_TEACHER_ASSIGNMENTS, que tiene asignaciones docentes vigentes del ciclo lectivo actual.
     delete: () => ipcRenderer.invoke('profile:delete'),
   },
   users: {
@@ -99,9 +99,9 @@ contextBridge.exposeInMainWorld('api', {
     // Solo ADMIN. Baja lógica del usuario con ese id (usuario_id) de su institución, que queda además
     // suspendido. Resuelve { ok: true, user } con el usuario como quedó (mismos campos que list, con su
     // deletedAt) o { ok: false, error: { code, message } }; USER_NOT_FOUND y USER_ALREADY_DELETED indican
-    // que ya no está vigente, USER_HAS_TEACHER_ASSIGNMENTS, que tiene asignaciones docentes vigentes
-    // (hay que reasignarlas o darlas de baja antes), y LAST_ADMIN, que es el único administrador activo
-    // y vigente de la institución.
+    // que ya no está vigente, USER_HAS_TEACHER_ASSIGNMENTS, que tiene asignaciones docentes vigentes del
+    // ciclo lectivo actual (hay que reasignarlas o darlas de baja antes), y LAST_ADMIN, que es el único
+    // administrador activo y vigente de la institución.
     delete: (userId) => ipcRenderer.invoke('users:delete', userId),
     // Solo ADMIN. Restaura al usuario dado de baja con ese id (usuario_id) de su institución: vuelve a
     // estar vigente y queda activo, con la contraseña que tenía. Resuelve { ok: true, user } con el
@@ -209,9 +209,9 @@ contextBridge.exposeInMainWorld('api', {
     create: (data) => ipcRenderer.invoke('teacher-assignments:create', data),
     // Solo ADMIN. Guarda el profesor, el curso y la materia de la asignación docente vigente con ese id
     // (asignacion_docente_id) de su institución. `data` es { teacherId, courseId, subjectId }, como en
-    // create; el profesor y el curso que la asignación ya tiene se pueden conservar aunque no estén en
-    // listAssignableTeachers ni en listAssignableCourses, y la materia es una de listAssignableSubjects
-    // para ese curso y esa asignación. Resuelve { ok: true, teacherAssignment } con la asignación como
+    // create; el curso que la asignación ya tiene se puede conservar aunque no esté en
+    // listAssignableCourses, el profesor es uno de listAssignableTeachers (aunque sea el que ya tiene) y
+    // la materia es una de listAssignableSubjects para ese curso y esa asignación. Resuelve { ok: true, teacherAssignment } con la asignación como
     // quedó (mismos campos que list) o { ok: false, error: { code, message, fieldErrors } }, sin
     // guardar nada, con los códigos de create: DUPLICATE_VALUE indica que la materia ya tiene un
     // profesor en ese curso con otra asignación (guardarla sin cambios no es un duplicado). Además,
