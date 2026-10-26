@@ -26,6 +26,10 @@
 // ciclo cerrado, las calificaciones se ven en solo lectura, con el campo y Eliminar deshabilitados.
 // Si la vista estaba abierta desde antes del cambio de año, el proceso principal rechaza el guardado
 // o la baja, un toast lo avisa y la lista se vuelve a pedir, ya en solo lectura.
+// También se ven en solo lectura si la evaluación tiene una fecha futura (posterior a hoy, con la
+// fecha de la base): se califica a partir de ese día. Si pasó a una fecha futura con la vista
+// abierta, el proceso principal rechaza el guardado, un toast lo avisa y la lista se vuelve a pedir,
+// ya en solo lectura.
 
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
@@ -84,8 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // true mientras reloadScores le quita el foco al campo que se estaba editando: lo escrito no se
   // guarda, pasa a la fila nueva
   let isReleasingFocus = false;
-  // Si la asignación es de un ciclo lectivo cerrado, el motivo con el que las notas y Eliminar
-  // quedan deshabilitados; null si no, o hasta que llega con la lista
+  // Si la asignación es de un ciclo lectivo cerrado o la evaluación tiene una fecha futura, el
+  // motivo con el que las notas y Eliminar quedan deshabilitados (el del ciclo cerrado, si son las
+  // dos cosas); null si no, o hasta que llega con la lista
   let readOnlyTitle = null;
 
   // Cargando, error o sin resultados, en una única fila de todo el ancho
@@ -100,6 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // "Apellido, Nombre"
   const studentName = ({ firstName, lastName }) => `${lastName}, ${firstName}`;
+
+  // La fecha llega como 'AAAA-MM-DD' y se muestra como DD/MM/AAAA
+  const toDisplayDate = (isoDate) => isoDate.split('-').reverse().join('/');
 
   // ---------- Calificación: numeric stepper ----------
 
@@ -130,13 +138,14 @@ document.addEventListener('DOMContentLoaded', () => {
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
 
   // Rechazos de un guardado o una baja con los que la lista quedó vieja y se vuelve a pedir: la
-  // inscripción se dio de baja, o el ciclo lectivo se cerró con la vista abierta desde antes del
-  // cambio de año
-  const STALE_LIST_CODES = ['ENROLLMENT_DELETED', 'SCHOOL_YEAR_CLOSED'];
+  // inscripción se dio de baja, el ciclo lectivo se cerró con la vista abierta desde antes del
+  // cambio de año, o la evaluación pasó a una fecha futura
+  const STALE_LIST_CODES = ['ENROLLMENT_DELETED', 'SCHOOL_YEAR_CLOSED', 'EVALUATION_IN_FUTURE'];
 
   // Eliminar está disponible si hay una calificación guardada y se puede modificar (la inscripción
-  // está activa; en un ciclo cerrado, además, lo deshabilita el read-only-title de createRow). El
-  // atributo vale antes y después de que <row-actions> genere su botón.
+  // está activa; en un ciclo cerrado o una evaluación con fecha futura, además, lo deshabilita el
+  // read-only-title de createRow). El atributo vale antes y después de que <row-actions> genere su
+  // botón.
   const syncDeleteAction = (row, { value, isEnrollmentActive }) => {
     row.querySelector('row-actions').toggleAttribute('disabled', value === null || !isEnrollmentActive);
   };
@@ -157,8 +166,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // hasta la respuesta y después el resultado. Si no se pudo guardar, un toast avisa el motivo y el
   // campo vuelve a mostrar la nota guardada; si fue porque la inscripción dejó de estar activa,
   // queda además deshabilitado, y si fue porque se dio de baja, la lista se vuelve a pedir
-  // (reloadScores) y la fila deja de mostrarse; también si el ciclo lectivo se cerró, y la lista
-  // vuelve en solo lectura. reloadScores espera a este guardado, así que acá no se la espera.
+  // (reloadScores) y la fila deja de mostrarse; también si el ciclo lectivo se cerró o la
+  // evaluación pasó a una fecha futura, y la lista vuelve en solo lectura. reloadScores espera a
+  // este guardado, así que acá no se la espera.
   const saveScore = async (score, value, stepper) => {
     score.savingValue = value;
     stepper.inert = true;
@@ -292,8 +302,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
   // inscripcion_id en data-enrollment-id. Mientras se guarda una nota, la fila muestra la que se
   // envió y su control no admite cambios; el de una inscripción que no está activa queda
-  // deshabilitado, con la nota que tenga, igual que todos si la asignación es de un ciclo cerrado,
-  // que también deshabilita Eliminar. El title del control dice por qué.
+  // deshabilitado, con la nota que tenga, igual que todos si la asignación es de un ciclo cerrado o
+  // la evaluación tiene una fecha futura (readOnlyTitle), que también deshabilita Eliminar. El title
+  // del control dice por qué.
   function createRow(score) {
     const { enrollmentId, student, value, savingValue, isEnrollmentActive } = score;
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
@@ -354,8 +365,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Pide la evaluación y sus calificaciones con los ids de la URL, a la par de la tarjeta, junto con
   // el ciclo lectivo actual. Al llegar, y con la asignación de la tarjeta, que dice si su ciclo está
-  // cerrado, completa los datos de la evaluación, arma las opciones de Alumno y muestra las
-  // calificaciones. Si no llegan las calificaciones o el ciclo lectivo, la tabla muestra el error.
+  // cerrado, y la fecha de hoy, que dice si la evaluación es futura, completa los datos de la
+  // evaluación, arma las opciones de Alumno y muestra las calificaciones. Si no llegan las
+  // calificaciones o el ciclo lectivo, la tabla muestra el error.
   // Sin un id en la URL, o con uno que no es un número, el proceso principal responde que no pudo
   // identificar la asignación o la evaluación.
   async function loadScores() {
@@ -377,7 +389,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Sin la asignación (no se pudo cargar), la tarjeta y la tabla ya se ocultaron
     const isClosed = Boolean(assignment) && assignment.course.schoolYear < schoolYear.year;
-    readOnlyTitle = isClosed ? closedSchoolYearTitle(assignment.course.schoolYear) : null;
+    const { evaluationDate } = response.evaluation;
+    if (isClosed) {
+      readOnlyTitle = closedSchoolYearTitle(assignment.course.schoolYear);
+    } else if (evaluationDate > schoolYear.today) {
+      readOnlyTitle = `La evaluación es del ${toDisplayDate(evaluationDate)}: se puede calificar a partir de ese día.`;
+    } else {
+      readOnlyTitle = null;
+    }
     summary.showEvaluation(response.evaluation);
     evaluationStep.textContent = response.evaluation.title;
     scores = response.scores;
@@ -386,12 +405,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Vuelve a pedir la lista, que quedó vieja: una inscripción se dio de baja con la vista abierta y
-  // deja de mostrarse, o el ciclo lectivo se cerró y la lista vuelve en solo lectura. Las filas se
-  // quitan enseguida y la lista se pide cuando terminan los guardados en curso, así ya los trae. El
-  // campo o el botón Eliminar que tenía el foco lo recupera en la fila nueva de su inscripción, si
-  // está a la vista y habilitado; el campo, con lo que se estaba escribiendo, sin guardarlo: se
-  // guarda al salir de él, como siempre. Si la lista ya se estaba volviendo a pedir, espera ese
-  // pedido.
+  // deja de mostrarse, o el ciclo lectivo se cerró o la evaluación pasó a una fecha futura y la
+  // lista vuelve en solo lectura. Las filas se quitan enseguida y la lista se pide cuando terminan
+  // los guardados en curso, así ya los trae. El campo o el botón Eliminar que tenía el foco lo
+  // recupera en la fila nueva de su inscripción, si está a la vista y habilitado; el campo, con lo
+  // que se estaba escribiendo, sin guardarlo: se guarda al salir de él, como siempre. Si la lista ya
+  // se estaba volviendo a pedir, espera ese pedido.
   let reloading = null;
   const reloadScores = () => {
     reloading ??= (async () => {

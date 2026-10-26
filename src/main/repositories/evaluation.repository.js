@@ -63,12 +63,14 @@ const MARK_AS_DELETED_SQL = `
 // Índice único y restricciones de evaluacion (con los nombres que les da db/schema.sql) que rechazan
 // un alta, una edición o una baja por un motivo previsto: la asignación ya tiene otra evaluación
 // vigente con ese título, la fecha no es del ciclo lectivo de su curso (la informa
-// trg_evaluacion_fecha_ciclo_lectivo) o ese curso es de un ciclo lectivo cerrado (la informa
-// trg_evaluacion_ciclo_lectivo). PostgreSQL informa el nombre del índice como el de una
-// restricción.
+// trg_evaluacion_fecha_ciclo_lectivo), ese curso es de un ciclo lectivo cerrado (la informa
+// trg_evaluacion_ciclo_lectivo) o, solo en la edición, la evaluación tiene calificaciones vigentes
+// y la fecha nueva es futura (la informa trg_evaluacion_futura_calificaciones_vigentes).
+// PostgreSQL informa el nombre del índice como el de una restricción.
 const UNIQUE_INDEX = 'uq_evaluacion_asignacion_docente_titulo';
 const SCHOOL_YEAR_CONSTRAINT = 'ck_evaluacion_fecha_ciclo_lectivo';
 const CLOSED_SCHOOL_YEAR_CONSTRAINT = 'ck_evaluacion_ciclo_lectivo_cerrado';
+const FUTURE_WITH_SCORES_CONSTRAINT = 'ck_evaluacion_futura_calificaciones_vigentes';
 
 function toEvaluation(row) {
   return new Evaluation({
@@ -110,8 +112,10 @@ async function create(teacherAssignmentId, { title, evaluationDate }) {
 // mismos valores que admite create. Devuelve la evaluación como quedó; null si no existe, fue dada
 // de baja o es de otra asignación. PostgreSQL rechaza el cambio si la asignación ya tiene otra
 // vigente con ese título (isDuplicateError), si la fecha no es del ciclo lectivo de su curso
-// (isDateOutOfSchoolYearError) o si ese ciclo está cerrado (isClosedSchoolYearError). Que la
-// asignación se pueda usar y que los datos sean válidos lo comprueba el servicio.
+// (isDateOutOfSchoolYearError), si ese ciclo está cerrado (isClosedSchoolYearError) o si la
+// evaluación tiene calificaciones vigentes y la fecha nueva es posterior a hoy, con la fecha de la
+// base (isFutureWithScoresError). Que la asignación se pueda usar y que los datos sean válidos lo
+// comprueba el servicio.
 async function update(evaluationId, teacherAssignmentId, { title, evaluationDate }) {
   const { rows } = await query(UPDATE_SQL, [evaluationId, teacherAssignmentId, title, evaluationDate]);
   return rows.length > 0 ? toEvaluation(rows[0]) : null;
@@ -144,6 +148,12 @@ function isClosedSchoolYearError(error) {
   return error?.code === '23514' && error.constraint === CLOSED_SCHOOL_YEAR_CONSTRAINT;
 }
 
+// true si `error` indica que la evaluación tiene calificaciones vigentes y la fecha nueva es futura:
+// una evaluación calificada ya se tomó.
+function isFutureWithScoresError(error) {
+  return error?.code === '23514' && error.constraint === FUTURE_WITH_SCORES_CONSTRAINT;
+}
+
 module.exports = {
   findByTeacherAssignment,
   findActiveByIdAndTeacherAssignment,
@@ -153,4 +163,5 @@ module.exports = {
   isDuplicateError,
   isDateOutOfSchoolYearError,
   isClosedSchoolYearError,
+  isFutureWithScoresError,
 };

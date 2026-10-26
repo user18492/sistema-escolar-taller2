@@ -1016,7 +1016,8 @@ CREATE TABLE evaluacion (
     asignacion_docente_id  INT           NOT NULL,
     titulo                 VARCHAR(100)  NOT NULL,
     fecha_evaluacion       DATE          NOT NULL,
-    -- Su año es el ciclo lectivo del curso de la asignación
+    -- Su año es el ciclo lectivo del curso de la asignación. Con calificaciones vigentes no pasa a
+    -- una fecha futura: se califica a partir de la fecha de la evaluación
     fecha_eliminacion      TIMESTAMPTZ,
     -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva, pero deja de
     -- contar para las reglas de esta tabla
@@ -1181,7 +1182,10 @@ CREATE TRIGGER trg_curso_evaluaciones_vigentes
 -- Calificaciones: la nota de un alumno en una evaluación. El alumno se referencia por su
 -- inscripción en el curso de la evaluación, no directamente.
 -- Quien todavía no fue calificado no tiene fila. La que existe no se borra: se corrige su nota o,
--- si se cargó por error, se da de baja (baja lógica)
+-- si se cargó por error, se da de baja (baja lógica). La dada de baja ya no se modifica ni se
+-- restaura.
+-- Solo se califica en una evaluación vigente cuya fecha ya llegó: no en una dada de baja ni en una
+-- con fecha futura
 CREATE TABLE calificacion (
     calificacion_id    INT           GENERATED ALWAYS AS IDENTITY,
     evaluacion_id      INT           NOT NULL,
@@ -1262,37 +1266,54 @@ CREATE TRIGGER trg_calificacion_ciclo_lectivo
     FOR EACH ROW
     EXECUTE FUNCTION fn_calificacion_ciclo_lectivo();
 
--- Coherencia de una calificación con las filas que referencia: la inscripción es del curso de la
--- asignación de la evaluación, está vigente (sin baja lógica) y está activa. La baja lógica de la
--- inscripción no cambia su estado, así que se valida aparte: una activa dada de baja sigue siendo
--- ACTIVA. Se valida al cargar la calificación y cada vez que se modifica, para corregirla o para
--- darla de baja: las de una inscripción que dejó de estar activa (finalizada o cancelada) o que se
--- dio de baja se conservan como están, y ya no se pueden corregir ni dar de baja.
--- Por eso el trigger valida también la baja de la calificación, y no lleva el
--- WHEN (NEW.fecha_eliminacion IS NULL) de los de asignacion_docente y evaluacion.
+-- Coherencia de una calificación con las filas que referencia.
+-- Al cargarla y cada vez que se corrige, es decir, siempre que la fila queda vigente: la evaluación
+-- está vigente (sin baja lógica) y su fecha ya llegó (es de hoy o anterior, con fn_fecha_actual()),
+-- y la inscripción es del curso de la asignación de la evaluación, está vigente (sin baja lógica) y
+-- está activa. La baja lógica de la inscripción no cambia su estado, así que se valida aparte: una
+-- activa dada de baja sigue siendo ACTIVA.
+-- Al darla de baja, solo lo de la inscripción: las de una inscripción que dejó de estar activa
+-- (finalizada o cancelada) o que se dio de baja se conservan como están, y ya no se pueden corregir
+-- ni dar de baja. Por eso el trigger valida también la baja de la calificación, y no lleva el
+-- WHEN (NEW.fecha_eliminacion IS NULL) de los de asignacion_docente y evaluacion. La evaluación no
+-- se mira en la baja, así la de una calificación puede seguir a la de su evaluación.
+-- Una calificación dada de baja ya no se modifica: ni su nota ni su fecha de baja, y tampoco se
+-- restaura.
 -- FOR SHARE retiene las filas de la evaluación, de su asignación y de la inscripción hasta el fin
 -- de la transacción: un cambio simultáneo de asignación o de curso espera y, al seguir, su trigger
--- (más abajo) ya ve cómo quedó esta calificación; uno de estado o una baja lógica de la inscripción
--- también espera, y sigue con la calificación ya guardada. Al revés, si la inscripción cambió de
--- estado o se dio de baja primero, la calificación espera a que termine y se valida con la fila
--- como quedó. Si una fila referenciada no existe, las comparaciones dan NULL y no fallan: la
--- rechaza después su clave foránea
+-- (más abajo) ya ve cómo quedó esta calificación; también el paso de la evaluación a una fecha
+-- futura (trg_evaluacion_futura_calificaciones_vigentes, más abajo). Uno de estado o una baja
+-- lógica de la inscripción, o una baja de la evaluación, también espera, y sigue con la calificación
+-- ya guardada. Al revés, si la evaluación o la inscripción cambió primero (de fecha, de estado o
+-- por una baja), la calificación espera a que termine y se valida con la fila como quedó. Si una
+-- fila referenciada no existe, las comparaciones dan NULL y no fallan: la rechaza después su clave
+-- foránea
 CREATE FUNCTION fn_calificacion_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
     v_asignacion_docente_id          INT;
+    v_evaluacion_fecha               DATE;
+    v_evaluacion_fecha_eliminacion   TIMESTAMPTZ;
     v_evaluacion_curso_id            INT;
     v_inscripcion_curso_id           INT;
     v_inscripcion_estado_id          INT;
     v_inscripcion_fecha_eliminacion  TIMESTAMPTZ;
     v_estado                         VARCHAR(50);
 BEGIN
+    -- Antes de las consultas: una dada de baja se rechaza en cualquier cambio, también en la
+    -- restauración (fecha_eliminacion de vuelta en NULL)
+    IF TG_OP = 'UPDATE' AND OLD.fecha_eliminacion IS NOT NULL THEN
+        RAISE EXCEPTION 'La calificación % está dada de baja', OLD.calificacion_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_calificacion_vigente';
+    END IF;
+
     -- Sin JOIN de la evaluación con su asignación ni de la inscripción con su estado, como en
     -- fn_asignacion_docente_coherencia: si la fila cambió mientras esperaba el bloqueo, PostgreSQL
     -- vuelve a evaluar la consulta con la fila nueva pero con la asignación o el estado
     -- anteriores, y no devolvería nada
-    SELECT e.asignacion_docente_id
-      INTO v_asignacion_docente_id
+    SELECT e.asignacion_docente_id, e.fecha_evaluacion, e.fecha_eliminacion
+      INTO v_asignacion_docente_id, v_evaluacion_fecha, v_evaluacion_fecha_eliminacion
       FROM evaluacion e
      WHERE e.evaluacion_id = NEW.evaluacion_id
        FOR SHARE;
@@ -1313,6 +1334,22 @@ BEGIN
       INTO v_estado
       FROM inscripcion_estado e
      WHERE e.inscripcion_estado_id = v_inscripcion_estado_id;
+
+    -- Solo al cargar o corregir: la baja de una calificación no mira la evaluación
+    IF NEW.fecha_eliminacion IS NULL THEN
+        IF v_evaluacion_fecha_eliminacion IS NOT NULL THEN
+            RAISE EXCEPTION 'La evaluación % está dada de baja', NEW.evaluacion_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_calificacion_evaluacion_vigente';
+        END IF;
+
+        IF v_evaluacion_fecha > fn_fecha_actual() THEN
+            RAISE EXCEPTION 'La evaluación % es del %, que todavía no llegó',
+                            NEW.evaluacion_id, v_evaluacion_fecha
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_calificacion_evaluacion_futura';
+        END IF;
+    END IF;
 
     IF v_inscripcion_curso_id <> v_evaluacion_curso_id THEN
         RAISE EXCEPTION 'La inscripción % no es del curso de la evaluación %',
@@ -1394,6 +1431,38 @@ CREATE TRIGGER trg_evaluacion_calificaciones_vigentes
     FOR EACH ROW
     WHEN (NEW.asignacion_docente_id <> OLD.asignacion_docente_id)
     EXECUTE FUNCTION fn_evaluacion_calificaciones_vigentes();
+
+-- Una evaluación con calificaciones vigentes no pasa a una fecha futura (posterior a
+-- fn_fecha_actual()): se califica a partir de su fecha (trg_calificacion_coherencia), así que una
+-- evaluación calificada ya se tomó. Las dadas de baja no cuentan. Vale también para una evaluación
+-- dada de baja: sus calificaciones siguen vigentes.
+-- Sin bloqueos propios: la carga o la corrección de una calificación retiene la fila de la
+-- evaluación con FOR SHARE (fn_calificacion_coherencia), así que el cambio de fecha espera a que
+-- termine y, al seguir, ya ve esa calificación; al revés, la calificación espera al cambio de fecha
+-- y se valida con la fecha nueva
+CREATE FUNCTION fn_evaluacion_futura_calificaciones_vigentes() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.fecha_evaluacion > fn_fecha_actual()
+       AND EXISTS (SELECT 1
+                     FROM calificacion c
+                    WHERE c.evaluacion_id = OLD.evaluacion_id
+                      AND c.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'La evaluación % tiene calificaciones vigentes y no puede pasar a la fecha futura %',
+                        OLD.evaluacion_id, NEW.fecha_evaluacion
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_evaluacion_futura_calificaciones_vigentes';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_evaluacion_futura_calificaciones_vigentes
+    BEFORE UPDATE ON evaluacion
+    FOR EACH ROW
+    WHEN (NEW.fecha_evaluacion <> OLD.fecha_evaluacion)
+    EXECUTE FUNCTION fn_evaluacion_futura_calificaciones_vigentes();
 
 -- Una asignación con calificaciones vigentes conserva su curso. Cuentan las de todas sus
 -- evaluaciones, también las de las evaluaciones dadas de baja, que

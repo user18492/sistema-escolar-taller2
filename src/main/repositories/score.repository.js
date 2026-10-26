@@ -55,15 +55,19 @@ const MARK_AS_DELETED_SQL = `
   RETURNING calificacion_id, evaluacion_id, inscripcion_id, nota
 `;
 
-// Restricciones de calificacion, con los nombres que les da db/schema.sql. Las tres últimas las
-// informa trg_calificacion_coherencia, al cargar una nota, al corregirla y al darla de baja, y la
-// del ciclo lectivo cerrado, trg_calificacion_ciclo_lectivo, en esos mismos casos.
+// Restricciones de calificacion, con los nombres que les da db/schema.sql. Las del curso y de la
+// inscripción (SAME_COURSE, NOT_DELETED_ENROLLMENT y ACTIVE_ENROLLMENT) las informa
+// trg_calificacion_coherencia al cargar una nota, al corregirla y al darla de baja, y las de la
+// evaluación (DELETED_EVALUATION y FUTURE_EVALUATION), solo al cargarla o corregirla. La del ciclo
+// lectivo cerrado la informa trg_calificacion_ciclo_lectivo, en los tres casos.
 const UNIQUE_CONSTRAINT = 'uq_calificacion_evaluacion_inscripcion';
 const ENROLLMENT_FOREIGN_KEY = 'fk_calificacion_inscripcion';
 const CLOSED_SCHOOL_YEAR_CONSTRAINT = 'ck_calificacion_ciclo_lectivo_cerrado';
 const SAME_COURSE_CONSTRAINT = 'ck_calificacion_mismo_curso';
 const NOT_DELETED_ENROLLMENT_CONSTRAINT = 'ck_calificacion_inscripcion_vigente';
 const ACTIVE_ENROLLMENT_CONSTRAINT = 'ck_calificacion_inscripcion_activa';
+const DELETED_EVALUATION_CONSTRAINT = 'ck_calificacion_evaluacion_vigente';
+const FUTURE_EVALUATION_CONSTRAINT = 'ck_calificacion_evaluacion_futura';
 
 // pg devuelve NUMERIC como texto ('7.25'): la nota se entrega como número.
 function toScore(row) {
@@ -95,8 +99,9 @@ async function existsNotDeletedByEnrollment(enrollmentId) {
 // tiene una calificación vigente en esa evaluación (isDuplicateError; una dada de baja no cuenta),
 // si no es del curso de la evaluación (isEnrollmentNotInCourseError), si está dada de baja
 // (isEnrollmentDeletedError) o si no está activa (isEnrollmentNotActiveError), y también si la
-// evaluación es de un ciclo lectivo cerrado (isClosedSchoolYearError). Que la evaluación se pueda
-// calificar y que la nota sea válida lo comprueba el servicio.
+// evaluación se dio de baja (isEvaluationDeletedError), si su fecha todavía no llegó
+// (isFutureEvaluationError) o si es de un ciclo lectivo cerrado (isClosedSchoolYearError). Que la
+// evaluación se pueda calificar y que la nota sea válida lo comprueba el servicio.
 async function create(evaluationId, enrollmentId, value) {
   const { rows } = await query(CREATE_SQL, [evaluationId, enrollmentId, value]);
   return toScore(rows[0]);
@@ -106,8 +111,9 @@ async function create(evaluationId, enrollmentId, value) {
 // la evaluación `evaluationId` y la devuelve como quedó; null si no tiene ninguna (todavía no fue
 // calificada o su calificación se dio de baja). PostgreSQL rechaza el cambio si la inscripción se
 // dio de baja (isEnrollmentDeletedError) o dejó de estar activa (isEnrollmentNotActiveError), y si
-// la evaluación es de un ciclo lectivo cerrado (isClosedSchoolYearError). Lo demás lo comprueba el
-// servicio, como en create.
+// la evaluación se dio de baja (isEvaluationDeletedError), si su fecha todavía no llegó
+// (isFutureEvaluationError) o si es de un ciclo lectivo cerrado (isClosedSchoolYearError). Lo demás
+// lo comprueba el servicio, como en create.
 async function update(evaluationId, enrollmentId, value) {
   const { rows } = await query(UPDATE_SQL, [evaluationId, enrollmentId, value]);
   return rows.length > 0 ? toScore(rows[0]) : null;
@@ -159,6 +165,18 @@ function isClosedSchoolYearError(error) {
   return error?.code === '23514' && error.constraint === CLOSED_SCHOOL_YEAR_CONSTRAINT;
 }
 
+// true si `error` indica que la evaluación se dio de baja (baja lógica): sus calificaciones se
+// conservan, pero ya no se cargan ni se corrigen.
+function isEvaluationDeletedError(error) {
+  return error?.code === '23514' && error.constraint === DELETED_EVALUATION_CONSTRAINT;
+}
+
+// true si `error` indica que la fecha de la evaluación todavía no llegó: se califica a partir de ese
+// día.
+function isFutureEvaluationError(error) {
+  return error?.code === '23514' && error.constraint === FUTURE_EVALUATION_CONSTRAINT;
+}
+
 module.exports = {
   findByEvaluation,
   existsNotDeletedByEnrollment,
@@ -170,4 +188,6 @@ module.exports = {
   isEnrollmentDeletedError,
   isEnrollmentNotActiveError,
   isClosedSchoolYearError,
+  isEvaluationDeletedError,
+  isFutureEvaluationError,
 };

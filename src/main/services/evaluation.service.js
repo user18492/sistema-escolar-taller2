@@ -142,7 +142,8 @@ async function assertSchoolYearNotClosed(teacherAssignment) {
 // `duplicate.message` y `duplicate.title` en fieldErrors.title, si la asignación ya tiene otra
 // evaluación vigente con ese título, SCHOOL_YEAR_CLOSED si `schoolYear`, el ciclo lectivo del curso
 // de la asignación, se cerró después de comprobarlo, e INVALID_INPUT con fieldErrors.evaluationDate
-// si la fecha no es de ese ciclo lectivo.
+// si la fecha no es de ese ciclo lectivo o si, en la edición, la evaluación tiene calificaciones
+// vigentes y la fecha nueva es futura.
 async function saveEvaluation(save, duplicate, schoolYear) {
   try {
     return await save();
@@ -157,6 +158,14 @@ async function saveEvaluation(save, duplicate, schoolYear) {
     // fecha ya no es del suyo (trg_evaluacion_fecha_ciclo_lectivo, db/schema.sql).
     if (evaluationRepository.isDateOutOfSchoolYearError(error)) {
       throw invalidFieldsError({ evaluationDate: 'La fecha no es del ciclo lectivo de la asignación.' });
+    }
+    // Una evaluación calificada ya se tomó: no pasa a una fecha posterior a hoy, con la fecha de la
+    // base (trg_evaluacion_futura_calificaciones_vigentes, db/schema.sql). Lo decide solo la base;
+    // el alta nunca lo dispara, porque una evaluación nueva no tiene calificaciones.
+    if (evaluationRepository.isFutureWithScoresError(error)) {
+      throw invalidFieldsError({
+        evaluationDate: 'La evaluación ya tiene calificaciones: no se puede pasar a una fecha futura.',
+      });
     }
     throw error;
   }
@@ -207,7 +216,9 @@ async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, d
 // Si algún dato no es válido no se guarda nada y se lanza un EvaluationError INVALID_INPUT con los
 // fieldErrors de parseEvaluationData; si la asignación ya tiene otra evaluación vigente con ese
 // título, un EvaluationError DUPLICATE_VALUE con fieldErrors.title: guardarla sin cambios no es un
-// duplicado y una dada de baja no cuenta.
+// duplicado y una dada de baja no cuenta. Una evaluación con calificaciones vigentes no pasa a una
+// fecha futura: lo rechaza PostgreSQL, con su fecha, y se lanza un EvaluationError INVALID_INPUT
+// con fieldErrors.evaluationDate (saveEvaluation).
 // También lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment
 // si la asignación no existe, fue dada de baja o es de otro profesor, un EvaluationError
 // SCHOOL_YEAR_CLOSED si su curso es de un ciclo lectivo cerrado, que gana a los errores siguientes,
@@ -265,5 +276,6 @@ module.exports = {
   createOwnAssignmentEvaluation,
   updateOwnAssignmentEvaluation,
   deleteOwnAssignmentEvaluation,
+  evaluationNotFoundError,
   EvaluationError,
 };

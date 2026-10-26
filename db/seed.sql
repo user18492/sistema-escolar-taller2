@@ -696,9 +696,10 @@ CROSS JOIN (VALUES
 ORDER BY a.asignacion_docente_id, e.mes, e.dia;
 
 -- Calificaciones: una por cada evaluación ya tomada y cada inscripción activa del curso de su
--- asignación. Ya tomada es con fecha de hoy o anterior (fn_fecha_actual()), así que la cantidad
--- depende del día de la carga: ninguna antes de la primera fecha de las evaluaciones (18 de marzo)
--- y 55 desde la última (12 de noviembre).
+-- asignación. Ya tomada es con fecha de hoy o anterior (fn_fecha_actual()): la base también lo
+-- exige (trg_calificacion_coherencia), así que el filtro no se puede quitar. La cantidad depende del
+-- día de la carga: ninguna antes de la primera fecha de las evaluaciones (18 de marzo) y 55 desde
+-- la última (12 de noviembre).
 -- El INSERT no las enumera: une cada evaluación con las inscripciones del curso de su asignación,
 -- así que ninguna evaluación ya tomada queda con un alumno del curso sin calificar.
 -- Solo cuentan las inscripciones activas: trg_calificacion_coherencia rechaza las demás, también

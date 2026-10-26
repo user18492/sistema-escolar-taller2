@@ -396,9 +396,11 @@ contextBridge.exposeInMainWorld('api', {
     // { title, evaluationDate }, como en create, y se valida igual. Resuelve
     // { ok: true, evaluation } con la evaluación como quedó (mismos campos que listByOwnAssignment)
     // o { ok: false, error: { code, message, fieldErrors } }, sin guardar nada: fieldErrors llega
-    // con INVALID_INPUT, como en create, y con DUPLICATE_VALUE (la asignación ya tiene otra
-    // evaluación vigente con ese título, en fieldErrors.title; guardarla sin cambios no es un
-    // duplicado); TEACHER_ASSIGNMENT_NOT_FOUND y SCHOOL_YEAR_CLOSED, como en create, y
+    // con INVALID_INPUT, como en create y también en fieldErrors.evaluationDate si la evaluación
+    // tiene calificaciones vigentes y la fecha nueva es futura (posterior a hoy, con la fecha de la
+    // base), y con DUPLICATE_VALUE (la asignación ya tiene otra evaluación vigente con ese título,
+    // en fieldErrors.title; guardarla sin cambios no es un duplicado); TEACHER_ASSIGNMENT_NOT_FOUND
+    // y SCHOOL_YEAR_CLOSED, como en create, y
     // EVALUATION_NOT_FOUND indica que la evaluación no existe, que fue dada de baja o que es de otra
     // asignación, sin distinguir entre esos casos.
     update: (teacherAssignmentId, evaluationId, data) =>
@@ -444,8 +446,9 @@ contextBridge.exposeInMainWorld('api', {
     // ENROLLMENT_NOT_FOUND, que la inscripción no existe o no es del curso de la asignación;
     // ENROLLMENT_DELETED, que fue dada de baja (ya no está en listByOwnEvaluation, que quedó
     // vieja), y ENROLLMENT_NOT_ACTIVE, que fue finalizada o cancelada; SCHOOL_YEAR_CLOSED, que la
-    // evaluación es de un curso de un ciclo lectivo cerrado, y además, TEACHER_ASSIGNMENT_NOT_FOUND y
-    // EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
+    // evaluación es de un curso de un ciclo lectivo cerrado; EVALUATION_IN_FUTURE, que la fecha de
+    // la evaluación todavía no llegó (con la fecha de la base: se califica a partir de ese día), y
+    // además, TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     save: (teacherAssignmentId, evaluationId, data) =>
       ipcRenderer.invoke('scores:save', teacherAssignmentId, evaluationId, data),
     // Solo PROFESOR. Baja lógica de la calificación de un alumno en esa evaluación de esa asignación

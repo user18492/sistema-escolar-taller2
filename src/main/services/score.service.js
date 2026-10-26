@@ -52,6 +52,26 @@ async function assertSchoolYearNotClosed(teacherAssignment) {
   }
 }
 
+// ---------- Evaluación ya tomada ----------
+
+// Una calificación se carga o se corrige a partir de la fecha de su evaluación: antes, la evaluación
+// todavía no se tomó.
+function futureEvaluationError() {
+  return new ScoreError(
+    'EVALUATION_IN_FUTURE',
+    'La evaluación todavía no se tomó: se puede calificar a partir de su fecha.'
+  );
+}
+
+// Lanza el ScoreError EVALUATION_IN_FUTURE si la fecha de `evaluation` (la de
+// getOwnAssignmentEvaluation, 'AAAA-MM-DD') es posterior a hoy, con la fecha de la base
+// (getCurrentSchoolYear). Si la evaluación pasa a una fecha futura en el medio, la base rechaza la
+// escritura (trg_calificacion_coherencia, db/schema.sql) y ese rechazo se traduce al mismo error.
+async function assertEvaluationTaken(evaluation) {
+  const { today } = await schoolYearService.getCurrentSchoolYear();
+  if (evaluation.evaluationDate > today) throw futureEvaluationError();
+}
+
 // ---------- Inscripción vigente ----------
 
 // La inscripción del alumno se dio de baja (baja lógica): sus calificaciones se conservan, pero ya
@@ -156,8 +176,13 @@ async function createOrUpdateScore(evaluationId, enrollmentId, value) {
 // no existe o es de otro curso, sin distinguir los casos, ENROLLMENT_DELETED si se dio de baja y
 // ENROLLMENT_NOT_ACTIVE si fue finalizada o cancelada.
 // También lanza los errores de getOwnAssignmentEvaluation: TEACHER_ASSIGNMENT_NOT_FOUND y
-// EVALUATION_NOT_FOUND, y un ScoreError SCHOOL_YEAR_CLOSED si la evaluación es de un curso de un
-// ciclo lectivo cerrado, que gana a INVALID_SCORE y a los errores de la inscripción.
+// EVALUATION_NOT_FOUND, un ScoreError SCHOOL_YEAR_CLOSED si la evaluación es de un curso de un
+// ciclo lectivo cerrado y un ScoreError EVALUATION_IN_FUTURE si su fecha todavía no llegó, con la
+// fecha de la base (assertEvaluationTaken). Se comprueban en ese orden, y todos ganan a
+// INVALID_SCORE y a los errores de la inscripción. PostgreSQL vuelve a comprobar al guardar que la
+// evaluación siga vigente y que su fecha ya haya llegado (trg_calificacion_coherencia), por si
+// cambia en el medio: esos rechazos se traducen a EVALUATION_NOT_FOUND, con el mismo mensaje que
+// el de getOwnAssignmentEvaluation, y a EVALUATION_IN_FUTURE.
 async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluationId, { enrollmentId, value }) {
   const { teacherAssignment, evaluation } = await evaluationService.getOwnAssignmentEvaluation(
     currentUser,
@@ -165,6 +190,7 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
     evaluationId
   );
   await assertSchoolYearNotClosed(teacherAssignment);
+  await assertEvaluationTaken(evaluation);
   if (!isScoreValue(value)) {
     throw new ScoreError(
       'INVALID_SCORE',
@@ -179,6 +205,13 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
   } catch (error) {
     if (scoreRepository.isClosedSchoolYearError(error)) {
       throw closedSchoolYearError(teacherAssignment.course.schoolYear);
+    }
+    // La evaluación se dio de baja o pasó a una fecha futura después de consultarla
+    if (scoreRepository.isEvaluationDeletedError(error)) {
+      throw evaluationService.evaluationNotFoundError();
+    }
+    if (scoreRepository.isFutureEvaluationError(error)) {
+      throw futureEvaluationError();
     }
     if (scoreRepository.isEnrollmentNotInCourseError(error)) {
       throw new ScoreError('ENROLLMENT_NOT_FOUND', 'El alumno no está inscripto en el curso de esta evaluación.');
