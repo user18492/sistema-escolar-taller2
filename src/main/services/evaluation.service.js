@@ -1,4 +1,5 @@
 const evaluationRepository = require('../repositories/evaluation.repository');
+const scoreRepository = require('../repositories/score.repository');
 const teacherAssignmentService = require('./teacher-assignment.service');
 const schoolYearService = require('./school-year.service');
 const { isRealDate, toIsoDate } = require('./user.service');
@@ -86,14 +87,21 @@ function toListedEvaluation({ id, title, evaluationDate }) {
 }
 
 // Evaluaciones vigentes de una asignación docente vigente a cargo de `currentUser` (el profesor de
-// la sesión), en el orden del repositorio. El id de la asignación llega del renderer, así que antes
-// se comprueba que sea suya (getOwnTeacherAssignment).
+// la sesión), en el orden del repositorio, con los campos de toListedEvaluation y `scoreCount`:
+// cuántas calificaciones vigentes tiene cada una, solo de las inscripciones que el profesor ve en
+// Calificaciones (vigentes, activas o finalizadas), 0 si no tiene ninguna. Con esa cantidad, la
+// vista advierte al eliminarla que sus calificaciones también se dan de baja. El id de la
+// asignación llega del renderer, así que antes se comprueba que sea suya (getOwnTeacherAssignment).
 // Lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la
 // asignación no existe, fue dada de baja o es de otro profesor.
 async function listOwnAssignmentEvaluations(currentUser, teacherAssignmentId) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   const evaluations = await evaluationRepository.findByTeacherAssignment(teacherAssignment.id);
-  return evaluations.map(toListedEvaluation);
+  const scoreCounts = await scoreRepository.countVisibleByTeacherAssignment(teacherAssignment.id);
+  return evaluations.map((evaluation) => ({
+    ...toListedEvaluation(evaluation),
+    scoreCount: scoreCounts.get(evaluation.id) ?? 0,
+  }));
 }
 
 // La evaluación no está entre las vigentes de la asignación: no existe, fue dada de baja o es de
@@ -107,7 +115,7 @@ function evaluationNotFoundError() {
 // asignación. Los dos ids llegan del renderer, así que antes se comprueba que la asignación sea
 // suya (getOwnTeacherAssignment) y después, que la evaluación sea de esa asignación.
 // Devuelve { teacherAssignment, evaluation }: la asignación, con los campos de
-// getOwnTeacherAssignment, y la evaluación, con los de listOwnAssignmentEvaluations.
+// getOwnTeacherAssignment, y la evaluación, con los de toListedEvaluation (sin scoreCount).
 // Lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la
 // asignación no existe, fue dada de baja o es de otro profesor, y un EvaluationError
 // EVALUATION_NOT_FOUND si la evaluación no existe, fue dada de baja o es de otra asignación, sin
@@ -180,7 +188,7 @@ async function saveEvaluation(save, duplicate, schoolYear) {
 // ---------- Alta ----------
 
 // Crea una evaluación vigente en una asignación docente vigente a cargo de `currentUser` (el
-// profesor de la sesión) y la devuelve con los campos de listOwnAssignmentEvaluations. `data` trae
+// profesor de la sesión) y la devuelve con los campos de toListedEvaluation. `data` trae
 // title y evaluationDate ('AAAA-MM-DD'). El id de la asignación llega del renderer, así que antes
 // se comprueba que sea suya (getOwnTeacherAssignment): el ciclo lectivo contra el que se valida la
 // fecha sale de esa asignación y nunca de lo que envía el renderer.
@@ -215,7 +223,7 @@ async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, d
 
 // Guarda el título y la fecha de una evaluación vigente de una asignación docente vigente a cargo
 // de `currentUser` (el profesor de la sesión) y la devuelve como quedó, con los campos de
-// listOwnAssignmentEvaluations. `data` trae los mismos campos que en createOwnAssignmentEvaluation
+// toListedEvaluation. `data` trae los mismos campos que en createOwnAssignmentEvaluation
 // y se valida igual: la evaluación conserva su asignación, así que el ciclo lectivo contra el que
 // se valida la fecha es el de esa asignación. Los dos ids llegan del renderer, así que antes se
 // comprueba que la asignación sea suya (getOwnTeacherAssignment) y el cambio solo alcanza a una
@@ -258,7 +266,7 @@ async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, e
 // canceladas, que el profesor no ve: lo hace la base (trg_evaluacion_baja_calificaciones,
 // db/schema.sql). Los dos ids llegan del renderer, así que antes se comprueba que la asignación sea
 // suya (getOwnTeacherAssignment) y la baja solo alcanza a una evaluación de esa asignación.
-// Devuelve la evaluación dada de baja, con los campos de listOwnAssignmentEvaluations. Lanza el
+// Devuelve la evaluación dada de baja, con los campos de toListedEvaluation. Lanza el
 // TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la asignación
 // no existe, fue dada de baja o es de otro profesor, un EvaluationError SCHOOL_YEAR_CLOSED si su
 // curso es de un ciclo lectivo cerrado, que gana a los errores siguientes, un EvaluationError

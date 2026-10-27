@@ -371,17 +371,18 @@ contextBridge.exposeInMainWorld('api', {
   evaluations: {
     // Solo PROFESOR. Resuelve { ok: true, evaluations } con las evaluaciones vigentes (sin las dadas
     // de baja) de la asignación docente vigente con ese id (asignacion_docente_id), si está a su
-    // cargo ({ id, title, evaluationDate }, con evaluationDate el día de la evaluación,
-    // 'AAAA-MM-DD'), o { ok: false, error: { code, message } }: TEACHER_ASSIGNMENT_NOT_FOUND indica
-    // que la asignación no existe, que fue dada de baja o que es de otro profesor, sin distinguir
-    // entre esos casos. Llegan siempre en el mismo orden: por fecha (la más antigua primero) y
-    // título.
+    // cargo ({ id, title, evaluationDate, scoreCount }, con evaluationDate el día de la evaluación,
+    // 'AAAA-MM-DD', y scoreCount cuántas calificaciones vigentes tiene, solo de las inscripciones
+    // que lista scores.listByOwnEvaluation: vigentes, activas o finalizadas; 0 si ninguna), o
+    // { ok: false, error: { code, message } }: TEACHER_ASSIGNMENT_NOT_FOUND indica que la
+    // asignación no existe, que fue dada de baja o que es de otro profesor, sin distinguir entre esos
+    // casos. Llegan siempre en el mismo orden: por fecha (la más antigua primero) y título.
     listByOwnAssignment: (teacherAssignmentId) =>
       ipcRenderer.invoke('evaluations:list-by-own-assignment', teacherAssignmentId),
     // Solo PROFESOR. Crea una evaluación vigente en la asignación docente vigente con ese id
     // (asignacion_docente_id), si está a su cargo. `data` es { title, evaluationDate }, con
     // evaluationDate el día de la evaluación, 'AAAA-MM-DD'. Resuelve { ok: true, evaluation } con la
-    // evaluación creada (mismos campos que listByOwnAssignment) o
+    // evaluación creada (mismos campos que listByOwnAssignment, sin scoreCount) o
     // { ok: false, error: { code, message, fieldErrors } }, sin guardar nada: fieldErrors
     // ({ campo: mensaje }, con los nombres de `data`) llega con INVALID_INPUT si el título está
     // vacío o no tiene letras ni números, o si la fecha no existe en el calendario o no es del
@@ -394,11 +395,11 @@ contextBridge.exposeInMainWorld('api', {
     // (evaluacion_id), si es de la asignación docente vigente con ese id (asignacion_docente_id) y
     // esa asignación está a su cargo; la evaluación conserva su asignación. `data` es
     // { title, evaluationDate }, como en create, y se valida igual. Resuelve
-    // { ok: true, evaluation } con la evaluación como quedó (mismos campos que listByOwnAssignment)
-    // o { ok: false, error: { code, message, fieldErrors } }, sin guardar nada: fieldErrors llega
-    // con INVALID_INPUT, como en create y también en fieldErrors.evaluationDate si la evaluación
-    // tiene calificaciones vigentes y la fecha nueva es futura (posterior a hoy, con la fecha de la
-    // base), y con DUPLICATE_VALUE (la asignación ya tiene otra evaluación vigente con ese título,
+    // { ok: true, evaluation } con la evaluación como quedó (mismos campos que listByOwnAssignment,
+    // sin scoreCount) o { ok: false, error: { code, message, fieldErrors } }, sin guardar nada:
+    // fieldErrors llega con INVALID_INPUT, como en create y también en fieldErrors.evaluationDate si
+    // la evaluación tiene calificaciones vigentes y la fecha nueva es futura (posterior a hoy, con
+    // la fecha de la base), y con DUPLICATE_VALUE (la asignación ya tiene otra evaluación vigente con ese título,
     // en fieldErrors.title; guardarla sin cambios no es un duplicado); TEACHER_ASSIGNMENT_NOT_FOUND
     // y SCHOOL_YEAR_CLOSED, como en create, y
     // EVALUATION_NOT_FOUND indica que la evaluación no existe, que fue dada de baja o que es de otra
@@ -410,8 +411,8 @@ contextBridge.exposeInMainWorld('api', {
     // cargo: deja de listarse en listByOwnAssignment y su título se puede volver a usar en la
     // asignación; en la misma operación se dan de baja también todas sus calificaciones vigentes.
     // Resuelve { ok: true, evaluation } con la evaluación dada de baja (mismos campos que
-    // listByOwnAssignment) o { ok: false, error: { code, message } }, sin modificar nada:
-    // TEACHER_ASSIGNMENT_NOT_FOUND y SCHOOL_YEAR_CLOSED, como en create,
+    // listByOwnAssignment, sin scoreCount) o { ok: false, error: { code, message } }, sin modificar
+    // nada: TEACHER_ASSIGNMENT_NOT_FOUND y SCHOOL_YEAR_CLOSED, como en create,
     // EVALUATION_HAS_COMPLETED_SCORES, que la evaluación tiene calificaciones vigentes de
     // inscripciones finalizadas, y EVALUATION_NOT_FOUND indica que la evaluación no existe, que ya
     // estaba dada de baja o que es de otra asignación, sin distinguir entre esos casos.
@@ -422,9 +423,9 @@ contextBridge.exposeInMainWorld('api', {
     // Solo PROFESOR. Resuelve { ok: true, evaluation, scores } con la evaluación vigente con ese id
     // (evaluacion_id), si es de la asignación docente vigente con ese id (asignacion_docente_id) y
     // esa asignación está a su cargo ({ id, title, evaluationDate }, como en
-    // evaluations.listByOwnAssignment), y con sus calificaciones: una por cada inscripción del
-    // curso de la asignación, vigente, activa o finalizada (sin las canceladas ni las dadas de
-    // baja), tenga o no una nota cargada ({ enrollmentId, student, value, isEnrollmentActive }, con
+    // evaluations.listByOwnAssignment, sin scoreCount), y con sus calificaciones: una por cada
+    // inscripción del curso de la asignación, vigente, activa o finalizada (sin las canceladas ni
+    // las dadas de baja), tenga o no una nota cargada ({ enrollmentId, student, value, isEnrollmentActive }, con
     // enrollmentId el id de la inscripción, que identifica la fila; student
     // { firstName, lastName, dni }, el alumno, con dni solo los dígitos; value la nota, un número de 0 a 10 con hasta dos decimales, o null si
     // todavía no fue calificado o su calificación se dio de baja, e isEnrollmentActive false si la

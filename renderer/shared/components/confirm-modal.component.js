@@ -11,6 +11,9 @@
 // (clic en su texto). El overlay no lo cierra al hacer clic fuera.
 // Opciones:
 //   - beforeOpen(): se llama antes de abrirlo (la vista cierra ahí sus dropdowns y buscadores).
+//   - describe(trigger): se llama al abrirlo, con el botón de la fila. Si devuelve un texto no
+//     vacío, es la descripción del modal para esa fila (p. ej., una advertencia con sus datos); si
+//     no, queda la del marcado (atributo "description").
 //   - onConfirm(trigger): se llama al confirmar, con el botón de la fila. Si devuelve una promesa,
 //     el modal la espera abierto: "Sí, eliminar" pasa a "Eliminando…" ("Sí, restaurar", a
 //     "Restaurando…") y ni los botones ni Escape responden. Si el resultado es { message }, el
@@ -100,13 +103,16 @@
 
   customElements.define('confirm-modal', ConfirmModal);
 
-  window.setupConfirmModal = (overlay, { beforeOpen, onConfirm, fallbackFocus, triggerSelector } = {}) => {
+  window.setupConfirmModal = (overlay, { beforeOpen, describe, onConfirm, fallbackFocus, triggerSelector } = {}) => {
     // La acción del modal la fija su marcado (atributo "action" de <confirm-modal>)
     const action = overlay.dataset.confirmAction;
     const { confirmClass, pendingLabel } = ACTIONS[action];
     // Sin triggerSelector lo abren los botones de las filas de la tabla
     const openerSelector = triggerSelector ?? `.data-table tbody [data-action="${action}"]`;
     const dialog = overlay.querySelector('.modal-confirm');
+    const description = overlay.querySelector('.confirm-content p');
+    // La del marcado: vuelve en cada fila para la que describe no devuelve texto
+    const defaultDescription = description.textContent;
     const message = overlay.querySelector('.confirm-message');
     const cancelButton = overlay.querySelector('.confirm-actions .btn-neutral');
     const confirmButton = overlay.querySelector(`.confirm-actions .${confirmClass}`);
@@ -131,6 +137,7 @@
     const openModal = (button) => {
       trigger = button;
       beforeOpen?.();
+      description.textContent = describe?.(button) || defaultDescription;
       document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
       showMessage('');
       confirmButton.disabled = false;

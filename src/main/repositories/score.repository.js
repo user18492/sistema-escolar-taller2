@@ -24,6 +24,26 @@ const EXISTS_NOT_DELETED_BY_ENROLLMENT_SQL = `
                     AND ca.fecha_eliminacion IS NULL) AS has_scores
 `;
 
+// Cantidad de calificaciones vigentes de cada evaluación vigente de una asignación docente, solo de
+// las inscripciones que muestra Calificaciones: vigentes y activas o finalizadas (valores de
+// inscripcion_estado.nombre), con el mismo criterio que FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL
+// (enrollment.repository.js). No hace falta el curso: la inscripción es del de la asignación
+// (trg_calificacion_coherencia, db/schema.sql). Una evaluación sin ninguna no tiene fila.
+const COUNT_VISIBLE_BY_TEACHER_ASSIGNMENT_SQL = `
+  SELECT ca.evaluacion_id,
+         COUNT(*)::INT AS total
+    FROM calificacion ca
+    JOIN evaluacion e ON e.evaluacion_id = ca.evaluacion_id
+    JOIN inscripcion i ON i.inscripcion_id = ca.inscripcion_id
+    JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+   WHERE e.asignacion_docente_id = $1
+     AND e.fecha_eliminacion IS NULL
+     AND ca.fecha_eliminacion IS NULL
+     AND i.fecha_eliminacion IS NULL
+     AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
+   GROUP BY ca.evaluacion_id
+`;
+
 // Alta: la nota de una inscripción que no tiene una calificación vigente en la evaluación. Devuelve
 // la fila creada.
 const CREATE_SQL = `
@@ -88,6 +108,16 @@ function toScore(row) {
 async function findByEvaluation(evaluationId) {
   const { rows } = await query(FIND_BY_EVALUATION_SQL, [evaluationId]);
   return rows.map(toScore);
+}
+
+// Cuántas calificaciones vigentes tiene cada evaluación vigente de la asignación docente
+// `teacherAssignmentId` (un asignacion_docente_id), contando solo las de inscripciones vigentes,
+// activas o finalizadas: las que el profesor ve en Calificaciones. Devuelve un Map evaluacion_id →
+// cantidad, sin las evaluaciones que no tienen ninguna. Que la asignación se pueda consultar lo
+// comprueba el servicio.
+async function countVisibleByTeacherAssignment(teacherAssignmentId) {
+  const { rows } = await query(COUNT_VISIBLE_BY_TEACHER_ASSIGNMENT_SQL, [teacherAssignmentId]);
+  return new Map(rows.map((row) => [row.evaluacion_id, row.total]));
 }
 
 // true si la inscripción `enrollmentId` (un inscripcion_id) tiene alguna calificación vigente, en
@@ -183,6 +213,7 @@ function isFutureEvaluationError(error) {
 
 module.exports = {
   findByEvaluation,
+  countVisibleByTeacherAssignment,
   existsNotDeletedByEnrollment,
   create,
   update,

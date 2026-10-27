@@ -15,7 +15,9 @@
 // con un toast (toast.component.js), salvo los errores de un campo, que se marcan en el formulario.
 // Eliminar la da de baja (baja lógica, window.api.evaluations.delete) después de confirmarlo en un
 // modal (confirm-modal.component.js) y también lo avisa con un toast: la evaluación sale de la
-// tabla y del filtro Título, y sus calificaciones se conservan.
+// tabla y del filtro Título, y sus calificaciones también se dan de baja. Si tiene alguna cargada
+// (de las que se ven en Calificaciones, con la cantidad que llega con la lista), el modal lo
+// advierte con la cantidad.
 // El ciclo lectivo actual llega con la lista, de la base (school-year.js): si la asignación es de un
 // ciclo cerrado, sus evaluaciones se ven en solo lectura, con Nueva evaluación, Editar y Eliminar
 // deshabilitados; Gestionar sigue abriendo sus calificaciones.
@@ -60,7 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar las evaluaciones. Intentá nuevamente.';
 
-  // En el orden en que llegan del proceso principal: por fecha
+  // En el orden en que llegan del proceso principal: por fecha. Cada una trae scoreCount, cuántas
+  // calificaciones tiene cargadas al pedir la lista: Calificaciones es otra vista, así que al volver
+  // de ella la lista se pide de nuevo.
   let evaluations = [];
   let isLoaded = false;
   // Si la asignación es de un ciclo lectivo cerrado, el motivo con el que Nueva evaluación, Editar y
@@ -218,12 +222,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // a la página donde quedó. El filtro Título elige una de las evaluaciones que ya estaban, así que
   // nunca mostraría a la nueva: se quita (fillFilterOptions), y ella pasa a ser una de sus opciones.
   // Si la lista no se había podido cargar, se vuelve a pedir: mostrar solo la evaluación nueva
-  // taparía el error.
-  const insertEvaluation = (newEvaluation) => {
+  // taparía el error. La respuesta del alta no trae scoreCount: una evaluación nueva no tiene
+  // calificaciones.
+  const insertEvaluation = (createdEvaluation) => {
     if (!isLoaded) {
       loadEvaluations();
       return;
     }
+    const newEvaluation = { ...createdEvaluation, scoreCount: 0 };
     placeEvaluation(newEvaluation);
     fillFilterOptions();
     renderRows({ page: Math.floor(evaluations.indexOf(newEvaluation) / pagination.pageSize) + 1 });
@@ -233,8 +239,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // datos nuevos, sin recargarla, y la tabla pasa a la página donde quedó. Su opción del filtro
   // Título muestra los datos nuevos y cambia de lugar con ella. El filtro elige por id: si estaba
   // aplicado, la editada es la elegida (es la única fila a la vista) y lo sigue siendo, y el
-  // embudo, que la nombra por su título, se actualiza.
-  const replaceEvaluation = (updatedEvaluation) => {
+  // embudo, que la nombra por su título, se actualiza. La respuesta de la edición no trae
+  // scoreCount: conserva el de la que reemplaza, porque editar no cambia sus calificaciones.
+  const replaceEvaluation = (savedEvaluation) => {
+    const { scoreCount } = evaluations.find(({ id }) => id === savedEvaluation.id);
+    const updatedEvaluation = { ...savedEvaluation, scoreCount };
     evaluations = evaluations.filter(({ id }) => id !== updatedEvaluation.id);
     placeEvaluation(updatedEvaluation);
     const option = evaluationOption(updatedEvaluation.id);
@@ -505,8 +514,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar evaluación ----------
 
+  // Descripción del modal para la evaluación de la fila del botón (la de la lista en memoria, por su
+  // data-evaluation-id): si tiene calificaciones cargadas, cuántas (de la lista cargada) y que
+  // también se dan de baja; sin ninguna, queda la del marcado.
+  const describeDeletion = (trigger) => {
+    const evaluationId = trigger.closest('tr')?.dataset.evaluationId;
+    const scoreCount = evaluations.find(({ id }) => String(id) === evaluationId)?.scoreCount ?? 0;
+    if (scoreCount === 0) return '';
+    return scoreCount === 1
+      ? '¿Quieres eliminar esta evaluación? Tiene 1 calificación cargada, que también se dará de baja.'
+      : `¿Quieres eliminar esta evaluación? Tiene ${scoreCount} calificaciones cargadas, que también se darán de baja.`;
+  };
+
   // El id sale del data-evaluation-id de la fila del botón (el evaluacion_id, fijado al crearla),
   // no de su posición en la tabla, y se envía con el de la asignación con el que se pidió la lista.
+  // La base da de baja con ella sus calificaciones vigentes, o rechaza la baja si alguna es de una
+  // inscripción finalizada (EVALUATION_HAS_COMPLETED_SCORES): ese rechazo sale en el toast de error
+  // como cualquier otro, y la lista no se recarga porque no cambió nada.
   // Avisa el resultado con un toast y no resuelve ningún mensaje, así el modal se cierra siempre.
   const deleteEvaluation = async (trigger) => {
     const row = trigger.closest('tr');
@@ -539,6 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
   // cierra. Si la fila ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
   setupConfirmModal(document.getElementById('deleteEvaluationOverlay'), {
+    describe: describeDeletion,
     onConfirm: deleteEvaluation,
     fallbackFocus: () => focusAfterRemoval('delete'),
   });

@@ -122,7 +122,7 @@ function toListedScore(enrollment, score) {
 // Los ids llegan del renderer, así que antes se comprueba que la asignación sea suya y que la
 // evaluación sea de esa asignación (getOwnAssignmentEvaluation): el curso sale de la asignación y
 // nunca de lo que envía el renderer.
-// Devuelve { evaluation, scores }, con la evaluación como en listOwnAssignmentEvaluations.
+// Devuelve { evaluation, scores }, con la evaluación como en getOwnAssignmentEvaluation.
 // Lanza los errores de getOwnAssignmentEvaluation: TEACHER_ASSIGNMENT_NOT_FOUND y
 // EVALUATION_NOT_FOUND.
 async function listOwnEvaluationScores(currentUser, teacherAssignmentId, evaluationId) {
