@@ -145,6 +145,16 @@ module.exports = [
            WHERE a.fecha_eliminacion IS NOT NULL AND e.fecha_eliminacion IS NULL`,
   },
   {
+    id: 'curso-baja-sin-asignaciones-ni-inscripciones',
+    description: 'Un curso dado de baja no tiene asignaciones docentes ni inscripciones vigentes',
+    // Con ellas no se da de baja, y después de la baja no las recibe
+    // (plans/administrador-cursos/00-base-de-datos-y-backend.md)
+    sql: `SELECT c.curso_id FROM curso c
+           WHERE c.fecha_eliminacion IS NOT NULL
+             AND (EXISTS (SELECT 1 FROM asignacion_docente a WHERE a.curso_id = c.curso_id AND a.fecha_eliminacion IS NULL)
+                  OR EXISTS (SELECT 1 FROM inscripcion i WHERE i.curso_id = c.curso_id AND i.fecha_eliminacion IS NULL))`,
+  },
+  {
     id: 'inscripcion-baja-sin-calificaciones',
     description: 'Una inscripción dada de baja no tiene calificaciones vigentes',
     // La baja se rechaza con calificaciones vigentes y, después de la baja, no se pueden cargar

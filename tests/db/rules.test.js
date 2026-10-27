@@ -130,8 +130,9 @@ group('db.courses', 'Reglas de cursos y asignaciones docentes', {
     await fixtures.enroll({ studentId: student.id, courseId: enrolledCourse.id });
     const otherGrade = await fixtures.gradeId('PRIMARIA', '1°');
     const otherGradeSubject = (await fixtures.subjectsOfGrade(otherGrade))[0];
-    return { teacher, secretary, deletedTeacher, suspendedTeacher, otherTeacher, foreignTeacher, course, assignment, emptyCourse,
-      evaluatedCourse, evaluatedAssignment, enrolledCourse, otherGrade, otherGradeSubject };
+    const freeStudent = await fixtures.createStudent();
+    return { teacher, secretary, deletedTeacher, suspendedTeacher, otherTeacher, foreignTeacher, otherInstitution, course, assignment,
+      emptyCourse, evaluatedCourse, evaluatedAssignment, enrolledCourse, otherGrade, otherGradeSubject, freeStudent };
   },
 }, () => {
   // Sin trg_curso_ciclo_lectivo (se vuelve a activar al deshacer el intento), que rechaza antes
@@ -148,27 +149,96 @@ group('db.courses', 'Reglas de cursos y asignaciones docentes', {
     await rejects(t, 'ciclo fuera de rango', withoutSchoolYearRule(update('anio_ciclo_lectivo = 1999')), 'ck_curso_anio_ciclo_lectivo');
   });
 
-  test('course-unique-among-current', 'Un curso vigente no se repite; uno dado de baja no cuenta', async (t) => {
-    const { course } = t.data;
+  test('course-unique-among-current', 'Un curso vigente no se repite; uno dado de baja no cuenta', {
+    history: [{ plan: 'plans/administrador-cursos/00-base-de-datos-y-backend.md', date: '2026-10-27', change: 'El duplicado y la baja usan emptyCourse en lugar de course: un curso con asignaciones vigentes ya no se da de baja' }],
+  }, async (t) => {
+    const { emptyCourse } = t.data;
     const duplicate = {
       sql: `INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
             SELECT institucion_id, grado_id, division, turno, anio_ciclo_lectivo FROM curso WHERE curso_id = $1`,
-      params: [course.id],
+      params: [emptyCourse.id],
     };
     await rejects(t, 'curso repetido', duplicate, 'uq_curso_institucion_grado_division_turno_anio_ciclo_lectivo');
     await passes(t, 'repetido después de la baja', [
-      { sql: `UPDATE curso SET fecha_eliminacion = now() WHERE curso_id = $1`, params: [course.id] },
+      { sql: `UPDATE curso SET fecha_eliminacion = now() WHERE curso_id = $1`, params: [emptyCourse.id] },
       duplicate,
     ]);
   });
 
   test('course-locked-by-dependents', 'Un curso conserva su grado con asignaciones, su ciclo con inscripciones o evaluaciones y su institución con inscripciones', {
-    history: [{ plan: 'plans/ciclo-lectivo/00-base-de-datos.md', date: '2026-10-26', change: 'Los dos cambios de ciclo se prueban con trg_curso_ciclo_lectivo desactivado dentro del intento: si no, los rechaza antes como ciclo futuro' }],
+    history: [
+      { plan: 'plans/ciclo-lectivo/00-base-de-datos.md', date: '2026-10-26', change: 'Los dos cambios de ciclo se prueban con trg_curso_ciclo_lectivo desactivado dentro del intento: si no, los rechaza antes como ciclo futuro' },
+      { plan: 'plans/administrador-cursos/00-base-de-datos-y-backend.md', date: '2026-10-27', change: 'Los dos cambios de ciclo desactivan también trg_curso_coherencia dentro del intento: si no, los rechaza antes por las inscripciones o las asignaciones vigentes' },
+    ],
   }, async (t) => {
     const { course, enrolledCourse, evaluatedCourse, otherGrade } = t.data;
+    // Sin trg_curso_coherencia, que con inscripciones o asignaciones vigentes rechaza antes toda
+    // modificación: los cambios de ciclo siguen probando las segundas barreras
+    const withoutSchoolYearAndInUseRules = (statement) => ['ALTER TABLE curso DISABLE TRIGGER trg_curso_coherencia', ...withoutSchoolYearRule(statement)];
     await rejects(t, 'grado con asignaciones', { sql: `UPDATE curso SET grado_id = $2 WHERE curso_id = $1`, params: [course.id, otherGrade] }, 'ck_curso_asignaciones_vigentes');
-    await rejects(t, 'ciclo con inscripciones', withoutSchoolYearRule({ sql: `UPDATE curso SET anio_ciclo_lectivo = anio_ciclo_lectivo + 1 WHERE curso_id = $1`, params: [enrolledCourse.id] }), 'ck_curso_inscripciones');
-    await rejects(t, 'ciclo con evaluaciones', withoutSchoolYearRule({ sql: `UPDATE curso SET anio_ciclo_lectivo = anio_ciclo_lectivo + 1 WHERE curso_id = $1`, params: [evaluatedCourse.id] }), 'ck_curso_evaluaciones_vigentes');
+    await rejects(t, 'ciclo con inscripciones', withoutSchoolYearAndInUseRules({ sql: `UPDATE curso SET anio_ciclo_lectivo = anio_ciclo_lectivo + 1 WHERE curso_id = $1`, params: [enrolledCourse.id] }), 'ck_curso_inscripciones');
+    await rejects(t, 'ciclo con evaluaciones', withoutSchoolYearAndInUseRules({ sql: `UPDATE curso SET anio_ciclo_lectivo = anio_ciclo_lectivo + 1 WHERE curso_id = $1`, params: [evaluatedCourse.id] }), 'ck_curso_evaluaciones_vigentes');
+  });
+
+  test('course-in-use', 'Un curso con asignaciones docentes vigentes o inscripciones vigentes no se edita ni se da de baja; las dadas de baja no cuentan', async (t) => {
+    const { course, enrolledCourse, otherGrade } = t.data;
+    const update = (courseId, set, params = []) => ({ sql: `UPDATE curso SET ${set} WHERE curso_id = $1`, params: [courseId, ...params] });
+    const otherDivision = `division = CASE WHEN division = 'Z' THEN 'Y' ELSE 'Z' END`;
+    const markAsDeleted = (courseId) => update(courseId, 'fecha_eliminacion = now()');
+    await rejects(t, 'división con asignaciones', update(course.id, otherDivision), 'ck_curso_asignaciones_vigentes');
+    await rejects(t, 'turno con asignaciones', update(course.id, `turno = CASE WHEN turno = 'MAÑANA' THEN 'TARDE' ELSE 'MAÑANA' END`), 'ck_curso_asignaciones_vigentes');
+    await rejects(t, 'UPDATE sin cambios con asignaciones', update(course.id, 'turno = turno'), 'ck_curso_asignaciones_vigentes');
+    await rejects(t, 'baja con asignaciones', markAsDeleted(course.id), 'ck_curso_asignaciones_vigentes');
+    await rejects(t, 'grado con inscripciones', update(enrolledCourse.id, 'grado_id = $2', [otherGrade]), 'ck_curso_inscripciones_vigentes');
+    await rejects(t, 'división con inscripciones', update(enrolledCourse.id, otherDivision), 'ck_curso_inscripciones_vigentes');
+    await rejects(t, 'baja con inscripciones', markAsDeleted(enrolledCourse.id), 'ck_curso_inscripciones_vigentes');
+    await passes(t, 'baja después de dar de baja su asignación', [
+      { sql: `UPDATE asignacion_docente SET fecha_eliminacion = now() WHERE curso_id = $1 AND fecha_eliminacion IS NULL`, params: [course.id] },
+      markAsDeleted(course.id),
+    ]);
+    await passes(t, 'baja después de dar de baja su inscripción', [
+      { sql: `UPDATE inscripcion SET fecha_eliminacion = now() WHERE curso_id = $1 AND fecha_eliminacion IS NULL`, params: [enrolledCourse.id] },
+      markAsDeleted(enrolledCourse.id),
+    ]);
+    await rejects(t, 'baja después de cancelar su inscripción', [
+      {
+        sql: `UPDATE inscripcion SET inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'CANCELADA')
+               WHERE curso_id = $1 AND fecha_eliminacion IS NULL`,
+        params: [enrolledCourse.id],
+      },
+      markAsDeleted(enrolledCourse.id),
+    ], 'ck_curso_inscripciones_vigentes');
+  });
+
+  test('course-institution-immutable', 'La institución y el ciclo lectivo de un curso no cambian, aunque no tenga asignaciones ni inscripciones', async (t) => {
+    const { emptyCourse, otherInstitution } = t.data;
+    await rejects(t, 'cambio de institución', {
+      sql: `UPDATE curso SET institucion_id = $2 WHERE curso_id = $1`, params: [emptyCourse.id, otherInstitution.id],
+    }, 'ck_curso_institucion_inmutable');
+    await rejects(t, 'cambio de ciclo lectivo', {
+      sql: `UPDATE curso SET anio_ciclo_lectivo = anio_ciclo_lectivo + 1 WHERE curso_id = $1`, params: [emptyCourse.id],
+    }, 'ck_curso_ciclo_lectivo_futuro');
+  });
+
+  test('deleted-course-no-dependents', 'Un curso dado de baja no recibe asignaciones docentes ni inscripciones', async (t) => {
+    const { emptyCourse, teacher, assignment, freeStudent } = t.data;
+    const markAsDeleted = { sql: `UPDATE curso SET fecha_eliminacion = now() WHERE curso_id = $1`, params: [emptyCourse.id] };
+    await rejects(t, 'alta de una asignación', [markAsDeleted, {
+      sql: `INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
+            SELECT $1, c.curso_id, gm.grado_materia_id FROM curso c JOIN grado_materia gm ON gm.grado_id = c.grado_id
+             WHERE c.curso_id = $2 ORDER BY gm.grado_materia_id LIMIT 1`,
+      params: [teacher.id, emptyCourse.id],
+    }], 'ck_asignacion_docente_curso_vigente');
+    await rejects(t, 'cambio de curso de una asignación', [markAsDeleted, {
+      sql: `UPDATE asignacion_docente SET curso_id = $2 WHERE asignacion_docente_id = $1`, params: [assignment.id, emptyCourse.id],
+    }], 'ck_asignacion_docente_curso_vigente');
+    for (const status of ['ACTIVA', 'CANCELADA']) {
+      await rejects(t, `alta de una inscripción ${status.toLowerCase()}`, [markAsDeleted, {
+        sql: `INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id)
+              VALUES ($1, $2, (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = $3))`,
+        params: [freeStudent.id, emptyCourse.id, status],
+      }], 'ck_inscripcion_curso_vigente');
+    }
   });
 
   test('assignment-coherence', 'Una asignación vigente es de un profesor vigente de la institución del curso, con una materia de su grado', async (t) => {
@@ -245,14 +315,21 @@ group('db.courses', 'Reglas de cursos y asignaciones docentes', {
     }
   });
 
-  test('deleted-course-editable', 'Hoy la base deja editar un curso dado de baja', {
-    kind: 'current',
-    affectedBy: ['administrador-cursos'],
+  test('deleted-course-editable', 'Un curso dado de baja no se modifica ni se restaura', {
+    history: [{ plan: 'plans/administrador-cursos/00-base-de-datos-y-backend.md', date: '2026-10-27', change: 'La edición de un curso dado de baja ya no pasa: el cambio de turno, de división y de grado, la restauración y el cambio de la fecha de baja esperan ck_curso_vigente (pasa de current a estable)' }],
   }, async (t) => {
-    await passes(t, 'edición de un curso dado de baja', [
-      { sql: `UPDATE curso SET fecha_eliminacion = now() WHERE curso_id = $1`, params: [t.data.emptyCourse.id] },
-      { sql: `UPDATE curso SET turno = 'MAÑANA' WHERE curso_id = $1`, params: [t.data.emptyCourse.id] },
-    ]);
+    const { emptyCourse, otherGrade } = t.data;
+    const markAsDeleted = { sql: `UPDATE curso SET fecha_eliminacion = now() WHERE curso_id = $1`, params: [emptyCourse.id] };
+    const changes = [
+      ['cambiar el turno', `UPDATE curso SET turno = CASE WHEN turno = 'MAÑANA' THEN 'TARDE' ELSE 'MAÑANA' END WHERE curso_id = $1`, []],
+      ['cambiar la división', `UPDATE curso SET division = CASE WHEN division = 'Z' THEN 'Y' ELSE 'Z' END WHERE curso_id = $1`, []],
+      ['cambiar el grado', `UPDATE curso SET grado_id = $2 WHERE curso_id = $1`, [otherGrade]],
+      ['restaurarlo', `UPDATE curso SET fecha_eliminacion = NULL WHERE curso_id = $1`, []],
+      ['cambiar la fecha de baja', `UPDATE curso SET fecha_eliminacion = now() - interval '1 day' WHERE curso_id = $1`, []],
+    ];
+    for (const [label, sql, params] of changes) {
+      await rejects(t, label, [markAsDeleted, { sql, params: [emptyCourse.id, ...params] }], 'ck_curso_vigente');
+    }
   });
 
   test('assignment-suspended-teacher', 'Una asignación vigente no se crea ni se edita con un profesor suspendido, aunque sea el que ya tiene; sí se da de baja o se le cambia el profesor', {

@@ -1,14 +1,20 @@
 {
   "version": 1,
-  "takenAt": "2026-10-27T13:23:44.594Z",
-  "commit": "fafe72f855c5cdd9d0870679f36de315d4f85b52",
+  "takenAt": "2026-10-27T19:02:37.895Z",
+  "commit": "74273581c2887cf57dee22c2ffc755000b8cd1e0",
   "branch": "restricciones",
   "dirty": true,
   "changedFiles": [
-    "renderer/admin/assignments/assignments.js",
-    "renderer/admin/assignments/index.html",
-    "renderer/shared/components/row-actions.component.js",
-    "renderer/shared/styles/form-field.css"
+    "db/schema.sql",
+    "src/main/models/course.model.js",
+    "src/main/repositories/course.repository.js",
+    "src/main/repositories/enrollment.repository.js",
+    "src/main/repositories/student.repository.js",
+    "src/main/repositories/teacher-assignment.repository.js",
+    "src/main/services/course.service.js",
+    "src/main/services/enrollment.service.js",
+    "src/main/services/teacher-assignment.service.js",
+    "src/preload/preload.js"
   ],
   "today": "2026-10-27",
   "year": 2026,
@@ -85,6 +91,24 @@
       "layer": "db",
       "status": "pass",
       "hash": "3a0530a5a535",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.course-delete-pending-enrollment": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "cfa2b44a3ef0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.assignment-deleted-course": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "b2c7a2c64808",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -219,19 +243,46 @@
     "db.courses.course-unique-among-current": {
       "layer": "db",
       "status": "pass",
-      "hash": "0a48c308c779",
+      "hash": "3c0f52123c98",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "db.courses.course-locked-by-dependents": {
       "layer": "db",
       "status": "pass",
-      "hash": "a9ae612d8e6c",
+      "hash": "fc778fa651c7",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 1,
+      "historyCount": 2,
+      "knownFailure": null
+    },
+    "db.courses.course-in-use": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "fd08d54291a1",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.course-institution-immutable": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "5e6661bf1ba1",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.courses.deleted-course-no-dependents": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "36873c5d0b33",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
       "knownFailure": null
     },
     "db.courses.assignment-coherence": {
@@ -291,12 +342,10 @@
     "db.courses.deleted-course-editable": {
       "layer": "db",
       "status": "pass",
-      "hash": "d3ec7b3d1ff9",
-      "kind": "current",
-      "affectedBy": [
-        "administrador-cursos"
-      ],
-      "historyCount": 0,
+      "hash": "404dc1adcddd",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "db.courses.assignment-suspended-teacher": {
@@ -721,6 +770,15 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "main.admin.courses.list-in-use": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "20b459115dc0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "main.admin.courses.create-update-delete": {
       "layer": "main",
       "status": "pass",
@@ -733,11 +791,18 @@
     "main.admin.courses.delete-with-assignments": {
       "layer": "main",
       "status": "pass",
-      "hash": "cc6119314081",
-      "kind": "current",
-      "affectedBy": [
-        "administrador-cursos"
-      ],
+      "hash": "6d72456f402a",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "main.admin.courses.in-use-enrollments": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "9d879902e765",
+      "kind": "stable",
+      "affectedBy": [],
       "historyCount": 0,
       "knownFailure": null
     },
@@ -790,6 +855,15 @@
       "layer": "main",
       "status": "pass",
       "hash": "e189f5e7cbbf",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.assignments.create-deleted-course": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "ceca2a471fbe",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -1830,14 +1904,14 @@
       "tests": 40
     },
     "auth:login": {
-      "calls": 111,
-      "ok": 103,
-      "tests": 84
+      "calls": 114,
+      "ok": 106,
+      "tests": 87
     },
     "auth:logout": {
-      "calls": 139,
-      "ok": 139,
-      "tests": 96
+      "calls": 142,
+      "ok": 142,
+      "tests": 99
     },
     "auth:select-institution": {
       "calls": 5,
@@ -1850,19 +1924,19 @@
       "tests": 3
     },
     "courses:delete": {
-      "calls": 5,
+      "calls": 7,
       "ok": 2,
-      "tests": 3
+      "tests": 4
     },
     "courses:list": {
-      "calls": 5,
-      "ok": 5,
-      "tests": 5
+      "calls": 6,
+      "ok": 6,
+      "tests": 6
     },
     "courses:update": {
-      "calls": 2,
-      "ok": 1,
-      "tests": 2
+      "calls": 5,
+      "ok": 2,
+      "tests": 4
     },
     "dashboard:get-admin-summary": {
       "calls": 9,
@@ -2010,9 +2084,9 @@
       "tests": 1
     },
     "teacher-assignments:create": {
-      "calls": 5,
+      "calls": 6,
       "ok": 3,
-      "tests": 4
+      "tests": 5
     },
     "teacher-assignments:delete": {
       "calls": 4,
@@ -2035,9 +2109,9 @@
       "tests": 6
     },
     "teacher-assignments:list-assignable-subjects": {
-      "calls": 9,
-      "ok": 9,
-      "tests": 8
+      "calls": 10,
+      "ok": 10,
+      "tests": 9
     },
     "teacher-assignments:list-assignable-teachers": {
       "calls": 6,
@@ -2307,8 +2381,10 @@
       "trg_calificacion_coherencia": "a2394f50d36c9fa6aca3336d957b92b6",
       "trg_curso_asignaciones_vigentes": "714d12fe786e4f0f1632cecd6666ed0a",
       "trg_curso_ciclo_lectivo": "c6995f295b17e6729c2c93f5f71496a2",
+      "trg_curso_coherencia": "953f353ed768b7fcb66160ab7f6de31f",
       "trg_curso_evaluaciones_vigentes": "11be18cd6a33df924b6ea3acc6feb8c5",
       "trg_curso_inscripciones": "5eb0f9cb35afd4da69a8c9339886ae07",
+      "trg_curso_institucion_inmutable": "148c593abe94d02c94e44da0c7215278",
       "trg_evaluacion_baja_calificaciones": "5dd2930ac1562f7d53d6d735178f0664",
       "trg_evaluacion_calificaciones_vigentes": "48cfb24e61a7b6b218c6e908946d3eb4",
       "trg_evaluacion_ciclo_lectivo": "e16b4050625d245d1377d2acf7b2949a",
@@ -2328,15 +2404,17 @@
       "fn_anio_ciclo_lectivo_actual()": "022a2c698204d62d15b52302336c26e3",
       "fn_asignacion_docente_calificaciones_vigentes()": "6d0b70809c221f4569d22b6e5ba8dc79",
       "fn_asignacion_docente_ciclo_lectivo()": "a7742449dce74c6a79e00aabe9fd33fb",
-      "fn_asignacion_docente_coherencia()": "dd415c38ecdf02193fe284e8d52e3ceb",
+      "fn_asignacion_docente_coherencia()": "d8cacc9174a017f83fdaf5aa1a59386a",
       "fn_asignacion_docente_evaluaciones_vigentes()": "947434d531ab94eeedc64578d988604b",
       "fn_calificacion_ciclo_lectivo()": "0b862df14d069da6a2becbd9d3422125",
       "fn_calificacion_coherencia()": "205eaf8808ed5721327a13950c6e8b49",
       "fn_ciclo_lectivo_estado(p_anio integer)": "c60cb6c60d85f8d87a99480f49bee9c3",
       "fn_curso_asignaciones_vigentes()": "c9a75078acb975690736b5990c5e88ab",
       "fn_curso_ciclo_lectivo()": "43f4f8e537ea04d59fa1d3fd3ded4ae6",
+      "fn_curso_coherencia()": "f377a8e11b016031ed75728790abc432",
       "fn_curso_evaluaciones_vigentes()": "80a727e252b223e94e1e7ce605c79243",
       "fn_curso_inscripciones()": "580e977bdbae90a3b77fbf3f4119d865",
+      "fn_curso_institucion_inmutable()": "0821e6727dd56af4ea17610c48e2dd8d",
       "fn_evaluacion_baja_calificaciones()": "3f6a57454a70e425c7f87c5ff763c8b3",
       "fn_evaluacion_calificaciones_vigentes()": "c7aa6e410139e2fd2d43189c5b648b4f",
       "fn_evaluacion_ciclo_lectivo()": "9dc18266aa9bbbc54c2e7c0e0d3213f3",
@@ -2346,7 +2424,7 @@
       "fn_fecha_actual()": "cd69e9a211ca93ea8fe666ab6c82fe02",
       "fn_inscripcion_calificaciones_vigentes()": "79b34b87dd6abdc7d791886acab7ed44",
       "fn_inscripcion_ciclo_lectivo()": "06b9c593cd527f9c9ebe114fd54a8d0f",
-      "fn_inscripcion_coherencia()": "48cdb710b76094a8269e9cfa07464c1c",
+      "fn_inscripcion_coherencia()": "1a6e4fabed6ac62febcda8996deb3223",
       "fn_inscripcion_fecha_ciclo_lectivo()": "9f6cc5161d053f82e11f04021c884192",
       "fn_usuario_asignaciones_vigentes()": "11027198ddfdf1c16ebb527b890ae4d9",
       "fn_usuario_rol_institucion_inmutables()": "f0b9057322ec96ebad06e5d4c7f791d8",

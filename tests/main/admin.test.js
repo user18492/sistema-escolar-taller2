@@ -118,9 +118,24 @@ group('main.admin.courses', 'Administrador: cursos y catálogo de grados', {
     await fixtures.assign({ teacherId: teacher.id, courseId: assignedCourse.id });
     const otherInstitution = await fixtures.createInstitution();
     const foreignCourse = await fixtures.createCourse({ institutionId: otherInstitution.id });
-    return { course, assignedCourse, foreignCourse };
+    // Un curso con la inscripción activa de un alumno nuevo y otro con una sola inscripción, dada de
+    // baja
+    const enrolledCourse = await fixtures.createCourse();
+    await fixtures.enroll({ studentId: (await fixtures.createStudent()).id, courseId: enrolledCourse.id });
+    const deletedEnrollmentCourse = await fixtures.createCourse();
+    await fixtures.enroll({ studentId: (await fixtures.createStudent()).id, courseId: deletedEnrollmentCourse.id, deleted: true });
+    return { course, assignedCourse, foreignCourse, enrolledCourse, deletedEnrollmentCourse };
   },
 }, () => {
+  // Datos válidos para editar un curso de fixtures.createCourse: su grado y su turno, con otra
+  // división libre
+  const otherDivisionData = async (t, course) => ({
+    gradeId: course.gradeId,
+    division: await t.fixtures.freeDivision(course.institutionId, course.gradeId, course.shift, t.year),
+    shift: SHIFT[course.shift],
+  });
+  const courseRow = (t, course) => t.sqlOne(`SELECT grado_id, division, turno, fecha_eliminacion FROM curso WHERE curso_id = $1`, [course.id]);
+
   test('grades', 'El catálogo de grados es el de la base', async (t) => {
     await t.login('admin');
     const { grades } = await t.ok('grades.list');
@@ -140,6 +155,32 @@ group('main.admin.courses', 'Administrador: cursos y catálogo de grados', {
       SELECT curso_id AS id FROM curso WHERE fecha_eliminacion IS NULL
          AND institucion_id = (SELECT institucion_id FROM institucion WHERE cuit = $1)`, [SM]);
     t.equal(sortedIds(courses), sortedNumbers(expected), 'Los ids del listado son los cursos vigentes de la institución');
+    await t.logout();
+  });
+
+  test('list-in-use', 'Cada curso del listado informa si tiene asignaciones docentes vigentes y si tiene inscripciones vigentes', async (t) => {
+    const { assignedCourse, enrolledCourse, deletedEnrollmentCourse, course } = t.data;
+    await t.login('admin');
+    const { courses } = await t.ok('courses.list');
+    const expected = await t.sql(`
+      SELECT c.curso_id AS id,
+             EXISTS (SELECT 1 FROM asignacion_docente a WHERE a.curso_id = c.curso_id AND a.fecha_eliminacion IS NULL) AS "hasTeacherAssignments",
+             EXISTS (SELECT 1 FROM inscripcion i WHERE i.curso_id = c.curso_id AND i.fecha_eliminacion IS NULL) AS "hasEnrollments"
+        FROM curso c
+       WHERE c.fecha_eliminacion IS NULL AND c.institucion_id = (SELECT institucion_id FROM institucion WHERE cuit = $1)
+       ORDER BY c.curso_id`, [SM]);
+    const listed = (courses ?? [])
+      .map(({ id, hasTeacherAssignments, hasEnrollments }) => ({ id, hasTeacherAssignments, hasEnrollments }))
+      .sort((a, b) => a.id - b.id);
+    t.equal(listed, expected, 'hasTeacherAssignments y hasEnrollments coinciden con las asignaciones y las inscripciones vigentes de cada curso');
+    const flags = (target) => {
+      const listedCourse = courses?.find((candidate) => candidate.id === target.id);
+      return { hasTeacherAssignments: listedCourse?.hasTeacherAssignments, hasEnrollments: listedCourse?.hasEnrollments };
+    };
+    t.equal(flags(assignedCourse), { hasTeacherAssignments: true, hasEnrollments: false }, 'El curso con una asignación vigente');
+    t.equal(flags(enrolledCourse), { hasTeacherAssignments: false, hasEnrollments: true }, 'El curso con una inscripción activa');
+    t.equal(flags(deletedEnrollmentCourse), { hasTeacherAssignments: false, hasEnrollments: false }, 'El curso con una sola inscripción, dada de baja');
+    t.equal(flags(course), { hasTeacherAssignments: false, hasEnrollments: false }, 'El curso sin asignaciones ni inscripciones');
     await t.logout();
   });
 
@@ -164,12 +205,33 @@ group('main.admin.courses', 'Administrador: cursos y catálogo de grados', {
     await t.logout();
   });
 
-  test('delete-with-assignments', 'Hoy se puede dar de baja un curso con asignaciones docentes vigentes', {
-    kind: 'current',
-    affectedBy: ['administrador-cursos'],
+  test('delete-with-assignments', 'Un curso con asignaciones docentes vigentes no se edita ni se da de baja', {
+    history: [{ plan: 'plans/administrador-cursos/00-base-de-datos-y-backend.md', date: '2026-10-27', change: 'La baja de un curso con asignaciones docentes vigentes ya no pasa: la baja y la edición esperan COURSE_IN_USE y la fila no cambia (pasa de current a estable)' }],
   }, async (t) => {
+    const { assignedCourse } = t.data;
     await t.login('admin');
-    await t.ok('courses.delete', t.data.assignedCourse.id);
+    const before = await courseRow(t, assignedCourse);
+    await t.rejects('COURSE_IN_USE', 'courses.delete', assignedCourse.id);
+    await t.rejects('COURSE_IN_USE', 'courses.update', assignedCourse.id, await otherDivisionData(t, assignedCourse));
+    t.equal(await courseRow(t, assignedCourse), before, 'El curso no cambió');
+    await t.logout();
+  });
+
+  test('in-use-enrollments', 'Un curso con inscripciones vigentes no se edita ni se da de baja; las dadas de baja no lo impiden', async (t) => {
+    const { enrolledCourse, deletedEnrollmentCourse } = t.data;
+    await t.login('admin');
+    const before = await courseRow(t, enrolledCourse);
+    await t.rejects('COURSE_IN_USE', 'courses.update', enrolledCourse.id, await otherDivisionData(t, enrolledCourse));
+    await t.rejects('COURSE_IN_USE', 'courses.delete', enrolledCourse.id);
+    t.equal(await courseRow(t, enrolledCourse), before, 'El curso con una inscripción activa no cambió');
+
+    const data = await otherDivisionData(t, deletedEnrollmentCourse);
+    await t.ok('courses.update', deletedEnrollmentCourse.id, data);
+    t.equal(await t.sqlOne(`SELECT division FROM curso WHERE curso_id = $1`, [deletedEnrollmentCourse.id]), { division: data.division },
+      'La edición del curso con una sola inscripción, dada de baja, se guardó');
+    await t.ok('courses.delete', deletedEnrollmentCourse.id);
+    t.equal(await t.sqlOne(`SELECT fecha_eliminacion IS NOT NULL AS baja FROM curso WHERE curso_id = $1`, [deletedEnrollmentCourse.id]), { baja: true },
+      'Quedó dado de baja');
     await t.logout();
   });
 });
@@ -190,8 +252,11 @@ group('main.admin.assignments', 'Administrador: asignaciones docentes', {
     const freeCourse = await fixtures.createCourse();
     const scored = await fixtures.teacherScenario();
     await fixtures.score({ evaluationId: scored.evaluationId, enrollmentId: scored.enrollmentId });
+    // Un curso del ciclo actual sin asignaciones, que una prueba da de baja mientras se le crea una
+    // asignación
+    const deletableCourse = await fixtures.createCourse();
     return { teacher, otherTeacher, suspendedTeacher, course, evaluated, evaluatedEvaluationId, keptTeacher, keptAssignment,
-      freeCourse, scored };
+      freeCourse, scored, deletableCourse };
   },
 }, () => {
   test('list', 'El listado trae las asignaciones vigentes de la institución', async (t) => {
@@ -272,6 +337,24 @@ group('main.admin.assignments', 'Administrador: asignaciones docentes', {
     const { course, suspendedTeacher } = t.data;
     const [subject] = (await t.ok('teacherAssignments.listAssignableSubjects', course.id)).subjects;
     await t.rejects('TEACHER_NOT_AVAILABLE', 'teacherAssignments.create', { teacherId: suspendedTeacher.id, courseId: course.id, subjectId: subject.id });
+    await t.logout();
+  });
+
+  test('create-deleted-course', 'Si el curso se da de baja mientras se crea la asignación, el alta responde COURSE_NOT_AVAILABLE y no guarda nada', async (t) => {
+    const { teacher, deletableCourse } = t.data;
+    await t.login('admin');
+    const [subject] = (await t.ok('teacherAssignments.listAssignableSubjects', deletableCourse.id)).subjects;
+    // El INSERT se demora después de las comprobaciones del servicio; mientras tanto, otra sesión da
+    // de baja el curso y confirma
+    const fault = t.injectFault({ match: /INSERT INTO asignacion_docente/i, action: 'delay', ms: 600 });
+    const rejection = t.rejects('COURSE_NOT_AVAILABLE', 'teacherAssignments.create', { teacherId: teacher.id, courseId: deletableCourse.id, subjectId: subject?.id });
+    const deadline = Date.now() + 5000;
+    while (fault.hits < 1 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    t.check(fault.hits === 1, 'El alta no llegó al INSERT de la asignación', { hits: fault.hits });
+    await t.sql(`UPDATE curso SET fecha_eliminacion = now() WHERE curso_id = $1`, [deletableCourse.id]);
+    await rejection;
+    const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM asignacion_docente WHERE curso_id = $1`, [deletableCourse.id]);
+    t.equal(count, 0, 'El curso dado de baja quedó sin asignaciones');
     await t.logout();
   });
 

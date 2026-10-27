@@ -1,8 +1,9 @@
 // Capa de base de datos: dos sesiones a la vez. Las reglas que dependen de otras filas (una sola
 // inscripción activa, el último administrador, el profesor activo de una asignación, la evaluación
 // vigente y ya tomada de una calificación, la asignación vigente de una evaluación, la asignación
-// que no se da de baja con evaluaciones vigentes y la baja en cascada de las calificaciones de una
-// evaluación) se sostienen con bloqueos de fila: la segunda operación espera a la primera y, al
+// que no se da de baja con evaluaciones vigentes, la baja en cascada de las calificaciones de una
+// evaluación, el curso que no se da de baja con inscripciones vigentes y el curso vigente de una
+// asignación) se sostienen con bloqueos de fila: la segunda operación espera a la primera y, al
 // seguir, ya la ve.
 const { group, test } = require('../lib/framework');
 const { connectSuite } = require('../lib/pg-admin');
@@ -33,7 +34,13 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     // Otra sin evaluaciones, en la que una prueba crea una evaluación mientras otra sesión la da de
     // baja. De grading.teacher, porque otra prueba suspende a teacher
     const pendingAssignment = await fixtures.assign({ teacherId: grading.teacher.id, courseId: (await fixtures.createCourse()).id });
+    // Cursos: uno vacío en el que una prueba inscribe a un alumno sin inscripciones mientras otra
+    // sesión lo da de baja, y otro vacío que una prueba da de baja y confirma
+    const coursePendingEnrollment = await fixtures.createCourse();
+    const studentPendingEnrollment = await fixtures.createStudent();
+    const courseBeingDeleted = await fixtures.createCourse();
     return { courseA, courseB, student, adminA, adminB, teacher, assignment, removableAssignment, pendingAssignment,
+      coursePendingEnrollment, studentPendingEnrollment, courseBeingDeleted,
       grading: { ...grading, secondEvaluationId, cascadeEvaluationId } };
   },
 }, () => {
@@ -234,5 +241,60 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     }
     const scores = await t.sql(`SELECT fecha_eliminacion IS NOT NULL AS baja FROM calificacion WHERE evaluacion_id = $1`, [cascadeEvaluationId]);
     t.equal(scores, [{ baja: true }], 'La nota cargada mientras tanto quedó dada de baja con la evaluación');
+  });
+
+  test('course-delete-pending-enrollment', 'Se inscribe a un alumno mientras se da de baja su curso: la baja espera y se rechaza', async (t) => {
+    const { coursePendingEnrollment, studentPendingEnrollment } = t.data;
+    const other = await second(t);
+    let committed = false;
+    try {
+      await t.db.query('BEGIN');
+      await t.db.query(`INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id)
+                        VALUES ($1, $2, (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'ACTIVA'))`,
+      [studentPendingEnrollment.id, coursePendingEnrollment.id]);
+      await other.query('BEGIN');
+      const pending = other.query(`UPDATE curso SET fecha_eliminacion = now() WHERE curso_id = $1`, [coursePendingEnrollment.id])
+        .then(() => ({ ok: true }), (error) => ({ ok: false, constraint: error.constraint }));
+      t.check(await isPending(pending), 'La baja no esperó el bloqueo del curso');
+      await t.db.query('COMMIT');
+      committed = true;
+      const result = await pending;
+      t.check(!result.ok && result.constraint === 'ck_curso_inscripciones_vigentes', 'La baja no se rechazó', result);
+      await other.query('ROLLBACK');
+    } finally {
+      if (!committed) await t.db.query('ROLLBACK').catch(() => {});
+      await other.end();
+    }
+    const state = await t.sqlOne(`
+      SELECT c.fecha_eliminacion IS NULL AS vigente,
+             (SELECT COUNT(*)::INT FROM inscripcion i WHERE i.curso_id = c.curso_id AND i.fecha_eliminacion IS NULL) AS inscripciones
+        FROM curso c WHERE c.curso_id = $1`, [coursePendingEnrollment.id]);
+    t.equal(state, { vigente: true, inscripciones: 1 }, 'El curso quedó vigente, con la inscripción creada mientras tanto');
+  });
+
+  test('assignment-deleted-course', 'Se da de baja el curso mientras se le crea una asignación: el alta espera y se rechaza', async (t) => {
+    const { courseBeingDeleted, grading } = t.data;
+    const [subject] = await t.fixtures.subjectsOfGrade(courseBeingDeleted.gradeId);
+    const other = await second(t);
+    let committed = false;
+    try {
+      await t.db.query('BEGIN');
+      await t.db.query(`UPDATE curso SET fecha_eliminacion = now() WHERE curso_id = $1`, [courseBeingDeleted.id]);
+      await other.query('BEGIN');
+      const pending = other.query(`INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id) VALUES ($1, $2, $3)`,
+        [grading.teacher.id, courseBeingDeleted.id, subject.gradeSubjectId])
+        .then(() => ({ ok: true }), (error) => ({ ok: false, constraint: error.constraint }));
+      t.check(await isPending(pending), 'El alta no esperó el bloqueo del curso');
+      await t.db.query('COMMIT');
+      committed = true;
+      const result = await pending;
+      t.check(!result.ok && result.constraint === 'ck_asignacion_docente_curso_vigente', 'El alta no se rechazó', result);
+      await other.query('ROLLBACK');
+    } finally {
+      if (!committed) await t.db.query('ROLLBACK').catch(() => {});
+      await other.end();
+    }
+    const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM asignacion_docente WHERE curso_id = $1`, [courseBeingDeleted.id]);
+    t.equal(count, 0, 'El curso dado de baja quedó sin asignaciones');
   });
 });
