@@ -160,10 +160,12 @@ contextBridge.exposeInMainWorld('api', {
   },
   teacherAssignments: {
     // Solo ADMIN. Resuelve { ok: true, teacherAssignments } con las asignaciones docentes vigentes de su
-    // institución (sin las dadas de baja), de todos los ciclos lectivos ({ id, teacher, course, subject },
-    // con teacher { id, firstName, lastName, email, imageUrl }, el profesor, e imageUrl la URL de su foto,
-    // profile-image://avatars/<archivo>, o null; course { id, gradeName, educationLevel, division, shift,
-    // schoolYear }, con los mismos valores que en courses.list, y subject { id, name }, la materia), o
+    // institución (sin las dadas de baja), de todos los ciclos lectivos ({ id, teacher, course, subject,
+    // hasEvaluations }, con teacher { id, firstName, lastName, email, imageUrl }, el profesor, e imageUrl
+    // la URL de su foto, profile-image://avatars/<archivo>, o null; course { id, gradeName,
+    // educationLevel, division, shift, schoolYear }, con los mismos valores que en courses.list; subject
+    // { id, name }, la materia, y hasEvaluations true si tiene evaluaciones vigentes: así no se da de baja
+    // ni cambia de curso ni de materia, aunque sí de profesor), o
     // { ok: false, error: { code, message } }. Llegan siempre en el mismo orden: ciclo lectivo (el más
     // reciente primero), profesor (por apellido y nombre), curso (nivel educativo, grado, división y
     // turno) y materia.
@@ -216,14 +218,17 @@ contextBridge.exposeInMainWorld('api', {
     // guardar nada, con los códigos de create: DUPLICATE_VALUE indica que la materia ya tiene un
     // profesor en ese curso con otra asignación (guardarla sin cambios no es un duplicado). Además,
     // TEACHER_ASSIGNMENT_NOT_FOUND y TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente,
-    // y SCHOOL_YEAR_CLOSED, que su curso es de un ciclo lectivo cerrado.
+    // SCHOOL_YEAR_CLOSED, que su curso es de un ciclo lectivo cerrado, y
+    // TEACHER_ASSIGNMENT_HAS_EVALUATIONS (sin fieldErrors), que tiene evaluaciones vigentes y no puede
+    // cambiar de curso ni de materia (el profesor sí cambia, y el nuevo hereda las evaluaciones).
     update: (teacherAssignmentId, data) => ipcRenderer.invoke('teacher-assignments:update', teacherAssignmentId, data),
     // Solo ADMIN. Baja lógica de la asignación docente con ese id (asignacion_docente_id) de su
     // institución: deja de listarse y su materia vuelve a estar entre las de listAssignableSubjects
     // para ese curso. Resuelve { ok: true, teacherAssignment } con la asignación dada de baja (mismos
     // campos que list) o { ok: false, error: { code, message } }; TEACHER_ASSIGNMENT_NOT_FOUND y
-    // TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente, y SCHOOL_YEAR_CLOSED, que su
-    // curso es de un ciclo lectivo cerrado.
+    // TEACHER_ASSIGNMENT_ALREADY_DELETED indican que ya no está vigente, SCHOOL_YEAR_CLOSED, que su
+    // curso es de un ciclo lectivo cerrado, y TEACHER_ASSIGNMENT_HAS_EVALUATIONS, que tiene evaluaciones
+    // vigentes.
     delete: (teacherAssignmentId) => ipcRenderer.invoke('teacher-assignments:delete', teacherAssignmentId),
   },
   students: {

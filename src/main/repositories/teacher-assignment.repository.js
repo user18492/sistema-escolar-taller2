@@ -6,9 +6,9 @@ const { Subject } = require('../models/subject.model');
 const { EDUCATION_LEVEL_BY_COLUMN_VALUE } = require('./grade.repository');
 const { SHIFT_BY_COLUMN_VALUE } = require('./course.repository');
 
-// Asignaciones docentes con su profesor, su curso y su materia. `source` es de dónde salen las
-// filas de asignacion_docente: la tabla o el CTE con la fila de un alta, de una edición o de una
-// baja.
+// Asignaciones docentes con su profesor, su curso y su materia, y si tienen evaluaciones vigentes
+// (`tiene_evaluaciones`). `source` es de dónde salen las filas de asignacion_docente: la tabla o el
+// CTE con la fila de un alta, de una edición o de una baja.
 const selectFrom = (source) => `
   SELECT a.asignacion_docente_id,
          a.grado_materia_id,
@@ -26,7 +26,11 @@ const selectFrom = (source) => `
          g.nombre AS grado_nombre,
          g.nivel_educativo,
          m.materia_id,
-         m.nombre AS materia_nombre
+         m.nombre AS materia_nombre,
+         EXISTS (SELECT 1
+                   FROM evaluacion e
+                  WHERE e.asignacion_docente_id = a.asignacion_docente_id
+                    AND e.fecha_eliminacion IS NULL) AS tiene_evaluaciones
     FROM ${source} a
     JOIN usuario u ON u.usuario_id = a.usuario_id
     JOIN curso c ON c.curso_id = a.curso_id
@@ -117,9 +121,11 @@ const CREATE_SQL = `
 `;
 
 // Edición: solo modifica una asignación vigente de un curso de la institución (`previous_course`,
-// el que tiene antes del cambio). La materia ($5, un materia_id) se busca en el plan de estudios
-// del grado del curso que se guarda ($4), como en el alta: si no es de ese grado, o si el curso no
-// existe, no se modifica nada. Devuelve la fila como quedó, con su profesor, su curso y su materia.
+// el que tiene antes del cambio); la base tampoco deja modificar una dada de baja. La materia ($5,
+// un materia_id) se busca en el plan de estudios del grado del curso que se guarda ($4), como en el
+// alta: si no es de ese grado, o si el curso no existe, no se modifica nada. Si la asignación tiene
+// evaluaciones vigentes, la base rechaza el cambio de curso o de materia (no el de profesor).
+// Devuelve la fila como quedó, con su profesor, su curso y su materia.
 const UPDATE_SQL = `
   WITH updated AS (
     UPDATE asignacion_docente a
@@ -141,8 +147,9 @@ const UPDATE_SQL = `
 
 // Baja lógica: la fila se conserva con la fecha de baja. Solo marca una asignación vigente de un
 // curso de la institución (la del curso: la asignación no la guarda), así una segunda baja
-// (repetida o simultánea) no pisa la fecha de la primera. Devuelve la fila, con su profesor, su
-// curso y su materia.
+// (repetida o simultánea) no pisa la fecha de la primera; la base tampoco lo permitiría. Si la
+// asignación tiene evaluaciones vigentes, la base rechaza la baja. Devuelve la fila, con su
+// profesor, su curso y su materia.
 const MARK_AS_DELETED_SQL = `
   WITH deleted AS (
     UPDATE asignacion_docente a
@@ -179,6 +186,14 @@ const SUSPENDED_TEACHER_CONSTRAINT = 'ck_asignacion_docente_usuario_activo';
 // una asignación de un curso de un ciclo lectivo cerrado no se crea, no se edita ni se da de baja.
 const CLOSED_SCHOOL_YEAR_CONSTRAINT = 'ck_asignacion_docente_ciclo_lectivo_cerrado';
 
+// Reglas que validan trg_asignacion_docente_evaluaciones_vigentes y
+// trg_asignacion_docente_calificaciones_vigentes, con el nombre que informa cada una
+// (db/schema.sql): una asignación con evaluaciones vigentes no cambia de curso ni de materia y no
+// se da de baja. La de calificaciones dispara antes (orden alfabético), así que es la que rechaza el
+// cambio de curso de una asignación calificada.
+const WITH_EVALUATIONS_CONSTRAINT = 'ck_asignacion_docente_evaluaciones_vigentes';
+const WITH_SCORES_CONSTRAINT = 'ck_asignacion_docente_calificaciones_vigentes';
+
 function toTeacherAssignment(row) {
   return new TeacherAssignment({
     id: row.asignacion_docente_id,
@@ -204,6 +219,7 @@ function toTeacherAssignment(row) {
       id: row.materia_id,
       name: row.materia_nombre,
     }),
+    hasEvaluations: row.tiene_evaluaciones,
   });
 }
 
@@ -265,7 +281,9 @@ async function create({ teacherId, courseId, subjectId }) {
 // isUnavailableTeacherError), o si el curso que tenía o el nuevo es de un ciclo lectivo cerrado (ver
 // isClosedSchoolYearError): en las asignaciones del ciclo actual el profesor está vigente, aunque
 // puede haber quedado suspendido; en las de un ciclo cerrado puede estar dado de baja, pero esas no
-// se editan. Que el profesor y el curso se puedan elegir lo comprueba el servicio.
+// se editan. Si la asignación tiene evaluaciones vigentes, rechaza el cambio de curso o de materia
+// (ver isWithEvaluationsError); el de profesor no: el nuevo hereda las evaluaciones. Que el profesor
+// y el curso se puedan elegir lo comprueba el servicio.
 async function update(teacherAssignmentId, institutionId, { teacherId, courseId, subjectId }) {
   const { rows } = await query(UPDATE_SQL, [teacherAssignmentId, institutionId, teacherId, courseId, subjectId]);
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
@@ -274,7 +292,8 @@ async function update(teacherAssignmentId, institutionId, { teacherId, courseId,
 // Da de baja la asignación, que deja de listarse y de contar para el índice único: su materia se
 // puede volver a asignar en ese curso. Devuelve la asignación dada de baja; null si no existe en la
 // institución o ya estaba dada de baja. PostgreSQL rechaza la baja si su curso es de un ciclo
-// lectivo cerrado (ver isClosedSchoolYearError).
+// lectivo cerrado (ver isClosedSchoolYearError) o si tiene evaluaciones vigentes (ver
+// isWithEvaluationsError).
 async function markAsDeleted(teacherAssignmentId, institutionId) {
   const { rows } = await query(MARK_AS_DELETED_SQL, [teacherAssignmentId, institutionId]);
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
@@ -304,6 +323,13 @@ function isClosedSchoolYearError(error) {
   return error?.code === '23514' && error.constraint === CLOSED_SCHOOL_YEAR_CONSTRAINT;
 }
 
+// true si `error` indica que la asignación tiene evaluaciones vigentes, con calificaciones o sin
+// ellas: no cambia de curso ni de materia y no se da de baja.
+function isWithEvaluationsError(error) {
+  return error?.code === '23514'
+    && (error.constraint === WITH_EVALUATIONS_CONSTRAINT || error.constraint === WITH_SCORES_CONSTRAINT);
+}
+
 module.exports = {
   findByInstitution,
   findByTeacher,
@@ -317,4 +343,5 @@ module.exports = {
   isDuplicateError,
   isUnavailableTeacherError,
   isClosedSchoolYearError,
+  isWithEvaluationsError,
 };

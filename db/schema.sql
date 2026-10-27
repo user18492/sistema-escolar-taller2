@@ -343,7 +343,9 @@ CREATE TABLE asignacion_docente (
     -- La materia, tomada del plan de estudios del grado del curso
     fecha_eliminacion      TIMESTAMPTZ,
     -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva, pero deja de
-    -- contar para las reglas de esta tabla
+    -- contar para las reglas de esta tabla. Solo se da de baja sin evaluaciones vigentes
+    -- (trg_asignacion_docente_evaluaciones_vigentes), y la dada de baja ya no se modifica ni se
+    -- restaura (trg_asignacion_docente_coherencia)
 
     CONSTRAINT pk_asignacion_docente PRIMARY KEY (asignacion_docente_id),
     CONSTRAINT fk_asignacion_docente_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(usuario_id),
@@ -412,17 +414,21 @@ CREATE TRIGGER trg_asignacion_docente_ciclo_lectivo
     FOR EACH ROW
     EXECUTE FUNCTION fn_asignacion_docente_ciclo_lectivo();
 
--- Coherencia de una asignación vigente con las filas que referencia: el usuario es un profesor
--- activo y vigente, es de la misma institución que el curso y la materia es del grado del curso.
--- Rige en toda alta o edición que deja la asignación vigente, aunque no cambie el profesor: la de
--- un profesor suspendido no se edita sin reemplazarlo. Las dadas de baja no se validan, así que la
--- de un suspendido sí se puede dar de baja. Las de un ciclo lectivo cerrado no llegan hasta acá:
--- trg_asignacion_docente_ciclo_lectivo dispara antes (orden alfabético) y las rechaza, así que
--- conservan su profesor. FOR SHARE retiene las filas del usuario y del curso hasta el fin de la
--- transacción: una suspensión o una baja simultánea del usuario o un cambio simultáneo de grado
--- esperan y, al seguir, el trigger de la baja o del grado (más abajo) ya ve esta asignación; si la
--- suspensión o la baja llegaron antes, este control las espera y lee la fila como quedó. Si una
--- fila referenciada no existe, las comparaciones dan NULL y no fallan: la rechaza después su clave
+-- Coherencia de una asignación con su propia baja y con las filas que referencia.
+-- Una asignación dada de baja ya no se modifica: ni su profesor, ni su curso, ni su materia, ni su
+-- fecha de baja, y tampoco se restaura. Ya no tiene evaluaciones vigentes: con ellas no se da de
+-- baja (trg_asignacion_docente_evaluaciones_vigentes, más abajo).
+-- Al crearla y cada vez que se edita, es decir, siempre que la fila queda vigente: el usuario es un
+-- profesor activo y vigente, es de la misma institución que el curso y la materia es del grado del
+-- curso. Rige aunque no cambie el profesor: la de un profesor suspendido no se edita sin
+-- reemplazarlo. La baja no se valida, así que la de un suspendido sí se puede dar de baja.
+-- Las de un ciclo lectivo cerrado no llegan hasta acá: trg_asignacion_docente_ciclo_lectivo
+-- dispara antes (orden alfabético) y las rechaza, también a las dadas de baja, así que conservan su
+-- profesor. FOR SHARE retiene las filas del usuario y del curso hasta el fin de la transacción: una
+-- suspensión o una baja simultánea del usuario o un cambio simultáneo de grado esperan y, al
+-- seguir, el trigger de la baja o del grado (más abajo) ya ve esta asignación; si la suspensión o
+-- la baja llegaron antes, este control las espera y lee la fila como quedó. Si una fila
+-- referenciada no existe, las comparaciones dan NULL y no fallan: la rechaza después su clave
 -- foránea
 CREATE FUNCTION fn_asignacion_docente_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -436,64 +442,76 @@ DECLARE
     v_curso_grado_id             INT;
     v_materia_grado_id           INT;
 BEGIN
-    -- Sin JOIN con usuario_rol: si la fila cambia mientras espera el bloqueo, PostgreSQL vuelve a
-    -- evaluar la consulta con la fila nueva del usuario pero con las filas anteriores de las demás
-    -- tablas, y no devolvería nada si ya no coinciden. El rol es inmutable, así que acá lo que
-    -- puede cambiar durante la espera es el estado o la fecha de baja, que se leen de la fila nueva
-    SELECT u.usuario_rol_id, u.institucion_id, u.estado, u.fecha_eliminacion
-      INTO v_usuario_rol_id, v_usuario_institucion_id, v_usuario_estado, v_usuario_fecha_eliminacion
-      FROM usuario u
-     WHERE u.usuario_id = NEW.usuario_id
-       FOR SHARE;
-
-    SELECT r.nombre
-      INTO v_rol
-      FROM usuario_rol r
-     WHERE r.usuario_rol_id = v_usuario_rol_id;
-
-    SELECT c.institucion_id, c.grado_id
-      INTO v_curso_institucion_id, v_curso_grado_id
-      FROM curso c
-     WHERE c.curso_id = NEW.curso_id
-       FOR SHARE;
-
-    SELECT gm.grado_id
-      INTO v_materia_grado_id
-      FROM grado_materia gm
-     WHERE gm.grado_materia_id = NEW.grado_materia_id;
-
-    IF v_rol <> 'PROFESOR' THEN
-        RAISE EXCEPTION 'El usuario % no es un profesor', NEW.usuario_id
+    -- Antes de las consultas: una dada de baja se rechaza en cualquier cambio, también en la
+    -- restauración (fecha_eliminacion de vuelta en NULL)
+    IF TG_OP = 'UPDATE' AND OLD.fecha_eliminacion IS NOT NULL THEN
+        RAISE EXCEPTION 'La asignación docente % está dada de baja', OLD.asignacion_docente_id
             USING ERRCODE = 'check_violation',
-                  CONSTRAINT = 'ck_asignacion_docente_usuario_profesor';
+                  CONSTRAINT = 'ck_asignacion_docente_vigente';
     END IF;
 
-    IF v_usuario_fecha_eliminacion IS NOT NULL THEN
-        RAISE EXCEPTION 'El usuario % está dado de baja', NEW.usuario_id
-            USING ERRCODE = 'check_violation',
-                  CONSTRAINT = 'ck_asignacion_docente_usuario_vigente';
-    END IF;
+    -- Solo al crearla o editarla: la baja de una asignación no se valida
+    IF NEW.fecha_eliminacion IS NULL THEN
+        -- Sin JOIN con usuario_rol: si la fila cambia mientras espera el bloqueo, PostgreSQL vuelve
+        -- a evaluar la consulta con la fila nueva del usuario pero con las filas anteriores de las
+        -- demás tablas, y no devolvería nada si ya no coinciden. El rol es inmutable, así que acá lo
+        -- que puede cambiar durante la espera es el estado o la fecha de baja, que se leen de la fila
+        -- nueva
+        SELECT u.usuario_rol_id, u.institucion_id, u.estado, u.fecha_eliminacion
+          INTO v_usuario_rol_id, v_usuario_institucion_id, v_usuario_estado, v_usuario_fecha_eliminacion
+          FROM usuario u
+         WHERE u.usuario_id = NEW.usuario_id
+           FOR SHARE;
 
-    -- Un dado de baja también está suspendido (ck_usuario_baja_suspendido): conserva el error de
-    -- arriba
-    IF NOT v_usuario_estado THEN
-        RAISE EXCEPTION 'El usuario % está suspendido', NEW.usuario_id
-            USING ERRCODE = 'check_violation',
-                  CONSTRAINT = 'ck_asignacion_docente_usuario_activo';
-    END IF;
+        SELECT r.nombre
+          INTO v_rol
+          FROM usuario_rol r
+         WHERE r.usuario_rol_id = v_usuario_rol_id;
 
-    IF v_usuario_institucion_id <> v_curso_institucion_id THEN
-        RAISE EXCEPTION 'El usuario % y el curso % son de instituciones distintas',
-                        NEW.usuario_id, NEW.curso_id
-            USING ERRCODE = 'check_violation',
-                  CONSTRAINT = 'ck_asignacion_docente_misma_institucion';
-    END IF;
+        SELECT c.institucion_id, c.grado_id
+          INTO v_curso_institucion_id, v_curso_grado_id
+          FROM curso c
+         WHERE c.curso_id = NEW.curso_id
+           FOR SHARE;
 
-    IF v_materia_grado_id <> v_curso_grado_id THEN
-        RAISE EXCEPTION 'La materia de grado % no es del grado del curso %',
-                        NEW.grado_materia_id, NEW.curso_id
-            USING ERRCODE = 'check_violation',
-                  CONSTRAINT = 'ck_asignacion_docente_materia_del_grado';
+        SELECT gm.grado_id
+          INTO v_materia_grado_id
+          FROM grado_materia gm
+         WHERE gm.grado_materia_id = NEW.grado_materia_id;
+
+        IF v_rol <> 'PROFESOR' THEN
+            RAISE EXCEPTION 'El usuario % no es un profesor', NEW.usuario_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_asignacion_docente_usuario_profesor';
+        END IF;
+
+        IF v_usuario_fecha_eliminacion IS NOT NULL THEN
+            RAISE EXCEPTION 'El usuario % está dado de baja', NEW.usuario_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_asignacion_docente_usuario_vigente';
+        END IF;
+
+        -- Un dado de baja también está suspendido (ck_usuario_baja_suspendido): conserva el error
+        -- de arriba
+        IF NOT v_usuario_estado THEN
+            RAISE EXCEPTION 'El usuario % está suspendido', NEW.usuario_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_asignacion_docente_usuario_activo';
+        END IF;
+
+        IF v_usuario_institucion_id <> v_curso_institucion_id THEN
+            RAISE EXCEPTION 'El usuario % y el curso % son de instituciones distintas',
+                            NEW.usuario_id, NEW.curso_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_asignacion_docente_misma_institucion';
+        END IF;
+
+        IF v_materia_grado_id <> v_curso_grado_id THEN
+            RAISE EXCEPTION 'La materia de grado % no es del grado del curso %',
+                            NEW.grado_materia_id, NEW.curso_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_asignacion_docente_materia_del_grado';
+        END IF;
     END IF;
 
     RETURN NEW;
@@ -503,7 +521,6 @@ $$;
 CREATE TRIGGER trg_asignacion_docente_coherencia
     BEFORE INSERT OR UPDATE ON asignacion_docente
     FOR EACH ROW
-    WHEN (NEW.fecha_eliminacion IS NULL)
     EXECUTE FUNCTION fn_asignacion_docente_coherencia();
 
 -- Un curso con asignaciones vigentes conserva su grado y su institución: cambiarlos las dejaría
@@ -1093,8 +1110,10 @@ CREATE TRIGGER trg_evaluacion_ciclo_lectivo
 -- fecha de baja, y tampoco se restaura. Sus calificaciones ya se dieron de baja con ella
 -- (trg_evaluacion_baja_calificaciones, más abajo).
 -- Al crearla y cada vez que se edita, es decir, siempre que la fila queda vigente: su asignación está
--- vigente (sin baja lógica). La baja de la evaluación no lo exige, así la de una asignación dada de
--- baja se puede dar de baja.
+-- vigente (sin baja lógica). La baja de la evaluación no lo exige. Una asignación dada de baja ya no
+-- tiene evaluaciones vigentes (trg_asignacion_docente_evaluaciones_vigentes, más abajo), así que en
+-- ella solo el alta llega hasta acá: el rechazo de la edición y la baja que se acepta quedan como
+-- segunda barrera.
 -- Corre después de trg_evaluacion_ciclo_lectivo (orden alfabético), así que en un ciclo lectivo
 -- cerrado gana ese rechazo. FOR SHARE retiene la fila de la asignación hasta el fin de la
 -- transacción: una baja simultánea de la asignación espera a que termine el alta o la edición; al
@@ -1183,8 +1202,13 @@ CREATE TRIGGER trg_evaluacion_fecha_ciclo_lectivo
     WHEN (NEW.fecha_eliminacion IS NULL)
     EXECUTE FUNCTION fn_evaluacion_fecha_ciclo_lectivo();
 
--- Una asignación con evaluaciones vigentes conserva su curso: se tomaron en ese curso y sus fechas
--- son de su ciclo lectivo
+-- Una asignación con evaluaciones vigentes conserva su curso y su materia, y no se da de baja: se
+-- tomaron en esa materia de ese curso y sus fechas son de su ciclo lectivo. El profesor sí se
+-- cambia: el nuevo hereda las evaluaciones y sus calificaciones.
+-- Sin bloqueos propios: el UPDATE retiene la fila de la asignación antes de los triggers BEFORE, y
+-- el alta o la edición de una evaluación la retiene con FOR SHARE (fn_evaluacion_coherencia). Así,
+-- la baja espera a que termine esa alta y, al seguir, ya ve la evaluación; al revés, el alta espera
+-- a la baja y la rechaza ck_evaluacion_asignacion_vigente
 CREATE FUNCTION fn_asignacion_docente_evaluaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -1204,11 +1228,13 @@ $$;
 CREATE TRIGGER trg_asignacion_docente_evaluaciones_vigentes
     BEFORE UPDATE ON asignacion_docente
     FOR EACH ROW
-    WHEN (NEW.curso_id <> OLD.curso_id)
+    WHEN (NEW.curso_id <> OLD.curso_id OR NEW.grado_materia_id <> OLD.grado_materia_id OR
+          (OLD.fecha_eliminacion IS NULL AND NEW.fecha_eliminacion IS NOT NULL))
     EXECUTE FUNCTION fn_asignacion_docente_evaluaciones_vigentes();
 
 -- Un curso con evaluaciones vigentes conserva su ciclo lectivo. Cuentan las de todas sus
--- asignaciones, también las dadas de baja: sus evaluaciones siguen vigentes.
+-- asignaciones; las dadas de baja ya no tienen evaluaciones vigentes
+-- (trg_asignacion_docente_evaluaciones_vigentes).
 -- Un cambio de ciclo lectivo ya lo rechaza antes trg_curso_ciclo_lectivo, para cualquier curso, así
 -- que este trigger ya no llega a rechazar nada: se conserva como segunda barrera
 CREATE FUNCTION fn_curso_evaluaciones_vigentes() RETURNS trigger
@@ -1331,7 +1357,7 @@ CREATE TRIGGER trg_calificacion_ciclo_lectivo
 -- Al darla de baja, solo lo de la inscripción: las de una inscripción que dejó de estar activa
 -- (finalizada o cancelada) o que se dio de baja se conservan como están, y ya no se pueden corregir
 -- ni dar de baja. Por eso el trigger valida también la baja de la calificación, y no lleva el
--- WHEN (NEW.fecha_eliminacion IS NULL) de los de asignacion_docente y evaluacion.
+-- WHEN (NEW.fecha_eliminacion IS NULL) de trg_evaluacion_fecha_ciclo_lectivo.
 -- La excepción es la baja en cascada (trg_evaluacion_baja_calificaciones, más abajo), que se
 -- reconoce porque la evaluación ya está dada de baja: con la cascada, una evaluación dada de baja
 -- no tiene calificaciones vigentes, así que solo ella llega a esa rama. La baja en cascada no mira
@@ -1571,8 +1597,11 @@ CREATE TRIGGER trg_evaluacion_baja_calificaciones
 -- Una asignación con calificaciones vigentes conserva su curso. Cuentan las de todas sus
 -- evaluaciones; las dadas de baja ya no tienen calificaciones vigentes
 -- (trg_evaluacion_baja_calificaciones), así que toda asignación que este trigger rechaza tiene
--- evaluaciones vigentes y también la rechazaría trg_asignacion_docente_evaluaciones_vigentes: se
--- conserva como segunda barrera
+-- evaluaciones vigentes y también la rechazaría trg_asignacion_docente_evaluaciones_vigentes. Pero
+-- dispara antes (orden alfabético), así que es este el que rechaza el cambio de curso de una
+-- asignación calificada; el cambio de materia y la baja los rechaza solo el de evaluaciones. Su
+-- WHEN no se amplía a ellos porque también dispara antes que trg_asignacion_docente_ciclo_lectivo,
+-- y en un ciclo cerrado tiene que ganar ese rechazo
 CREATE FUNCTION fn_asignacion_docente_calificaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
