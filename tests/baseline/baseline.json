@@ -1,20 +1,18 @@
 {
   "version": 1,
-  "takenAt": "2026-10-26T19:06:13.099Z",
-  "commit": "388cfe6a797a4b401d93d853f69b3808ed3adacd",
+  "takenAt": "2026-10-27T12:17:18.632Z",
+  "commit": "89b77987de118d12d9361dc12bb6d6197a85bcbf",
   "branch": "restricciones",
   "dirty": true,
   "changedFiles": [
-    "db/schema.sql",
-    "src/main/repositories/enrollment.repository.js",
-    "src/main/repositories/evaluation.repository.js",
+    "renderer/shared/components/confirm-modal.component.js",
+    "renderer/teacher/assignment-evaluations/assignment-evaluations.js",
     "src/main/repositories/score.repository.js",
-    "src/main/services/enrollment.service.js",
     "src/main/services/evaluation.service.js",
-    "src/main/services/teacher-assignment.service.js",
+    "src/main/services/score.service.js",
     "src/preload/preload.js"
   ],
-  "today": "2026-10-26",
+  "today": "2026-10-27",
   "year": 2026,
   "environment": {
     "node": "24.19.0",
@@ -1389,6 +1387,15 @@
       "historyCount": 1,
       "knownFailure": null
     },
+    "main.teacher.evaluation-score-count": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "504e41bde340",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "main.teacher.invariants": {
       "layer": "main",
       "status": "pass",
@@ -1435,6 +1442,24 @@
       "knownFailure": null
     },
     "ui.assignments.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.evaluations.delete-warning": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "bddd3d312dff",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.evaluations.invariants": {
       "layer": "ui",
       "status": "pass",
       "hash": "d97564bc2bbc",
@@ -1736,24 +1761,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 93,
-      "ok": 93,
-      "tests": 28
+      "calls": 95,
+      "ok": 95,
+      "tests": 29
     },
     "auth:get-remembered-email": {
-      "calls": 64,
-      "ok": 64,
-      "tests": 37
+      "calls": 67,
+      "ok": 67,
+      "tests": 39
     },
     "auth:login": {
-      "calls": 105,
-      "ok": 97,
-      "tests": 79
+      "calls": 107,
+      "ok": 99,
+      "tests": 81
     },
     "auth:logout": {
-      "calls": 131,
-      "ok": 131,
-      "tests": 90
+      "calls": 135,
+      "ok": 135,
+      "tests": 93
     },
     "auth:select-institution": {
       "calls": 5,
@@ -1841,19 +1866,19 @@
       "tests": 4
     },
     "evaluations:create": {
-      "calls": 10,
-      "ok": 6,
-      "tests": 6
+      "calls": 11,
+      "ok": 7,
+      "tests": 7
     },
     "evaluations:delete": {
-      "calls": 5,
-      "ok": 2,
-      "tests": 4
+      "calls": 6,
+      "ok": 3,
+      "tests": 5
     },
     "evaluations:list-by-own-assignment": {
-      "calls": 5,
-      "ok": 5,
-      "tests": 5
+      "calls": 7,
+      "ok": 7,
+      "tests": 7
     },
     "evaluations:update": {
       "calls": 4,
@@ -1881,9 +1906,9 @@
       "tests": 2
     },
     "school-years:get-current": {
-      "calls": 25,
-      "ok": 25,
-      "tests": 13
+      "calls": 26,
+      "ok": 26,
+      "tests": 14
     },
     "scores:delete": {
       "calls": 4,
@@ -1896,9 +1921,9 @@
       "tests": 5
     },
     "scores:save": {
-      "calls": 11,
-      "ok": 7,
-      "tests": 6
+      "calls": 12,
+      "ok": 8,
+      "tests": 7
     },
     "students:create": {
       "calls": 6,
@@ -1936,9 +1961,9 @@
       "tests": 3
     },
     "teacher-assignments:get-own": {
-      "calls": 20,
-      "ok": 17,
-      "tests": 6
+      "calls": 21,
+      "ok": 18,
+      "tests": 7
     },
     "teacher-assignments:list": {
       "calls": 4,
@@ -1961,9 +1986,9 @@
       "tests": 5
     },
     "teacher-assignments:list-own": {
-      "calls": 10,
-      "ok": 9,
-      "tests": 9
+      "calls": 11,
+      "ok": 10,
+      "tests": 10
     },
     "teacher-assignments:update": {
       "calls": 5,
@@ -2001,9 +2026,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 118,
-      "ok": 118,
-      "tests": 44
+      "calls": 123,
+      "ok": 123,
+      "tests": 46
     },
     "window:minimize": {
       "calls": 1,

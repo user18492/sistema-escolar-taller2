@@ -158,4 +158,40 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     t.equal(await dateOf(), lastDay, 'Sin calificaciones vigentes, la evaluación pasó a la fecha futura');
     await t.logout();
   });
+
+  test('evaluation-score-count', 'El listado de evaluaciones trae cuántas calificaciones vigentes ve el profesor en cada una', async (t) => {
+    await t.login(t.data.teacher);
+    const { assignment, evaluationId, enrollmentId, finished } = t.data;
+    const { evaluation } = await t.ok('evaluations.create', assignment.id, { title: 'Con nota para contar', evaluationDate: t.today });
+    await t.ok('scores.save', assignment.id, evaluation.id, { enrollmentId, value: 8 });
+
+    const { evaluations } = await t.ok('evaluations.listByOwnAssignment', assignment.id);
+    // Por evaluación vigente, sus calificaciones vigentes de inscripciones vigentes, activas o finalizadas
+    const expected = await t.sql(`
+      SELECT e.evaluacion_id AS id,
+             (SELECT COUNT(*)::INT FROM calificacion c
+                JOIN inscripcion i ON i.inscripcion_id = c.inscripcion_id
+                JOIN inscripcion_estado ie USING (inscripcion_estado_id)
+               WHERE c.evaluacion_id = e.evaluacion_id AND c.fecha_eliminacion IS NULL
+                 AND i.fecha_eliminacion IS NULL AND ie.nombre IN ('ACTIVA', 'FINALIZADA')) AS score_count
+        FROM evaluacion e
+       WHERE e.asignacion_docente_id = $1 AND e.fecha_eliminacion IS NULL
+       ORDER BY e.evaluacion_id`, [assignment.id]);
+    const listed = evaluations.map(({ id, scoreCount }) => ({ id, scoreCount })).sort((a, b) => a.id - b.id);
+    t.equal(listed, expected.map((row) => ({ id: row.id, scoreCount: row.score_count })), 'scoreCount de cada evaluación');
+    const countOf = (id) => evaluations.find((candidate) => candidate.id === id)?.scoreCount;
+    t.equal(countOf(evaluation.id), 1, 'La evaluación creada cuenta la nota cargada');
+
+    const { activas, con_la_finalizada } = await t.sqlOne(`
+      SELECT (SELECT COUNT(*)::INT FROM calificacion c
+                JOIN inscripcion i ON i.inscripcion_id = c.inscripcion_id
+                JOIN inscripcion_estado ie USING (inscripcion_estado_id)
+               WHERE c.evaluacion_id = $1 AND c.fecha_eliminacion IS NULL
+                 AND i.fecha_eliminacion IS NULL AND ie.nombre = 'ACTIVA') AS activas,
+             EXISTS (SELECT 1 FROM calificacion c WHERE c.evaluacion_id = $1 AND c.inscripcion_id = $2
+                        AND c.fecha_eliminacion IS NULL) AS con_la_finalizada`, [evaluationId, finished]);
+    t.require(con_la_finalizada, 'La evaluación del setup tiene que conservar la nota de la finalizada');
+    t.equal(countOf(evaluationId), activas + 1, 'La evaluación del setup cuenta también la nota de la finalizada');
+    await t.logout();
+  });
 });
