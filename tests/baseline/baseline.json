@@ -1,15 +1,14 @@
 {
   "version": 1,
-  "takenAt": "2026-10-27T12:59:43.575Z",
-  "commit": "01ddbec6aec7d0bbd7367d7621aaac53f4b3da88",
+  "takenAt": "2026-10-27T13:23:44.594Z",
+  "commit": "fafe72f855c5cdd9d0870679f36de315d4f85b52",
   "branch": "restricciones",
   "dirty": true,
   "changedFiles": [
-    "db/schema.sql",
-    "src/main/models/teacher-assignment.model.js",
-    "src/main/repositories/teacher-assignment.repository.js",
-    "src/main/services/teacher-assignment.service.js",
-    "src/preload/preload.js"
+    "renderer/admin/assignments/assignments.js",
+    "renderer/admin/assignments/index.html",
+    "renderer/shared/components/row-actions.component.js",
+    "renderer/shared/styles/form-field.css"
   ],
   "today": "2026-10-27",
   "year": 2026,
@@ -1486,7 +1485,16 @@
     "ui.assignments.edit-suspended-teacher": {
       "layer": "ui",
       "status": "pass",
-      "hash": "efa9556a086d",
+      "hash": "edee58361b85",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.assignments.with-evaluations": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "86f4169ebe31",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -1812,24 +1820,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 95,
-      "ok": 95,
-      "tests": 29
+      "calls": 98,
+      "ok": 98,
+      "tests": 30
     },
     "auth:get-remembered-email": {
-      "calls": 67,
-      "ok": 67,
-      "tests": 39
+      "calls": 68,
+      "ok": 68,
+      "tests": 40
     },
     "auth:login": {
-      "calls": 110,
-      "ok": 102,
-      "tests": 83
+      "calls": 111,
+      "ok": 103,
+      "tests": 84
     },
     "auth:logout": {
-      "calls": 138,
-      "ok": 138,
-      "tests": 95
+      "calls": 139,
+      "ok": 139,
+      "tests": 96
     },
     "auth:select-institution": {
       "calls": 5,
@@ -1857,9 +1865,9 @@
       "tests": 2
     },
     "dashboard:get-admin-summary": {
-      "calls": 8,
-      "ok": 8,
-      "tests": 8
+      "calls": 9,
+      "ok": 9,
+      "tests": 9
     },
     "dashboard:get-secretary-summary": {
       "calls": 9,
@@ -1957,9 +1965,9 @@
       "tests": 2
     },
     "school-years:get-current": {
-      "calls": 26,
-      "ok": 26,
-      "tests": 14
+      "calls": 27,
+      "ok": 27,
+      "tests": 15
     },
     "scores:delete": {
       "calls": 4,
@@ -2017,24 +2025,24 @@
       "tests": 7
     },
     "teacher-assignments:list": {
-      "calls": 5,
-      "ok": 5,
-      "tests": 5
+      "calls": 6,
+      "ok": 6,
+      "tests": 6
     },
     "teacher-assignments:list-assignable-courses": {
-      "calls": 5,
-      "ok": 5,
-      "tests": 5
+      "calls": 6,
+      "ok": 6,
+      "tests": 6
     },
     "teacher-assignments:list-assignable-subjects": {
-      "calls": 8,
-      "ok": 8,
-      "tests": 7
+      "calls": 9,
+      "ok": 9,
+      "tests": 8
     },
     "teacher-assignments:list-assignable-teachers": {
-      "calls": 5,
-      "ok": 5,
-      "tests": 5
+      "calls": 6,
+      "ok": 6,
+      "tests": 6
     },
     "teacher-assignments:list-own": {
       "calls": 11,
@@ -2042,9 +2050,9 @@
       "tests": 10
     },
     "teacher-assignments:update": {
-      "calls": 9,
-      "ok": 4,
-      "tests": 5
+      "calls": 10,
+      "ok": 5,
+      "tests": 6
     },
     "users:create": {
       "calls": 4,
@@ -2077,9 +2085,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 123,
-      "ok": 123,
-      "tests": 46
+      "calls": 126,
+      "ok": 126,
+      "tests": 47
     },
     "window:minimize": {
       "calls": 1,
