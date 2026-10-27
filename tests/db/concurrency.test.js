@@ -1,8 +1,9 @@
 // Capa de base de datos: dos sesiones a la vez. Las reglas que dependen de otras filas (una sola
 // inscripción activa, el último administrador, el profesor activo de una asignación, la evaluación
-// vigente y ya tomada de una calificación, la asignación vigente de una evaluación y la baja en
-// cascada de las calificaciones de una evaluación) se sostienen con bloqueos de fila: la segunda
-// operación espera a la primera y, al seguir, ya la ve.
+// vigente y ya tomada de una calificación, la asignación vigente de una evaluación, la asignación
+// que no se da de baja con evaluaciones vigentes y la baja en cascada de las calificaciones de una
+// evaluación) se sostienen con bloqueos de fila: la segunda operación espera a la primera y, al
+// seguir, ya la ve.
 const { group, test } = require('../lib/framework');
 const { connectSuite } = require('../lib/pg-admin');
 const { isPending } = require('../lib/sql');
@@ -29,7 +30,10 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     const cascadeEvaluationId = await fixtures.createEvaluation({ assignmentId: grading.assignment.id });
     // Una asignación sin evaluaciones, que una prueba da de baja y confirma
     const removableAssignment = await fixtures.assign({ teacherId: grading.teacher.id, courseId: (await fixtures.createCourse()).id });
-    return { courseA, courseB, student, adminA, adminB, teacher, assignment, removableAssignment,
+    // Otra sin evaluaciones, en la que una prueba crea una evaluación mientras otra sesión la da de
+    // baja. De grading.teacher, porque otra prueba suspende a teacher
+    const pendingAssignment = await fixtures.assign({ teacherId: grading.teacher.id, courseId: (await fixtures.createCourse()).id });
+    return { courseA, courseB, student, adminA, adminB, teacher, assignment, removableAssignment, pendingAssignment,
       grading: { ...grading, secondEvaluationId, cascadeEvaluationId } };
   },
 }, () => {
@@ -179,6 +183,33 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     }
     const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM evaluacion WHERE asignacion_docente_id = $1`, [removableAssignment.id]);
     t.equal(count, 0, 'La asignación dada de baja quedó sin evaluaciones');
+  });
+
+  test('assignment-delete-pending-evaluation', 'Se crea una evaluación mientras se da de baja su asignación: la baja espera y se rechaza', async (t) => {
+    const { pendingAssignment } = t.data;
+    const other = await second(t);
+    let committed = false;
+    try {
+      await t.db.query('BEGIN');
+      await t.db.query(`INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion) VALUES ($1, 'Alta antes de la baja', $2)`, [pendingAssignment.id, t.today]);
+      await other.query('BEGIN');
+      const pending = other.query(`UPDATE asignacion_docente SET fecha_eliminacion = now() WHERE asignacion_docente_id = $1`, [pendingAssignment.id])
+        .then(() => ({ ok: true }), (error) => ({ ok: false, constraint: error.constraint }));
+      t.check(await isPending(pending), 'La baja no esperó el bloqueo de la asignación');
+      await t.db.query('COMMIT');
+      committed = true;
+      const result = await pending;
+      t.check(!result.ok && result.constraint === 'ck_asignacion_docente_evaluaciones_vigentes', 'La baja no se rechazó', result);
+      await other.query('ROLLBACK');
+    } finally {
+      if (!committed) await t.db.query('ROLLBACK').catch(() => {});
+      await other.end();
+    }
+    const state = await t.sqlOne(`
+      SELECT a.fecha_eliminacion IS NULL AS vigente,
+             (SELECT COUNT(*)::INT FROM evaluacion e WHERE e.asignacion_docente_id = a.asignacion_docente_id AND e.fecha_eliminacion IS NULL) AS evaluaciones
+        FROM asignacion_docente a WHERE a.asignacion_docente_id = $1`, [pendingAssignment.id]);
+    t.equal(state, { vigente: true, evaluaciones: 1 }, 'La asignación quedó vigente, con la evaluación creada mientras tanto');
   });
 
   test('evaluation-delete-pending-score', 'Se da de baja la evaluación mientras se le carga una nota: la baja espera y da de baja también esa nota', async (t) => {

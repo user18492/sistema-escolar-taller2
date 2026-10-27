@@ -203,6 +203,48 @@ group('db.courses', 'Reglas de cursos y asignaciones docentes', {
     }, 'ck_asignacion_docente_evaluaciones_vigentes');
   });
 
+  test('assignment-subject-locked', 'Una asignación con evaluaciones vigentes conserva su materia, pero le cambia el profesor', async (t) => {
+    const { evaluatedAssignment, evaluatedCourse, otherTeacher } = t.data;
+    const otherSubject = (await t.fixtures.subjectsOfGrade(evaluatedCourse.gradeId))
+      .find((subject) => subject.gradeSubjectId !== evaluatedAssignment.gradeSubjectId);
+    await rejects(t, 'cambio de materia con evaluaciones', {
+      sql: `UPDATE asignacion_docente SET grado_materia_id = $2 WHERE asignacion_docente_id = $1`,
+      params: [evaluatedAssignment.id, otherSubject.gradeSubjectId],
+    }, 'ck_asignacion_docente_evaluaciones_vigentes');
+    await passes(t, 'cambio de profesor con evaluaciones', {
+      sql: `UPDATE asignacion_docente SET usuario_id = $2 WHERE asignacion_docente_id = $1`, params: [evaluatedAssignment.id, otherTeacher.id],
+    });
+  });
+
+  test('assignment-delete-with-evaluations', 'Una asignación con evaluaciones vigentes no se da de baja; sin ellas, sí', async (t) => {
+    const { evaluatedAssignment } = t.data;
+    const markAsDeleted = {
+      sql: `UPDATE asignacion_docente SET fecha_eliminacion = now() WHERE asignacion_docente_id = $1`, params: [evaluatedAssignment.id],
+    };
+    await rejects(t, 'baja con evaluaciones', markAsDeleted, 'ck_asignacion_docente_evaluaciones_vigentes');
+    await passes(t, 'baja después de dar de baja sus evaluaciones', [
+      { sql: `UPDATE evaluacion SET fecha_eliminacion = now() WHERE asignacion_docente_id = $1 AND fecha_eliminacion IS NULL`, params: [evaluatedAssignment.id] },
+      markAsDeleted,
+    ]);
+  });
+
+  test('assignment-deleted-frozen', 'Una asignación dada de baja no se modifica ni se restaura', async (t) => {
+    const { assignment, course, otherTeacher, emptyCourse } = t.data;
+    const otherSubject = (await t.fixtures.subjectsOfGrade(course.gradeId))
+      .find((subject) => subject.gradeSubjectId !== assignment.gradeSubjectId);
+    const markAsDeleted = { sql: `UPDATE asignacion_docente SET fecha_eliminacion = now() WHERE asignacion_docente_id = $1`, params: [assignment.id] };
+    const changes = [
+      ['cambiar el profesor', `UPDATE asignacion_docente SET usuario_id = $2 WHERE asignacion_docente_id = $1`, [otherTeacher.id]],
+      ['cambiar el curso', `UPDATE asignacion_docente SET curso_id = $2 WHERE asignacion_docente_id = $1`, [emptyCourse.id]],
+      ['cambiar la materia', `UPDATE asignacion_docente SET grado_materia_id = $2 WHERE asignacion_docente_id = $1`, [otherSubject.gradeSubjectId]],
+      ['restaurarla', `UPDATE asignacion_docente SET fecha_eliminacion = NULL WHERE asignacion_docente_id = $1`, []],
+      ['cambiar la fecha de baja', `UPDATE asignacion_docente SET fecha_eliminacion = now() - interval '1 day' WHERE asignacion_docente_id = $1`, []],
+    ];
+    for (const [label, sql, params] of changes) {
+      await rejects(t, label, [markAsDeleted, { sql, params: [assignment.id, ...params] }], 'ck_asignacion_docente_vigente');
+    }
+  });
+
   test('deleted-course-editable', 'Hoy la base deja editar un curso dado de baja', {
     kind: 'current',
     affectedBy: ['administrador-cursos'],
@@ -469,21 +511,29 @@ group('db.scores', 'Reglas de evaluaciones y calificaciones', {
     }
   });
 
-  test('evaluation-deleted-assignment', 'En una asignación dada de baja no se crea ni se edita una evaluación, pero sí se da de baja', async (t) => {
+  test('evaluation-deleted-assignment', 'En una asignación dada de baja no se crea ni se edita una evaluación, pero sí se da de baja', {
+    history: [{ plan: 'plans/administrador-docencia/00-base-de-datos-y-backend.md', date: '2026-10-27', change: 'La baja de otherAssignment ya no pasa con otherEvaluation vigente: para crear una evaluación, el intento da de baja antes otherEvaluation; editar el título y dar de baja la evaluación se prueban como segunda barrera, con trg_asignacion_docente_evaluaciones_vigentes desactivado dentro del intento, y esperan lo mismo que antes' }],
+  }, async (t) => {
     const { otherAssignment, otherEvaluation } = t.data;
     const deleteAssignment = {
       sql: `UPDATE asignacion_docente SET fecha_eliminacion = now() WHERE asignacion_docente_id = $1`, params: [otherAssignment.id],
     };
-    await rejects(t, 'crear una evaluación', [deleteAssignment, {
+    const deleteEvaluation = { sql: `UPDATE evaluacion SET fecha_eliminacion = now() WHERE evaluacion_id = $1`, params: [otherEvaluation] };
+    await rejects(t, 'crear una evaluación', [deleteEvaluation, deleteAssignment, {
       sql: `INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion) VALUES ($1, 'En una asignación dada de baja', $2)`,
       params: [otherAssignment.id, t.today],
     }], 'ck_evaluacion_asignacion_vigente');
-    await rejects(t, 'editar el título', [deleteAssignment, {
+    // Una asignación con evaluaciones vigentes ya no se da de baja, así que una dada de baja no tiene
+    // evaluaciones que editar o dar de baja: el control de fn_evaluacion_coherencia queda como
+    // segunda barrera. Para llegar a él, la baja se hace sin trg_asignacion_docente_evaluaciones_vigentes
+    // (se vuelve a activar al deshacer el intento), como withoutSchoolYearRule en db.courses
+    const withoutEvaluationsRule = (statement) => [
+      'ALTER TABLE asignacion_docente DISABLE TRIGGER trg_asignacion_docente_evaluaciones_vigentes', deleteAssignment, statement,
+    ];
+    await rejects(t, 'editar el título', withoutEvaluationsRule({
       sql: `UPDATE evaluacion SET titulo = titulo || ' (corregida)' WHERE evaluacion_id = $1`, params: [otherEvaluation],
-    }], 'ck_evaluacion_asignacion_vigente');
-    await passes(t, 'dar de baja la evaluación', [deleteAssignment, {
-      sql: `UPDATE evaluacion SET fecha_eliminacion = now() WHERE evaluacion_id = $1`, params: [otherEvaluation],
-    }]);
+    }), 'ck_evaluacion_asignacion_vigente');
+    await passes(t, 'dar de baja la evaluación', withoutEvaluationsRule(deleteEvaluation));
   });
 
   test('score-on-future-evaluation', 'Una evaluación con fecha futura no se califica, y una calificada no pasa a una fecha futura', {

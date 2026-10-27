@@ -182,10 +182,16 @@ group('main.admin.assignments', 'Administrador: asignaciones docentes', {
     const course = await fixtures.createCourse();
     const evaluatedCourse = await fixtures.createCourse();
     const evaluated = await fixtures.assign({ teacherId: teacher.id, courseId: evaluatedCourse.id });
-    await fixtures.createEvaluation({ assignmentId: evaluated.id });
+    const evaluatedEvaluationId = await fixtures.createEvaluation({ assignmentId: evaluated.id });
     const keptTeacher = await fixtures.createUser({ role: 'PROFESOR' });
     const keptAssignment = await fixtures.assign({ teacherId: keptTeacher.id, courseId: evaluatedCourse.id });
-    return { teacher, otherTeacher, suspendedTeacher, course, evaluated, keptTeacher, keptAssignment };
+    // Un curso del ciclo actual sin asignaciones, del mismo grado que los demás, y una asignación con
+    // una calificación vigente en su evaluación
+    const freeCourse = await fixtures.createCourse();
+    const scored = await fixtures.teacherScenario();
+    await fixtures.score({ evaluationId: scored.evaluationId, enrollmentId: scored.enrollmentId });
+    return { teacher, otherTeacher, suspendedTeacher, course, evaluated, evaluatedEvaluationId, keptTeacher, keptAssignment,
+      freeCourse, scored };
   },
 }, () => {
   test('list', 'El listado trae las asignaciones vigentes de la institución', async (t) => {
@@ -195,6 +201,24 @@ group('main.admin.assignments', 'Administrador: asignaciones docentes', {
       SELECT a.asignacion_docente_id AS id FROM asignacion_docente a JOIN curso c USING (curso_id)
        WHERE a.fecha_eliminacion IS NULL AND c.institucion_id = (SELECT institucion_id FROM institucion WHERE cuit = $1)`, [SM]);
     t.equal(sortedIds(teacherAssignments), sortedNumbers(expected), 'Los ids del listado son las asignaciones vigentes');
+    await t.logout();
+  });
+
+  test('list-has-evaluations', 'Cada asignación del listado informa si tiene evaluaciones vigentes', async (t) => {
+    await t.login('admin');
+    const { teacherAssignments } = await t.ok('teacherAssignments.list');
+    const expected = await t.sql(`
+      SELECT a.asignacion_docente_id AS id,
+             EXISTS (SELECT 1 FROM evaluacion e WHERE e.asignacion_docente_id = a.asignacion_docente_id AND e.fecha_eliminacion IS NULL) AS "hasEvaluations"
+        FROM asignacion_docente a JOIN curso c USING (curso_id)
+       WHERE a.fecha_eliminacion IS NULL AND c.institucion_id = (SELECT institucion_id FROM institucion WHERE cuit = $1)
+       ORDER BY a.asignacion_docente_id`, [SM]);
+    const listed = (teacherAssignments ?? [])
+      .map(({ id, hasEvaluations }) => ({ id, hasEvaluations }))
+      .sort((a, b) => a.id - b.id);
+    t.equal(listed, expected, 'hasEvaluations coincide con las evaluaciones vigentes de cada asignación');
+    const evaluated = teacherAssignments?.find((teacherAssignment) => teacherAssignment.id === t.data.evaluated.id);
+    t.equal(evaluated?.hasEvaluations, true, 'La asignación con una evaluación vigente trae hasEvaluations en true');
     await t.logout();
   });
 
@@ -268,12 +292,44 @@ group('main.admin.assignments', 'Administrador: asignaciones docentes', {
     await t.logout();
   });
 
-  test('delete-with-evaluations', 'Hoy se puede dar de baja una asignación con evaluaciones vigentes', {
-    kind: 'current',
-    affectedBy: ['administrador-docencia'],
+  test('delete-with-evaluations', 'Una asignación con evaluaciones vigentes no se da de baja', {
+    history: [{ plan: 'plans/administrador-docencia/00-base-de-datos-y-backend.md', date: '2026-10-27', change: 'La baja de una asignación con evaluaciones vigentes ya no pasa: ahora espera TEACHER_ASSIGNMENT_HAS_EVALUATIONS y la asignación sigue vigente (pasa de current a estable)' }],
   }, async (t) => {
+    const { evaluated } = t.data;
     await t.login('admin');
-    await t.ok('teacherAssignments.delete', t.data.evaluated.id);
+    await t.rejects('TEACHER_ASSIGNMENT_HAS_EVALUATIONS', 'teacherAssignments.delete', evaluated.id);
+    t.equal(await t.sqlOne(`SELECT fecha_eliminacion IS NULL AS vigente FROM asignacion_docente WHERE asignacion_docente_id = $1`, [evaluated.id]),
+      { vigente: true }, 'La asignación sigue vigente');
+    await t.logout();
+  });
+
+  test('update-with-evaluations', 'Una asignación con evaluaciones vigentes no cambia de curso ni de materia; sí de profesor, que hereda sus evaluaciones', async (t) => {
+    const { evaluated, evaluatedEvaluationId, scored, freeCourse, otherTeacher } = t.data;
+    await t.login('admin');
+    const row = (teacherAssignmentId) => t.sqlOne(`
+      SELECT usuario_id, curso_id, grado_materia_id, fecha_eliminacion FROM asignacion_docente WHERE asignacion_docente_id = $1`, [teacherAssignmentId]);
+    const before = { evaluated: await row(evaluated.id), scored: await row(scored.assignment.id) };
+    const data = (assignment, changes) => ({ teacherId: assignment.teacherId, courseId: assignment.courseId, subjectId: assignment.subjectId, ...changes });
+
+    const { subjects } = await t.ok('teacherAssignments.listAssignableSubjects', evaluated.courseId, evaluated.id);
+    const otherSubject = subjects?.find((subject) => subject.id !== evaluated.subjectId);
+    t.check(otherSubject, 'El curso de la asignación ofrece otra materia', subjects);
+    await t.rejects('TEACHER_ASSIGNMENT_HAS_EVALUATIONS', 'teacherAssignments.update', evaluated.id, data(evaluated, { subjectId: otherSubject?.id }));
+    await t.rejects('TEACHER_ASSIGNMENT_HAS_EVALUATIONS', 'teacherAssignments.update', evaluated.id, data(evaluated, { courseId: freeCourse.id }));
+    // Con calificaciones vigentes, el cambio de curso lo rechaza antes
+    // ck_asignacion_docente_calificaciones_vigentes, con el mismo código
+    await t.rejects('TEACHER_ASSIGNMENT_HAS_EVALUATIONS', 'teacherAssignments.update', scored.assignment.id, data(scored.assignment, { courseId: freeCourse.id }));
+    t.equal(await row(evaluated.id), before.evaluated, 'La asignación con evaluaciones no cambió');
+    t.equal(await row(scored.assignment.id), before.scored, 'La asignación con calificaciones no cambió');
+
+    const { teacherAssignment } = await t.ok('teacherAssignments.update', evaluated.id, data(evaluated, { teacherId: otherTeacher.id }));
+    t.equal(teacherAssignment?.hasEvaluations, true, 'La respuesta trae hasEvaluations en true');
+    t.equal(await row(evaluated.id), { ...before.evaluated, usuario_id: otherTeacher.id }, 'El cambio de profesor se guardó, con el curso y la materia');
+    await t.logout();
+
+    await t.login(otherTeacher);
+    const { evaluations } = await t.ok('evaluations.listByOwnAssignment', evaluated.id);
+    t.check(evaluations?.some((evaluation) => evaluation.id === evaluatedEvaluationId), 'El profesor nuevo ve la evaluación de la asignación', evaluations);
     await t.logout();
   });
 });
