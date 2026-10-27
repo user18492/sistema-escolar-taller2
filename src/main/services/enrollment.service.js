@@ -379,8 +379,8 @@ function anotherActiveEnrollmentError(enrollment, activeEnrollment) {
 
 // Lanza el EnrollmentError STUDENT_ALREADY_ENROLLED de anotherActiveEnrollmentError si el alumno de
 // `enrollment` tiene una inscripción vigente y activa que no es esa. Cuenta la misma que
-// ck_inscripcion_alumno_una_activa: también si es de un ciclo anterior o de un curso dado de baja,
-// pero no si está dada de baja.
+// ck_inscripcion_alumno_una_activa: también si es de un ciclo anterior, pero no si está dada de baja.
+// Una vigente nunca es de un curso dado de baja: uno con inscripciones vigentes no se da de baja.
 async function assertNoOtherActiveEnrollment(enrollment) {
   const activeEnrollment = await enrollmentRepository.findActiveByStudent(enrollment.student.id);
   if (activeEnrollment && activeEnrollment.id !== enrollment.id) {

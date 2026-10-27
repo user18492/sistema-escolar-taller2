@@ -252,8 +252,10 @@ const FIND_BY_ID_SQL = `
 // (finalizeActiveInClosedSchoolYears): ver isClosedSchoolYearError. El resto de los controles de los
 // triggers de inscripcion no pueden fallar, porque solo cambia el estado:
 // ck_inscripcion_misma_institucion y ck_inscripcion_fecha_ciclo_lectivo se vuelven a evaluar sobre el
-// mismo alumno, el mismo curso y la misma fecha, que ya los cumplían (el alumno y el curso no cambian
-// de institución, ni el curso de ciclo lectivo, mientras tengan inscripciones), y
+// mismo alumno, el mismo curso y la misma fecha, que ya los cumplían (el alumno no cambia de
+// institución mientras tenga inscripciones, y el curso no cambia nunca de institución ni de ciclo
+// lectivo); ck_inscripcion_curso_vigente rechaza una inscripción vigente en un curso dado de baja,
+// pero la edición no llega, porque un curso con inscripciones vigentes no se da de baja, y
 // trg_inscripcion_calificaciones_vigentes solo se dispara si cambia el curso.
 const UPDATE_STATUS_SQL = `
   WITH updated AS (
@@ -356,8 +358,9 @@ const MARK_AS_DELETED_SQL = `
 
 // La inscripción vigente (sin baja lógica) y activa del alumno $1, si tiene una: la misma que cuenta
 // trg_inscripcion_coherencia para la regla de una sola activa por alumno, así que una dada de baja no
-// cuenta, pero sí una de un curso dado de baja o de un ciclo lectivo anterior. Si hubiera más de una
-// (la regla no lo permite), la más antigua.
+// cuenta, pero sí una de un ciclo lectivo anterior. Una vigente nunca es de un curso dado de baja:
+// uno con inscripciones vigentes no se da de baja (trg_curso_coherencia, db/schema.sql). Si hubiera
+// más de una (la regla no lo permite), la más antigua.
 const FIND_ACTIVE_BY_STUDENT_SQL = `
   SELECT i.inscripcion_id,
          i.curso_id

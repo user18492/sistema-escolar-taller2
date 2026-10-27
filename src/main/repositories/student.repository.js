@@ -38,8 +38,8 @@ const EXISTS_NOT_DELETED_SQL = `
 // inscripcion_estado.nombre): los que se pueden inscribir en un curso. Quedan afuera los egresados,
 // los dados de baja y los que ya están inscriptos, porque un alumno solo puede tener una inscripción
 // activa. La activa se busca como la busca trg_inscripcion_coherencia (db/schema.sql) para esa
-// regla: una dada de baja no cuenta, pero sí una de un curso dado de baja o de un ciclo lectivo
-// anterior. Mismo orden que FIND_BY_INSTITUTION_SQL.
+// regla: una dada de baja no cuenta, pero sí una de un ciclo lectivo anterior (una vigente nunca es
+// de un curso dado de baja: trg_curso_coherencia). Mismo orden que FIND_BY_INSTITUTION_SQL.
 const FIND_ENROLLABLE_BY_INSTITUTION_SQL = `
   SELECT a.alumno_id,
          a.nombre,

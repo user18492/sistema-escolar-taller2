@@ -40,11 +40,11 @@ const selectFrom = (source) => `
 
 // Listado de las asignaciones docentes vigentes de una institución (las dadas de baja no se
 // listan), de todos los ciclos lectivos, con su profesor, su curso y su materia. La institución es
-// la del curso: la asignación no la guarda. Solo cuenta la baja de la asignación, no la de su
-// curso: db/schema.sql todavía permite darlo de baja con asignaciones vigentes, y esas asignaciones
-// se siguen listando. En las del ciclo lectivo actual, su profesor está vigente: no se puede dar de
-// baja mientras las tenga (trg_usuario_asignaciones_vigentes); en las de un ciclo cerrado puede
-// estar dado de baja.
+// la del curso: la asignación no la guarda. Solo hace falta mirar la baja de la asignación: su
+// curso está vigente, porque uno con asignaciones vigentes no se da de baja y uno dado de baja no
+// las recibe (trg_curso_coherencia y trg_asignacion_docente_coherencia, db/schema.sql). En las del
+// ciclo lectivo actual, su profesor está vigente: no se puede dar de baja mientras las tenga
+// (trg_usuario_asignaciones_vigentes); en las de un ciclo cerrado puede estar dado de baja.
 // El orden es total: primero el ciclo lectivo más reciente y, dentro de cada uno, el profesor (por
 // apellido y nombre; usuario_id mantiene juntas las de dos profesores que se llaman igual), el
 // curso (como en el listado de cursos: primaria antes que secundaria, grado, división y turno) y la
@@ -62,9 +62,9 @@ const FIND_BY_INSTITUTION_SQL = `${selectFrom('asignacion_docente')}
 // Listado de las asignaciones docentes vigentes de un profesor (las dadas de baja no se listan), de
 // todos los ciclos lectivos, con su curso y su materia. No hace falta la institución: la fila de
 // usuario es de una sola y sus asignaciones vigentes son de cursos de esa misma
-// (trg_asignacion_docente_coherencia, db/schema.sql). Como en FIND_BY_INSTITUTION_SQL, solo cuenta
-// la baja de la asignación, no la de su curso: son las que Docencia le muestra al administrador
-// para ese profesor.
+// (trg_asignacion_docente_coherencia, db/schema.sql). Como en FIND_BY_INSTITUTION_SQL, solo hace
+// falta mirar la baja de la asignación, porque su curso está vigente: son las que Docencia le
+// muestra al administrador para ese profesor.
 // El orden es total, el de FIND_BY_INSTITUTION_SQL sin el profesor: primero el ciclo lectivo más
 // reciente y, dentro de cada uno, el curso (primaria antes que secundaria, grado, división y turno)
 // y la materia; asignacion_docente_id desempata.
@@ -97,8 +97,8 @@ const FIND_ACTIVE_BY_ID_SQL = `${selectFrom('asignacion_docente')}
 `;
 
 // Una asignación vigente de un profesor, con su curso y su materia: una de las que lista
-// FIND_BY_TEACHER_SQL, con su mismo criterio (no hace falta la institución y solo cuenta la baja de
-// la asignación, no la de su curso).
+// FIND_BY_TEACHER_SQL, con su mismo criterio (no hace falta la institución y solo hace falta mirar
+// la baja de la asignación).
 const FIND_ACTIVE_BY_ID_AND_TEACHER_SQL = `${selectFrom('asignacion_docente')}
    WHERE a.asignacion_docente_id = $1
      AND a.usuario_id = $2
@@ -178,9 +178,11 @@ const EXISTS_IN_INSTITUTION_SQL = `
 const UNIQUE_INDEX = 'uq_asignacion_docente_curso_grado_materia';
 
 // Reglas que valida trg_asignacion_docente_coherencia, con el nombre que informa cada una
-// (db/schema.sql): el profesor de una asignación vigente no está dado de baja ni suspendido.
+// (db/schema.sql): el profesor de una asignación vigente no está dado de baja ni suspendido, y su
+// curso no está dado de baja.
 const DELETED_TEACHER_CONSTRAINT = 'ck_asignacion_docente_usuario_vigente';
 const SUSPENDED_TEACHER_CONSTRAINT = 'ck_asignacion_docente_usuario_activo';
+const DELETED_COURSE_CONSTRAINT = 'ck_asignacion_docente_curso_vigente';
 
 // Regla que valida trg_asignacion_docente_ciclo_lectivo, con el nombre que informa (db/schema.sql):
 // una asignación de un curso de un ciclo lectivo cerrado no se crea, no se edita ni se da de baja.
@@ -263,9 +265,9 @@ async function findActiveByIdAndTeacher(teacherAssignmentId, teacherId) {
 // la materia `subjectId` (un materia_id). Devuelve la asignación creada; null si la materia no es
 // del plan de estudios del grado del curso (o el curso no existe). Si esa materia ya tiene un
 // profesor vigente en el curso, PostgreSQL rechaza el alta (ver isDuplicateError), y también si el
-// profesor está suspendido o dado de baja (ver isUnavailableTeacherError) o si el curso es de un
-// ciclo lectivo cerrado (ver isClosedSchoolYearError). Que el profesor y el curso se puedan elegir
-// lo comprueba el servicio.
+// profesor está suspendido o dado de baja (ver isUnavailableTeacherError), si el curso está dado de
+// baja (ver isDeletedCourseError) o si es de un ciclo lectivo cerrado (ver isClosedSchoolYearError).
+// Que el profesor y el curso se puedan elegir lo comprueba el servicio.
 async function create({ teacherId, courseId, subjectId }) {
   const { rows } = await query(CREATE_SQL, [teacherId, courseId, subjectId]);
   return rows.length > 0 ? toTeacherAssignment(rows[0]) : null;
@@ -278,7 +280,8 @@ async function create({ teacherId, courseId, subjectId }) {
 // PostgreSQL rechaza el cambio (ver isDuplicateError): la fila no choca consigo misma, así que
 // guardarla con el curso y la materia que ya tenía no es un duplicado. También lo rechaza si el
 // profesor está suspendido o dado de baja, aunque sea el que ya tenía (ver
-// isUnavailableTeacherError), o si el curso que tenía o el nuevo es de un ciclo lectivo cerrado (ver
+// isUnavailableTeacherError), si el curso nuevo está dado de baja (ver isDeletedCourseError; el que
+// tenía está vigente), o si el curso que tenía o el nuevo es de un ciclo lectivo cerrado (ver
 // isClosedSchoolYearError): en las asignaciones del ciclo actual el profesor está vigente, aunque
 // puede haber quedado suspendido; en las de un ciclo cerrado puede estar dado de baja, pero esas no
 // se editan. Si la asignación tiene evaluaciones vigentes, rechaza el cambio de curso o de materia
@@ -317,6 +320,11 @@ function isUnavailableTeacherError(error) {
     && (error.constraint === DELETED_TEACHER_CONSTRAINT || error.constraint === SUSPENDED_TEACHER_CONSTRAINT);
 }
 
+// true si `error` indica que el curso de la asignación está dado de baja: no recibe asignaciones.
+function isDeletedCourseError(error) {
+  return error?.code === '23514' && error.constraint === DELETED_COURSE_CONSTRAINT;
+}
+
 // true si `error` indica que el curso de la asignación es de un ciclo lectivo cerrado: ese ciclo
 // queda en solo lectura.
 function isClosedSchoolYearError(error) {
@@ -342,6 +350,7 @@ module.exports = {
   existsInInstitution,
   isDuplicateError,
   isUnavailableTeacherError,
+  isDeletedCourseError,
   isClosedSchoolYearError,
   isWithEvaluationsError,
 };

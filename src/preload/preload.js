@@ -114,33 +114,41 @@ contextBridge.exposeInMainWorld('api', {
   courses: {
     // Solo ADMIN. Resuelve { ok: true, courses } con los cursos vigentes de su institución (sin los dados
     // de baja), de todos los ciclos lectivos ({ id, gradeName, educationLevel, division, shift,
-    // schoolYear }, con gradeName el nombre del grado, 1° a 6°, educationLevel 'PRIMARY' o 'SECONDARY',
-    // division una letra mayúscula, shift 'MORNING' o 'AFTERNOON' y schoolYear el año del ciclo lectivo),
-    // o { ok: false, error: { code, message } }. Llegan siempre en el mismo orden: ciclo lectivo (el más
-    // reciente primero), nivel educativo (primaria antes que secundaria), grado, división y turno.
+    // schoolYear, hasTeacherAssignments, hasEnrollments }, con gradeName el nombre del grado, 1° a 6°,
+    // educationLevel 'PRIMARY' o 'SECONDARY', division una letra mayúscula, shift 'MORNING' o
+    // 'AFTERNOON', schoolYear el año del ciclo lectivo, hasTeacherAssignments true si tiene asignaciones
+    // docentes vigentes y hasEnrollments true si tiene inscripciones vigentes, en cualquier estado: con
+    // alguno en true, no se edita ni se da de baja), o { ok: false, error: { code, message } }. Llegan
+    // siempre en el mismo orden: ciclo lectivo (el más reciente primero), nivel educativo (primaria
+    // antes que secundaria), grado, división y turno.
     list: () => ipcRenderer.invoke('courses:list'),
     // Solo ADMIN. Crea un curso en su institución, para el ciclo lectivo del año en curso. `data` es
     // { gradeId, division, shift }, con gradeId el id de un grado de grades.list (define también el
     // nivel educativo), division una letra (se guarda en mayúscula) y shift 'MORNING' o 'AFTERNOON'.
-    // Resuelve { ok: true, course } con el curso creado (mismos campos que list) o
+    // Resuelve { ok: true, course } con el curso creado (mismos campos que list, con
+    // hasTeacherAssignments y hasEnrollments en false) o
     // { ok: false, error: { code, message, fieldErrors } }: fieldErrors ({ campo: mensaje }) llega si
     // la división no es válida, DUPLICATE_VALUE indica que la institución ya tiene ese curso vigente
     // en el ciclo lectivo y GRADE_NOT_FOUND, que el grado no está en el catálogo.
     create: (data) => ipcRenderer.invoke('courses:create', data),
     // Solo ADMIN. Guarda el grado, la división y el turno del curso vigente con ese id (curso_id) de su
     // institución; el ciclo lectivo no cambia. `data` es { gradeId, division, shift }, como en create.
-    // Resuelve { ok: true, course } con el curso como quedó (mismos campos que list) o
+    // Resuelve { ok: true, course } con el curso como quedó (mismos campos que list, con
+    // hasTeacherAssignments y hasEnrollments en false) o
     // { ok: false, error: { code, message, fieldErrors } }: fieldErrors llega si la división no es
     // válida, DUPLICATE_VALUE indica que la institución ya tiene otro curso vigente igual en ese ciclo
     // lectivo, GRADE_NOT_FOUND, que el grado no está en el catálogo, COURSE_NOT_FOUND y
-    // COURSE_ALREADY_DELETED, que el curso ya no está vigente, y SCHOOL_YEAR_CLOSED, que es de un
-    // ciclo lectivo cerrado.
+    // COURSE_ALREADY_DELETED, que el curso ya no está vigente, SCHOOL_YEAR_CLOSED, que es de un
+    // ciclo lectivo cerrado, y COURSE_IN_USE (sin fieldErrors), que tiene asignaciones docentes o
+    // inscripciones vigentes, aunque se guarde sin cambios.
     update: (courseId, data) => ipcRenderer.invoke('courses:update', courseId, data),
     // Solo ADMIN. Baja lógica del curso con ese id (curso_id) de su institución: deja de listarse y su
-    // grado, división y turno se pueden volver a crear en ese ciclo lectivo. Resuelve
-    // { ok: true, course } con el curso dado de baja (mismos campos que list) o
+    // grado, división y turno se pueden volver a crear en ese ciclo lectivo. La baja es definitiva: el
+    // curso ya no se modifica ni se restaura. Resuelve { ok: true, course } con el curso dado de baja
+    // (mismos campos que list, con hasTeacherAssignments y hasEnrollments en false) o
     // { ok: false, error: { code, message } }; COURSE_NOT_FOUND y COURSE_ALREADY_DELETED indican que ya
-    // no está vigente, y SCHOOL_YEAR_CLOSED, que es de un ciclo lectivo cerrado.
+    // no está vigente, SCHOOL_YEAR_CLOSED, que es de un ciclo lectivo cerrado, y COURSE_IN_USE, que
+    // tiene asignaciones docentes o inscripciones vigentes.
     delete: (courseId) => ipcRenderer.invoke('courses:delete', courseId),
   },
   grades: {

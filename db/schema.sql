@@ -267,7 +267,10 @@ CREATE TABLE curso (
     anio_ciclo_lectivo  INT         NOT NULL,
     -- Solo el año: 2026
     fecha_eliminacion   TIMESTAMPTZ,
-    -- NULL = vigente; con fecha = dado de baja (baja lógica): la fila se conserva, pero no se lista
+    -- NULL = vigente; con fecha = dado de baja (baja lógica): la fila se conserva, pero no se lista.
+    -- Solo se da de baja sin asignaciones docentes ni inscripciones vigentes, y el dado de baja ya
+    -- no se modifica, no se restaura y no las recibe (trg_curso_coherencia,
+    -- trg_asignacion_docente_coherencia y trg_inscripcion_coherencia)
 
     CONSTRAINT pk_curso PRIMARY KEY (curso_id),
     CONSTRAINT fk_curso_institucion FOREIGN KEY (institucion_id) REFERENCES institucion(institucion_id),
@@ -294,9 +297,10 @@ CREATE INDEX idx_curso_grado_id ON curso(grado_id);
 -- misma regla, con su propio trigger, rige para las asignaciones docentes, las inscripciones, las
 -- evaluaciones y las calificaciones, cada una con el ciclo lectivo de su curso.
 -- En un UPDATE se controla primero el ciclo que tenía la fila y después el ciclo al que pasa: nada se
--- mueve desde un ciclo cerrado ni hacia uno. Por eso el ciclo lectivo de un curso ya no cambia, y los
--- triggers de las demás tablas no necesitan retener el curso para leerlo. La baja lógica también es
--- un UPDATE: el trigger no lleva WHEN
+-- mueve desde un ciclo cerrado ni hacia uno. Por eso el ciclo lectivo de un curso no cambia nunca,
+-- tenga o no asignaciones, inscripciones o evaluaciones, y los triggers de las demás tablas no
+-- necesitan retener el curso para leerlo. La baja lógica también es un UPDATE: el trigger no lleva
+-- WHEN
 CREATE FUNCTION fn_curso_ciclo_lectivo() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -332,6 +336,30 @@ CREATE TRIGGER trg_curso_ciclo_lectivo
     BEFORE INSERT OR UPDATE ON curso
     FOR EACH ROW
     EXECUTE FUNCTION fn_curso_ciclo_lectivo();
+
+-- La institución de un curso no cambia después del alta, aunque no tenga asignaciones docentes ni
+-- inscripciones, como la de un usuario (trg_usuario_rol_institucion_inmutables). El ciclo lectivo no
+-- lleva un trigger propio: trg_curso_ciclo_lectivo ya rechaza todo cambio de ciclo.
+-- Dispara último (orden alfabético): con asignaciones o inscripciones, el cambio lo rechazan antes
+-- trg_curso_asignaciones_vigentes, trg_curso_coherencia o trg_curso_inscripciones (más abajo)
+CREATE FUNCTION fn_curso_institucion_inmutable() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.institucion_id <> OLD.institucion_id THEN
+        RAISE EXCEPTION 'La institución del curso % no se puede cambiar', OLD.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_curso_institucion_inmutable';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_curso_institucion_inmutable
+    BEFORE UPDATE ON curso
+    FOR EACH ROW
+    WHEN (NEW.institucion_id <> OLD.institucion_id)
+    EXECUTE FUNCTION fn_curso_institucion_inmutable();
 
 -- Asignaciones docentes: un profesor dicta en un curso una materia del plan de estudios de su grado
 CREATE TABLE asignacion_docente (
@@ -419,17 +447,18 @@ CREATE TRIGGER trg_asignacion_docente_ciclo_lectivo
 -- fecha de baja, y tampoco se restaura. Ya no tiene evaluaciones vigentes: con ellas no se da de
 -- baja (trg_asignacion_docente_evaluaciones_vigentes, más abajo).
 -- Al crearla y cada vez que se edita, es decir, siempre que la fila queda vigente: el usuario es un
--- profesor activo y vigente, es de la misma institución que el curso y la materia es del grado del
--- curso. Rige aunque no cambie el profesor: la de un profesor suspendido no se edita sin
--- reemplazarlo. La baja no se valida, así que la de un suspendido sí se puede dar de baja.
+-- profesor activo y vigente, el curso está vigente (uno dado de baja no recibe asignaciones), los
+-- dos son de la misma institución y la materia es del grado del curso. Rige aunque no cambie el
+-- profesor: la de un profesor suspendido no se edita sin reemplazarlo. La baja no se valida, así
+-- que la de un suspendido sí se puede dar de baja.
 -- Las de un ciclo lectivo cerrado no llegan hasta acá: trg_asignacion_docente_ciclo_lectivo
 -- dispara antes (orden alfabético) y las rechaza, también a las dadas de baja, así que conservan su
 -- profesor. FOR SHARE retiene las filas del usuario y del curso hasta el fin de la transacción: una
--- suspensión o una baja simultánea del usuario o un cambio simultáneo de grado esperan y, al
--- seguir, el trigger de la baja o del grado (más abajo) ya ve esta asignación; si la suspensión o
--- la baja llegaron antes, este control las espera y lee la fila como quedó. Si una fila
--- referenciada no existe, las comparaciones dan NULL y no fallan: la rechaza después su clave
--- foránea
+-- suspensión o una baja simultánea del usuario, o una edición o una baja simultánea del curso,
+-- esperan y, al seguir, el trigger de la baja del usuario o el del curso (trg_curso_coherencia, más
+-- abajo) ya ve esta asignación; si la suspensión o alguna de las bajas llegaron antes, este control
+-- las espera y lee la fila como quedó. Si una fila referenciada no existe, las comparaciones dan
+-- NULL y no fallan: la rechaza después su clave foránea
 CREATE FUNCTION fn_asignacion_docente_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -440,6 +469,7 @@ DECLARE
     v_rol                        VARCHAR(50);
     v_curso_institucion_id       INT;
     v_curso_grado_id             INT;
+    v_curso_fecha_eliminacion    TIMESTAMPTZ;
     v_materia_grado_id           INT;
 BEGIN
     -- Antes de las consultas: una dada de baja se rechaza en cualquier cambio, también en la
@@ -468,8 +498,8 @@ BEGIN
           FROM usuario_rol r
          WHERE r.usuario_rol_id = v_usuario_rol_id;
 
-        SELECT c.institucion_id, c.grado_id
-          INTO v_curso_institucion_id, v_curso_grado_id
+        SELECT c.institucion_id, c.grado_id, c.fecha_eliminacion
+          INTO v_curso_institucion_id, v_curso_grado_id, v_curso_fecha_eliminacion
           FROM curso c
          WHERE c.curso_id = NEW.curso_id
            FOR SHARE;
@@ -499,6 +529,13 @@ BEGIN
                       CONSTRAINT = 'ck_asignacion_docente_usuario_activo';
         END IF;
 
+        -- Alcanza al alta, al cambio de curso y a toda edición
+        IF v_curso_fecha_eliminacion IS NOT NULL THEN
+            RAISE EXCEPTION 'El curso % está dado de baja', NEW.curso_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_asignacion_docente_curso_vigente';
+        END IF;
+
         IF v_usuario_institucion_id <> v_curso_institucion_id THEN
             RAISE EXCEPTION 'El usuario % y el curso % son de instituciones distintas',
                             NEW.usuario_id, NEW.curso_id
@@ -524,7 +561,10 @@ CREATE TRIGGER trg_asignacion_docente_coherencia
     EXECUTE FUNCTION fn_asignacion_docente_coherencia();
 
 -- Un curso con asignaciones vigentes conserva su grado y su institución: cambiarlos las dejaría
--- con materias de otro grado o con profesores de otra institución
+-- con materias de otro grado o con profesores de otra institución.
+-- trg_curso_coherencia (más abajo) rechaza toda modificación de un curso con asignaciones vigentes,
+-- con el mismo nombre, porque es la misma regla: este dispara antes (orden alfabético), con el
+-- cambio de grado o de institución
 CREATE FUNCTION fn_curso_asignaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -656,10 +696,12 @@ CREATE TABLE inscripcion_estado (
 -- (sp_inscripcion_finalizar_ciclos_cerrados, más abajo) pasa a FINALIZADA las activas de los ciclos
 -- cerrados.
 -- La baja lógica solo la tienen en cuenta la regla de una sola inscripción activa por alumno
--- (trg_inscripcion_coherencia), para la que una inscripción dada de baja no cuenta como activa;
--- sp_alumno_dar_de_baja y sp_inscripcion_finalizar_ciclos_cerrados, que solo cancelan o finalizan
--- las vigentes; la excepción de trg_inscripcion_ciclo_lectivo, que solo deja finalizar las vigentes,
--- y trg_calificacion_coherencia, que no acepta cargar, corregir ni dar de baja calificaciones de una
+-- (trg_inscripcion_coherencia), para la que una inscripción dada de baja no cuenta como activa, y
+-- que tampoco le exige un curso vigente; trg_curso_coherencia, para la que una inscripción dada de
+-- baja no impide editar ni dar de baja su curso; sp_alumno_dar_de_baja y
+-- sp_inscripcion_finalizar_ciclos_cerrados, que solo cancelan o finalizan las vigentes; la
+-- excepción de trg_inscripcion_ciclo_lectivo, que solo deja finalizar las vigentes, y
+-- trg_calificacion_coherencia, que no acepta cargar, corregir ni dar de baja calificaciones de una
 -- inscripción dada de baja, aunque siga activa, salvo en la baja en cascada de una evaluación. Para
 -- las demás reglas, una inscripción dada de baja sigue contando
 CREATE TABLE inscripcion (
@@ -765,8 +807,10 @@ CREATE TRIGGER trg_inscripcion_ciclo_lectivo
     EXECUTE FUNCTION fn_inscripcion_ciclo_lectivo();
 
 -- Coherencia de una inscripción con las filas que referencia: el alumno y el curso son de la misma
--- institución y, si la inscripción es activa y vigente (sin baja lógica), el alumno no tiene otra
--- activa y vigente. Las demás no cuentan: un alumno puede tener cualquier cantidad de canceladas y
+-- institución; si la inscripción queda vigente (sin baja lógica), en cualquier estado, el curso no
+-- está dado de baja (uno dado de baja no recibe inscripciones; la baja de una inscripción no carga
+-- nada, así que no se valida), y si además es activa, el alumno no tiene otra activa y vigente.
+-- Para esa regla, las demás no cuentan: un alumno puede tener cualquier cantidad de canceladas y
 -- finalizadas, y de inscripciones dadas de baja en cualquier estado, también activas (la baja no
 -- cambia el estado). Por eso un cambio de curso primero pasa la inscripción actual a CANCELADA y
 -- después crea la nueva, y un alumno cuya inscripción activa se dio de baja se puede volver a
@@ -776,15 +820,18 @@ CREATE TRIGGER trg_inscripcion_ciclo_lectivo
 -- de la transacción: otra inscripción simultánea del mismo alumno espera y, al seguir, ya ve esta.
 -- La baja lógica de una inscripción es un UPDATE y también pasa por acá, así que retiene al alumno:
 -- una inscripción simultánea espera a que termine y, al seguir, ya no cuenta la dada de baja.
--- También espera un cambio simultáneo de institución del alumno o del curso (retenido con
--- FOR SHARE), cuyos triggers están más abajo. Si una fila referenciada no existe, las comparaciones
--- dan NULL y no fallan: la rechaza después su clave foránea
+-- También espera un cambio simultáneo de institución del alumno, cuyo trigger está más abajo, y una
+-- edición o una baja simultánea del curso (retenido con FOR SHARE), que al seguir ya ve esta
+-- inscripción (trg_curso_coherencia, más abajo); si la baja del curso llegó antes, este control la
+-- espera y lee la fila como quedó. Si una fila referenciada no existe, las comparaciones dan NULL y
+-- no fallan: la rechaza después su clave foránea
 CREATE FUNCTION fn_inscripcion_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_alumno_institucion_id  INT;
-    v_curso_institucion_id   INT;
-    v_estado                 VARCHAR(50);
+    v_alumno_institucion_id    INT;
+    v_curso_institucion_id     INT;
+    v_curso_fecha_eliminacion  TIMESTAMPTZ;
+    v_estado                   VARCHAR(50);
 BEGIN
     SELECT a.institucion_id
       INTO v_alumno_institucion_id
@@ -792,8 +839,8 @@ BEGIN
      WHERE a.alumno_id = NEW.alumno_id
        FOR NO KEY UPDATE;
 
-    SELECT c.institucion_id
-      INTO v_curso_institucion_id
+    SELECT c.institucion_id, c.fecha_eliminacion
+      INTO v_curso_institucion_id, v_curso_fecha_eliminacion
       FROM curso c
      WHERE c.curso_id = NEW.curso_id
        FOR SHARE;
@@ -808,6 +855,12 @@ BEGIN
                         NEW.alumno_id, NEW.curso_id
             USING ERRCODE = 'check_violation',
                   CONSTRAINT = 'ck_inscripcion_misma_institucion';
+    END IF;
+
+    IF NEW.fecha_eliminacion IS NULL AND v_curso_fecha_eliminacion IS NOT NULL THEN
+        RAISE EXCEPTION 'El curso % está dado de baja', NEW.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_inscripcion_curso_vigente';
     END IF;
 
     IF v_estado = 'ACTIVA'
@@ -890,9 +943,11 @@ CREATE TRIGGER trg_alumno_inscripciones
     EXECUTE FUNCTION fn_alumno_inscripciones();
 
 -- Un curso con inscripciones conserva su institución y su ciclo lectivo: las fechas de sus
--- inscripciones son de ese año. El grado sí puede cambiar: la inscripción no depende de él.
--- Un cambio de ciclo lectivo ya lo rechaza antes trg_curso_ciclo_lectivo, para cualquier curso: este
--- trigger solo llega a rechazar el cambio de institución
+-- inscripciones son de ese año. Cuentan todas, también las dadas de baja.
+-- Un cambio de ciclo lectivo ya lo rechaza antes trg_curso_ciclo_lectivo, para cualquier curso, y
+-- con inscripciones vigentes, trg_curso_coherencia (más abajo) rechaza antes toda modificación: este
+-- trigger solo llega a rechazar el cambio de institución de un curso cuyas inscripciones están todas
+-- dadas de baja. Sin inscripciones, ese cambio lo rechaza trg_curso_institucion_inmutable
 CREATE FUNCTION fn_curso_inscripciones() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -914,6 +969,61 @@ CREATE TRIGGER trg_curso_inscripciones
     WHEN (NEW.institucion_id <> OLD.institucion_id
           OR NEW.anio_ciclo_lectivo <> OLD.anio_ciclo_lectivo)
     EXECUTE FUNCTION fn_curso_inscripciones();
+
+-- Coherencia de un curso con su propia baja y con lo que lo referencia.
+-- Un curso dado de baja ya no se modifica: ni su grado, ni su división, ni su turno, ni su fecha de
+-- baja, y tampoco se restaura. La baja es definitiva: no tiene asignaciones docentes ni
+-- inscripciones vigentes, porque con ellas no se da de baja, y no las recibe después
+-- (trg_asignacion_docente_coherencia y trg_inscripcion_coherencia, más arriba).
+-- Un curso con asignaciones docentes vigentes o con inscripciones vigentes, en cualquier estado, no
+-- se edita ni se da de baja; las dadas de baja no cuentan. Rige para todo UPDATE, también uno sin
+-- cambios: la aplicación solo actualiza un curso para editarlo o darlo de baja. El de las
+-- asignaciones lleva el mismo nombre que el de trg_curso_asignaciones_vigentes, porque es la misma
+-- regla: ese dispara antes (orden alfabético), con el cambio de grado o de institución.
+-- Los de un ciclo lectivo cerrado no llegan hasta acá: trg_curso_ciclo_lectivo dispara antes y los
+-- rechaza, también a los dados de baja.
+-- Sin bloqueos propios: el UPDATE retiene la fila del curso antes de los triggers BEFORE, y el alta
+-- o la edición de una asignación vigente o de una inscripción la retiene con FOR SHARE
+-- (fn_asignacion_docente_coherencia, fn_inscripcion_coherencia). Así, la edición o la baja del curso
+-- espera a que termine esa alta y, al seguir, ya la ve; al revés, el alta espera a la baja y la
+-- rechazan ck_asignacion_docente_curso_vigente o ck_inscripcion_curso_vigente
+CREATE FUNCTION fn_curso_coherencia() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    -- Antes de las consultas: uno dado de baja se rechaza en cualquier cambio, también en la
+    -- restauración (fecha_eliminacion de vuelta en NULL)
+    IF OLD.fecha_eliminacion IS NOT NULL THEN
+        RAISE EXCEPTION 'El curso % está dado de baja', OLD.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_curso_vigente';
+    END IF;
+
+    IF EXISTS (SELECT 1
+                 FROM asignacion_docente a
+                WHERE a.curso_id = OLD.curso_id
+                  AND a.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'El curso % tiene asignaciones docentes vigentes', OLD.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_curso_asignaciones_vigentes';
+    END IF;
+
+    IF EXISTS (SELECT 1
+                 FROM inscripcion i
+                WHERE i.curso_id = OLD.curso_id
+                  AND i.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'El curso % tiene inscripciones vigentes', OLD.curso_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_curso_inscripciones_vigentes';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_curso_coherencia
+    BEFORE UPDATE ON curso
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_curso_coherencia();
 
 -- Baja lógica de un alumno de la institución: completa su fecha_eliminacion, sin cambiar su estado,
 -- y pasa sus inscripciones vigentes y activas a CANCELADA, sin darlas de baja: su fecha_eliminacion
@@ -1235,8 +1345,10 @@ CREATE TRIGGER trg_asignacion_docente_evaluaciones_vigentes
 -- Un curso con evaluaciones vigentes conserva su ciclo lectivo. Cuentan las de todas sus
 -- asignaciones; las dadas de baja ya no tienen evaluaciones vigentes
 -- (trg_asignacion_docente_evaluaciones_vigentes).
--- Un cambio de ciclo lectivo ya lo rechaza antes trg_curso_ciclo_lectivo, para cualquier curso, así
--- que este trigger ya no llega a rechazar nada: se conserva como segunda barrera
+-- Un cambio de ciclo lectivo ya lo rechaza antes trg_curso_ciclo_lectivo, para cualquier curso, y
+-- un curso con evaluaciones vigentes tiene asignaciones vigentes, con las que trg_curso_coherencia
+-- también rechaza antes toda modificación, así que este trigger ya no llega a rechazar nada: se
+-- conserva como segunda barrera
 CREATE FUNCTION fn_curso_evaluaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
