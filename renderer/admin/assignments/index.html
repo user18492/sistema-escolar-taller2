@@ -175,9 +175,9 @@
                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
                 </span>
-                <input type="text" class="searchable-input" placeholder="Buscar profesor" autocomplete="off" />
+                <input type="text" class="searchable-input" placeholder="Buscar profesor" autocomplete="off" aria-describedby="newAssignmentTeacherHint" />
                 <div class="searchable-value"></div>
-                <button type="button" class="searchable-chevron" aria-label="Abrir lista de profesores" aria-expanded="false">
+                <button type="button" class="searchable-chevron" aria-label="Abrir lista de profesores" aria-expanded="false" aria-describedby="newAssignmentTeacherHint">
                   <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -187,6 +187,9 @@
                 <li class="dropdown-empty" hidden>Sin resultados</li>
               </ul>
             </div>
+            <!-- Aclaraciones del formulario: assignments.js les pone el texto al mostrarlas y las
+                 vacía al ocultarlas, así un campo no queda descrito por una oculta -->
+            <p class="field-hint" id="newAssignmentTeacherHint" hidden></p>
           </div>
 
           <div class="form-field">
@@ -232,7 +235,7 @@
           <div class="form-field">
             <label>Materia</label>
             <div class="field field-select dropdown is-locked" data-filter="new-assignment-subject">
-              <button type="button" class="dropdown-toggle" id="newAssignmentSubject" aria-haspopup="listbox" aria-expanded="false" aria-describedby="newAssignmentSubjectError" disabled>
+              <button type="button" class="dropdown-toggle" id="newAssignmentSubject" aria-haspopup="listbox" aria-expanded="false" aria-describedby="newAssignmentSubjectError newAssignmentLockedHint" disabled>
                 <span class="dropdown-label text-truncate placeholder">Selecciona primero un curso</span>
                 <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="6 9 12 15 18 9" />
@@ -241,6 +244,7 @@
               <ul class="dropdown-menu" role="listbox" hidden></ul>
             </div>
             <p class="field-error" id="newAssignmentSubjectError" hidden></p>
+            <p class="field-hint" id="newAssignmentLockedHint" hidden></p>
           </div>
 
           <div class="info-box">

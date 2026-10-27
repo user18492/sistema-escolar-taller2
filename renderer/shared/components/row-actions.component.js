@@ -12,6 +12,10 @@
 //     lectivo cerrado, school-year.js). Editar y Eliminar quedan deshabilitados y llevan ese texto
 //     como title, con su etiqueta como aria-label; Imprimir, Restaurar y "Gestionar" no cambian. Se
 //     puede poner y quitar con la fila ya en la tabla, y se suma a "disabled".
+//   - "delete-disabled-title" (opcional): el registro no se puede eliminar, pero sí editar (p. ej.,
+//     una asignación docente con evaluaciones). Solo Eliminar queda deshabilitado, con ese texto
+//     como title y su etiqueta como aria-label. Se puede poner y quitar con la fila ya en la tabla;
+//     con "read-only-title", gana el texto de ese.
 //   - "variant" (opcional): "user" usa .user-actions/.user-action; por defecto .table-actions/.table-action.
 //   - "manage-href" (opcional): antepone un <manage-link> con ese href (requiere manage-link.component.js).
 // Los botones llevan data-action="print" / "edit" / "delete" / "restore". confirm-modal.component.js atiende
@@ -35,7 +39,7 @@
   const READ_ONLY_ACTIONS = ['edit', 'delete'];
 
   class RowActions extends HTMLElement {
-    static observedAttributes = ['disabled', 'read-only-title'];
+    static observedAttributes = ['disabled', 'read-only-title', 'delete-disabled-title'];
 
     connectedCallback() {
       if (this.rendered) return;
@@ -69,15 +73,22 @@
       }
     }
 
-    // Deshabilita los botones según "disabled" y "read-only-title" y les pone su title: la etiqueta
-    // de la acción o, en Editar y Eliminar de un registro de solo lectura, el motivo
+    // Deshabilita los botones según "disabled", "read-only-title" y "delete-disabled-title" y les
+    // pone su title: la etiqueta de la acción o, en las que esos dos deshabilitan, el motivo
     syncButtons() {
       const readOnlyTitle = this.getAttribute('read-only-title');
+      const deleteDisabledTitle = this.getAttribute('delete-disabled-title');
+      // Motivo por el que la acción no está disponible, o null: el de solo lectura gana
+      const reasonOf = (action) => {
+        if (readOnlyTitle !== null && READ_ONLY_ACTIONS.includes(action)) return readOnlyTitle;
+        if (deleteDisabledTitle !== null && action === 'delete') return deleteDisabledTitle;
+        return null;
+      };
       this.querySelectorAll('[data-action]').forEach((button) => {
         const { action } = button.dataset;
-        const isReadOnly = readOnlyTitle !== null && READ_ONLY_ACTIONS.includes(action);
-        button.disabled = this.hasAttribute('disabled') || isReadOnly;
-        button.setAttribute('title', isReadOnly ? readOnlyTitle : this.getAttribute(`${action}-label`));
+        const reason = reasonOf(action);
+        button.disabled = this.hasAttribute('disabled') || reason !== null;
+        button.setAttribute('title', reason ?? this.getAttribute(`${action}-label`));
       });
     }
 
