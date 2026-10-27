@@ -9,9 +9,10 @@
 //   - "disabled" (opcional): las acciones no están disponibles para esa fila y sus botones quedan
 //     deshabilitados. Se puede poner y quitar con la fila ya en la tabla.
 //   - "read-only-title" (opcional): el registro de la fila es de solo lectura (p. ej., de un ciclo
-//     lectivo cerrado, school-year.js). Editar y Eliminar quedan deshabilitados y llevan ese texto
-//     como title, con su etiqueta como aria-label; Imprimir, Restaurar y "Gestionar" no cambian. Se
-//     puede poner y quitar con la fila ya en la tabla, y se suma a "disabled".
+//     lectivo cerrado, school-year.js, o un curso con asignaciones docentes o inscripciones). Editar
+//     y Eliminar quedan deshabilitados y llevan ese texto como title, con su etiqueta como
+//     aria-label; Imprimir, Restaurar y "Gestionar" no cambian. Se puede poner y quitar con la fila
+//     ya en la tabla, y se suma a "disabled".
 //   - "delete-disabled-title" (opcional): el registro no se puede eliminar, pero sí editar (p. ej.,
 //     una asignación docente con evaluaciones). Solo Eliminar queda deshabilitado, con ese texto
 //     como title y su etiqueta como aria-label. Se puede poner y quitar con la fila ya en la tabla;

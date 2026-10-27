@@ -9,7 +9,9 @@
 // El resultado de las tres operaciones se avisa con un toast (toast.component.js), salvo el error de
 // la división, que se marca en el formulario.
 // El ciclo lectivo actual llega con la lista, de la base (school-year.js): los cursos de un ciclo
-// cerrado se ven en solo lectura, con Editar y Eliminar deshabilitados.
+// cerrado se ven en solo lectura, con Editar y Eliminar deshabilitados. También los tiene
+// deshabilitados un curso con asignaciones docentes o inscripciones vigentes, que no se puede editar
+// ni eliminar.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -84,9 +86,19 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.replaceChildren(row);
   };
 
+  // Motivo de Editar y Eliminar deshabilitados en un curso con asignaciones docentes o inscripciones
+  // vigentes (hasTeacherAssignments y hasEnrollments de la lista); null si no tiene ninguna
+  const inUseTitle = ({ hasTeacherAssignments, hasEnrollments }) => {
+    if (hasTeacherAssignments && hasEnrollments) return 'No se puede editar ni eliminar: el curso tiene asignaciones docentes e inscripciones.';
+    if (hasTeacherAssignments) return 'No se puede editar ni eliminar: el curso tiene asignaciones docentes.';
+    if (hasEnrollments) return 'No se puede editar ni eliminar: el curso tiene inscripciones.';
+    return null;
+  };
+
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
-  // curso_id en data-course-id. La de un curso de un ciclo cerrado lleva Editar y Eliminar
-  // deshabilitados, con el motivo como title; <row-actions> lo lee al conectarse.
+  // curso_id en data-course-id. La de un curso de un ciclo cerrado, o con asignaciones docentes o
+  // inscripciones, lleva Editar y Eliminar deshabilitados, con el motivo como title (el del ciclo
+  // cerrado gana); <row-actions> lo lee al conectarse.
   const createRow = (course) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.courseId = String(course.id);
@@ -100,9 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
     texts.forEach((text, index) => {
       row.cells[index].textContent = text ?? '';
     });
-    if (course.schoolYear < currentSchoolYear.year) {
-      row.querySelector('row-actions').setAttribute('read-only-title', closedSchoolYearTitle(course.schoolYear));
-    }
+    const readOnlyTitle = course.schoolYear < currentSchoolYear.year
+      ? closedSchoolYearTitle(course.schoolYear)
+      : inUseTitle(course);
+    if (readOnlyTitle) row.querySelector('row-actions').setAttribute('read-only-title', readOnlyTitle);
     return row;
   };
 
@@ -210,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // El botón de `action` (edit o delete) de la fila que quedó en su lugar (o de la última de la
   // página), o "Nuevo curso" si la tabla quedó sin cursos. Saltea los deshabilitados (los de un
-  // ciclo cerrado), que no toman el foco.
+  // ciclo cerrado o de un curso con asignaciones docentes o inscripciones), que no toman el foco.
   const focusAfterRemoval = (action) => {
     const buttons = tbody.querySelectorAll(`[data-action="${action}"]:not(:disabled)`);
     return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openCourseModalBtn;
@@ -221,9 +234,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const errorDescription = (error) =>
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
 
-  // El curso ya no está vigente o, con la vista abierta desde antes del cambio de año, su ciclo
-  // lectivo se cerró: la lista en memoria quedó vieja y se vuelve a pedir
-  const STALE_COURSE_CODES = ['COURSE_NOT_FOUND', 'COURSE_ALREADY_DELETED', 'SCHOOL_YEAR_CLOSED'];
+  // El curso ya no está vigente; con la vista abierta desde antes del cambio de año, su ciclo
+  // lectivo se cerró, o tiene asignaciones docentes o inscripciones (COURSE_IN_USE): la lista lo
+  // mostraba sin ellas porque otra sesión creó alguna después de cargarla. En los tres casos la lista
+  // en memoria quedó vieja y se vuelve a pedir
+  const STALE_COURSE_CODES = ['COURSE_NOT_FOUND', 'COURSE_ALREADY_DELETED', 'SCHOOL_YEAR_CLOSED', 'COURSE_IN_USE'];
 
   // "3° A de Secundaria, turno Mañana", como lo nombran los toasts del alta, la edición y la baja
   const courseName = (course) =>
@@ -485,7 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Crea el curso o guarda sus cambios, según el modo; al terminar cierra el modal y lo avisa con un
   // toast. El error de la división se marca en el formulario y los demás salen en un toast: en ambos
   // casos el modal sigue abierto con lo que se eligió. Solo se cierra si el curso que se editaba ya
-  // no está vigente o si su ciclo lectivo se cerró.
+  // no está vigente, si su ciclo lectivo se cerró o si ya tiene asignaciones docentes o inscripciones.
   const saveCourse = async () => {
     const gradeName = selectedGradeName();
     const level = selectedValue(levelDropdown);
