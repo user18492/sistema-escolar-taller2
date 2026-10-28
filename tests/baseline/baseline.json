@@ -1,17 +1,14 @@
 {
   "version": 1,
-  "takenAt": "2026-10-28T12:29:59.452Z",
-  "commit": "cb89481cb9b0e8e905206c362ac761ccd34f3265",
+  "takenAt": "2026-10-28T12:49:54.489Z",
+  "commit": "1b793faca3108663006e60590209ac4397647dfa",
   "branch": "restricciones",
   "dirty": true,
   "changedFiles": [
-    "db/schema.sql",
-    "src/main/models/student.model.js",
-    "src/main/repositories/enrollment.repository.js",
-    "src/main/repositories/student.repository.js",
-    "src/main/services/enrollment.service.js",
-    "src/main/services/student.service.js",
-    "src/preload/preload.js"
+    "renderer/secretary/enrollments/enrollments.js",
+    "renderer/secretary/students/index.html",
+    "renderer/secretary/students/students.js",
+    "renderer/shared/styles/dropdown.css"
   ],
   "today": "2026-10-28",
   "year": 2026,
@@ -1859,6 +1856,24 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "ui.students.graduate-locked": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "e4cea764309d",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.students.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "ui.views.table-matches-renderer": {
       "layer": "ui",
       "status": "pass",
@@ -1987,24 +2002,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 101,
-      "ok": 101,
-      "tests": 31
+      "calls": 104,
+      "ok": 104,
+      "tests": 32
     },
     "auth:get-remembered-email": {
-      "calls": 71,
-      "ok": 71,
-      "tests": 42
+      "calls": 74,
+      "ok": 74,
+      "tests": 44
     },
     "auth:login": {
-      "calls": 118,
-      "ok": 110,
-      "tests": 91
+      "calls": 119,
+      "ok": 111,
+      "tests": 92
     },
     "auth:logout": {
-      "calls": 148,
-      "ok": 148,
-      "tests": 104
+      "calls": 151,
+      "ok": 151,
+      "tests": 106
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2037,9 +2052,9 @@
       "tests": 10
     },
     "dashboard:get-secretary-summary": {
-      "calls": 9,
-      "ok": 9,
-      "tests": 9
+      "calls": 10,
+      "ok": 10,
+      "tests": 10
     },
     "enrollments:create": {
       "calls": 5,
@@ -2162,9 +2177,9 @@
       "tests": 1
     },
     "students:list": {
-      "calls": 6,
-      "ok": 5,
-      "tests": 6
+      "calls": 7,
+      "ok": 6,
+      "tests": 7
     },
     "students:restore": {
       "calls": 2,
@@ -2172,9 +2187,9 @@
       "tests": 1
     },
     "students:update": {
-      "calls": 5,
-      "ok": 3,
-      "tests": 2
+      "calls": 6,
+      "ok": 4,
+      "tests": 3
     },
     "teacher-assignments:create": {
       "calls": 6,
@@ -2252,9 +2267,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 131,
-      "ok": 131,
-      "tests": 49
+      "calls": 136,
+      "ok": 136,
+      "tests": 51
     },
     "window:minimize": {
       "calls": 1,
