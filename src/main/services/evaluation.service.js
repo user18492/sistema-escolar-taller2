@@ -272,7 +272,9 @@ async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, e
 // curso es de un ciclo lectivo cerrado, que gana a los errores siguientes, un EvaluationError
 // EVALUATION_HAS_COMPLETED_SCORES si la evaluación tiene calificaciones vigentes de inscripciones
 // finalizadas y un EvaluationError EVALUATION_NOT_FOUND si la evaluación no existe, ya estaba dada
-// de baja o es de otra asignación, sin distinguir los casos.
+// de baja o es de otra asignación, sin distinguir los casos. Una inscripción finalizada solo existe
+// en un ciclo lectivo cerrado, donde gana SCHOOL_YEAR_CLOSED: EVALUATION_HAS_COMPLETED_SCORES queda
+// como respaldo.
 async function deleteOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   await assertSchoolYearNotClosed(teacherAssignment);

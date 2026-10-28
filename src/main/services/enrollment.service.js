@@ -332,7 +332,8 @@ async function findNotDeletedEnrollment(institutionId, enrollmentId) {
 // Lo de un ciclo lectivo cerrado es de solo lectura: una inscripción de un curso de un ciclo anterior
 // al actual no se edita ni se da de baja, en ningún estado, tampoco de activa a finalizada. La base
 // sí acepta ese cambio, pero solo para el cierre del ciclo (school-year.service.js): una inscripción
-// llega a finalizada únicamente así.
+// llega a finalizada únicamente así, y la base también rechaza una finalizada en el ciclo actual
+// (ck_inscripcion_finalizada_ciclo_cerrado).
 function closedSchoolYearError(enrollment) {
   return new EnrollmentError('SCHOOL_YEAR_CLOSED', schoolYearService.closedSchoolYearMessage(enrollment.course.schoolYear));
 }
@@ -354,10 +355,19 @@ async function getEnrollment(currentUser, enrollmentId) {
   return toInstitutionEnrollment(await findNotDeletedEnrollment(currentUser.institutionId, enrollmentId));
 }
 
-// Lanza el EnrollmentError INVALID_INPUT si `status` no es ACTIVE, COMPLETED ni CANCELLED.
+// Estados a los que la edición pasa una inscripción. COMPLETED no: una inscripción llega a
+// finalizada solo con el cierre del ciclo lectivo (ver closedSchoolYearError). Los filtros del
+// listado sí aceptan COMPLETED (FILTER_VALIDATORS).
+const EDITABLE_STATUSES = ['ACTIVE', 'CANCELLED'];
+
+// Lanza el EnrollmentError INVALID_INPUT si `status` no es ACTIVE ni CANCELLED, también si es
+// COMPLETED.
 function assertValidStatus(status) {
-  if (!enrollmentRepository.STATUSES.includes(status)) {
-    throw new EnrollmentError('INVALID_INPUT', 'Elegí un estado válido.');
+  if (!EDITABLE_STATUSES.includes(status)) {
+    throw new EnrollmentError(
+      'INVALID_INPUT',
+      'Elegí Activa o Cancelada: una inscripción pasa a finalizada solo con el cierre del ciclo lectivo.'
+    );
   }
 }
 
@@ -373,7 +383,7 @@ function anotherActiveEnrollmentError(enrollment, activeEnrollment) {
   return new EnrollmentError(
     'STUDENT_ALREADY_ENROLLED',
     `${name} ya tiene otra inscripción activa: ${formatEnrollmentNumber(activeEnrollment.id)}. Un alumno solo puede ` +
-      'tener una: para activar esta, primero hay que cancelar o finalizar aquella.'
+      'tener una: para activar esta, primero hay que cancelar aquella.'
   );
 }
 
@@ -423,7 +433,8 @@ async function saveEnrollmentStatus(institutionId, enrollment, status) {
 }
 
 // Cambia el estado de la inscripción vigente con ese id de la institución de `currentUser` (el de la
-// sesión). `data` trae status (ACTIVE, COMPLETED o CANCELLED); el controlador ya comprobó su forma.
+// sesión). `data` trae status (ACTIVE o CANCELLED); el controlador ya comprobó su forma. La edición
+// no pasa una inscripción a finalizada: eso lo hace solo el cierre del ciclo lectivo.
 // Solo cambia el estado: el número, el alumno, el curso y la fecha no se leen de `data`.
 // Devuelve { enrollment, changed }: la inscripción como quedó, con los campos de listEnrollments, y
 // si se modificó. Si ya tenía ese estado, no se modifica nada y changed es false.
@@ -437,9 +448,10 @@ async function saveEnrollmentStatus(institutionId, enrollment, status) {
 // tiene.
 // Lanza un EnrollmentError si la inscripción no está vigente en la institución (los de
 // findNotDeletedEnrollment), si es de un ciclo lectivo cerrado (SCHOOL_YEAR_CLOSED, que gana a los
-// errores siguientes), si el estado no es válido (INVALID_INPUT), si el alumno ya tiene otra
-// inscripción vigente y activa (STUDENT_ALREADY_ENROLLED) o si se la quiso activar y el alumno está
-// dado de baja (STUDENT_DELETED) o es egresado (STUDENT_NOT_ACTIVE).
+// errores siguientes), si el estado no es ACTIVE ni CANCELLED (INVALID_INPUT, también con
+// COMPLETED), si el alumno ya tiene otra inscripción vigente y activa (STUDENT_ALREADY_ENROLLED) o si
+// se la quiso activar y el alumno está dado de baja (STUDENT_DELETED) o es egresado
+// (STUDENT_NOT_ACTIVE).
 async function updateEnrollment(currentUser, enrollmentId, { status }) {
   const { institutionId } = currentUser;
   const enrollment = await findNotDeletedEnrollment(institutionId, enrollmentId);

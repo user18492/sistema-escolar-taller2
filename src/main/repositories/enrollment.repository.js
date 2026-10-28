@@ -253,14 +253,16 @@ const FIND_BY_ID_SQL = `
 // inscripción vigente y activa (una dada de baja no cuenta): ver isSecondActiveEnrollmentError, y
 // trg_inscripcion_ciclo_lectivo, todo cambio de una inscripción de un curso de un ciclo lectivo
 // cerrado, salvo de ACTIVA a FINALIZADA, que queda para el cierre del ciclo
-// (finalizeActiveInClosedSchoolYears): ver isClosedSchoolYearError. El resto de los controles de los
-// triggers de inscripcion no pueden fallar, porque solo cambia el estado:
-// ck_inscripcion_misma_institucion y ck_inscripcion_fecha_ciclo_lectivo se vuelven a evaluar sobre el
-// mismo alumno, el mismo curso y la misma fecha, que ya los cumplían (el alumno no cambia de
-// institución mientras tenga inscripciones, y el curso no cambia nunca de institución ni de ciclo
-// lectivo); ck_inscripcion_curso_vigente rechaza una inscripción vigente en un curso dado de baja,
-// pero la edición no llega, porque un curso con inscripciones vigentes no se da de baja, y
-// trg_inscripcion_calificaciones_vigentes solo se dispara si cambia el curso.
+// (finalizeActiveInClosedSchoolYears): ver isClosedSchoolYearError. Ese trigger también rechaza el
+// paso a FINALIZADA en el ciclo actual (ck_inscripcion_finalizada_ciclo_cerrado), pero no llega: el
+// servicio no pide COMPLETED. El resto de los controles de los triggers de inscripcion no pueden
+// fallar, porque solo cambia el estado: ck_inscripcion_misma_institucion y
+// ck_inscripcion_fecha_ciclo_lectivo se vuelven a evaluar sobre el mismo alumno, el mismo curso y la
+// misma fecha, que ya los cumplían (el alumno no cambia de institución mientras tenga inscripciones,
+// y el curso no cambia nunca de institución ni de ciclo lectivo); ck_inscripcion_fecha_futura solo se
+// controla si cambia la fecha; ck_inscripcion_curso_vigente rechaza una inscripción vigente en un
+// curso dado de baja, pero la edición no llega, porque un curso con inscripciones vigentes no se da
+// de baja, y trg_inscripcion_calificaciones_vigentes solo se dispara si cambia el curso.
 const UPDATE_STATUS_SQL = `
   WITH updated AS (
     UPDATE inscripcion i
@@ -408,7 +410,8 @@ const COLUMN_VALUE_BY_STATUS = Object.fromEntries(
   Object.entries(STATUS_BY_COLUMN_VALUE).map(([columnValue, status]) => [status, columnValue])
 );
 
-// Estados que admite inscripcion_estado.nombre, con los códigos del sistema.
+// Estados que admite inscripcion_estado.nombre, con los códigos del sistema. Los usan los filtros
+// del listado; la edición acepta menos (EDITABLE_STATUSES, enrollment.service.js).
 const STATUSES = Object.keys(COLUMN_VALUE_BY_STATUS);
 
 function toEnrollment(row) {
@@ -570,9 +573,11 @@ async function findById(enrollmentId, institutionId) {
 // como findPageNotDeletedByInstitution; null si no cambió nada: no existe en la institución, está
 // dada de baja o ya tenía ese estado. PostgreSQL rechaza el cambio a ACTIVE si el alumno está dado
 // de baja o no es activo (ver isDeletedStudentError e isInactiveStudentError) o si ya tiene otra
-// inscripción vigente y activa (ver isSecondActiveEnrollmentError), y todo cambio en un curso de un
-// ciclo lectivo cerrado, salvo de ACTIVE a COMPLETED (ver isClosedSchoolYearError): que eso no pase
-// lo comprueba el servicio, salvo el estado del alumno, que decide la base.
+// inscripción vigente y activa (ver isSecondActiveEnrollmentError), todo cambio en un curso de un
+// ciclo lectivo cerrado, salvo de ACTIVE a COMPLETED (ver isClosedSchoolYearError), y el cambio a
+// COMPLETED en el ciclo actual (ck_inscripcion_finalizada_ciclo_cerrado, que no se traduce): que eso
+// no pase lo comprueba el servicio, que no pide COMPLETED, salvo el estado del alumno, que decide la
+// base.
 async function updateStatus(enrollmentId, institutionId, status) {
   const { rows } = await query(UPDATE_STATUS_SQL, [enrollmentId, institutionId, COLUMN_VALUE_BY_STATUS[status]]);
   return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;

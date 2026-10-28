@@ -598,15 +598,16 @@ INSERT INTO inscripcion_estado (nombre) VALUES
 -- posterior del mismo alumno, activa, en el curso al que pasó.
 -- VALUES da el mes y el día de cada fecha de inscripción; el año es el del ciclo lectivo actual, el
 -- de todos los cursos, como exige trg_inscripcion_fecha_ciclo_lectivo: las inscripciones se hacen
--- durante ese año, a partir de enero. Las fechas no dependen del día de la carga: si se carga antes
--- de mediados de marzo, algunas quedan en el futuro, y por ahora ninguna regla lo impide.
+-- durante ese año, a partir de enero. Ese trigger también rechaza una fecha futura, así que si se
+-- carga antes de mediados de marzo, la fecha que todavía no llegó queda con el día de la carga
+-- (LEAST con fn_fecha_actual()).
 -- El ORDER BY las inserta por fecha de inscripción, para que los ids sigan el orden en que se
 -- habrían cargado.
 -- Quedan alumnos sin ninguna inscripción, algunos de ellos activos.
 
 -- Instituto San Martin: 8 activas y 7 canceladas
 INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
-SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, make_date(fn_anio_ciclo_lectivo_actual(), ins.mes, ins.dia)
+SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, LEAST(make_date(fn_anio_ciclo_lectivo_actual(), ins.mes, ins.dia), fn_fecha_actual())
 FROM (VALUES
     -- Activas
     ('ACTIVA', 'camila.alvarez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2, 9),
@@ -641,7 +642,7 @@ ORDER BY ins.mes, ins.dia, a.alumno_id;
 
 -- Colegio Manuel Belgrano: 8 activas y 7 canceladas
 INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
-SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, make_date(fn_anio_ciclo_lectivo_actual(), ins.mes, ins.dia)
+SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, LEAST(make_date(fn_anio_ciclo_lectivo_actual(), ins.mes, ins.dia), fn_fecha_actual())
 FROM (VALUES
     -- Activas
     ('ACTIVA', 'renata.aguilar@colegiobelgrano.edu.ar', 'SECUNDARIA', '4°', 'A', 'MAÑANA', 2, 9),

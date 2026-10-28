@@ -579,7 +579,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // de una inscripción que ya no se edita
   let editRequestId = 0;
 
-  // ACTIVE, COMPLETED o CANCELLED, el estado marcado
+  // ACTIVE o CANCELLED, el estado marcado: Editar no ofrece Finalizada, porque una inscripción pasa a
+  // finalizada solo con el cierre del ciclo lectivo, y la de un ciclo cerrado no se edita
   const selectedStatus = () => statusDropdown.querySelector('.dropdown-option.selected')?.dataset.value ?? '';
 
   // Estado bloqueado, sin ninguno marcado y con `text` en su etiqueta, y Guardar deshabilitado:

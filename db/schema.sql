@@ -683,7 +683,10 @@ CREATE INDEX idx_alumno_alumno_estado_id ON alumno(alumno_estado_id);
 -- Estados de inscripción. Cada uno dice si al alumno se lo puede calificar en el curso y si sus
 -- calificaciones cuentan para el promedio:
 --   - ACTIVA: cursa el curso. Se califica y cuenta para el promedio.
---   - FINALIZADA: terminó el cursado. Solo lectura, y cuenta para el promedio.
+--   - FINALIZADA: terminó el cursado. Solo lectura, y cuenta para el promedio. Una inscripción
+--     llega a finalizada solo con el cierre de su ciclo lectivo
+--     (sp_inscripcion_finalizar_ciclos_cerrados, más abajo): en el ciclo actual no hay finalizadas
+--     (trg_inscripcion_ciclo_lectivo, más abajo).
 --   - CANCELADA: dejó de cursar, porque abandonó o porque se cambió a otro curso. Solo lectura, y
 --     no cuenta para el promedio.
 -- Un cambio de curso cancela la inscripción actual y crea otra, activa, en el curso destino.
@@ -706,9 +709,10 @@ CREATE TABLE inscripcion_estado (
 -- Lo que cambia a lo largo de su vida es su estado. La baja lógica (fecha_eliminacion) la hace el
 -- Secretario desde el listado de inscripciones, sin cambiar el estado ni el resto de la fila. La
 -- baja de un alumno (sp_alumno_dar_de_baja, más abajo) no la hace: pasa sus inscripciones activas a
--- CANCELADA, pero no las da de baja, para conservar todo su historial. El cierre del ciclo lectivo
+-- CANCELADA, pero no las da de baja, para conservar todo su historial. En el ciclo lectivo actual,
+-- el estado solo pasa de activa a cancelada y de cancelada a activa: el cierre del ciclo
 -- (sp_inscripcion_finalizar_ciclos_cerrados, más abajo) pasa a FINALIZADA las activas de los ciclos
--- cerrados.
+-- cerrados, y es la única forma de llegar a ese estado (trg_inscripcion_ciclo_lectivo).
 -- La baja lógica solo la tienen en cuenta la regla de una sola inscripción activa por alumno
 -- (trg_inscripcion_coherencia), para la que una inscripción dada de baja no cuenta como activa, y
 -- que tampoco le exige un curso vigente ni, si es activa, un alumno vigente y ACTIVO;
@@ -726,7 +730,8 @@ CREATE TABLE inscripcion (
     curso_id               INT   NOT NULL,
     inscripcion_estado_id  INT   NOT NULL,
     fecha_inscripcion      DATE  NOT NULL DEFAULT fn_fecha_actual(),
-    -- Por defecto, la fecha actual. Su año es el ciclo lectivo del curso
+    -- Por defecto, la fecha actual. Su año es el ciclo lectivo del curso, y no es futura
+    -- (trg_inscripcion_fecha_ciclo_lectivo)
     fecha_eliminacion      TIMESTAMPTZ,
     -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva
 
@@ -749,7 +754,12 @@ CREATE INDEX idx_inscripcion_inscripcion_estado_id ON inscripcion(inscripcion_es
 -- cambiar nada más (ni el alumno, ni el curso, ni la fecha, ni la baja lógica). Es la única
 -- modificación que admite un ciclo cerrado, y la hace el cierre del ciclo
 -- (sp_inscripcion_finalizar_ciclos_cerrados, más abajo): sin ella, las activas de un ciclo cerrado
--- quedarían activas para siempre y sus alumnos no podrían inscribirse en el ciclo siguiente
+-- quedarían activas para siempre y sus alumnos no podrían inscribirse en el ciclo siguiente.
+-- Por eso una inscripción del ciclo actual no queda FINALIZADA: después de controlar los cursos, si
+-- el nuevo es del ciclo actual, se rechaza el alta de una finalizada y todo UPDATE que deje una, esté
+-- vigente o dada de baja. Así, en el ciclo actual solo hay activas y canceladas, y el estado solo
+-- pasa de una a la otra. En un ciclo cerrado o futuro gana el rechazo de ese ciclo, y si el curso no
+-- existe tampoco falla
 CREATE FUNCTION fn_inscripcion_ciclo_lectivo() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -760,16 +770,16 @@ DECLARE
     v_estado_anterior  VARCHAR(50);
     v_estado_nuevo     VARCHAR(50);
 BEGIN
+    SELECT e.nombre
+      INTO v_estado_nuevo
+      FROM inscripcion_estado e
+     WHERE e.inscripcion_estado_id = NEW.inscripcion_estado_id;
+
     IF TG_OP = 'UPDATE' THEN
         SELECT e.nombre
           INTO v_estado_anterior
           FROM inscripcion_estado e
          WHERE e.inscripcion_estado_id = OLD.inscripcion_estado_id;
-
-        SELECT e.nombre
-          INTO v_estado_nuevo
-          FROM inscripcion_estado e
-         WHERE e.inscripcion_estado_id = NEW.inscripcion_estado_id;
 
         SELECT c.anio_ciclo_lectivo
           INTO v_anio
@@ -812,6 +822,14 @@ BEGIN
                       CONSTRAINT = 'ck_inscripcion_ciclo_lectivo_futuro';
         END IF;
     END LOOP;
+
+    -- v_estado es el del último curso recorrido, NEW.curso_id
+    IF v_estado = 'ACTUAL' AND v_estado_nuevo = 'FINALIZADA' THEN
+        RAISE EXCEPTION 'La inscripción % es del ciclo lectivo actual, %: solo queda finalizada con el cierre del ciclo',
+                        NEW.inscripcion_id, v_anio
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_inscripcion_finalizada_ciclo_cerrado';
+    END IF;
 
     RETURN NEW;
 END;
@@ -942,7 +960,10 @@ CREATE TRIGGER trg_inscripcion_coherencia
 -- durante ese año, a partir de enero. Se validan todas, cualquiera sea su estado. FOR SHARE retiene
 -- la fila del curso hasta el fin de la transacción: un cambio simultáneo de ciclo lectivo espera y,
 -- al seguir, su trigger (más abajo) ya ve esta inscripción. Si el curso no existe, la comparación
--- da NULL y no falla: la rechaza después su clave foránea
+-- da NULL y no falla: la rechaza después su clave foránea.
+-- Además, la fecha no es futura (posterior a fn_fecha_actual()): se controla solo al cargarla o
+-- cambiarla, porque una fecha que ya llegó no vuelve a ser futura. Una de otro año la rechaza antes
+-- el control del ciclo lectivo
 CREATE FUNCTION fn_inscripcion_fecha_ciclo_lectivo() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -959,6 +980,14 @@ BEGIN
                         NEW.fecha_inscripcion, v_anio_ciclo_lectivo, NEW.curso_id
             USING ERRCODE = 'check_violation',
                   CONSTRAINT = 'ck_inscripcion_fecha_ciclo_lectivo';
+    END IF;
+
+    IF (TG_OP = 'INSERT' OR NEW.fecha_inscripcion <> OLD.fecha_inscripcion)
+       AND NEW.fecha_inscripcion > fn_fecha_actual() THEN
+        RAISE EXCEPTION 'La fecha % de la inscripción % todavía no llegó',
+                        NEW.fecha_inscripcion, NEW.inscripcion_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_inscripcion_fecha_futura';
     END IF;
 
     RETURN NEW;
@@ -1587,7 +1616,10 @@ CREATE TRIGGER trg_calificacion_ciclo_lectivo
 -- no tiene calificaciones vigentes, así que solo ella llega a esa rama. La baja en cascada no mira
 -- la inscripción, salvo la finalizada: se dan de baja también las de inscripciones canceladas o
 -- dadas de baja, pero la de una finalizada se rechaza, y con ella la baja de la evaluación, porque
--- es histórico y tiene que seguir visible en la evaluación.
+-- es histórico y tiene que seguir visible en la evaluación. Una inscripción finalizada solo existe
+-- en un ciclo lectivo cerrado (trg_inscripcion_ciclo_lectivo), donde la baja de la evaluación la
+-- rechaza antes trg_evaluacion_ciclo_lectivo: ck_calificacion_inscripcion_finalizada queda como
+-- segunda barrera.
 -- Una calificación dada de baja ya no se modifica: ni su nota ni su fecha de baja, y tampoco se
 -- restaura.
 -- FOR SHARE retiene las filas de la evaluación, de su asignación y de la inscripción hasta el fin
@@ -1796,6 +1828,8 @@ CREATE TRIGGER trg_evaluacion_futura_calificaciones_vigentes
 -- Es AFTER para que trg_calificacion_coherencia ya vea la evaluación dada de baja: así reconoce la
 -- baja en cascada, que no mira la inscripción salvo la finalizada. Es todo o nada: si rechaza una
 -- calificación (la de una inscripción finalizada), falla el UPDATE de la evaluación y no cambia nada.
+-- Una finalizada solo existe en un ciclo lectivo cerrado, donde trg_evaluacion_ciclo_lectivo ya
+-- rechaza antes la baja de la evaluación, así que ese rechazo queda como segunda barrera.
 -- Sin bloqueos propios: la carga o la corrección de una calificación retiene la fila de la
 -- evaluación con FOR SHARE (fn_calificacion_coherencia), así que la baja espera a que termine y su
 -- cascada ya ve esa calificación; al revés, la calificación espera a la baja y se rechaza con

@@ -346,12 +346,13 @@ contextBridge.exposeInMainWorld('api', {
     // no existe en la institución y ENROLLMENT_DELETED, que fue eliminada.
     get: (enrollmentId) => ipcRenderer.invoke('enrollments:get', enrollmentId),
     // Solo SECRETARIO. Cambia el estado de la inscripción vigente con ese id (inscripcion_id) de su
-    // institución. `data` es { status }, con status 'ACTIVE', 'COMPLETED' o 'CANCELLED': solo se edita
-    // el estado; el número, el alumno, el curso y la fecha no cambian. Resuelve
+    // institución. `data` es { status }, con status 'ACTIVE' o 'CANCELLED': solo se edita el estado;
+    // el número, el alumno, el curso y la fecha no cambian. Resuelve
     // { ok: true, enrollment, changed } con la inscripción como quedó (mismos campos que list) y
     // changed false si ya tenía ese estado, en cuyo caso no se modificó nada, o
     // { ok: false, error: { code, message } }, sin cambiar nada: INVALID_INPUT indica datos o un
-    // estado inválidos; ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get;
+    // estado inválidos, también 'COMPLETED' (una inscripción pasa a finalizada solo con el cierre del
+    // ciclo lectivo); ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get;
     // STUDENT_ALREADY_ENROLLED, que se la quiso activar y el alumno ya tiene otra inscripción vigente
     // y activa (solo puede tener una; el mensaje da su número); STUDENT_DELETED y STUDENT_NOT_ACTIVE,
     // que se la quiso activar y el alumno fue eliminado o es egresado, y SCHOOL_YEAR_CLOSED, que es
@@ -433,8 +434,9 @@ contextBridge.exposeInMainWorld('api', {
     // listByOwnAssignment, sin scoreCount) o { ok: false, error: { code, message } }, sin modificar
     // nada: TEACHER_ASSIGNMENT_NOT_FOUND y SCHOOL_YEAR_CLOSED, como en create,
     // EVALUATION_HAS_COMPLETED_SCORES, que la evaluación tiene calificaciones vigentes de
-    // inscripciones finalizadas, y EVALUATION_NOT_FOUND indica que la evaluación no existe, que ya
-    // estaba dada de baja o que es de otra asignación, sin distinguir entre esos casos.
+    // inscripciones finalizadas (solo de respaldo: una finalizada es de un ciclo lectivo cerrado,
+    // donde llega antes SCHOOL_YEAR_CLOSED), y EVALUATION_NOT_FOUND indica que la evaluación no
+    // existe, que ya estaba dada de baja o que es de otra asignación, sin distinguir entre esos casos.
     delete: (teacherAssignmentId, evaluationId) =>
       ipcRenderer.invoke('evaluations:delete', teacherAssignmentId, evaluationId),
   },
