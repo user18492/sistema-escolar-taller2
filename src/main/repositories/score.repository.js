@@ -14,16 +14,6 @@ const FIND_BY_EVALUATION_SQL = `
      AND ca.fecha_eliminacion IS NULL
 `;
 
-// Si la inscripción $1 tiene alguna calificación vigente, de cualquier evaluación. Una evaluación
-// dada de baja ya no tiene calificaciones vigentes: se dieron de baja con ella
-// (trg_evaluacion_baja_calificaciones, db/schema.sql).
-const EXISTS_NOT_DELETED_BY_ENROLLMENT_SQL = `
-  SELECT EXISTS (SELECT 1
-                   FROM calificacion ca
-                  WHERE ca.inscripcion_id = $1
-                    AND ca.fecha_eliminacion IS NULL) AS has_scores
-`;
-
 // Cantidad de calificaciones vigentes de cada evaluación vigente de una asignación docente, solo de
 // las inscripciones que muestra Calificaciones: vigentes y activas o finalizadas (valores de
 // inscripcion_estado.nombre), con el mismo criterio que FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL
@@ -120,14 +110,6 @@ async function countVisibleByTeacherAssignment(teacherAssignmentId) {
   return new Map(rows.map((row) => [row.evaluacion_id, row.total]));
 }
 
-// true si la inscripción `enrollmentId` (un inscripcion_id) tiene alguna calificación vigente, en
-// cualquier evaluación; false si no tiene ninguna o si todas se dieron de baja, también con la baja
-// de su evaluación.
-async function existsNotDeletedByEnrollment(enrollmentId) {
-  const { rows } = await query(EXISTS_NOT_DELETED_BY_ENROLLMENT_SQL, [enrollmentId]);
-  return rows[0].has_scores;
-}
-
 // Carga la nota `value` de la inscripción `enrollmentId` (un inscripcion_id) en la evaluación
 // `evaluationId` y devuelve la calificación creada. PostgreSQL rechaza el alta si la inscripción ya
 // tiene una calificación vigente en esa evaluación (isDuplicateError; una dada de baja no cuenta),
@@ -214,7 +196,6 @@ function isFutureEvaluationError(error) {
 module.exports = {
   findByEvaluation,
   countVisibleByTeacherAssignment,
-  existsNotDeletedByEnrollment,
   create,
   update,
   markAsDeleted,

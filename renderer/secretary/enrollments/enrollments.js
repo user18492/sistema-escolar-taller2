@@ -18,7 +18,8 @@
 // Eliminar pide confirmación en "Eliminar inscripción" (confirm-modal.component.js) y solo al
 // confirmar da de baja la inscripción (window.api.enrollments.delete), que deja de listarse: la tabla
 // vuelve a pedir la página a la vista con los mismos filtros, con el total recalculado, o la anterior
-// si quedó vacía. El resultado también se avisa con un toast y el modal se cierra siempre.
+// si quedó vacía. El resultado también se avisa con un toast y el modal se cierra siempre. Una
+// inscripción con calificaciones no se elimina: su Eliminar está deshabilitado, con el motivo.
 // Imprimir comprobante (data-action="print") le pide al proceso principal que genere el comprobante
 // en PDF y lo abra con el visor de PDF predeterminado (window.api.enrollments.openReceipt), desde
 // donde se imprime o se guarda. Si no se pudo, lo avisa con un toast.
@@ -114,10 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // El ciclo lectivo actual ({ year, today }), que llega con cada página: null hasta la primera
   let currentSchoolYear = null;
 
+  // Motivo de Eliminar deshabilitado en una inscripción con calificaciones vigentes (hasScores)
+  const HAS_SCORES_TITLE = 'No se puede eliminar: la inscripción tiene calificaciones.';
+
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
   // inscripcion_id en data-enrollment-id; el número de inscripción llega ya armado. La de una
-  // inscripción de un ciclo cerrado lleva Editar y Eliminar deshabilitados, con el motivo como title;
-  // <row-actions> lo lee al conectarse.
+  // inscripción de un ciclo cerrado lleva Editar y Eliminar deshabilitados, y la de una con
+  // calificaciones, solo Eliminar, con el motivo como title; <row-actions> lo lee al conectarse.
   const createRow = (enrollment) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.enrollmentId = String(enrollment.id);
@@ -130,8 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
     badge.setAttribute('status', enrollment.status.toLowerCase());
     badge.setAttribute('label', statusLabels[enrollment.status] ?? enrollment.status);
     const { schoolYear } = enrollment.course;
+    const rowActions = row.querySelector('row-actions');
     if (schoolYear < currentSchoolYear.year) {
-      row.querySelector('row-actions').setAttribute('read-only-title', closedSchoolYearTitle(schoolYear));
+      rowActions.setAttribute('read-only-title', closedSchoolYearTitle(schoolYear));
+    } else if (enrollment.hasScores) {
+      rowActions.setAttribute('delete-disabled-title', HAS_SCORES_TITLE);
     }
     return row;
   };
@@ -570,7 +577,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // El botón de `action` (edit, delete o print) de la fila que quedó en su lugar (o de la última de la
   // página), o "Nueva inscripción" si la tabla quedó sin inscripciones. Saltea los deshabilitados
-  // (Editar y Eliminar de un ciclo cerrado), que no toman el foco.
+  // (Editar y Eliminar de un ciclo cerrado, y Eliminar de una con calificaciones), que no toman el
+  // foco.
   const focusAfterRemoval = (action) => {
     const buttons = tbody.querySelectorAll(`[data-action="${action}"]:not(:disabled)`);
     return buttons[Math.min(triggerRowIndex, buttons.length - 1)] ?? openEnrollmentModalBtn;
@@ -772,7 +780,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // la tabla; el proceso principal vuelve a comprobar que la inscripción exista en la institución y
   // siga vigente. Si la da de baja, o si ya no estaba vigente, la tabla se actualiza antes de liberar
   // el modal, así al cerrarse ya no la muestra; si su ciclo lectivo se cerró con la vista abierta
-  // desde antes del cambio de año, la tabla vuelve a pedir la página, que la muestra en solo lectura.
+  // desde antes del cambio de año, la tabla vuelve a pedir la página, que la muestra en solo lectura,
+  // y lo mismo si tiene calificaciones (otra sesión le cargó una después de pedir la página): vuelve
+  // con Eliminar deshabilitado.
   // Avisa el resultado con un toast y no resuelve ningún mensaje, así el modal se cierra siempre.
   const deleteEnrollment = async (trigger) => {
     const row = trigger.closest('tr');
@@ -787,8 +797,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
       triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
       await refreshAfterDelete();
-    } else if (error?.code === 'SCHOOL_YEAR_CLOSED') {
-      // La fila va a quedar en solo lectura, sin Eliminar que tome el foco
+    } else if (['SCHOOL_YEAR_CLOSED', 'ENROLLMENT_HAS_SCORES'].includes(error?.code)) {
+      // La fila va a quedar con Eliminar deshabilitado, que no toma el foco
       triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
       await loadEnrollments(pagination.page);
     }

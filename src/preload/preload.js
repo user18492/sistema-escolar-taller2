@@ -299,9 +299,10 @@ contextBridge.exposeInMainWorld('api', {
     // ('PRIMARY' o 'SECONDARY' y el nombre del grado, 1° a 6°), divisiones (letras mayúsculas),
     // turnos ('MORNING' o 'AFTERNOON') y estados ('ACTIVE', 'COMPLETED' o 'CANCELLED'). Una
     // inscripción pasa un filtro si coincide con alguno de sus valores, y tiene que pasarlos todos.
-    // Cada inscripción es { id, number, enrollmentDate, status, student, course }, con number y
-    // enrollmentDate como en listByOwnAssignment, status uno de los estados, student
-    // { firstName, lastName } y course como en courses.list. `total` es cuántas pasan los filtros y
+    // Cada inscripción es { id, number, enrollmentDate, status, student, course, hasScores }, con
+    // number y enrollmentDate como en listByOwnAssignment, status uno de los estados, student
+    // { firstName, lastName }, course como en courses.list y hasScores true si tiene calificaciones
+    // vigentes: así no se elimina (delete, más abajo). `total` es cuántas pasan los filtros y
     // `page`, la página devuelta: si la pedida ya no existe, la última (con ninguna, la 1). Con
     // `enrollmentId` (el id de una inscripción, p. ej. la que devolvió create), se devuelve en cambio
     // la página donde está, si pasa los filtros; si no, la página `page`. Llegan siempre en el mismo
@@ -332,24 +333,25 @@ contextBridge.exposeInMainWorld('api', {
     // o 'SECONDARY' y el id de un curso de listEnrollableCourses de ese nivel. La inscripción nace
     // siempre activa, con la fecha del día y su número (INS-XXXXXX) armado con el id que le da la
     // base: ni el estado ni la fecha se eligen. Resuelve { ok: true, enrollment } con la inscripción
-    // creada (mismos campos que list) o { ok: false, error: { code, message } }, sin crear nada:
-    // INVALID_INPUT indica datos o un nivel educativo inválidos; STUDENT_NOT_FOUND, STUDENT_DELETED y
-    // STUDENT_NOT_ACTIVE, que el alumno no existe en la institución, fue eliminado o no está activo;
-    // COURSE_NOT_FOUND, COURSE_DELETED y COURSE_LEVEL_MISMATCH, que el curso no existe en la
-    // institución, fue eliminado o es de otro nivel educativo; STUDENT_ALREADY_ENROLLED, que el alumno
-    // ya tiene una inscripción vigente y activa (solo puede tener una; el mensaje da su número), y
-    // COURSE_OUT_OF_SCHOOL_YEAR, que el curso no es del ciclo lectivo del año en curso.
+    // creada (mismos campos que list, sin hasScores) o { ok: false, error: { code, message } }, sin
+    // crear nada: INVALID_INPUT indica datos o un nivel educativo inválidos; STUDENT_NOT_FOUND,
+    // STUDENT_DELETED y STUDENT_NOT_ACTIVE, que el alumno no existe en la institución, fue eliminado
+    // o no está activo; COURSE_NOT_FOUND, COURSE_DELETED y COURSE_LEVEL_MISMATCH, que el curso no
+    // existe en la institución, fue eliminado o es de otro nivel educativo; STUDENT_ALREADY_ENROLLED,
+    // que el alumno ya tiene una inscripción vigente y activa (solo puede tener una; el mensaje da su
+    // número), y COURSE_OUT_OF_SCHOOL_YEAR, que el curso no es del ciclo lectivo del año en curso.
     create: (data) => ipcRenderer.invoke('enrollments:create', data),
     // Solo SECRETARIO. Resuelve { ok: true, enrollment } con la inscripción vigente con ese id
     // (inscripcion_id) de su institución, de cualquier ciclo lectivo y en cualquier estado (mismos
-    // campos que list), o { ok: false, error: { code, message } }: ENROLLMENT_NOT_FOUND indica que
-    // no existe en la institución y ENROLLMENT_DELETED, que fue eliminada.
+    // campos que list, sin hasScores), o { ok: false, error: { code, message } }:
+    // ENROLLMENT_NOT_FOUND indica que no existe en la institución y ENROLLMENT_DELETED, que fue
+    // eliminada.
     get: (enrollmentId) => ipcRenderer.invoke('enrollments:get', enrollmentId),
     // Solo SECRETARIO. Cambia el estado de la inscripción vigente con ese id (inscripcion_id) de su
     // institución. `data` es { status }, con status 'ACTIVE' o 'CANCELLED': solo se edita el estado;
     // el número, el alumno, el curso y la fecha no cambian. Resuelve
-    // { ok: true, enrollment, changed } con la inscripción como quedó (mismos campos que list) y
-    // changed false si ya tenía ese estado, en cuyo caso no se modificó nada, o
+    // { ok: true, enrollment, changed } con la inscripción como quedó (mismos campos que list, sin
+    // hasScores) y changed false si ya tenía ese estado, en cuyo caso no se modificó nada, o
     // { ok: false, error: { code, message } }, sin cambiar nada: INVALID_INPUT indica datos o un
     // estado inválidos, también 'COMPLETED' (una inscripción pasa a finalizada solo con el cierre del
     // ciclo lectivo); ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get;
@@ -360,12 +362,14 @@ contextBridge.exposeInMainWorld('api', {
     update: (enrollmentId, data) => ipcRenderer.invoke('enrollments:update', enrollmentId, data),
     // Solo SECRETARIO. Baja lógica de la inscripción vigente con ese id (inscripcion_id) de su
     // institución, si no tiene calificaciones vigentes: deja de listarse, y su estado, su alumno, su
-    // curso y su fecha no cambian. Resuelve { ok: true, enrollment } con la inscripción dada de baja
-    // (mismos campos que list) o { ok: false, error: { code, message } }, sin cambiar nada:
-    // INVALID_INPUT indica un id inválido; ENROLLMENT_NOT_FOUND, que no existe en la institución;
+    // curso y su fecha no cambian. La baja es definitiva: no se restaura. Resuelve
+    // { ok: true, enrollment } con la inscripción dada de baja (mismos campos que list, sin
+    // hasScores) o { ok: false, error: { code, message } }, sin cambiar nada: INVALID_INPUT indica un
+    // id inválido; ENROLLMENT_NOT_FOUND, que no existe en la institución;
     // ENROLLMENT_ALREADY_DELETED, que ya había sido eliminada (p. ej., desde otra sesión);
     // SCHOOL_YEAR_CLOSED, que es de un ciclo lectivo cerrado, y ENROLLMENT_HAS_SCORES, que tiene
-    // calificaciones vigentes (las dadas de baja no cuentan).
+    // calificaciones vigentes (las dadas de baja no cuentan): lo decide la base al guardar, así que
+    // también llega si list la mostró con hasScores false y después se le cargó una nota.
     delete: (enrollmentId) => ipcRenderer.invoke('enrollments:delete', enrollmentId),
     // Solo SECRETARIO. Genera el comprobante en PDF de la inscripción vigente con ese id
     // (inscripcion_id) de su institución, de cualquier ciclo lectivo y en cualquier estado, y lo abre

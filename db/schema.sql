@@ -707,15 +707,18 @@ CREATE TABLE inscripcion_estado (
 -- Inscripciones: un alumno cursa un curso. A lo largo del tiempo, un alumno pasa por muchos cursos
 -- y un curso tiene muchos alumnos.
 -- Lo que cambia a lo largo de su vida es su estado. La baja lógica (fecha_eliminacion) la hace el
--- Secretario desde el listado de inscripciones, sin cambiar el estado ni el resto de la fila. La
+-- Secretario desde el listado de inscripciones, sin cambiar el estado ni el resto de la fila, y es
+-- definitiva: una inscripción dada de baja ya no se modifica ni se restaura, y una con
+-- calificaciones vigentes no se da de baja (trg_inscripcion_coherencia, más abajo). La
 -- baja de un alumno (sp_alumno_dar_de_baja, más abajo) no la hace: pasa sus inscripciones activas a
 -- CANCELADA, pero no las da de baja, para conservar todo su historial. En el ciclo lectivo actual,
 -- el estado solo pasa de activa a cancelada y de cancelada a activa: el cierre del ciclo
 -- (sp_inscripcion_finalizar_ciclos_cerrados, más abajo) pasa a FINALIZADA las activas de los ciclos
 -- cerrados, y es la única forma de llegar a ese estado (trg_inscripcion_ciclo_lectivo).
--- La baja lógica solo la tienen en cuenta la regla de una sola inscripción activa por alumno
--- (trg_inscripcion_coherencia), para la que una inscripción dada de baja no cuenta como activa, y
--- que tampoco le exige un curso vigente ni, si es activa, un alumno vigente y ACTIVO;
+-- La baja lógica solo la tienen en cuenta trg_inscripcion_coherencia, que rechaza todo cambio de
+-- una inscripción dada de baja y la baja de una con calificaciones vigentes, y para cuya regla de
+-- una sola inscripción activa por alumno una dada de baja no cuenta como activa, a la que tampoco
+-- le exige un curso vigente ni, si es activa, un alumno vigente y ACTIVO;
 -- trg_alumno_coherencia, para la que una inscripción activa dada de baja no impide que su alumno
 -- pase a egresado; trg_curso_coherencia, para la que una inscripción dada de
 -- baja no impide editar ni dar de baja su curso; sp_alumno_dar_de_baja y
@@ -840,22 +843,38 @@ CREATE TRIGGER trg_inscripcion_ciclo_lectivo
     FOR EACH ROW
     EXECUTE FUNCTION fn_inscripcion_ciclo_lectivo();
 
--- Coherencia de una inscripción con las filas que referencia: el alumno y el curso son de la misma
--- institución; si la inscripción queda vigente (sin baja lógica), en cualquier estado, el curso no
--- está dado de baja (uno dado de baja no recibe inscripciones; la baja de una inscripción no carga
--- nada, así que no se valida), y si además es activa, el alumno está vigente y ACTIVO y no tiene
--- otra activa y vigente.
+-- Coherencia de una inscripción con su propia baja y con las filas que referencia.
+-- Una inscripción dada de baja ya no se modifica: ni su estado, ni su alumno, ni su curso, ni sus
+-- fechas, y tampoco se restaura. Se rechaza todo UPDATE, también uno sin cambios, antes de las
+-- consultas, como ck_curso_vigente en trg_curso_coherencia (más abajo): la baja es definitiva, y la
+-- inscripción correcta se crea de nuevo. Las de un ciclo lectivo cerrado no llegan hasta acá:
+-- trg_inscripcion_ciclo_lectivo dispara antes (orden alfabético) y las rechaza, también a las dadas
+-- de baja. sp_alumno_dar_de_baja y sp_inscripcion_finalizar_ciclos_cerrados (más abajo) solo
+-- cambian las vigentes.
+-- Una inscripción con calificaciones vigentes (las dadas de baja no cuentan) no se da de baja, en
+-- ningún estado. Es la misma regla que la de trg_inscripcion_calificaciones_vigentes (más abajo),
+-- y lleva su nombre, como ck_curso_asignaciones_vigentes en dos funciones: ese trigger solo dispara
+-- con el cambio de curso y no se amplía a la baja porque dispara antes que
+-- trg_inscripcion_ciclo_lectivo, y en un ciclo cerrado tiene que ganar el rechazo de ese ciclo. Se
+-- controla antes de retener al alumno y al curso, sin bloqueos propios: el UPDATE retiene la fila
+-- de la inscripción antes de los triggers BEFORE, y la carga, la corrección o la baja de una
+-- calificación la retiene con FOR SHARE (fn_calificacion_coherencia, más abajo). Así, la baja de la
+-- inscripción espera a que termine una carga simultánea y, al seguir, ya ve la calificación y se
+-- rechaza; al revés, la carga espera a la baja y la rechaza ck_calificacion_inscripcion_vigente.
+-- Con las filas que referencia: el alumno y el curso son de la misma institución; si la inscripción
+-- queda vigente (sin baja lógica), en cualquier estado, el curso no está dado de baja (uno dado de
+-- baja no recibe inscripciones; la baja de una inscripción no carga nada, así que no se valida), y
+-- si además es activa, el alumno está vigente y ACTIVO y no tiene otra activa y vigente.
 -- Un alumno dado de baja o egresado no se inscribe, y su inscripción cancelada o finalizada no se
 -- reactiva. El control alcanza a toda inscripción que queda activa y vigente: el alta, la
--- reactivación, quitarle la baja a una activa y el cambio de alumno. Las canceladas, las finalizadas
--- y las dadas de baja no le exigen nada al alumno: así sp_alumno_dar_de_baja (más abajo), que marca
--- antes la baja del alumno, cancela sus activas, y el cierre del ciclo las finaliza.
+-- reactivación y el cambio de alumno. Las canceladas, las finalizadas y las dadas de baja no le
+-- exigen nada al alumno: así sp_alumno_dar_de_baja (más abajo), que marca antes la baja del
+-- alumno, cancela sus activas, y el cierre del ciclo las finaliza.
 -- Para la regla de una sola activa, las demás no cuentan: un alumno puede tener cualquier cantidad
 -- de canceladas y finalizadas, y de inscripciones dadas de baja en cualquier estado, también
 -- activas (la baja no cambia el estado). Por eso un cambio de curso primero pasa la inscripción
 -- actual a CANCELADA y después crea la nueva, y un alumno cuya inscripción activa se dio de baja se
--- puede volver a inscribir. Si a una inscripción activa se le quita la baja, vuelve a contar y se
--- valida igual.
+-- puede volver a inscribir. Una inscripción dada de baja no vuelve a contar: no se restaura.
 -- "Activa" es una fila de inscripcion_estado y no un valor fijo, así que un índice único parcial no
 -- puede expresar la regla. En su lugar, FOR NO KEY UPDATE retiene la fila del alumno hasta el fin
 -- de la transacción: otra inscripción simultánea del mismo alumno espera y, al seguir, ya ve esta.
@@ -884,6 +903,27 @@ DECLARE
     v_curso_fecha_eliminacion   TIMESTAMPTZ;
     v_estado                    VARCHAR(50);
 BEGIN
+    -- Antes de las consultas: una dada de baja se rechaza en cualquier cambio, también en la
+    -- restauración (fecha_eliminacion de vuelta en NULL)
+    IF TG_OP = 'UPDATE' AND OLD.fecha_eliminacion IS NOT NULL THEN
+        RAISE EXCEPTION 'La inscripción % está dada de baja', OLD.inscripcion_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_inscripcion_vigente';
+    END IF;
+
+    -- La baja (OLD ya está vigente), antes de retener al alumno y al curso: el mismo control que
+    -- fn_inscripcion_calificaciones_vigentes
+    IF TG_OP = 'UPDATE'
+       AND NEW.fecha_eliminacion IS NOT NULL
+       AND EXISTS (SELECT 1
+                     FROM calificacion c
+                    WHERE c.inscripcion_id = OLD.inscripcion_id
+                      AND c.fecha_eliminacion IS NULL) THEN
+        RAISE EXCEPTION 'La inscripción % tiene calificaciones vigentes', OLD.inscripcion_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_inscripcion_calificaciones_vigentes';
+    END IF;
+
     SELECT a.institucion_id, a.fecha_eliminacion, a.alumno_estado_id
       INTO v_alumno_institucion_id, v_alumno_fecha_eliminacion, v_alumno_estado_id
       FROM alumno a
@@ -1625,13 +1665,15 @@ CREATE TRIGGER trg_calificacion_ciclo_lectivo
 -- FOR SHARE retiene las filas de la evaluación, de su asignación y de la inscripción hasta el fin
 -- de la transacción: un cambio simultáneo de asignación o de curso espera y, al seguir, su trigger
 -- (más abajo) ya ve cómo quedó esta calificación; también el paso de la evaluación a una fecha
--- futura (trg_evaluacion_futura_calificaciones_vigentes, más abajo). Uno de estado o una baja
--- lógica de la inscripción, o una baja de la evaluación, también espera, y sigue con la calificación
--- ya guardada: la cascada de la baja ya la ve. Al revés, si la evaluación o la inscripción cambió
--- primero (de fecha, de estado o por una baja), la calificación espera a que termine y se valida con
--- la fila como quedó. En la baja en cascada, la inscripción también queda retenida: un paso
--- simultáneo a finalizada espera a que termine la baja. Si una fila referenciada no existe, las
--- comparaciones dan NULL y no fallan: la rechaza después su clave foránea
+-- futura (trg_evaluacion_futura_calificaciones_vigentes, más abajo). Uno de estado de la
+-- inscripción, o una baja de la evaluación, también espera, y sigue con la calificación ya
+-- guardada: la cascada de la baja ya la ve. Una baja lógica simultánea de la inscripción también
+-- espera y, al seguir, si la calificación quedó vigente, la ve y se rechaza
+-- (ck_inscripcion_calificaciones_vigentes, trg_inscripcion_coherencia). Al revés, si la evaluación o
+-- la inscripción cambió primero (de fecha, de estado o por una baja), la calificación espera a que
+-- termine y se valida con la fila como quedó. En la baja en cascada, la inscripción también queda
+-- retenida: un paso simultáneo a finalizada espera a que termine la baja. Si una fila referenciada
+-- no existe, las comparaciones dan NULL y no fallan: la rechaza después su clave foránea
 CREATE FUNCTION fn_calificacion_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -1740,9 +1782,12 @@ CREATE TRIGGER trg_calificacion_coherencia
 
 -- Una inscripción con calificaciones vigentes conserva su curso: son de evaluaciones de ese curso.
 -- Las dadas de baja no cuentan: quitada una nota cargada por error, la inscripción puede cambiar
--- de curso. El estado sí puede cambiar, y la inscripción también se puede dar de baja: solo se
--- exige que esté activa y vigente al cargar, corregir o dar de baja una calificación, salvo en la
--- baja en cascada de su evaluación
+-- de curso. El estado sí puede cambiar: solo se exige que esté activa y vigente al cargar, corregir
+-- o dar de baja una calificación, salvo en la baja en cascada de su evaluación. Con calificaciones
+-- vigentes tampoco se da de baja, con el mismo nombre de restricción, porque es la misma regla: lo
+-- rechaza trg_inscripcion_coherencia (más arriba), que dispara después de
+-- trg_inscripcion_ciclo_lectivo. Este trigger dispara antes (orden alfabético), y solo con el
+-- cambio de curso
 CREATE FUNCTION fn_inscripcion_calificaciones_vigentes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN

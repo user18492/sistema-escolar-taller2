@@ -1,7 +1,6 @@
 const enrollmentRepository = require('../repositories/enrollment.repository');
 const studentRepository = require('../repositories/student.repository');
 const courseRepository = require('../repositories/course.repository');
-const scoreRepository = require('../repositories/score.repository');
 const institutionRepository = require('../repositories/institution.repository');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const teacherAssignmentService = require('./teacher-assignment.service');
@@ -111,7 +110,9 @@ function toInstitutionEnrollment({ id, student, course, enrollmentDate, status }
 // Una página de las inscripciones vigentes (sin baja lógica) de la institución de `currentUser`
 // (el de la sesión) que pasan `filters`, de todos los ciclos lectivos y en cualquier estado, sin las
 // de alumnos dados de baja (vuelven al restaurarlo), en el orden del repositorio: por alumno
-// (apellido y nombre). Filtrar y paginar se hace sobre todas, en la base.
+// (apellido y nombre). Filtrar y paginar se hace sobre todas, en la base. Cada una lleva los campos
+// de toInstitutionEnrollment y `hasScores`: true si tiene calificaciones vigentes, con las que no se
+// da de baja (deleteEnrollment). Las demás respuestas no lo traen.
 // `filters` trae enrollmentIds, studentIds, grades ({ educationLevel, gradeName }), divisions,
 // shifts y statuses, cada uno un arreglo, vacío si no filtra (ver countNotDeletedByInstitution,
 // enrollment.repository.js). `page` es la página pedida (1 la primera) y `pageSize`, cuántas
@@ -138,7 +139,14 @@ async function listEnrollments(currentUser, filters, page, pageSize, enrollmentI
       limit: pageSize,
     })
     : [];
-  return { enrollments: enrollments.map(toInstitutionEnrollment), total, page: currentPage };
+  return {
+    enrollments: enrollments.map((enrollment) => ({
+      ...toInstitutionEnrollment(enrollment),
+      hasScores: enrollment.hasScores,
+    })),
+    total,
+    page: currentPage,
+  };
 }
 
 // Opciones de los filtros Número de inscripción y Alumno de la tabla de Inscripciones del
@@ -489,18 +497,21 @@ async function findEnrollmentToDelete(institutionId, enrollmentId) {
 // Baja lógica de la inscripción vigente con ese id de la institución de `currentUser` (el de la
 // sesión): completa su fecha de baja y deja de listarse. No cambia nada más: ni su estado, ni su
 // alumno, ni su curso, ni su fecha. Devuelve la inscripción dada de baja, con los campos de
-// listEnrollments.
+// listEnrollments, sin hasScores. La baja es definitiva: la base no modifica ni restaura una
+// inscripción dada de baja.
 // Una inscripción con calificaciones vigentes no se da de baja: las dadas de baja no cuentan, y una
-// evaluación dada de baja ya no tiene calificaciones vigentes. Se comprueba al guardar, así que vale
-// también si el profesor carga una nota mientras tanto. Una de un ciclo lectivo cerrado tampoco se
-// da de baja, tenga o no calificaciones.
+// evaluación dada de baja ya no tiene calificaciones vigentes. No se comprueba antes: lo decide la
+// base al guardar (ck_inscripcion_calificaciones_vigentes), así que vale también si el profesor carga
+// una nota mientras tanto. Una de un ciclo lectivo cerrado tampoco se da de baja, tenga o no
+// calificaciones.
 // El id llega del renderer y la fila que tiene a la vista puede haber quedado vieja, así que no se
 // confía en ella: se busca de nuevo antes de la baja, que solo marca una inscripción vigente de la
-// institución y sin calificaciones vigentes y, si no marca nada, se busca otra vez para saber por qué.
+// institución y, si no marca nada, se busca otra vez para saber por qué.
 // Lanza un EnrollmentError si no existe en la institución (ENROLLMENT_NOT_FOUND; una de otra
 // institución cuenta como inexistente), si ya estaba dada de baja, p. ej., desde otra sesión
 // (ENROLLMENT_ALREADY_DELETED), si es de un ciclo lectivo cerrado (SCHOOL_YEAR_CLOSED, que gana a
-// ENROLLMENT_HAS_SCORES) o si tiene calificaciones vigentes (ENROLLMENT_HAS_SCORES).
+// ENROLLMENT_HAS_SCORES: la base lo rechaza antes) o si tiene calificaciones vigentes
+// (ENROLLMENT_HAS_SCORES).
 async function deleteEnrollment(currentUser, enrollmentId) {
   const { institutionId } = currentUser;
   const enrollment = await findEnrollmentToDelete(institutionId, enrollmentId);
@@ -511,21 +522,19 @@ async function deleteEnrollment(currentUser, enrollmentId) {
     deletedEnrollment = await enrollmentRepository.markAsDeleted(enrollmentId, institutionId);
   } catch (error) {
     if (enrollmentRepository.isClosedSchoolYearError(error)) throw closedSchoolYearError(enrollment);
+    if (enrollmentRepository.isEnrollmentWithScoresError(error)) {
+      throw new EnrollmentError(
+        'ENROLLMENT_HAS_SCORES',
+        'La inscripción tiene calificaciones cargadas. Solo se puede eliminar una inscripción sin calificaciones.'
+      );
+    }
     throw error;
   }
   if (deletedEnrollment) return toInstitutionEnrollment(deletedEnrollment);
-  // El UPDATE no marcó nada: otra sesión la dio de baja después de leerla, o tiene calificaciones
-  // vigentes. Se busca de nuevo para saber cuál de las dos.
+  // El UPDATE no marcó nada: otra sesión la dio de baja después de leerla. Se busca de nuevo para
+  // informarlo.
   await findEnrollmentToDelete(institutionId, enrollmentId);
-  if (await scoreRepository.existsNotDeletedByEnrollment(enrollmentId)) {
-    throw new EnrollmentError(
-      'ENROLLMENT_HAS_SCORES',
-      'La inscripción tiene calificaciones cargadas. Solo se puede eliminar una inscripción sin calificaciones.'
-    );
-  }
-  // Otra sesión le dio de baja las calificaciones después del UPDATE: ya se puede dar de baja, pero
-  // no se reintenta sola.
-  throw new Error(`No se dio de baja la inscripción ${enrollmentId}, que está vigente y sin calificaciones vigentes`);
+  throw new Error(`No se dio de baja la inscripción ${enrollmentId}, que está vigente`);
 }
 
 // ---------- Comprobante ----------

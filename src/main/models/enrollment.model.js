@@ -2,7 +2,7 @@
 // estado; la baja lógica (inscripcion.fecha_eliminacion) la deja fuera de los listados.
 // Incluye al alumno, para mostrarlo sin otra consulta.
 class Enrollment {
-  constructor({ id, student, course, courseId, enrollmentDate, status, isActive, deletedAt }) {
+  constructor({ id, student, course, courseId, enrollmentDate, status, isActive, deletedAt, hasScores }) {
     // inscripcion_id: de él sale el número de inscripción (formatEnrollmentNumber,
     // enrollment.service.js), que no se guarda.
     this.id = id;
@@ -21,6 +21,9 @@ class Enrollment {
     // Instante de la baja lógica (inscripcion.fecha_eliminacion), si la consulta lo trae; null si
     // está vigente.
     this.deletedAt = deletedAt;
+    // true si tiene calificaciones vigentes: entonces no se da de baja. Solo lo trae el listado de
+    // inscripciones de la institución.
+    this.hasScores = hasScores;
   }
 }
 
