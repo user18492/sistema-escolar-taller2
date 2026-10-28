@@ -62,12 +62,16 @@ group('db.school-year', 'Ciclo lectivo: fecha actual, ciclo cerrado en solo lect
       const active = await enroll();
       const unscored = await enroll();
       const cancelled = await enroll({ status: 'CANCELADA' });
-      const completed = await enroll({ status: 'FINALIZADA' });
+      // Activa por ahora: en su año, ese ciclo es el actual y la base no acepta una finalizada
+      const completed = await enroll();
       const deleted = await enroll({ deleted: true });
       const scoreId = await fixtures.score({ evaluationId, enrollmentId: active });
       return { teacher, course, otherCourse, assignment, evaluationId, active, unscored, cancelled, completed, deleted, scoreId,
         date: fixtures.today };
     });
+    // Con el ciclo ya cerrado, pasa a finalizada como en el cierre (la excepción de
+    // trg_inscripcion_ciclo_lectivo)
+    await fixtures.setEnrollmentStatus(closed.completed, 'FINALIZADA');
     // El ciclo actual
     const course = await fixtures.createCourse();
     const assignment = await fixtures.assign({ teacherId: closed.teacher.id, courseId: course.id, subjectName: 'Historia' });

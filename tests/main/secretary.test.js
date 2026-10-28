@@ -260,14 +260,15 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     await t.logout();
   });
 
-  test('update-to-completed', 'Hoy la edición acepta pasar una inscripción del ciclo actual a finalizada', {
-    kind: 'current',
-    affectedBy: ['secretario-inscripciones', 'ciclo-lectivo'],
+  test('update-to-completed', 'La edición no pasa una inscripción a finalizada', {
+    history: [{ plan: 'plans/secretario-inscripciones/00-estado-y-fecha.md', date: '2026-10-28', change: 'enrollments.update a COMPLETED ya no se acepta: ahora espera INVALID_INPUT y que la inscripción siga ACTIVA en la base (pasa de current a estable)' }],
   }, async (t) => {
     await t.login('secretary');
     const student = t.data.students[3];
     const enrollmentId = await t.fixtures.enroll({ studentId: student.id, courseId: t.data.course.id });
-    await t.ok('enrollments.update', enrollmentId, { status: 'COMPLETED' });
+    await t.rejects('INVALID_INPUT', 'enrollments.update', enrollmentId, { status: 'COMPLETED' });
+    t.equal((await t.sqlOne(`SELECT e.nombre FROM inscripcion i JOIN inscripcion_estado e USING (inscripcion_estado_id) WHERE i.inscripcion_id = $1`, [enrollmentId])).nombre,
+      'ACTIVA', 'La inscripción sigue activa');
     await t.logout();
   });
 

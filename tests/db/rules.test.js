@@ -379,7 +379,7 @@ group('db.enrollments', 'Reglas de alumnos e inscripciones', {
 }, () => {
   const enrollSql = (studentId, courseId, status = 'ACTIVA', date = null) => ({
     sql: `INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
-          VALUES ($1, $2, (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = $3), COALESCE($4::date, CURRENT_DATE))`,
+          VALUES ($1, $2, (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = $3), COALESCE($4::date, fn_fecha_actual()))`,
     params: [studentId, courseId, status, date],
   });
   const setStudentStatus = (studentId, status) => ({
@@ -529,15 +529,25 @@ group('db.enrollments', 'Reglas de alumnos e inscripciones', {
     await rejects(t, 'alumno egresado', enrollSql(t.data.graduated.id, t.data.otherCourse.id), 'ck_inscripcion_alumno_activo');
   });
 
-  test('completed-in-current-cycle', 'Hoy la base acepta una inscripción finalizada en el ciclo actual', {
-    kind: 'current',
-    affectedBy: ['secretario-inscripciones', 'ciclo-lectivo'],
+  test('completed-in-current-cycle', 'Una inscripción del ciclo actual no queda finalizada', {
+    history: [{ plan: 'plans/secretario-inscripciones/00-estado-y-fecha.md', date: '2026-10-28', change: 'La base ya no acepta una finalizada en el ciclo actual: pasar a FINALIZADA la activa enrollmentId y la cancelada reactivableEnrollment, y el alta de free en otherCourse como FINALIZADA, esperan ck_inscripcion_finalizada_ciclo_cerrado (pasa de current a estable)' }],
   }, async (t) => {
-    await passes(t, 'finalizada en el ciclo actual', {
-      sql: `UPDATE inscripcion SET inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'FINALIZADA')
-             WHERE inscripcion_id = $1`,
-      params: [t.data.enrollmentId],
-    });
+    const { enrollmentId, reactivableEnrollment, free, otherCourse } = t.data;
+    const constraint = 'ck_inscripcion_finalizada_ciclo_cerrado';
+    await rejects(t, 'activa a finalizada', setEnrollmentStatus(enrollmentId, 'FINALIZADA'), constraint);
+    await rejects(t, 'cancelada a finalizada', setEnrollmentStatus(reactivableEnrollment, 'FINALIZADA'), constraint);
+    await rejects(t, 'alta como finalizada', enrollSql(free.id, otherCourse.id, 'FINALIZADA'), constraint);
+  });
+
+  test('future-date', 'La fecha de una inscripción no es futura', async (t) => {
+    const { tomorrow } = await t.sqlOne(`SELECT to_char(fn_fecha_actual() + 1, 'YYYY-MM-DD') AS tomorrow`);
+    if (!tomorrow.startsWith(String(t.year))) return t.warn('Mañana ya es del año siguiente: no se comprobó');
+    const { free, otherCourse, enrollmentId } = t.data;
+    const setDate = (date) => ({ sql: `UPDATE inscripcion SET fecha_inscripcion = $2 WHERE inscripcion_id = $1`, params: [enrollmentId, date] });
+    await rejects(t, 'alta con la fecha de mañana', enrollSql(free.id, otherCourse.id, 'ACTIVA', tomorrow), 'ck_inscripcion_fecha_futura');
+    await rejects(t, 'cambio de la fecha a mañana', setDate(tomorrow), 'ck_inscripcion_fecha_futura');
+    await passes(t, 'alta con la fecha de hoy', enrollSql(free.id, otherCourse.id, 'ACTIVA', t.today));
+    await passes(t, 'cambio de la fecha al 1 de enero', setDate(`${t.year}-01-01`));
   });
 });
 
@@ -646,11 +656,17 @@ group('db.scores', 'Reglas de evaluaciones y calificaciones', {
       'Las vigentes quedan dadas de baja con la fecha de la evaluación y la ya dada de baja conserva la suya');
   });
 
-  test('evaluation-delete-completed-scores', 'Una evaluación con calificaciones vigentes de inscripciones finalizadas no se da de baja', async (t) => {
-    // La finalizada del ciclo actual hoy se acepta (db.enrollments.completed-in-current-cycle); si
-    // secretario-inscripciones la prohíbe, ese plan adapta esta prueba
+  test('evaluation-delete-completed-scores', 'Una evaluación con calificaciones vigentes de inscripciones finalizadas no se da de baja', {
+    history: [{ plan: 'plans/secretario-inscripciones/00-estado-y-fecha.md', date: '2026-10-28', change: 'El intento empieza desactivando trg_inscripcion_ciclo_lectivo, que ya no acepta una finalizada en el ciclo actual: el rechazo de la cascada queda como segunda barrera; lo esperado no cambia' }],
+  }, async (t) => {
+    // Una finalizada solo existe en un ciclo cerrado, donde trg_evaluacion_ciclo_lectivo rechaza
+    // antes la baja de la evaluación: ck_calificacion_inscripcion_finalizada queda como segunda
+    // barrera. Para llegar a ella, la inscripción del ciclo actual pasa a finalizada sin
+    // trg_inscripcion_ciclo_lectivo (se vuelve a activar al deshacer el intento), como
+    // withoutEvaluationsRule
     const { cascadeEvaluation, scoredEnrollment } = t.data;
     await rejects(t, 'baja con la nota de una inscripción finalizada', [
+      'ALTER TABLE inscripcion DISABLE TRIGGER trg_inscripcion_ciclo_lectivo',
       {
         sql: `UPDATE inscripcion SET inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'FINALIZADA') WHERE inscripcion_id = $1`,
         params: [scoredEnrollment],

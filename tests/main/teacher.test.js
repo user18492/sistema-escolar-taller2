@@ -1,6 +1,8 @@
 // Capa main: casos de uso del Profesor por la API del preload (asignaciones propias, alumnos del
 // curso, evaluaciones y calificaciones). Opera con un profesor propio sobre un curso propio del ciclo
-// actual; cada resultado se comprueba con una consulta independiente.
+// actual y, para la inscripción finalizada, que solo existe en un ciclo cerrado
+// (plans/secretario-inscripciones/00-estado-y-fecha.md), sobre otro curso propio del ciclo anterior;
+// cada resultado se comprueba con una consulta independiente.
 const { group, test } = require('../lib/framework');
 const { sortedIds, sortedNumbers } = require('../lib/domain');
 
@@ -16,18 +18,26 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     const foreignEvaluation = await fixtures.createEvaluation({ assignmentId: foreign.id });
     const removed = await fixtures.assign({ teacherId: teacher.id, courseId: secondCourse.id });
     await fixtures.db.query(`UPDATE asignacion_docente SET fecha_eliminacion = now() WHERE asignacion_docente_id = $1`, [removed.id]);
-    // Inscripciones del curso en los demás estados
-    const finishedStudent = await fixtures.createStudent();
-    const finished = await fixtures.enroll({ studentId: finishedStudent.id, courseId: course.id });
+    // Inscripciones del curso cancelada y dada de baja
     const cancelledStudent = await fixtures.createStudent();
     const cancelled = await fixtures.enroll({ studentId: cancelledStudent.id, courseId: course.id });
     await fixtures.setEnrollmentStatus(cancelled, 'CANCELADA');
     const deletedStudent = await fixtures.createStudent();
     await fixtures.enroll({ studentId: deletedStudent.id, courseId: course.id, deleted: true });
-    // La finalizada tiene una nota de cuando estaba activa
-    await fixtures.score({ evaluationId: scenario.evaluationId, enrollmentId: finished, value: 6.5 });
-    await fixtures.setEnrollmentStatus(finished, 'FINALIZADA');
-    return { ...scenario, second, foreign, foreignEvaluation, removed, finished, cancelled, assignment };
+    // Una finalizada solo existe en un ciclo cerrado: un curso del ciclo anterior con una asignación
+    // del mismo profesor y un alumno con una nota de cuando estaba activo; ya cerrado el ciclo, su
+    // inscripción pasa a finalizada como en el cierre
+    const closed = await fixtures.inSchoolYear(fixtures.year - 1, async () => {
+      const closedCourse = await fixtures.createCourse();
+      const closedAssignment = await fixtures.assign({ teacherId: teacher.id, courseId: closedCourse.id });
+      const student = await fixtures.createStudent();
+      const enrollmentId = await fixtures.enroll({ studentId: student.id, courseId: closedCourse.id });
+      const evaluationId = await fixtures.createEvaluation({ assignmentId: closedAssignment.id });
+      await fixtures.score({ evaluationId, enrollmentId, value: 6.5 });
+      return { course: closedCourse, assignment: closedAssignment, enrollmentId, evaluationId };
+    });
+    await fixtures.setEnrollmentStatus(closed.enrollmentId, 'FINALIZADA');
+    return { ...scenario, second, foreign, foreignEvaluation, removed, closed, cancelled, assignment };
   },
 }, () => {
   test('assignments', 'El profesor ve sus asignaciones vigentes y ninguna de otro profesor', async (t) => {
@@ -42,13 +52,20 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.logout();
   });
 
-  test('students', 'Los alumnos de la asignación son las inscripciones vigentes, activas y finalizadas, de su curso', async (t) => {
+  test('students', 'Los alumnos de la asignación son las inscripciones vigentes, activas y finalizadas, de su curso', {
+    history: [{ plan: 'plans/secretario-inscripciones/00-estado-y-fecha.md', date: '2026-10-28', change: 'La finalizada ya no está en el curso del ciclo actual: además, enrollments.listByOwnAssignment de la asignación del ciclo cerrado (closed) lista su finalizada, comparada con una consulta propia de ese curso' }],
+  }, async (t) => {
     await t.login(t.data.teacher);
-    const { enrollments } = await t.ok('enrollments.listByOwnAssignment', t.data.assignment.id);
-    const expected = await t.sql(`
+    const expectedOf = (courseId) => t.sql(`
       SELECT i.inscripcion_id AS id FROM inscripcion i JOIN inscripcion_estado e USING (inscripcion_estado_id)
-       WHERE i.curso_id = $1 AND i.fecha_eliminacion IS NULL AND e.nombre IN ('ACTIVA', 'FINALIZADA')`, [t.data.course.id]);
-    t.equal(sortedIds(enrollments), sortedNumbers(expected), 'Inscripciones listadas');
+       WHERE i.curso_id = $1 AND i.fecha_eliminacion IS NULL AND e.nombre IN ('ACTIVA', 'FINALIZADA')`, [courseId]);
+    const { enrollments } = await t.ok('enrollments.listByOwnAssignment', t.data.assignment.id);
+    t.equal(sortedIds(enrollments), sortedNumbers(await expectedOf(t.data.course.id)), 'Inscripciones listadas');
+    const { closed } = t.data;
+    const { enrollments: closedEnrollments } = await t.ok('enrollments.listByOwnAssignment', closed.assignment.id);
+    const expectedClosed = await expectedOf(closed.course.id);
+    t.check(sortedNumbers(expectedClosed).includes(closed.enrollmentId), 'La finalizada del setup tiene que estar en su curso', expectedClosed);
+    t.equal(sortedIds(closedEnrollments), sortedNumbers(expectedClosed), 'Inscripciones listadas del ciclo cerrado, con la finalizada');
     await t.rejects('TEACHER_ASSIGNMENT_NOT_FOUND', 'enrollments.listByOwnAssignment', t.data.foreign.id);
     await t.logout();
   });
@@ -77,15 +94,18 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.logout();
   });
 
-  test('scores', 'Carga, corrección y baja de una nota; la finalizada es de solo lectura', async (t) => {
+  test('scores', 'Carga, corrección y baja de una nota; la finalizada es de solo lectura', {
+    history: [{ plan: 'plans/secretario-inscripciones/00-estado-y-fecha.md', date: '2026-10-28', change: 'La finalizada solo existe en un ciclo cerrado: su fila ([6.5, false]) se comprueba en scores.listByOwnEvaluation de la evaluación del ciclo cerrado (closed), y ENROLLMENT_NOT_ACTIVE se comprueba con la cancelada' }],
+  }, async (t) => {
     await t.login(t.data.teacher);
-    const { assignment, evaluationId, enrollmentId, finished } = t.data;
+    const { assignment, evaluationId, enrollmentId, cancelled, closed } = t.data;
     const listed = await t.ok('scores.listByOwnEvaluation', assignment.id, evaluationId);
     const expected = await t.sql(`
       SELECT i.inscripcion_id AS id FROM inscripcion i JOIN inscripcion_estado e USING (inscripcion_estado_id)
        WHERE i.curso_id = $1 AND i.fecha_eliminacion IS NULL AND e.nombre IN ('ACTIVA', 'FINALIZADA')`, [t.data.course.id]);
     t.equal(listed.scores.map((score) => score.enrollmentId).sort((a, b) => a - b), sortedNumbers(expected), 'Una fila por inscripción activa o finalizada');
-    const finishedRow = listed.scores.find((score) => score.enrollmentId === finished);
+    const closedListed = await t.ok('scores.listByOwnEvaluation', closed.assignment.id, closed.evaluationId);
+    const finishedRow = closedListed.scores.find((score) => score.enrollmentId === closed.enrollmentId);
     t.equal([finishedRow?.value, finishedRow?.isEnrollmentActive], [6.5, false], 'La finalizada trae su nota, de solo lectura');
 
     const scoresOf = () => t.sql(`SELECT nota::TEXT AS nota, fecha_eliminacion IS NOT NULL AS baja FROM calificacion WHERE evaluacion_id = $1 AND inscripcion_id = $2 ORDER BY calificacion_id`, [evaluationId, enrollmentId]);
@@ -100,7 +120,7 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     t.equal((await scoresOf()).filter((score) => !score.baja), [{ nota: '7.00', baja: false }], 'Después de la baja se carga una nota nueva');
 
     await t.rejects('INVALID_SCORE', 'scores.save', assignment.id, evaluationId, { enrollmentId, value: 10.5 });
-    await t.rejects('ENROLLMENT_NOT_ACTIVE', 'scores.save', assignment.id, evaluationId, { enrollmentId: finished, value: 9 });
+    await t.rejects('ENROLLMENT_NOT_ACTIVE', 'scores.save', assignment.id, evaluationId, { enrollmentId: cancelled, value: 9 });
     await t.rejects('TEACHER_ASSIGNMENT_NOT_FOUND', 'scores.listByOwnEvaluation', t.data.foreign.id, t.data.foreignEvaluation);
     await t.rejects('EVALUATION_NOT_FOUND', 'scores.listByOwnEvaluation', assignment.id, t.data.foreignEvaluation);
     await t.logout();
@@ -119,7 +139,12 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.logout();
   });
 
-  test('evaluation-delete-completed-scores', 'Una evaluación con calificaciones de inscripciones finalizadas no se da de baja', async (t) => {
+  test('evaluation-delete-completed-scores', 'Una evaluación con calificaciones de inscripciones finalizadas no se da de baja', {
+    retired: {
+      plan: 'plans/secretario-inscripciones/00-estado-y-fecha.md',
+      reason: 'Una inscripción finalizada solo existe en un ciclo lectivo cerrado, donde la baja de la evaluación responde antes SCHOOL_YEAR_CLOSED: EVALUATION_HAS_COMPLETED_SCORES ya no se alcanza por la API. La regla de la base la sigue cubriendo db.scores.evaluation-delete-completed-scores.',
+    },
+  }, async (t) => {
     await t.login(t.data.teacher);
     const { assignment, evaluationId, finished } = t.data;
     const state = () => t.sqlOne(`
@@ -159,9 +184,11 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.logout();
   });
 
-  test('evaluation-score-count', 'El listado de evaluaciones trae cuántas calificaciones vigentes ve el profesor en cada una', async (t) => {
+  test('evaluation-score-count', 'El listado de evaluaciones trae cuántas calificaciones vigentes ve el profesor en cada una', {
+    history: [{ plan: 'plans/secretario-inscripciones/00-estado-y-fecha.md', date: '2026-10-28', change: 'La nota de la finalizada pasa a la evaluación del ciclo cerrado: evaluations.listByOwnAssignment de su asignación (closed) da 1 en closed.evaluationId, en lugar de sumarla a la evaluación del setup del ciclo actual' }],
+  }, async (t) => {
     await t.login(t.data.teacher);
-    const { assignment, evaluationId, enrollmentId, finished } = t.data;
+    const { assignment, enrollmentId, closed } = t.data;
     const { evaluation } = await t.ok('evaluations.create', assignment.id, { title: 'Con nota para contar', evaluationDate: t.today });
     await t.ok('scores.save', assignment.id, evaluation.id, { enrollmentId, value: 8 });
 
@@ -182,16 +209,13 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     const countOf = (id) => evaluations.find((candidate) => candidate.id === id)?.scoreCount;
     t.equal(countOf(evaluation.id), 1, 'La evaluación creada cuenta la nota cargada');
 
-    const { activas, con_la_finalizada } = await t.sqlOne(`
-      SELECT (SELECT COUNT(*)::INT FROM calificacion c
-                JOIN inscripcion i ON i.inscripcion_id = c.inscripcion_id
-                JOIN inscripcion_estado ie USING (inscripcion_estado_id)
-               WHERE c.evaluacion_id = $1 AND c.fecha_eliminacion IS NULL
-                 AND i.fecha_eliminacion IS NULL AND ie.nombre = 'ACTIVA') AS activas,
-             EXISTS (SELECT 1 FROM calificacion c WHERE c.evaluacion_id = $1 AND c.inscripcion_id = $2
-                        AND c.fecha_eliminacion IS NULL) AS con_la_finalizada`, [evaluationId, finished]);
-    t.require(con_la_finalizada, 'La evaluación del setup tiene que conservar la nota de la finalizada');
-    t.equal(countOf(evaluationId), activas + 1, 'La evaluación del setup cuenta también la nota de la finalizada');
+    const { con_la_finalizada } = await t.sqlOne(`
+      SELECT EXISTS (SELECT 1 FROM calificacion c WHERE c.evaluacion_id = $1 AND c.inscripcion_id = $2
+                        AND c.fecha_eliminacion IS NULL) AS con_la_finalizada`, [closed.evaluationId, closed.enrollmentId]);
+    t.require(con_la_finalizada, 'La evaluación del ciclo cerrado tiene que conservar la nota de la finalizada');
+    const { evaluations: closedEvaluations } = await t.ok('evaluations.listByOwnAssignment', closed.assignment.id);
+    t.equal(closedEvaluations.find((candidate) => candidate.id === closed.evaluationId)?.scoreCount, 1,
+      'La evaluación del ciclo cerrado cuenta la nota de la finalizada');
     await t.logout();
   });
 });

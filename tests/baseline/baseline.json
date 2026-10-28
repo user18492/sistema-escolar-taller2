@@ -1,14 +1,18 @@
 {
   "version": 1,
-  "takenAt": "2026-10-28T12:49:54.489Z",
-  "commit": "1b793faca3108663006e60590209ac4397647dfa",
+  "takenAt": "2026-10-28T13:58:48.322Z",
+  "commit": "a613ccb237514bb96b29932a44d3745dcafbdc39",
   "branch": "restricciones",
   "dirty": true,
   "changedFiles": [
+    "db/schema.sql",
+    "db/seed.sql",
     "renderer/secretary/enrollments/enrollments.js",
-    "renderer/secretary/students/index.html",
-    "renderer/secretary/students/students.js",
-    "renderer/shared/styles/dropdown.css"
+    "renderer/secretary/enrollments/index.html",
+    "src/main/repositories/enrollment.repository.js",
+    "src/main/services/enrollment.service.js",
+    "src/main/services/evaluation.service.js",
+    "src/preload/preload.js"
   ],
   "today": "2026-10-28",
   "year": 2026,
@@ -462,12 +466,18 @@
     "db.enrollments.completed-in-current-cycle": {
       "layer": "db",
       "status": "pass",
-      "hash": "8a4903455b98",
-      "kind": "current",
-      "affectedBy": [
-        "secretario-inscripciones",
-        "ciclo-lectivo"
-      ],
+      "hash": "eff7157f6c1b",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "db.enrollments.future-date": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "7362e4f02be1",
+      "kind": "stable",
+      "affectedBy": [],
       "historyCount": 0,
       "knownFailure": null
     },
@@ -528,10 +538,10 @@
     "db.scores.evaluation-delete-completed-scores": {
       "layer": "db",
       "status": "pass",
-      "hash": "37f42fc7a5df",
+      "hash": "0232a21c9648",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "db.scores.evaluation-deleted-frozen": {
@@ -1349,13 +1359,10 @@
     "main.secretary.enrollments.update-to-completed": {
       "layer": "main",
       "status": "pass",
-      "hash": "f51dbf38150d",
-      "kind": "current",
-      "affectedBy": [
-        "secretario-inscripciones",
-        "ciclo-lectivo"
-      ],
-      "historyCount": 0,
+      "hash": "5f85a62fda18",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.secretary.enrollments.delete": {
@@ -1532,10 +1539,10 @@
     "main.teacher.students": {
       "layer": "main",
       "status": "pass",
-      "hash": "3a8518ba1687",
+      "hash": "9b78faac3573",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.teacher.evaluations": {
@@ -1550,10 +1557,10 @@
     "main.teacher.scores": {
       "layer": "main",
       "status": "pass",
-      "hash": "78c00fef8247",
+      "hash": "6d071925a252",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.teacher.evaluation-delete-keeps-scores": {
@@ -1567,8 +1574,8 @@
     },
     "main.teacher.evaluation-delete-completed-scores": {
       "layer": "main",
-      "status": "pass",
-      "hash": "6165b79904eb",
+      "status": "retired",
+      "hash": "481df9ceb426",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -1586,10 +1593,10 @@
     "main.teacher.evaluation-score-count": {
       "layer": "main",
       "status": "pass",
-      "hash": "504e41bde340",
+      "hash": "f330259dafb5",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.teacher.invariants": {
@@ -1665,6 +1672,24 @@
       "knownFailure": null
     },
     "ui.courses.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.enrollments.edit-statuses": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "3e09f50da136",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.enrollments.invariants": {
       "layer": "ui",
       "status": "pass",
       "hash": "d97564bc2bbc",
@@ -2002,14 +2027,14 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 104,
-      "ok": 104,
-      "tests": 32
+      "calls": 107,
+      "ok": 107,
+      "tests": 33
     },
     "auth:get-remembered-email": {
-      "calls": 74,
-      "ok": 74,
-      "tests": 44
+      "calls": 77,
+      "ok": 77,
+      "tests": 46
     },
     "auth:login": {
       "calls": 119,
@@ -2017,9 +2042,9 @@
       "tests": 92
     },
     "auth:logout": {
-      "calls": 151,
-      "ok": 151,
-      "tests": 106
+      "calls": 153,
+      "ok": 153,
+      "tests": 107
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2052,9 +2077,9 @@
       "tests": 10
     },
     "dashboard:get-secretary-summary": {
-      "calls": 10,
-      "ok": 10,
-      "tests": 10
+      "calls": 11,
+      "ok": 11,
+      "tests": 11
     },
     "enrollments:create": {
       "calls": 5,
@@ -2067,34 +2092,34 @@
       "tests": 2
     },
     "enrollments:get": {
-      "calls": 3,
-      "ok": 2,
-      "tests": 3
+      "calls": 4,
+      "ok": 3,
+      "tests": 4
     },
     "enrollments:list": {
-      "calls": 9,
-      "ok": 9,
-      "tests": 6
+      "calls": 11,
+      "ok": 11,
+      "tests": 7
     },
     "enrollments:list-by-own-assignment": {
-      "calls": 5,
-      "ok": 4,
+      "calls": 6,
+      "ok": 5,
       "tests": 4
     },
     "enrollments:list-enrollable-courses": {
-      "calls": 6,
-      "ok": 6,
-      "tests": 6
+      "calls": 7,
+      "ok": 7,
+      "tests": 7
     },
     "enrollments:list-enrollable-students": {
-      "calls": 6,
-      "ok": 6,
-      "tests": 6
+      "calls": 7,
+      "ok": 7,
+      "tests": 7
     },
     "enrollments:list-filter-options": {
-      "calls": 6,
-      "ok": 6,
-      "tests": 5
+      "calls": 7,
+      "ok": 7,
+      "tests": 6
     },
     "enrollments:open-receipt": {
       "calls": 5,
@@ -2102,9 +2127,9 @@
       "tests": 3
     },
     "enrollments:update": {
-      "calls": 10,
+      "calls": 11,
       "ok": 6,
-      "tests": 6
+      "tests": 7
     },
     "evaluations:create": {
       "calls": 11,
@@ -2112,13 +2137,13 @@
       "tests": 7
     },
     "evaluations:delete": {
-      "calls": 6,
+      "calls": 5,
       "ok": 3,
-      "tests": 5
+      "tests": 4
     },
     "evaluations:list-by-own-assignment": {
-      "calls": 8,
-      "ok": 8,
+      "calls": 9,
+      "ok": 9,
       "tests": 8
     },
     "evaluations:update": {
@@ -2147,9 +2172,9 @@
       "tests": 2
     },
     "school-years:get-current": {
-      "calls": 28,
-      "ok": 28,
-      "tests": 16
+      "calls": 30,
+      "ok": 30,
+      "tests": 17
     },
     "scores:delete": {
       "calls": 4,
@@ -2157,8 +2182,8 @@
       "tests": 3
     },
     "scores:list-by-own-evaluation": {
-      "calls": 10,
-      "ok": 8,
+      "calls": 11,
+      "ok": 9,
       "tests": 5
     },
     "scores:save": {
@@ -2267,9 +2292,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 136,
-      "ok": 136,
-      "tests": 51
+      "calls": 141,
+      "ok": 141,
+      "tests": 53
     },
     "window:minimize": {
       "calls": 1,
@@ -2538,9 +2563,9 @@
       "fn_evaluacion_futura_calificaciones_vigentes()": "5314558cde3398799d410ecb5f2c955e",
       "fn_fecha_actual()": "cd69e9a211ca93ea8fe666ab6c82fe02",
       "fn_inscripcion_calificaciones_vigentes()": "79b34b87dd6abdc7d791886acab7ed44",
-      "fn_inscripcion_ciclo_lectivo()": "06b9c593cd527f9c9ebe114fd54a8d0f",
+      "fn_inscripcion_ciclo_lectivo()": "61801c4b8a165955ad8ca6b7641ea33c",
       "fn_inscripcion_coherencia()": "cc7a76e828252140da191835b8e81c8c",
-      "fn_inscripcion_fecha_ciclo_lectivo()": "9f6cc5161d053f82e11f04021c884192",
+      "fn_inscripcion_fecha_ciclo_lectivo()": "c4a9cb3f0b2cb10c148d069cfd6b6eb3",
       "fn_usuario_asignaciones_vigentes()": "11027198ddfdf1c16ebb527b890ae4d9",
       "fn_usuario_rol_institucion_inmutables()": "f0b9057322ec96ebad06e5d4c7f791d8",
       "fn_usuario_ultimo_administrador()": "70c9b4d4f4efaa31f01cdac94d06586c"

@@ -164,6 +164,22 @@ module.exports = [
                   OR EXISTS (SELECT 1 FROM inscripcion i WHERE i.curso_id = c.curso_id AND i.fecha_eliminacion IS NULL))`,
   },
   {
+    id: 'inscripcion-finalizada-ciclo-cerrado',
+    description: 'Una inscripción finalizada es de un ciclo lectivo cerrado',
+    // Una inscripción llega a finalizada solo con el cierre del ciclo, y la base rechaza una
+    // finalizada en el ciclo actual (plans/secretario-inscripciones/00-estado-y-fecha.md)
+    sql: `SELECT i.inscripcion_id FROM inscripcion i JOIN inscripcion_estado e USING (inscripcion_estado_id)
+           JOIN curso c USING (curso_id)
+           WHERE e.nombre = 'FINALIZADA' AND c.anio_ciclo_lectivo >= fn_anio_ciclo_lectivo_actual()`,
+  },
+  {
+    id: 'inscripcion-fecha-pasada',
+    description: 'La fecha de una inscripción no es futura',
+    // La base rechaza una fecha futura al cargarla o cambiarla, y el seed no carga ninguna
+    // (plans/secretario-inscripciones/00-estado-y-fecha.md)
+    sql: `SELECT inscripcion_id FROM inscripcion WHERE fecha_inscripcion > fn_fecha_actual()`,
+  },
+  {
     id: 'inscripcion-baja-sin-calificaciones',
     description: 'Una inscripción dada de baja no tiene calificaciones vigentes',
     // La baja se rechaza con calificaciones vigentes y, después de la baja, no se pueden cargar
