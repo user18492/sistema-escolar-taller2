@@ -1,8 +1,20 @@
 const { query } = require('../database/connection');
 const { Student } = require('../models/student.model');
 
+// Si el alumno a tiene una inscripción vigente (sin baja lógica) y activa (de estado ACTIVA, un valor
+// de inscripcion_estado.nombre): la misma que cuenta trg_alumno_coherencia (db/schema.sql) para
+// rechazar su egreso, así que una dada de baja no cuenta, pero sí una de un ciclo lectivo anterior.
+// Va en la lista del SELECT, con la sangría de una columna.
+const HAS_ACTIVE_ENROLLMENT_SQL = `EXISTS (SELECT 1
+                   FROM inscripcion i
+                   JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+                  WHERE i.alumno_id = a.alumno_id
+                    AND i.fecha_eliminacion IS NULL
+                    AND ie.nombre = 'ACTIVA')`;
+
 // Listado de los alumnos de una institución, vigentes y dados de baja (fecha_eliminacion los
-// distingue), con el nombre de su estado.
+// distingue), con el nombre de su estado y si tienen una inscripción activa
+// (HAS_ACTIVE_ENROLLMENT_SQL).
 // El orden es total: el apellido y el nombre; alumno_id mantiene juntos los datos de dos alumnos
 // que se llaman igual, así dos consultas sobre los mismos datos dan siempre el mismo orden.
 const FIND_BY_INSTITUTION_SQL = `
@@ -17,7 +29,8 @@ const FIND_BY_INSTITUTION_SQL = `
          a.dni,
          a.fecha_nacimiento,
          a.fecha_eliminacion,
-         e.nombre AS estado
+         e.nombre AS estado,
+         ${HAS_ACTIVE_ENROLLMENT_SQL} AS tiene_inscripcion_activa
     FROM alumno a
     JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
    WHERE a.institucion_id = $1
@@ -60,8 +73,8 @@ const FIND_ENROLLABLE_BY_INSTITUTION_SQL = `
 `;
 
 // El alumno $1 de la institución $2, vigente o dado de baja, con los campos de
-// FIND_BY_INSTITUTION_SQL: lo que la restauración y el alta de una inscripción comprueban antes de
-// hacerlas y lo que muestra el comprobante de una inscripción.
+// FIND_BY_INSTITUTION_SQL salvo la inscripción activa: lo que la restauración y el alta de una
+// inscripción comprueban antes de hacerlas y lo que muestra el comprobante de una inscripción.
 const FIND_BY_ID_SQL = `
   SELECT a.alumno_id,
          a.institucion_id,
@@ -85,23 +98,22 @@ const FIND_BY_ID_SQL = `
 // un alta). Los dados de baja no cuentan, aunque uq_alumno_institucion_dni y
 // uq_alumno_institucion_email sí: el alta los busca aparte (FIND_DELETED_BY_DNI_OR_EMAIL_SQL) y, al
 // editar, los rechaza la base (ver duplicateFieldOf).
-// alumno no tiene un CHECK de minúsculas como usuario: el email se compara en minúsculas, como
-// llega normalizado.
+// El email se compara tal cual: llega normalizado, en minúsculas, como lo exige ck_alumno_email.
 const FIND_TAKEN_FIELDS_SQL = `
-  SELECT COALESCE(BOOL_OR(dni = $2), FALSE)          AS dni_taken,
-         COALESCE(BOOL_OR(LOWER(email) = $3), FALSE) AS email_taken
+  SELECT COALESCE(BOOL_OR(dni = $2), FALSE)   AS dni_taken,
+         COALESCE(BOOL_OR(email = $3), FALSE) AS email_taken
     FROM alumno
    WHERE institucion_id = $1
      AND fecha_eliminacion IS NULL
      AND alumno_id IS DISTINCT FROM $4
-     AND (dni = $2 OR LOWER(email) = $3)
+     AND (dni = $2 OR email = $3)
 `;
 
-// Un alumno dado de baja de la institución $1 con el dni $2 o el email $3 (en minúsculas, como en
+// Un alumno dado de baja de la institución $1 con el dni $2 o el email $3 (como en
 // FIND_TAKEN_FIELDS_SQL), con lo que el alta necesita para nombrarlo. Las restricciones UNIQUE
 // dejan a lo sumo uno con ese dni y otro con ese email; si son distintos, primero el del dni, que
-// identifica a la persona. El resto del orden (la baja más reciente) solo desempata emails que
-// difieren en mayúsculas.
+// identifica a la persona. El resto del orden (la baja más reciente) ya no desempata nada: con
+// ck_alumno_email no hay emails que difieran solo en mayúsculas.
 const FIND_DELETED_BY_DNI_OR_EMAIL_SQL = `
   SELECT alumno_id,
          nombre,
@@ -112,13 +124,14 @@ const FIND_DELETED_BY_DNI_OR_EMAIL_SQL = `
     FROM alumno
    WHERE institucion_id = $1
      AND fecha_eliminacion IS NOT NULL
-     AND (dni = $2 OR LOWER(email) = $3)
+     AND (dni = $2 OR email = $3)
    ORDER BY dni = $2 DESC, fecha_eliminacion DESC, alumno_id DESC
    LIMIT 1
 `;
 
 // Alta: el alumno nace vigente y ACTIVO. Devuelve la fila creada con los campos y el estado de
-// FIND_BY_INSTITUTION_SQL, salvo fecha_eliminacion: está vigente.
+// FIND_BY_INSTITUTION_SQL, salvo fecha_eliminacion (está vigente) y la inscripción activa (no tiene
+// inscripciones).
 const CREATE_SQL = `
   WITH created AS (
     INSERT INTO alumno (institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
@@ -144,9 +157,14 @@ const CREATE_SQL = `
 `;
 
 // Solo modifica a un alumno vigente de la institución, sin tocar su institución ni su
-// fecha_eliminacion. El estado llega como un valor de alumno_estado.nombre ($3). Devuelve la fila
-// como quedó, con los campos y el estado de FIND_BY_INSTITUTION_SQL salvo fecha_eliminacion (sigue
-// vigente), o ninguna si el alumno no está vigente en la institución.
+// fecha_eliminacion: la aplicación nunca modifica a un dado de baja, que trg_alumno_coherencia
+// (db/schema.sql) rechazaría con ck_alumno_vigente. Si la baja llega mientras el UPDATE espera su
+// bloqueo, PostgreSQL vuelve a evaluar las condiciones sobre la fila que dejó y no la cambia. El
+// estado llega como un valor de alumno_estado.nombre ($3). Devuelve la fila como quedó, con los
+// campos, el estado y la inscripción activa de FIND_BY_INSTITUTION_SQL salvo fecha_eliminacion
+// (sigue vigente), o ninguna si el alumno no está vigente en la institución.
+// trg_alumno_coherencia rechaza el cambio a EGRESADO si el alumno tiene una inscripción vigente y
+// activa: ver isActiveEnrollmentError.
 const UPDATE_SQL = `
   WITH updated AS (
     UPDATE alumno
@@ -175,16 +193,20 @@ const UPDATE_SQL = `
          a.direccion_altura,
          a.dni,
          a.fecha_nacimiento,
-         e.nombre AS estado
+         e.nombre AS estado,
+         ${HAS_ACTIVE_ENROLLMENT_SQL} AS tiene_inscripcion_activa
     FROM updated a
     JOIN alumno_estado e ON e.alumno_estado_id = a.alumno_estado_id
 `;
 
 // Restauración: la fila vuelve a estar vigente (sin fecha de baja), con el estado que tenía, porque
 // la baja no lo cambia. Sus inscripciones no se tocan: las que la baja canceló siguen canceladas.
+// Solo cambia fecha_eliminacion: es la única modificación de un dado de baja que acepta
+// trg_alumno_coherencia (db/schema.sql).
 // Solo modifica a un alumno dado de baja de la institución. Devuelve la fila como quedó, con los
-// campos y el estado de FIND_BY_INSTITUTION_SQL salvo fecha_eliminacion (ya está vigente), o
-// ninguna si el alumno no está dado de baja en la institución.
+// campos y el estado de FIND_BY_INSTITUTION_SQL salvo fecha_eliminacion (ya está vigente) y la
+// inscripción activa (no tiene una: la baja la canceló), o ninguna si el alumno no está dado de baja
+// en la institución.
 const RESTORE_SQL = `
   WITH restored AS (
     UPDATE alumno
@@ -238,6 +260,10 @@ const UNIQUE_CONSTRAINT_FIELDS = {
   uq_alumno_institucion_email: 'email',
 };
 
+// Restricción de trg_alumno_coherencia (db/schema.sql) que rechaza el egreso de un alumno con una
+// inscripción vigente y activa.
+const ACTIVE_ENROLLMENT_CONSTRAINT = 'ck_alumno_inscripcion_activa';
+
 function toStudent(row) {
   return new Student({
     id: row.alumno_id,
@@ -252,11 +278,12 @@ function toStudent(row) {
     birthDate: row.fecha_nacimiento,
     status: STATUS_BY_COLUMN_VALUE[row.estado],
     deletedAt: row.fecha_eliminacion,
+    hasActiveEnrollment: row.tiene_inscripcion_activa,
   });
 }
 
 // Alumnos de la institución, vigentes y dados de baja (con `deletedAt`), ordenados por apellido y
-// nombre.
+// nombre, con `hasActiveEnrollment`.
 async function findByInstitution(institutionId) {
   const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId]);
   return rows.map(toStudent);
@@ -327,9 +354,11 @@ async function create(
 }
 
 // Modifica los datos y el estado (ACTIVE o GRADUATED) del alumno vigente con ese id en la
-// institución, con los mismos campos que create. Devuelve el alumno como quedó, o null si no existe
-// en la institución o fue dado de baja. Si el dni o el email ya son de otro alumno de la
-// institución, vigente o dado de baja, PostgreSQL rechaza el cambio: ver duplicateFieldOf.
+// institución, con los mismos campos que create. Devuelve el alumno como quedó, con
+// `hasActiveEnrollment`, o null si no existe en la institución o fue dado de baja. PostgreSQL
+// rechaza el cambio a GRADUATED si el alumno tiene una inscripción vigente y activa (ver
+// isActiveEnrollmentError) y el cambio que repite el dni o el email de otro alumno de la
+// institución, vigente o dado de baja (ver duplicateFieldOf).
 async function update(
   studentId,
   institutionId,
@@ -376,6 +405,12 @@ function duplicateFieldOf(error) {
   return UNIQUE_CONSTRAINT_FIELDS[error.constraint] ?? null;
 }
 
+// true si `error` es el rechazo de trg_alumno_coherencia al egreso de un alumno con una inscripción
+// vigente y activa: pasa a egresado cuando la inscripción finaliza o se cancela.
+function isActiveEnrollmentError(error) {
+  return error?.code === '23514' && error.constraint === ACTIVE_ENROLLMENT_CONSTRAINT;
+}
+
 // true si `error` es el de sp_alumno_dar_de_baja para un alumno que no existe en la institución.
 function isNotFoundError(error) {
   return error?.code === STUDENT_NOT_FOUND_CODE;
@@ -398,6 +433,7 @@ module.exports = {
   restore,
   markAsDeleted,
   duplicateFieldOf,
+  isActiveEnrollmentError,
   isNotFoundError,
   isAlreadyDeletedError,
 };

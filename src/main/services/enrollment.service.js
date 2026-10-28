@@ -392,10 +392,12 @@ async function assertNoOtherActiveEnrollment(enrollment) {
 // devuelve como quedó; null si no cambió nada (ver enrollmentRepository.updateStatus).
 // Si PostgreSQL rechaza el cambio porque el alumno ya tiene otra inscripción activa
 // (ck_inscripcion_alumno_una_activa: otra sesión la activó o la creó después de comprobarlo), lanza
-// el EnrollmentError STUDENT_ALREADY_ENROLLED, y si lo rechaza porque el ciclo lectivo del curso se
-// cerró después de comprobarlo (ck_inscripcion_ciclo_lectivo_cerrado), SCHOOL_YEAR_CLOSED. Son las
-// únicas restricciones de db/schema.sql que pueden rechazar el cambio de estado (ver
-// UPDATE_STATUS_SQL en enrollment.repository.js).
+// el EnrollmentError STUDENT_ALREADY_ENROLLED; si lo rechaza al activarla porque el alumno está dado
+// de baja (ck_inscripcion_alumno_vigente) o es egresado (ck_inscripcion_alumno_activo),
+// STUDENT_DELETED o STUDENT_NOT_ACTIVE, los códigos del alta, y si lo rechaza porque el ciclo lectivo
+// del curso se cerró después de comprobarlo (ck_inscripcion_ciclo_lectivo_cerrado),
+// SCHOOL_YEAR_CLOSED. Son las únicas restricciones de db/schema.sql que pueden rechazar el cambio de
+// estado (ver UPDATE_STATUS_SQL en enrollment.repository.js).
 async function saveEnrollmentStatus(institutionId, enrollment, status) {
   try {
     return await enrollmentRepository.updateStatus(enrollment.id, institutionId, status);
@@ -403,6 +405,15 @@ async function saveEnrollmentStatus(institutionId, enrollment, status) {
     if (enrollmentRepository.isSecondActiveEnrollmentError(error)) {
       await assertNoOtherActiveEnrollment(enrollment);
       throw anotherActiveEnrollmentError(enrollment, null);
+    }
+    if (enrollmentRepository.isDeletedStudentError(error)) {
+      throw new EnrollmentError('STUDENT_DELETED', 'La inscripción es de un alumno eliminado: no se puede activar.');
+    }
+    if (enrollmentRepository.isInactiveStudentError(error)) {
+      throw new EnrollmentError(
+        'STUDENT_NOT_ACTIVE',
+        'La inscripción es de un alumno egresado: solo se puede activar la de un alumno activo.'
+      );
     }
     if (enrollmentRepository.isClosedSchoolYearError(error)) {
       throw closedSchoolYearError(enrollment);
@@ -419,12 +430,16 @@ async function saveEnrollmentStatus(institutionId, enrollment, status) {
 // Un alumno solo puede tener una inscripción activa: el cambio a ACTIVE se rechaza si ya tiene otra
 // vigente (las dadas de baja no cuentan). Se comprueba antes de guardar y, si otra sesión activa o
 // crea otra después, la base lo rechaza al guardar, con el mismo error.
+// Solo se activa la inscripción de un alumno vigente y activo: la de un dado de baja o un egresado
+// no. No se comprueba antes: lo decide la base al guardar, que retiene la fila del alumno. Un alumno
+// así no tiene otra inscripción activa vigente, así que no llega a STUDENT_ALREADY_ENROLLED.
 // Una inscripción de un ciclo lectivo cerrado no se edita, aunque se guarde con el estado que ya
 // tiene.
 // Lanza un EnrollmentError si la inscripción no está vigente en la institución (los de
 // findNotDeletedEnrollment), si es de un ciclo lectivo cerrado (SCHOOL_YEAR_CLOSED, que gana a los
-// errores siguientes), si el estado no es válido (INVALID_INPUT) o si el alumno ya tiene otra
-// inscripción vigente y activa (STUDENT_ALREADY_ENROLLED).
+// errores siguientes), si el estado no es válido (INVALID_INPUT), si el alumno ya tiene otra
+// inscripción vigente y activa (STUDENT_ALREADY_ENROLLED) o si se la quiso activar y el alumno está
+// dado de baja (STUDENT_DELETED) o es egresado (STUDENT_NOT_ACTIVE).
 async function updateEnrollment(currentUser, enrollmentId, { status }) {
   const { institutionId } = currentUser;
   const enrollment = await findNotDeletedEnrollment(institutionId, enrollmentId);

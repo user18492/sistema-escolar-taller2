@@ -242,29 +242,33 @@ contextBridge.exposeInMainWorld('api', {
   students: {
     // Solo SECRETARIO. Resuelve { ok: true, students } con los alumnos de su institución, vigentes y
     // dados de baja, activos y egresados ({ id, firstName, lastName, dni, email, phone, street,
-    // streetNumber, birthDate, status, deletedAt }, con dni y phone solo los dígitos, street y
-    // streetNumber la calle y la altura de la dirección, birthDate 'AAAA-MM-DD', status 'ACTIVE' o
-    // 'GRADUATED' y deletedAt el instante de su baja en ISO 8601, o null si está vigente), o
-    // { ok: false, error: { code, message } }.
+    // streetNumber, birthDate, status, deletedAt, hasActiveEnrollment }, con dni y phone solo los
+    // dígitos, street y streetNumber la calle y la altura de la dirección, birthDate 'AAAA-MM-DD',
+    // status 'ACTIVE' o 'GRADUATED', deletedAt el instante de su baja en ISO 8601, o null si está
+    // vigente, y hasActiveEnrollment true si tiene una inscripción vigente y activa: con ella no pasa
+    // a egresado), o { ok: false, error: { code, message } }.
     // Llegan siempre en el mismo orden: por apellido y nombre.
     list: () => ipcRenderer.invoke('students:list'),
     // Solo SECRETARIO. Registra un alumno en su institución, siempre activo: el estado no se elige en
     // el alta. `data` es { firstName, lastName, dni, email, phone, street, streetNumber, birthDate },
     // con dni y phone solo los dígitos (un phone con otro carácter se rechaza), street y streetNumber
     // la calle y la altura de la dirección y birthDate 'AAAA-MM-DD'. Resuelve { ok: true, student }
-    // con el alumno creado (mismos campos que list) o { ok: false, error: { code, message,
-    // fieldErrors } }, sin crear nada: fieldErrors ({ campo: mensaje }) llega con INVALID_INPUT (campos
-    // inválidos) y con DUPLICATE_VALUE (dni o email de otro alumno vigente de la institución), y
-    // DELETED_STUDENT_EXISTS (sin fieldErrors) indica que son de un alumno dado de baja: en lugar de
-    // registrarlo otra vez, hay que restaurarlo desde Eliminados; el mensaje lo nombra.
+    // con el alumno creado (mismos campos que list, con hasActiveEnrollment false) o
+    // { ok: false, error: { code, message, fieldErrors } }, sin crear nada: fieldErrors
+    // ({ campo: mensaje }) llega con INVALID_INPUT (campos inválidos) y con DUPLICATE_VALUE (dni o
+    // email de otro alumno vigente de la institución), y DELETED_STUDENT_EXISTS (sin fieldErrors)
+    // indica que son de un alumno dado de baja: en lugar de registrarlo otra vez, hay que
+    // restaurarlo desde Eliminados; el mensaje lo nombra.
     create: (data) => ipcRenderer.invoke('students:create', data),
     // Solo SECRETARIO. Guarda los cambios del alumno vigente con ese id (alumno_id) de su
     // institución. `data` trae los mismos campos que create y además status ('ACTIVE' o
-    // 'GRADUATED'). Resuelve { ok: true, student } con el alumno como quedó (mismos campos que list)
-    // o { ok: false, error: { code, message, fieldErrors } }, sin guardar nada, con los códigos de
-    // create: DUPLICATE_VALUE indica que el dni o el email son de otro alumno de la institución
-    // (conservar los suyos no es un duplicado), e INVALID_INPUT llega sin fieldErrors si el estado no
-    // es válido. Además, STUDENT_NOT_FOUND indica que el alumno ya no está vigente.
+    // 'GRADUATED'). Resuelve { ok: true, student } con el alumno como quedó (mismos campos que list,
+    // también hasActiveEnrollment) o { ok: false, error: { code, message, fieldErrors } }, sin
+    // guardar nada, con los códigos de create: DUPLICATE_VALUE indica que el dni o el email son de
+    // otro alumno de la institución (conservar los suyos no es un duplicado), e INVALID_INPUT llega
+    // sin fieldErrors si el estado no es válido. Además, STUDENT_NOT_FOUND indica que el alumno ya no
+    // está vigente, y STUDENT_HAS_ACTIVE_ENROLLMENT (sin fieldErrors), que se lo quiso pasar a
+    // egresado y tiene una inscripción vigente y activa.
     update: (studentId, data) => ipcRenderer.invoke('students:update', studentId, data),
     // Solo SECRETARIO. Baja lógica del alumno vigente con ese id (alumno_id) de su institución: se
     // lista entre los dados de baja y sus inscripciones activas pasan a canceladas, sin darse de
@@ -276,10 +280,11 @@ contextBridge.exposeInMainWorld('api', {
     // Solo SECRETARIO. Restaura al alumno dado de baja con ese id (alumno_id) de su institución:
     // vuelve a listarse entre los vigentes, con el estado que tenía, y sus inscripciones no cambian
     // (las que la baja canceló siguen canceladas). Resuelve { ok: true, student } con el alumno como
-    // quedó (mismos campos que list, con deletedAt null) o { ok: false, error: { code, message } },
-    // sin cambiar nada: STUDENT_NOT_FOUND indica que no existe en la institución,
-    // STUDENT_NOT_DELETED, que ya estaba vigente, y DUPLICATE_VALUE (sin fieldErrors), que otro
-    // alumno vigente de la institución ya tiene su dni o su email; el mensaje dice cuál.
+    // quedó (mismos campos que list, con deletedAt null y hasActiveEnrollment false) o
+    // { ok: false, error: { code, message } }, sin cambiar nada: STUDENT_NOT_FOUND indica que no
+    // existe en la institución, STUDENT_NOT_DELETED, que ya estaba vigente, y DUPLICATE_VALUE (sin
+    // fieldErrors), que otro alumno vigente de la institución ya tiene su dni o su email; el mensaje
+    // dice cuál.
     restore: (studentId) => ipcRenderer.invoke('students:restore', studentId),
   },
   enrollments: {
@@ -348,8 +353,9 @@ contextBridge.exposeInMainWorld('api', {
     // { ok: false, error: { code, message } }, sin cambiar nada: INVALID_INPUT indica datos o un
     // estado inválidos; ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get;
     // STUDENT_ALREADY_ENROLLED, que se la quiso activar y el alumno ya tiene otra inscripción vigente
-    // y activa (solo puede tener una; el mensaje da su número), y SCHOOL_YEAR_CLOSED, que es de un
-    // ciclo lectivo cerrado, en cualquier estado y aunque se guarde con el que ya tiene.
+    // y activa (solo puede tener una; el mensaje da su número); STUDENT_DELETED y STUDENT_NOT_ACTIVE,
+    // que se la quiso activar y el alumno fue eliminado o es egresado, y SCHOOL_YEAR_CLOSED, que es
+    // de un ciclo lectivo cerrado, en cualquier estado y aunque se guarde con el que ya tiene.
     update: (enrollmentId, data) => ipcRenderer.invoke('enrollments:update', enrollmentId, data),
     // Solo SECRETARIO. Baja lógica de la inscripción vigente con ese id (inscripcion_id) de su
     // institución, si no tiene calificaciones vigentes: deja de listarse, y su estado, su alumno, su

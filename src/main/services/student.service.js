@@ -136,7 +136,7 @@ async function assertNoDeletedMatch(institutionId, values) {
   const deletedStudent = await studentRepository.findDeletedByDniOrEmail(institutionId, values);
   if (!deletedStudent) return;
   const dniMatches = deletedStudent.dni === values.dni;
-  const emailMatches = deletedStudent.email.toLowerCase() === values.email;
+  const emailMatches = deletedStudent.email === values.email;
   const matchedData = [dniMatches && 'este DNI', emailMatches && 'este email'].filter(Boolean).join(' y ');
   throw new StudentError(
     'DELETED_STUDENT_EXISTS',
@@ -145,14 +145,24 @@ async function assertNoDeletedMatch(institutionId, values) {
   );
 }
 
-// Ejecuta `save` (el INSERT o un UPDATE). Si la base lo rechaza por uq_alumno_institucion_dni o
-// uq_alumno_institucion_email, se informa como duplicado: pasa si otro alumno tomó el dni o el email
-// entre la comprobación y el guardado y, al editar, también si son de un alumno dado de baja, que
-// assertNotTaken no cuenta (el alta los busca antes, en assertNoDeletedMatch).
-async function saveUnique(save, operation) {
+// Ejecuta `save` (el INSERT o un UPDATE) y traduce los rechazos previstos de la base. Si la base lo
+// rechaza por uq_alumno_institucion_dni o uq_alumno_institucion_email, se informa como duplicado:
+// pasa si otro alumno tomó el dni o el email entre la comprobación y el guardado y, al editar,
+// también si son de un alumno dado de baja, que assertNotTaken no cuenta (el alta los busca antes,
+// en assertNoDeletedMatch). Si lo rechaza trg_alumno_coherencia porque el alumno pasa a egresado con
+// una inscripción vigente y activa, se lanza el StudentError STUDENT_HAS_ACTIVE_ENROLLMENT, sin
+// fieldErrors: solo puede pasar al editar. El trigger corre antes que los índices únicos, así que
+// ese rechazo gana al duplicado.
+async function saveStudent(save, operation) {
   try {
     return await save();
   } catch (error) {
+    if (studentRepository.isActiveEnrollmentError(error)) {
+      throw new StudentError(
+        'STUDENT_HAS_ACTIVE_ENROLLMENT',
+        'El alumno tiene una inscripción activa: puede pasar a egresado cuando la inscripción finalice o se cancele.'
+      );
+    }
     const field = studentRepository.duplicateFieldOf(error);
     if (!field) throw error;
     throw duplicateError([field], operation);
@@ -172,8 +182,12 @@ function studentNotDeletedError() {
 // y `phone` son solo los dígitos, `street` y `streetNumber` la calle y la altura de la dirección,
 // `birthDate` el día de nacimiento ('AAAA-MM-DD'), `status` ACTIVE o GRADUATED y `deletedAt` el
 // instante de su baja en ISO 8601 (null si está vigente, también cuando la consulta no trae la
-// columna: el alta, la edición y la restauración solo devuelven alumnos vigentes). Las vistas del
-// Profesor muestran menos datos del alumno: ver toListedStudent (enrollment.service.js).
+// columna: el alta, la edición y la restauración solo devuelven alumnos vigentes).
+// `hasActiveEnrollment` indica si tiene una inscripción vigente y activa: con ella no pasa a
+// egresado. Lo traen el listado y la edición; el alta y la restauración no lo calculan y va false,
+// porque un alumno nuevo no tiene inscripciones, y uno restaurado tampoco tiene una activa vigente
+// (la baja la canceló y, dado de baja, no recibe otra). Las vistas del Profesor muestran menos datos
+// del alumno: ver toListedStudent (enrollment.service.js).
 function toListedStudent(student) {
   return {
     id: student.id,
@@ -187,6 +201,7 @@ function toListedStudent(student) {
     birthDate: toIsoDate(student.birthDate),
     status: student.status,
     deletedAt: student.deletedAt instanceof Date ? student.deletedAt.toISOString() : null,
+    hasActiveEnrollment: student.hasActiveEnrollment ?? false,
   };
 }
 
@@ -211,7 +226,7 @@ async function createStudent(currentUser, data) {
   const values = parseStudentData(data, 'create');
   await assertNotTaken(currentUser.institutionId, values, null, 'create');
   await assertNoDeletedMatch(currentUser.institutionId, values);
-  const student = await saveUnique(() => studentRepository.create(currentUser.institutionId, values), 'create');
+  const student = await saveStudent(() => studentRepository.create(currentUser.institutionId, values), 'create');
   return toListedStudent(student);
 }
 
@@ -220,16 +235,22 @@ async function createStudent(currentUser, data) {
 // createStudent y además `status` (ACTIVE o GRADUATED). La institución no cambia.
 // El dni y el email no se repiten entre los alumnos de la institución, como en el alta: el propio
 // alumno no cuenta, así que conservar los suyos no es un duplicado.
+// Un alumno con una inscripción vigente y activa no pasa a egresado; un egresado sí vuelve a activo.
+// No se comprueba antes: lo decide la base al guardar (trg_alumno_coherencia), que retiene la fila
+// del alumno, así que vale también con una inscripción simultánea.
 // Lanza un StudentError si algún dato no es válido (INVALID_INPUT, con fieldErrors salvo el
-// estado), si el alumno no existe en la institución o fue dado de baja (STUDENT_NOT_FOUND) o si el
-// dni o el email ya son de otro alumno de la institución (DUPLICATE_VALUE, con fieldErrors).
+// estado), si el alumno no existe en la institución o fue dado de baja (STUDENT_NOT_FOUND), si el
+// dni o el email ya son de otro alumno de la institución (DUPLICATE_VALUE, con fieldErrors) o si
+// pasa a egresado con una inscripción vigente y activa (STUDENT_HAS_ACTIVE_ENROLLMENT, sin
+// fieldErrors), en ese orden: el duplicado se comprueba antes de guardar, y solo si otro alumno toma
+// el dato en el medio (o es de uno dado de baja) lo rechaza la base, después del egreso.
 async function updateStudent(currentUser, studentId, data) {
   const values = parseStudentData(data, 'update');
   if (!(await studentRepository.existsNotDeleted(studentId, currentUser.institutionId))) {
     throw studentNotFoundError();
   }
   await assertNotTaken(currentUser.institutionId, values, studentId, 'update');
-  const student = await saveUnique(
+  const student = await saveStudent(
     () => studentRepository.update(studentId, currentUser.institutionId, values),
     'update'
   );
@@ -266,9 +287,9 @@ async function deleteStudent(currentUser, studentId) {
 // quedó, con los campos de listStudents.
 // Al volver a estar vigente, su dni y su email cuentan otra vez en assertNotTaken: si otro alumno
 // vigente de la institución tiene alguno de los dos, no se restaura. uq_alumno_institucion_dni y
-// uq_alumno_institucion_email cuentan también a los dados de baja, así que la base no deja repetir
-// el dni ni el email tal cual; la comprobación previa cubre además el email que solo cambia en
-// mayúsculas, que la restricción distingue, y saveUnique traduce el rechazo de la base si llegara.
+// uq_alumno_institucion_email cuentan también a los dados de baja, y ck_alumno_email exige el email
+// en minúsculas, así que la base no deja repetir el dni ni el email, tampoco con otras mayúsculas: la
+// comprobación previa queda como respaldo, y saveStudent traduce el rechazo de la base si llegara.
 // Lanza un StudentError si el alumno no existe en la institución (STUDENT_NOT_FOUND), si ya estaba
 // vigente (STUDENT_NOT_DELETED) o si su dni o su email ya son de otro alumno vigente de la
 // institución (DUPLICATE_VALUE, con un mensaje que dice cuál).
@@ -276,10 +297,9 @@ async function restoreStudent(currentUser, studentId) {
   const student = await studentRepository.findById(studentId, currentUser.institutionId);
   if (!student) throw studentNotFoundError();
   if (!student.deletedAt) throw studentNotDeletedError();
-  // findTakenFields compara con el email en minúsculas, como lo guardan el alta y la edición
-  const values = { dni: student.dni, email: student.email.toLowerCase() };
+  const values = { dni: student.dni, email: student.email };
   await assertNotTaken(currentUser.institutionId, values, studentId, 'restore');
-  const restoredStudent = await saveUnique(
+  const restoredStudent = await saveStudent(
     () => studentRepository.restore(studentId, currentUser.institutionId),
     'restore'
   );

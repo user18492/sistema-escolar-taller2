@@ -619,7 +619,10 @@ CREATE TRIGGER trg_usuario_asignaciones_vigentes
     EXECUTE FUNCTION fn_usuario_asignaciones_vigentes();
 
 -- Estados de alumno. No intervienen en las calificaciones: si al alumno se lo puede calificar en un
--- curso, y si esas notas cuentan para el promedio, depende solo del estado de su inscripción
+-- curso, y si esas notas cuentan para el promedio, depende solo del estado de su inscripción.
+-- Sí intervienen en las inscripciones: un egresado no se inscribe (trg_inscripcion_coherencia, más
+-- abajo), y un alumno con una inscripción activa y vigente no pasa a egresado
+-- (trg_alumno_coherencia, más abajo). Un egresado sí vuelve a ACTIVO
 CREATE TABLE alumno_estado (
     alumno_estado_id  INT          GENERATED ALWAYS AS IDENTITY,
     nombre            VARCHAR(50)  NOT NULL,
@@ -635,8 +638,10 @@ CREATE TABLE alumno_estado (
 -- La institución no se deduce de las inscripciones: el alumno se registra antes de inscribirse en
 -- un curso, y durante ese lapso no tiene ninguna.
 -- La baja lógica (fecha_eliminacion) la hace sp_alumno_dar_de_baja (más abajo), que también cancela
--- sus inscripciones activas, sin darlas de baja. Ninguna otra regla la tiene en cuenta todavía: un
--- alumno dado de baja sigue contando para todas, también para la unicidad de dni y email
+-- sus inscripciones activas, sin darlas de baja. Después, el alumno ya no se modifica, salvo su
+-- restauración (trg_alumno_coherencia, más abajo), y no recibe inscripciones activas
+-- (trg_inscripcion_coherencia, más abajo). Para las demás reglas, un alumno dado de baja sigue
+-- contando, también para la unicidad de dni y email
 CREATE TABLE alumno (
     alumno_id          INT           GENERATED ALWAYS AS IDENTITY,
     institucion_id     INT           NOT NULL,
@@ -659,7 +664,16 @@ CREATE TABLE alumno (
     CONSTRAINT fk_alumno_alumno_estado FOREIGN KEY (alumno_estado_id) REFERENCES alumno_estado(alumno_estado_id),
     CONSTRAINT uq_alumno_institucion_dni UNIQUE (institucion_id, dni),
     CONSTRAINT uq_alumno_institucion_email UNIQUE (institucion_id, email),
-    CONSTRAINT ck_alumno_telefono CHECK (telefono ~ '^[0-9]{10,13}$')
+    CONSTRAINT ck_alumno_telefono CHECK (telefono ~ '^[0-9]{10,13}$'),
+    -- Formato de los datos, como los deja el formulario de alumnos, con las mismas expresiones que
+    -- usuario. La edad (5 a 25 años) no se valida acá: depende de la fecha actual
+    CONSTRAINT ck_alumno_nombre CHECK (nombre = btrim(nombre) AND nombre <> ''),
+    CONSTRAINT ck_alumno_apellido CHECK (apellido = btrim(apellido) AND apellido <> ''),
+    CONSTRAINT ck_alumno_dni CHECK (dni ~ '^[1-9][0-9]{6,7}$'),
+    -- En minúsculas, como lo guarda el formulario: así la unicidad no distingue mayúsculas
+    CONSTRAINT ck_alumno_email CHECK (email = LOWER(email) AND email ~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'),
+    -- De 1 a 99999, sin ceros a la izquierda
+    CONSTRAINT ck_alumno_direccion_altura CHECK (direccion_altura ~ '^[1-9][0-9]{0,4}$')
 );
 
 -- institucion_id no necesita un índice propio: ya es la primera columna de los índices de las
@@ -697,7 +711,9 @@ CREATE TABLE inscripcion_estado (
 -- cerrados.
 -- La baja lógica solo la tienen en cuenta la regla de una sola inscripción activa por alumno
 -- (trg_inscripcion_coherencia), para la que una inscripción dada de baja no cuenta como activa, y
--- que tampoco le exige un curso vigente; trg_curso_coherencia, para la que una inscripción dada de
+-- que tampoco le exige un curso vigente ni, si es activa, un alumno vigente y ACTIVO;
+-- trg_alumno_coherencia, para la que una inscripción activa dada de baja no impide que su alumno
+-- pase a egresado; trg_curso_coherencia, para la que una inscripción dada de
 -- baja no impide editar ni dar de baja su curso; sp_alumno_dar_de_baja y
 -- sp_inscripcion_finalizar_ciclos_cerrados, que solo cancelan o finalizan las vigentes; la
 -- excepción de trg_inscripcion_ciclo_lectivo, que solo deja finalizar las vigentes, y
@@ -809,35 +825,57 @@ CREATE TRIGGER trg_inscripcion_ciclo_lectivo
 -- Coherencia de una inscripción con las filas que referencia: el alumno y el curso son de la misma
 -- institución; si la inscripción queda vigente (sin baja lógica), en cualquier estado, el curso no
 -- está dado de baja (uno dado de baja no recibe inscripciones; la baja de una inscripción no carga
--- nada, así que no se valida), y si además es activa, el alumno no tiene otra activa y vigente.
--- Para esa regla, las demás no cuentan: un alumno puede tener cualquier cantidad de canceladas y
--- finalizadas, y de inscripciones dadas de baja en cualquier estado, también activas (la baja no
--- cambia el estado). Por eso un cambio de curso primero pasa la inscripción actual a CANCELADA y
--- después crea la nueva, y un alumno cuya inscripción activa se dio de baja se puede volver a
--- inscribir. Si a una inscripción activa se le quita la baja, vuelve a contar y se valida igual.
+-- nada, así que no se valida), y si además es activa, el alumno está vigente y ACTIVO y no tiene
+-- otra activa y vigente.
+-- Un alumno dado de baja o egresado no se inscribe, y su inscripción cancelada o finalizada no se
+-- reactiva. El control alcanza a toda inscripción que queda activa y vigente: el alta, la
+-- reactivación, quitarle la baja a una activa y el cambio de alumno. Las canceladas, las finalizadas
+-- y las dadas de baja no le exigen nada al alumno: así sp_alumno_dar_de_baja (más abajo), que marca
+-- antes la baja del alumno, cancela sus activas, y el cierre del ciclo las finaliza.
+-- Para la regla de una sola activa, las demás no cuentan: un alumno puede tener cualquier cantidad
+-- de canceladas y finalizadas, y de inscripciones dadas de baja en cualquier estado, también
+-- activas (la baja no cambia el estado). Por eso un cambio de curso primero pasa la inscripción
+-- actual a CANCELADA y después crea la nueva, y un alumno cuya inscripción activa se dio de baja se
+-- puede volver a inscribir. Si a una inscripción activa se le quita la baja, vuelve a contar y se
+-- valida igual.
 -- "Activa" es una fila de inscripcion_estado y no un valor fijo, así que un índice único parcial no
 -- puede expresar la regla. En su lugar, FOR NO KEY UPDATE retiene la fila del alumno hasta el fin
 -- de la transacción: otra inscripción simultánea del mismo alumno espera y, al seguir, ya ve esta.
+-- El nombre del estado del alumno se lee aparte, después de retenerlo: con un JOIN a alumno_estado
+-- en la misma consulta, si el alumno cambió de estado mientras esperaba, PostgreSQL volvería a
+-- evaluar la fila nueva del alumno contra la de alumno_estado que ya había leído, el JOIN dejaría de
+-- coincidir y la consulta no devolvería nada.
 -- La baja lógica de una inscripción es un UPDATE y también pasa por acá, así que retiene al alumno:
 -- una inscripción simultánea espera a que termine y, al seguir, ya no cuenta la dada de baja.
--- También espera un cambio simultáneo de institución del alumno, cuyo trigger está más abajo, y una
--- edición o una baja simultánea del curso (retenido con FOR SHARE), que al seguir ya ve esta
--- inscripción (trg_curso_coherencia, más abajo); si la baja del curso llegó antes, este control la
--- espera y lee la fila como quedó. Si una fila referenciada no existe, las comparaciones dan NULL y
--- no fallan: la rechaza después su clave foránea
+-- También espera un cambio simultáneo de institución del alumno, cuyo trigger está más abajo, y su
+-- egreso o su baja simultáneos, que al seguir ya ven esta inscripción (trg_alumno_coherencia la
+-- cuenta y sp_alumno_dar_de_baja la cancela, más abajo); si el egreso o la baja llegaron antes, este
+-- control los espera y lee la fila del alumno como quedó. Del mismo modo espera una edición o una
+-- baja simultánea del curso (retenido con FOR SHARE), que al seguir ya ve esta inscripción
+-- (trg_curso_coherencia, más abajo); si la baja del curso llegó antes, este control la espera y lee
+-- la fila como quedó. Si una fila referenciada no existe, las comparaciones dan NULL y no fallan: la
+-- rechaza después su clave foránea
 CREATE FUNCTION fn_inscripcion_coherencia() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_alumno_institucion_id    INT;
-    v_curso_institucion_id     INT;
-    v_curso_fecha_eliminacion  TIMESTAMPTZ;
-    v_estado                   VARCHAR(50);
+    v_alumno_institucion_id     INT;
+    v_alumno_fecha_eliminacion  TIMESTAMPTZ;
+    v_alumno_estado_id          INT;
+    v_alumno_estado             VARCHAR(50);
+    v_curso_institucion_id      INT;
+    v_curso_fecha_eliminacion   TIMESTAMPTZ;
+    v_estado                    VARCHAR(50);
 BEGIN
-    SELECT a.institucion_id
-      INTO v_alumno_institucion_id
+    SELECT a.institucion_id, a.fecha_eliminacion, a.alumno_estado_id
+      INTO v_alumno_institucion_id, v_alumno_fecha_eliminacion, v_alumno_estado_id
       FROM alumno a
      WHERE a.alumno_id = NEW.alumno_id
        FOR NO KEY UPDATE;
+
+    SELECT e.nombre
+      INTO v_alumno_estado
+      FROM alumno_estado e
+     WHERE e.alumno_estado_id = v_alumno_estado_id;
 
     SELECT c.institucion_id, c.fecha_eliminacion
       INTO v_curso_institucion_id, v_curso_fecha_eliminacion
@@ -861,6 +899,20 @@ BEGIN
         RAISE EXCEPTION 'El curso % está dado de baja', NEW.curso_id
             USING ERRCODE = 'check_violation',
                   CONSTRAINT = 'ck_inscripcion_curso_vigente';
+    END IF;
+
+    IF v_estado = 'ACTIVA' AND NEW.fecha_eliminacion IS NULL THEN
+        IF v_alumno_fecha_eliminacion IS NOT NULL THEN
+            RAISE EXCEPTION 'El alumno % está dado de baja', NEW.alumno_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_inscripcion_alumno_vigente';
+        END IF;
+
+        IF v_alumno_estado <> 'ACTIVO' THEN
+            RAISE EXCEPTION 'El alumno % no está activo', NEW.alumno_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_inscripcion_alumno_activo';
+        END IF;
     END IF;
 
     IF v_estado = 'ACTIVA'
@@ -941,6 +993,65 @@ CREATE TRIGGER trg_alumno_inscripciones
     FOR EACH ROW
     WHEN (NEW.institucion_id <> OLD.institucion_id)
     EXECUTE FUNCTION fn_alumno_inscripciones();
+
+-- Coherencia de un alumno con su propia baja y con sus inscripciones.
+-- Un alumno dado de baja ya no se modifica, salvo su restauración: fecha_eliminacion de vuelta en
+-- NULL sin cambiar nada más. Rige para todo UPDATE, también uno sin cambios, el cambio de la fecha
+-- de baja y la restauración que además cambia otro dato. La baja (sp_alumno_dar_de_baja, más abajo)
+-- la marca sobre un vigente, sin cambiar su estado, así que pasa.
+-- Un alumno con una inscripción activa y vigente, de cualquier ciclo lectivo, no pasa a EGRESADO: la
+-- misma activa que cuenta ck_inscripcion_alumno_una_activa (trg_inscripcion_coherencia, más arriba),
+-- así que una dada de baja no cuenta. De EGRESADO a ACTIVO no se controla.
+-- Dispara antes que trg_alumno_inscripciones (orden alfabético).
+-- Sin bloqueos propios: el UPDATE retiene la fila del alumno antes de los triggers BEFORE, y toda
+-- escritura de una inscripción la retiene con FOR NO KEY UPDATE (fn_inscripcion_coherencia). Así, el
+-- egreso espera a que termine una inscripción simultánea del alumno y, al seguir, ya la ve; al
+-- revés, la inscripción espera al egreso y la rechaza ck_inscripcion_alumno_activo
+CREATE FUNCTION fn_alumno_coherencia() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_restaurado  alumno%ROWTYPE;
+    v_estado      VARCHAR(50);
+BEGIN
+    -- Antes de las consultas: uno dado de baja se compara con su propia restauración
+    IF OLD.fecha_eliminacion IS NOT NULL THEN
+        v_restaurado := OLD;
+        v_restaurado.fecha_eliminacion := NULL;
+
+        IF NEW IS DISTINCT FROM v_restaurado THEN
+            RAISE EXCEPTION 'El alumno % está dado de baja', OLD.alumno_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_alumno_vigente';
+        END IF;
+    END IF;
+
+    IF NEW.alumno_estado_id IS DISTINCT FROM OLD.alumno_estado_id THEN
+        SELECT e.nombre
+          INTO v_estado
+          FROM alumno_estado e
+         WHERE e.alumno_estado_id = NEW.alumno_estado_id;
+
+        IF v_estado = 'EGRESADO'
+           AND EXISTS (SELECT 1
+                         FROM inscripcion i
+                         JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+                        WHERE i.alumno_id = OLD.alumno_id
+                          AND i.fecha_eliminacion IS NULL
+                          AND ie.nombre = 'ACTIVA') THEN
+            RAISE EXCEPTION 'El alumno % tiene una inscripción activa', OLD.alumno_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_alumno_inscripcion_activa';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_alumno_coherencia
+    BEFORE UPDATE ON alumno
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_alumno_coherencia();
 
 -- Un curso con inscripciones conserva su institución y su ciclo lectivo: las fechas de sus
 -- inscripciones son de ese año. Cuentan todas, también las dadas de baja.
@@ -1031,7 +1142,8 @@ CREATE TRIGGER trg_curso_coherencia
 -- acepta inscripciones activas y vigentes, así que tampoco una activa que ya estaba dada de baja,
 -- que no se cancela. Las finalizadas y las canceladas no cambian, y la baja no llega a
 -- las calificaciones ni a las evaluaciones: todo es su historial, que se conserva completo para
--- cuando se lo restaure.
+-- cuando se lo restaure. Hasta entonces el alumno ya no se modifica (trg_alumno_coherencia, más
+-- arriba) ni recibe inscripciones activas (trg_inscripcion_coherencia, más arriba).
 -- Devuelve en p_inscripciones_canceladas cuántas inscripciones canceló (0 o 1, porque un alumno
 -- tiene una sola activa vigente: trg_inscripcion_coherencia).
 -- Es todo o nada sin hacer COMMIT ni ROLLBACK: un CALL fuera de una transacción es una transacción
@@ -1042,8 +1154,8 @@ CREATE TRIGGER trg_curso_coherencia
 --   - object_not_in_prerequisite_state (55000): el alumno ya estaba dado de baja.
 -- FOR NO KEY UPDATE retiene la fila del alumno hasta el fin de la transacción, como
 -- fn_inscripcion_coherencia: una segunda baja simultánea espera y, al seguir, lo encuentra dado de
--- baja, y una inscripción simultánea del alumno también espera o, si llegó antes, ya está guardada
--- cuando se cancelan las activas
+-- baja, y una inscripción activa simultánea del alumno también espera y, al seguir, se rechaza
+-- (ck_inscripcion_alumno_vigente) o, si llegó antes, ya está guardada cuando se cancelan las activas
 CREATE PROCEDURE sp_alumno_dar_de_baja(
     p_alumno_id                     INT,
     p_institucion_id                INT,

@@ -2,7 +2,10 @@
 // Las consultas que solo necesitan identificarlo (p. ej., las inscripciones) traen el nombre, el
 // apellido y el dni: los campos que no se seleccionan quedan undefined.
 class Student {
-  constructor({ id, institutionId, firstName, lastName, dni, email, phone, street, streetNumber, birthDate, status, deletedAt }) {
+  constructor({
+    id, institutionId, firstName, lastName, dni, email, phone, street, streetNumber, birthDate, status, deletedAt,
+    hasActiveEnrollment,
+  }) {
     this.id = id;
     this.institutionId = institutionId;
     this.firstName = firstName;
@@ -20,6 +23,9 @@ class Student {
     this.status = status;
     // Instante de la baja lógica (alumno.fecha_eliminacion); null si está vigente.
     this.deletedAt = deletedAt;
+    // Si tiene una inscripción vigente y activa: con ella no pasa a egresado. Solo lo traen el
+    // listado y la edición; en las demás consultas queda undefined.
+    this.hasActiveEnrollment = hasActiveEnrollment;
   }
 }
 

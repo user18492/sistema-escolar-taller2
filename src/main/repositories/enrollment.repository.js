@@ -167,7 +167,10 @@ const FIND_POSITION_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
 // Los triggers rechazan el alta si el alumno ya tiene una inscripción vigente y activa (una dada de
 // baja no cuenta) o si el curso no es del ciclo lectivo del año en curso: ver
 // isSecondActiveEnrollmentError, isClosedSchoolYearError (un curso de un ciclo cerrado) e
-// isDateOutOfSchoolYearError.
+// isDateOutOfSchoolYearError. trg_inscripcion_coherencia también exige un alumno vigente y ACTIVO
+// (ck_inscripcion_alumno_vigente y ck_inscripcion_alumno_activo), pero no llega a rechazar el alta:
+// para esos alumnos este INSERT no inserta nada, y el bloqueo ya tomado impide que cambien antes del
+// trigger.
 const CREATE_SQL = `
   WITH created AS (
     INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id)
@@ -245,7 +248,8 @@ const FIND_BY_ID_SQL = `
 // El servicio ya comprobó todo eso, pero otra sesión pudo cambiarlo después: si la fila cambió
 // mientras el UPDATE esperaba su bloqueo, PostgreSQL vuelve a evaluar las condiciones sobre la fila
 // que dejó y, si ya no las cumple, no la cambia.
-// trg_inscripcion_coherencia (db/schema.sql) rechaza el cambio a ACTIVA si el alumno ya tiene otra
+// trg_inscripcion_coherencia (db/schema.sql) rechaza el cambio a ACTIVA si el alumno está dado de
+// baja o no es ACTIVO (ver isDeletedStudentError e isInactiveStudentError) o si ya tiene otra
 // inscripción vigente y activa (una dada de baja no cuenta): ver isSecondActiveEnrollmentError, y
 // trg_inscripcion_ciclo_lectivo, todo cambio de una inscripción de un curso de un ciclo lectivo
 // cerrado, salvo de ACTIVA a FINALIZADA, que queda para el cierre del ciclo
@@ -383,11 +387,14 @@ const FINALIZE_ACTIVE_IN_CLOSED_SCHOOL_YEARS_SQL = `
 
 // Restricciones de los triggers de inscripcion (con los nombres que les da db/schema.sql) que
 // rechazan un alta, una edición o una baja por un motivo previsto: el alumno ya tiene otra
-// inscripción activa, el curso es de un ciclo lectivo cerrado, o el año de la fecha de inscripción
-// (la del día) no es el ciclo lectivo del curso (solo en el alta).
+// inscripción activa, el curso es de un ciclo lectivo cerrado, el año de la fecha de inscripción
+// (la del día) no es el ciclo lectivo del curso (solo en el alta), o el alumno está dado de baja o
+// no es ACTIVO (solo al activar una inscripción: el alta no inserta nada para esos alumnos).
 const ONE_ACTIVE_CONSTRAINT = 'ck_inscripcion_alumno_una_activa';
 const CLOSED_SCHOOL_YEAR_CONSTRAINT = 'ck_inscripcion_ciclo_lectivo_cerrado';
 const SCHOOL_YEAR_CONSTRAINT = 'ck_inscripcion_fecha_ciclo_lectivo';
+const DELETED_STUDENT_CONSTRAINT = 'ck_inscripcion_alumno_vigente';
+const INACTIVE_STUDENT_CONSTRAINT = 'ck_inscripcion_alumno_activo';
 
 // La base guarda el estado de la inscripción en español (ck_inscripcion_estado_nombre,
 // db/schema.sql); el resto del sistema usa estos códigos.
@@ -561,10 +568,11 @@ async function findById(enrollmentId, institutionId) {
 // Pasa la inscripción vigente `enrollmentId` (un inscripcion_id) de la institución al estado `status`
 // (de STATUSES), sin cambiar nada más, y la devuelve como quedó, con su alumno, su curso y su estado,
 // como findPageNotDeletedByInstitution; null si no cambió nada: no existe en la institución, está
-// dada de baja o ya tenía ese estado. PostgreSQL rechaza el cambio a ACTIVE si el alumno ya tiene
-// otra inscripción vigente y activa (ver isSecondActiveEnrollmentError) y todo cambio en un curso de
-// un ciclo lectivo cerrado, salvo de ACTIVE a COMPLETED (ver isClosedSchoolYearError): que eso no
-// pase lo comprueba el servicio.
+// dada de baja o ya tenía ese estado. PostgreSQL rechaza el cambio a ACTIVE si el alumno está dado
+// de baja o no es activo (ver isDeletedStudentError e isInactiveStudentError) o si ya tiene otra
+// inscripción vigente y activa (ver isSecondActiveEnrollmentError), y todo cambio en un curso de un
+// ciclo lectivo cerrado, salvo de ACTIVE a COMPLETED (ver isClosedSchoolYearError): que eso no pase
+// lo comprueba el servicio, salvo el estado del alumno, que decide la base.
 async function updateStatus(enrollmentId, institutionId, status) {
   const { rows } = await query(UPDATE_STATUS_SQL, [enrollmentId, institutionId, COLUMN_VALUE_BY_STATUS[status]]);
   return rows.length > 0 ? toInstitutionEnrollment(rows[0]) : null;
@@ -623,6 +631,18 @@ function isClosedSchoolYearError(error) {
   return error?.code === '23514' && error.constraint === CLOSED_SCHOOL_YEAR_CONSTRAINT;
 }
 
+// true si `error` es el rechazo de trg_inscripcion_coherencia a una inscripción vigente y activa de
+// un alumno dado de baja, al pasarla a activa.
+function isDeletedStudentError(error) {
+  return error?.code === '23514' && error.constraint === DELETED_STUDENT_CONSTRAINT;
+}
+
+// true si `error` es el rechazo de trg_inscripcion_coherencia a una inscripción vigente y activa de
+// un alumno que no es ACTIVO (un egresado), al pasarla a activa.
+function isInactiveStudentError(error) {
+  return error?.code === '23514' && error.constraint === INACTIVE_STUDENT_CONSTRAINT;
+}
+
 module.exports = {
   findActiveOrFinishedByCourse,
   isDeletedInCourse,
@@ -640,5 +660,7 @@ module.exports = {
   isSecondActiveEnrollmentError,
   isDateOutOfSchoolYearError,
   isClosedSchoolYearError,
+  isDeletedStudentError,
+  isInactiveStudentError,
   STATUSES,
 };
