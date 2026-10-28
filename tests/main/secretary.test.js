@@ -199,6 +199,23 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     await t.logout();
   });
 
+  test('list-has-scores', 'El listado informa qué inscripciones tienen calificaciones vigentes', async (t) => {
+    await t.login('secretary');
+    const { scored, active } = t.data;
+    const filtered = await t.ok('enrollments.list', { ...EMPTY_FILTERS, enrollmentIds: [scored, active] }, 1, 10);
+    const hasScoresById = Object.fromEntries(filtered.enrollments.map((enrollment) => [enrollment.id, enrollment.hasScores]));
+    t.equal(hasScoresById, { [scored]: true, [active]: false }, 'La calificada trae hasScores true y la otra, false');
+    const firstPage = await t.ok('enrollments.list', EMPTY_FILTERS, 1, 10);
+    const expected = await t.sql(`
+      SELECT i.inscripcion_id AS id,
+             EXISTS (SELECT 1 FROM calificacion c WHERE c.inscripcion_id = i.inscripcion_id AND c.fecha_eliminacion IS NULL) AS "hasScores"
+        FROM inscripcion i WHERE i.inscripcion_id = ANY($1::INT[]) ORDER BY i.inscripcion_id`,
+    [firstPage.enrollments.map((enrollment) => enrollment.id)]);
+    const listed = firstPage.enrollments.map(({ id, hasScores }) => ({ id, hasScores })).sort((a, b) => a.id - b.id);
+    t.equal(listed, expected, 'En la primera página, hasScores coincide con la base');
+    await t.logout();
+  });
+
   test('form-options', 'El alta ofrece los alumnos activos sin inscripción activa y los cursos vigentes del ciclo actual', async (t) => {
     await t.login('secretary');
     const { students } = await t.ok('enrollments.listEnrollableStudents');

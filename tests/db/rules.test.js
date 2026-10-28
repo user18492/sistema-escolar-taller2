@@ -451,7 +451,9 @@ group('db.enrollments', 'Reglas de alumnos e inscripciones', {
     await passes(t, 'un egresado vuelve a activo', setStudentStatus(graduated.id, 'ACTIVO'));
   });
 
-  test('inactive-student-reactivation', 'La inscripción de un alumno egresado o dado de baja no vuelve a quedar activa y vigente', async (t) => {
+  test('inactive-student-reactivation', 'La inscripción de un alumno egresado o dado de baja no vuelve a quedar activa y vigente', {
+    history: [{ plan: 'plans/secretario-inscripciones/01-baja.md', date: '2026-10-28', change: 'Quitarle la baja a la activa dada de baja de un alumno egresado ya no llega a ck_inscripcion_alumno_activo: una inscripción dada de baja no se restaura, así que ahora espera ck_inscripcion_vigente; los demás casos no cambian' }],
+  }, async (t) => {
     const { reactivable, reactivableEnrollment, withDeletedActive, deletedActiveEnrollment } = t.data;
     await rejects(t, 'reactivar la cancelada de un alumno egresado', [
       setStudentStatus(reactivable.id, 'EGRESADO'),
@@ -461,12 +463,27 @@ group('db.enrollments', 'Reglas de alumnos e inscripciones', {
       { sql: `UPDATE alumno SET fecha_eliminacion = now() WHERE alumno_id = $1`, params: [reactivable.id] },
       setEnrollmentStatus(reactivableEnrollment, 'ACTIVA'),
     ], 'ck_inscripcion_alumno_vigente');
-    // El egreso pasa: la activa está dada de baja
+    // El egreso pasa: la activa está dada de baja. Quitarle la baja ya no llega a mirar al alumno:
+    // una inscripción dada de baja no se restaura
     await rejects(t, 'quitarle la baja a la activa de un alumno egresado', [
       setStudentStatus(withDeletedActive.id, 'EGRESADO'),
       { sql: `UPDATE inscripcion SET fecha_eliminacion = NULL WHERE inscripcion_id = $1`, params: [deletedActiveEnrollment] },
-    ], 'ck_inscripcion_alumno_activo');
+    ], 'ck_inscripcion_vigente');
     await passes(t, 'reactivar la cancelada de un alumno activo', setEnrollmentStatus(reactivableEnrollment, 'ACTIVA'));
+  });
+
+  test('deleted-enrollment-frozen', 'Una inscripción dada de baja no se modifica ni se restaura', async (t) => {
+    const update = (set) => ({ sql: `UPDATE inscripcion SET ${set} WHERE inscripcion_id = $1`, params: [t.data.deletedActiveEnrollment] });
+    const changes = [
+      ['restaurarla', 'fecha_eliminacion = NULL'],
+      ['pasarla a cancelada', `inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'CANCELADA')`],
+      ['cambiar la fecha de baja', `fecha_eliminacion = now() - interval '1 day'`],
+      ['cambiar la fecha de inscripción', `fecha_inscripcion = make_date(${t.year}, 1, 1)`],
+      ['un UPDATE sin cambios', 'fecha_inscripcion = fecha_inscripcion'],
+    ];
+    for (const [label, set] of changes) {
+      await rejects(t, label, update(set), 'ck_inscripcion_vigente');
+    }
   });
 
   test('enrollment-coherence', 'La inscripción es de la misma institución, del año del ciclo del curso y no de un ciclo cerrado, y el alumno con inscripciones conserva su institución', {
@@ -580,7 +597,7 @@ group('db.scores', 'Reglas de evaluaciones y calificaciones', {
     await fixtures.setEnrollmentStatus(laterCancelledEnrollment, 'CANCELADA');
     return { teacher, course, assignment, student, enrollmentId, evaluationId, otherCourse, otherAssignment, otherEvaluation,
       cancelledEnrollment, deletedEnrollment, scoredEnrollment, scoreId, futureDate, futureEvaluation,
-      cascadeEvaluation, cascadeDeletedScore };
+      cascadeEvaluation, cascadeDeletedScore, laterCancelledEnrollment };
   },
 }, () => {
   const scoreSql = (evaluationId, enrollmentId, value = 7) => ({
@@ -634,7 +651,22 @@ group('db.scores', 'Reglas de evaluaciones y calificaciones', {
     }, 'ck_evaluacion_calificaciones_vigentes');
   });
 
-  test('evaluation-delete-keeps-scores', 'La baja de una evaluación da de baja todas sus calificaciones vigentes, también la de una inscripción cancelada', {
+  test('enrollment-delete-with-scores', 'Una inscripción con calificaciones vigentes no se da de baja, en ningún estado; sin ellas, sí', async (t) => {
+    const { scoredEnrollment, laterCancelledEnrollment, cancelledEnrollment } = t.data;
+    const markAsDeleted = (enrollmentId) => ({
+      sql: `UPDATE inscripcion SET fecha_eliminacion = now() WHERE inscripcion_id = $1`, params: [enrollmentId],
+    });
+    const constraint = 'ck_inscripcion_calificaciones_vigentes';
+    await rejects(t, 'baja de una activa con calificaciones', markAsDeleted(scoredEnrollment), constraint);
+    await rejects(t, 'baja de una cancelada con calificaciones', markAsDeleted(laterCancelledEnrollment), constraint);
+    await passes(t, 'baja después de dar de baja sus calificaciones', [
+      { sql: `UPDATE calificacion SET fecha_eliminacion = now() WHERE inscripcion_id = $1 AND fecha_eliminacion IS NULL`, params: [scoredEnrollment] },
+      markAsDeleted(scoredEnrollment),
+    ]);
+    await passes(t, 'baja de una cancelada sin calificaciones', markAsDeleted(cancelledEnrollment));
+  });
+
+  test('evaluation-delete-keeps-scores','La baja de una evaluación da de baja todas sus calificaciones vigentes, también la de una inscripción cancelada', {
     history: [{ plan: 'plans/profesor-evaluaciones/00-base-de-datos-y-backend.md', date: '2026-10-26', change: 'La baja de una evaluación ya no conserva vigentes sus calificaciones: ahora, sobre cascadeEvaluation, deja 0 vigentes, las dos que lo estaban (una de una inscripción cancelada) quedan con la fecha de baja de la evaluación y la ya dada de baja conserva la suya' }],
   }, async (t) => {
     const { cascadeEvaluation, cascadeDeletedScore } = t.data;

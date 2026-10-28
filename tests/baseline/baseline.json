@@ -1,17 +1,16 @@
 {
   "version": 1,
-  "takenAt": "2026-10-28T13:58:48.322Z",
-  "commit": "a613ccb237514bb96b29932a44d3745dcafbdc39",
+  "takenAt": "2026-10-28T14:27:26.144Z",
+  "commit": "7fc8b1283ec542ac07e7c5f0a567260cf7ead341",
   "branch": "restricciones",
   "dirty": true,
   "changedFiles": [
     "db/schema.sql",
-    "db/seed.sql",
     "renderer/secretary/enrollments/enrollments.js",
-    "renderer/secretary/enrollments/index.html",
+    "src/main/models/enrollment.model.js",
     "src/main/repositories/enrollment.repository.js",
+    "src/main/repositories/score.repository.js",
     "src/main/services/enrollment.service.js",
-    "src/main/services/evaluation.service.js",
     "src/preload/preload.js"
   ],
   "today": "2026-10-28",
@@ -98,6 +97,15 @@
       "layer": "db",
       "status": "pass",
       "hash": "cfa2b44a3ef0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.enrollment-delete-pending-score": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "54b830b783b8",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -421,7 +429,16 @@
     "db.enrollments.inactive-student-reactivation": {
       "layer": "db",
       "status": "pass",
-      "hash": "0740320c014e",
+      "hash": "48523aec655e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "db.enrollments.deleted-enrollment-frozen": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "933ad24b27e7",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -521,6 +538,15 @@
       "layer": "db",
       "status": "pass",
       "hash": "55d358c8f0d0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.scores.enrollment-delete-with-scores": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "3642c480fa30",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -1320,6 +1346,15 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "main.secretary.enrollments.list-has-scores": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "c60bf7b1f691",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "main.secretary.enrollments.form-options": {
       "layer": "main",
       "status": "pass",
@@ -1689,6 +1724,15 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "ui.enrollments.delete-with-scores": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "25eeb77e0f10",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "ui.enrollments.invariants": {
       "layer": "ui",
       "status": "pass",
@@ -2027,24 +2071,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 107,
-      "ok": 107,
-      "tests": 33
+      "calls": 110,
+      "ok": 110,
+      "tests": 34
     },
     "auth:get-remembered-email": {
-      "calls": 77,
-      "ok": 77,
-      "tests": 46
+      "calls": 78,
+      "ok": 78,
+      "tests": 47
     },
     "auth:login": {
-      "calls": 119,
-      "ok": 111,
-      "tests": 92
+      "calls": 121,
+      "ok": 113,
+      "tests": 94
     },
     "auth:logout": {
-      "calls": 153,
-      "ok": 153,
-      "tests": 107
+      "calls": 155,
+      "ok": 155,
+      "tests": 109
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2077,9 +2121,9 @@
       "tests": 10
     },
     "dashboard:get-secretary-summary": {
-      "calls": 11,
-      "ok": 11,
-      "tests": 11
+      "calls": 12,
+      "ok": 12,
+      "tests": 12
     },
     "enrollments:create": {
       "calls": 5,
@@ -2087,9 +2131,9 @@
       "tests": 3
     },
     "enrollments:delete": {
-      "calls": 4,
-      "ok": 1,
-      "tests": 2
+      "calls": 5,
+      "ok": 2,
+      "tests": 3
     },
     "enrollments:get": {
       "calls": 4,
@@ -2097,9 +2141,9 @@
       "tests": 4
     },
     "enrollments:list": {
-      "calls": 11,
-      "ok": 11,
-      "tests": 7
+      "calls": 15,
+      "ok": 15,
+      "tests": 9
     },
     "enrollments:list-by-own-assignment": {
       "calls": 6,
@@ -2107,19 +2151,19 @@
       "tests": 4
     },
     "enrollments:list-enrollable-courses": {
-      "calls": 7,
-      "ok": 7,
-      "tests": 7
+      "calls": 8,
+      "ok": 8,
+      "tests": 8
     },
     "enrollments:list-enrollable-students": {
-      "calls": 7,
-      "ok": 7,
-      "tests": 7
+      "calls": 8,
+      "ok": 8,
+      "tests": 8
     },
     "enrollments:list-filter-options": {
-      "calls": 7,
-      "ok": 7,
-      "tests": 6
+      "calls": 9,
+      "ok": 9,
+      "tests": 7
     },
     "enrollments:open-receipt": {
       "calls": 5,
@@ -2172,9 +2216,9 @@
       "tests": 2
     },
     "school-years:get-current": {
-      "calls": 30,
-      "ok": 30,
-      "tests": 17
+      "calls": 32,
+      "ok": 32,
+      "tests": 18
     },
     "scores:delete": {
       "calls": 4,
@@ -2292,9 +2336,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 141,
-      "ok": 141,
-      "tests": 53
+      "calls": 144,
+      "ok": 144,
+      "tests": 54
     },
     "window:minimize": {
       "calls": 1,
@@ -2564,7 +2608,7 @@
       "fn_fecha_actual()": "cd69e9a211ca93ea8fe666ab6c82fe02",
       "fn_inscripcion_calificaciones_vigentes()": "79b34b87dd6abdc7d791886acab7ed44",
       "fn_inscripcion_ciclo_lectivo()": "61801c4b8a165955ad8ca6b7641ea33c",
-      "fn_inscripcion_coherencia()": "cc7a76e828252140da191835b8e81c8c",
+      "fn_inscripcion_coherencia()": "b62c0ab48895b4cdd454c7c9e18beb7b",
       "fn_inscripcion_fecha_ciclo_lectivo()": "c4a9cb3f0b2cb10c148d069cfd6b6eb3",
       "fn_usuario_asignaciones_vigentes()": "11027198ddfdf1c16ebb527b890ae4d9",
       "fn_usuario_rol_institucion_inmutables()": "f0b9057322ec96ebad06e5d4c7f791d8",

@@ -3,9 +3,9 @@
 // vigente y ya tomada de una calificación, la asignación vigente de una evaluación, la asignación
 // que no se da de baja con evaluaciones vigentes, la baja en cascada de las calificaciones de una
 // evaluación, el curso que no se da de baja con inscripciones vigentes, el curso vigente de una
-// asignación y el egreso de un alumno sin inscripción activa, con el alumno activo de una
-// inscripción activa) se sostienen con bloqueos de fila: la segunda operación espera a la primera y,
-// al seguir, ya la ve.
+// asignación, el egreso de un alumno sin inscripción activa, con el alumno activo de una
+// inscripción activa, y la inscripción que no se da de baja con calificaciones vigentes) se
+// sostienen con bloqueos de fila: la segunda operación espera a la primera y, al seguir, ya la ve.
 const { group, test } = require('../lib/framework');
 const { connectSuite } = require('../lib/pg-admin');
 const { isPending } = require('../lib/sql');
@@ -30,6 +30,10 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     const grading = await fixtures.teacherScenario();
     const secondEvaluationId = await fixtures.createEvaluation({ assignmentId: grading.assignment.id });
     const cascadeEvaluationId = await fixtures.createEvaluation({ assignmentId: grading.assignment.id });
+    // Una inscripción sin notas, a la que una prueba le carga una mientras otra sesión la da de
+    // baja, en una evaluación propia
+    const scorePendingEnrollment = await fixtures.enroll({ studentId: (await fixtures.createStudent()).id, courseId: grading.course.id });
+    const scorePendingEvaluationId = await fixtures.createEvaluation({ assignmentId: grading.assignment.id });
     // Una asignación sin evaluaciones, que una prueba da de baja y confirma
     const removableAssignment = await fixtures.assign({ teacherId: grading.teacher.id, courseId: (await fixtures.createCourse()).id });
     // Otra sin evaluaciones, en la que una prueba crea una evaluación mientras otra sesión la da de
@@ -46,7 +50,7 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     const studentGraduating = await fixtures.createStudent();
     return { courseA, courseB, student, adminA, adminB, teacher, assignment, removableAssignment, pendingAssignment,
       coursePendingEnrollment, studentPendingEnrollment, courseBeingDeleted, studentBeingEnrolled, studentGraduating,
-      grading: { ...grading, secondEvaluationId, cascadeEvaluationId } };
+      grading: { ...grading, secondEvaluationId, cascadeEvaluationId, scorePendingEnrollment, scorePendingEvaluationId } };
   },
 }, () => {
   test('one-active-enrollment', 'Dos inscripciones activas simultáneas del mismo alumno: la segunda espera y se rechaza', async (t) => {
@@ -277,7 +281,36 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     t.equal(state, { vigente: true, inscripciones: 1 }, 'El curso quedó vigente, con la inscripción creada mientras tanto');
   });
 
-  test('graduate-pending-enrollment', 'Se inscribe a un alumno mientras se lo pasa a egresado: el egreso espera y se rechaza', async (t) => {
+  test('enrollment-delete-pending-score', 'Se carga una nota mientras se da de baja la inscripción: la baja espera y se rechaza', async (t) => {
+    const { scorePendingEnrollment, scorePendingEvaluationId } = t.data.grading;
+    const other = await second(t);
+    let committed = false;
+    try {
+      await t.db.query('BEGIN');
+      await t.db.query(`INSERT INTO calificacion (evaluacion_id, inscripcion_id, nota) VALUES ($1, $2, 7)`,
+        [scorePendingEvaluationId, scorePendingEnrollment]);
+      await other.query('BEGIN');
+      const pending = other.query(`UPDATE inscripcion SET fecha_eliminacion = now() WHERE inscripcion_id = $1`, [scorePendingEnrollment])
+        .then(() => ({ ok: true }), (error) => ({ ok: false, constraint: error.constraint }));
+      t.check(await isPending(pending), 'La baja no esperó el bloqueo de la inscripción');
+      await t.db.query('COMMIT');
+      committed = true;
+      const result = await pending;
+      t.check(!result.ok && result.constraint === 'ck_inscripcion_calificaciones_vigentes', 'La baja no se rechazó', result);
+      await other.query('ROLLBACK');
+    } finally {
+      if (!committed) await t.db.query('ROLLBACK').catch(() => {});
+      await other.end();
+    }
+    const state = await t.sqlOne(`
+      SELECT i.fecha_eliminacion IS NULL AS vigente,
+             (SELECT COUNT(*)::INT FROM calificacion c
+               WHERE c.inscripcion_id = i.inscripcion_id AND c.evaluacion_id = $2 AND c.fecha_eliminacion IS NULL) AS calificaciones
+        FROM inscripcion i WHERE i.inscripcion_id = $1`, [scorePendingEnrollment, scorePendingEvaluationId]);
+    t.equal(state, { vigente: true, calificaciones: 1 }, 'La inscripción quedó vigente, con la nota cargada mientras tanto');
+  });
+
+  test('graduate-pending-enrollment','Se inscribe a un alumno mientras se lo pasa a egresado: el egreso espera y se rechaza', async (t) => {
     const { courseA, studentBeingEnrolled } = t.data;
     const other = await second(t);
     let committed = false;
