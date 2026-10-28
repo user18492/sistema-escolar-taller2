@@ -695,8 +695,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // guarda (o si ya lo tenía), la tabla vuelve a pedir la página a la vista con los filtros aplicados
   // antes de liberar el modal, así al cerrarse ya muestra el estado nuevo, y un toast lo avisa. Si no,
   // el toast dice por qué y el modal sigue abierto con el estado elegido; si la inscripción ya no está
-  // vigente, o si su ciclo lectivo se cerró con la vista abierta desde antes del cambio de año, antes
-  // se vuelve a pedir la página.
+  // vigente, si su ciclo lectivo se cerró con la vista abierta desde antes del cambio de año o si otra
+  // sesión dio de baja a su alumno (STUDENT_DELETED: sus inscripciones ya no se listan), antes se
+  // vuelve a pedir la página.
   const saveEditedEnrollment = async () => {
     setEditSaving(true);
     let response;
@@ -710,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (response?.ok) {
       const shownEnrollments = await loadEnrollments(pagination.page);
       isShown = shownEnrollments && shownEnrollments.some(({ id }) => id === response.enrollment.id);
-    } else if (NO_LONGER_EDITABLE_CODES.includes(error?.code) || error?.code === 'SCHOOL_YEAR_CLOSED') {
+    } else if (NO_LONGER_EDITABLE_CODES.includes(error?.code) || ['SCHOOL_YEAR_CLOSED', 'STUDENT_DELETED'].includes(error?.code)) {
       await loadEnrollments(pagination.page);
     }
     setEditSaving(false);

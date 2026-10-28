@@ -118,6 +118,18 @@
   font-weight: 500;
 }
 
+/* Deshabilitada (aria-disabled="true"), que dropdown.component.js no deja elegir: atenuada y sin el
+   fondo de :hover, para que no parezca elegible. La vista explica el motivo, p. ej. con una
+   .field-hint debajo del campo (form-field.css). */
+.dropdown-option[aria-disabled="true"] {
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+}
+
+.dropdown-option[aria-disabled="true"]:hover {
+  background: none;
+}
+
 /* Opciones con el dato buscado y su referencia (email u otro dato secundario). */
 
 .option-name {

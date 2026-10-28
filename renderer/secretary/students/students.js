@@ -12,7 +12,8 @@
 // en un modal (confirm-modal.component.js). El resultado de las cuatro se avisa con un toast
 // (toast.component.js), salvo los errores de un campo, que se marcan en el formulario. Un alta con
 // el DNI o el email de un alumno dado de baja no se hace: el toast manda a restaurarlo. Editar
-// completa el formulario con los datos del alumno cargado.
+// completa el formulario con los datos del alumno cargado; si tiene una inscripción activa
+// (hasActiveEnrollment), Egresado queda deshabilitado, con una aclaración debajo de Estado.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -353,6 +354,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusDropdown = statusField.querySelector('.dropdown');
   const statusLabel = statusDropdown.querySelector('.dropdown-label');
   const statusOptions = statusDropdown.querySelectorAll('.dropdown-option');
+  const graduatedOption = statusDropdown.querySelector('.dropdown-option[data-value="GRADUATED"]');
+  const statusHint = document.getElementById('editStudentStatusHint');
+
+  const GRADUATED_LOCKED_HINT = 'Tiene una inscripción activa: podrá pasar a egresado cuando la inscripción finalice o se cancele.';
 
   const firstNameInput = document.getElementById('newStudentFirstName');
   const lastNameInput = document.getElementById('newStudentLastName');
@@ -436,6 +441,17 @@ document.addEventListener('DOMContentLoaded', () => {
     statusLabel.classList.remove('placeholder');
   }
 
+  // Con una inscripción activa, el alumno no pasa a egresado (la base también lo rechaza): Egresado
+  // lleva aria-disabled, que dropdown.component.js no deja elegir, y la aclaración debajo del campo
+  // dice por qué. Oculta, la aclaración se vacía: así aria-describedby no anuncia una que no se ve.
+  function lockGraduated(locked) {
+    if (locked) graduatedOption.setAttribute('aria-disabled', 'true');
+    else graduatedOption.removeAttribute('aria-disabled');
+    statusHint.textContent = locked ? GRADUATED_LOCKED_HINT : '';
+    statusHint.hidden = !locked;
+  }
+
+  // También desbloquea Egresado: el alta y la edición de otro alumno no heredan el bloqueo
   function resetForm() {
     textInputs.forEach((input) => (input.value = ''));
     clearFieldErrors(overlay);
@@ -445,12 +461,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     statusLabel.textContent = 'Seleccionar estado';
     statusLabel.classList.add('placeholder');
+    lockGraduated(false);
     updateCreateButtonState();
   }
 
   function openModal(row = null, trigger = openModalBtn) {
     // La fila identifica al alumno solo por su data-student-id (el alumno_id). Los datos del
-    // formulario salen del alumno cargado de la base, no del texto de las celdas.
+    // formulario salen del alumno cargado de la base, no del texto de las celdas, y también si
+    // Egresado se puede elegir (hasActiveEnrollment).
     const student = row ? students.find((candidate) => String(candidate.id) === row.dataset.studentId) : null;
     if (row && !student) return;
     isEditing = Boolean(student);
@@ -476,6 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dniInput.value = formatDni(student.dni ?? '');
       birthdateInput.value = toDisplayDate(student.birthDate);
       selectStatus(student.status);
+      lockGraduated(Boolean(student.hasActiveEnrollment));
     }
 
     updateCreateButtonState();
@@ -488,8 +507,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function closeModal() {
     overlay.classList.remove('is-open');
-    // Después de guardar los cambios, o si el alumno ya no existe, la tabla se volvió a dibujar: el
-    // foco pasa a Editar en la fila del alumno o, si ya no se muestra, en la que quedó en su lugar
+    // Después de guardar los cambios, o si la lista se volvió a pedir porque había quedado vieja, la
+    // tabla se volvió a dibujar: el foco pasa a Editar en la fila del alumno o, si ya no se muestra,
+    // en la que quedó en su lugar
     const focusTarget = modalTrigger.isConnected
       ? modalTrigger
       : tbody.querySelector(`tr[data-student-id="${editingStudentId}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
@@ -520,9 +540,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return invalidFields.length > 0;
   };
 
+  // Al editar, la lista en memoria quedó vieja: el alumno ya no está vigente (STUDENT_NOT_FOUND) u
+  // otra sesión lo inscribió después de la carga y no puede pasar a egresado
+  // (STUDENT_HAS_ACTIVE_ENROLLMENT)
+  const STALE_EDIT_CODES = ['STUDENT_NOT_FOUND', 'STUDENT_HAS_ACTIVE_ENROLLMENT'];
+
   // Registra o guarda según el modo; al terminar cierra el modal y lo avisa con un toast. Los errores
   // de un campo se marcan en el formulario y los demás salen en un toast: en ambos casos el modal
-  // sigue abierto con lo que se escribió. Solo se cierra si el alumno que se editaba ya no existe.
+  // sigue abierto con lo que se escribió. Solo se cierra si, al editar, la lista había quedado vieja
+  // (STALE_EDIT_CODES): al volver a abrir Editar, el formulario sale de la lista nueva, con Egresado
+  // ya deshabilitado si lo inscribieron.
   // Un alta con el DNI o el email de un alumno dado de baja (DELETED_STUDENT_EXISTS) no lo registra:
   // el toast lo nombra y manda a restaurarlo desde Eliminados.
   const saveStudent = async () => {
@@ -537,12 +564,12 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Error al guardar el alumno:', error);
     }
-    // El alumno que se editaba ya no está vigente: la lista se vuelve a pedir antes de liberar el
-    // modal, que se cierra más abajo. Con un dado de baja en el alta, también, con el modal abierto:
-    // si otra sesión lo dio de baja después de la carga, Eliminados todavía no lo tiene
-    const isGone = isEditing && response?.error?.code === 'STUDENT_NOT_FOUND';
+    // La lista que había quedado vieja al editar se vuelve a pedir antes de liberar el modal, que se
+    // cierra más abajo. Con un dado de baja en el alta, también, con el modal abierto: si otra sesión
+    // lo dio de baja después de la carga, Eliminados todavía no lo tiene
+    const isStale = isEditing && STALE_EDIT_CODES.includes(response?.error?.code);
     const isDeletedMatch = response?.error?.code === 'DELETED_STUDENT_EXISTS';
-    if (isGone || isDeletedMatch) await loadStudents();
+    if (isStale || isDeletedMatch) await loadStudents();
     setSaving(false);
 
     if (response?.ok) {
@@ -558,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const error = response?.error;
     if (showFieldErrors(error?.fieldErrors)) return;
-    if (isGone) closeModal();
+    if (isStale) closeModal();
     showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
   };
 
