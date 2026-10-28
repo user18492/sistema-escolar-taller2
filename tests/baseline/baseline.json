@@ -1,14 +1,19 @@
 {
   "version": 1,
-  "takenAt": "2026-10-27T19:24:16.884Z",
-  "commit": "e470fc355c0b2de6fce012f896c2886c08865ab9",
+  "takenAt": "2026-10-28T12:29:59.452Z",
+  "commit": "cb89481cb9b0e8e905206c362ac761ccd34f3265",
   "branch": "restricciones",
   "dirty": true,
   "changedFiles": [
-    "renderer/admin/courses/courses.js",
-    "renderer/shared/components/row-actions.component.js"
+    "db/schema.sql",
+    "src/main/models/student.model.js",
+    "src/main/repositories/enrollment.repository.js",
+    "src/main/repositories/student.repository.js",
+    "src/main/services/enrollment.service.js",
+    "src/main/services/student.service.js",
+    "src/preload/preload.js"
   ],
-  "today": "2026-10-27",
+  "today": "2026-10-28",
   "year": 2026,
   "environment": {
     "node": "24.19.0",
@@ -92,6 +97,24 @@
       "layer": "db",
       "status": "pass",
       "hash": "cfa2b44a3ef0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.graduate-pending-enrollment": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "d32b5b9636df",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.concurrency.enrollment-graduating-student": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "0345ea6623da",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -367,6 +390,42 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "db.enrollments.student-format": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "510ae74b67e5",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.deleted-student-frozen": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "bce4592a0941",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.graduate-with-active-enrollment": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "4942a9faf3c3",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "db.enrollments.inactive-student-reactivation": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "0740320c014e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "db.enrollments.enrollment-coherence": {
       "layer": "db",
       "status": "pass",
@@ -397,13 +456,10 @@
     "db.enrollments.deleted-student-enrollable": {
       "layer": "db",
       "status": "pass",
-      "hash": "183bc4c1c13b",
-      "kind": "current",
-      "affectedBy": [
-        "secretario-alumnos",
-        "secretario-inscripciones"
-      ],
-      "historyCount": 0,
+      "hash": "e2f8829e2272",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "db.enrollments.completed-in-current-cycle": {
@@ -1185,6 +1241,15 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "main.secretary.students.list-active-enrollment": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "f73616343d97",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "main.secretary.students.create": {
       "layer": "main",
       "status": "pass",
@@ -1207,6 +1272,15 @@
       "layer": "main",
       "status": "pass",
       "hash": "2d9bcf258e54",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.students.graduate-with-active-enrollment": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "61af3ee2597d",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -1261,6 +1335,15 @@
       "layer": "main",
       "status": "pass",
       "hash": "f6d27d1ef764",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.secretary.enrollments.reactivate-inactive-student": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "9c4be92a1295",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -1914,14 +1997,14 @@
       "tests": 42
     },
     "auth:login": {
-      "calls": 115,
-      "ok": 107,
-      "tests": 88
+      "calls": 118,
+      "ok": 110,
+      "tests": 91
     },
     "auth:logout": {
-      "calls": 145,
-      "ok": 145,
-      "tests": 101
+      "calls": 148,
+      "ok": 148,
+      "tests": 104
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2004,9 +2087,9 @@
       "tests": 3
     },
     "enrollments:update": {
-      "calls": 7,
-      "ok": 5,
-      "tests": 4
+      "calls": 10,
+      "ok": 6,
+      "tests": 6
     },
     "evaluations:create": {
       "calls": 11,
@@ -2079,9 +2162,9 @@
       "tests": 1
     },
     "students:list": {
-      "calls": 5,
-      "ok": 4,
-      "tests": 5
+      "calls": 6,
+      "ok": 5,
+      "tests": 6
     },
     "students:restore": {
       "calls": 2,
@@ -2089,9 +2172,9 @@
       "tests": 1
     },
     "students:update": {
-      "calls": 2,
-      "ok": 1,
-      "tests": 1
+      "calls": 5,
+      "ok": 3,
+      "tests": 2
     },
     "teacher-assignments:create": {
       "calls": 6,
@@ -2277,7 +2360,12 @@
       "usuario.usuario_rol_id": "5c30c1573b1ac1d49a3567ff67260296"
     },
     "constraints": {
+      "ck_alumno_apellido": "7501b7723569bcf400eb4de57e68147f",
+      "ck_alumno_direccion_altura": "6996f537ff12afc7ce82c733a128f62a",
+      "ck_alumno_dni": "b557a70dac23f89af2e9c71d07800f0a",
+      "ck_alumno_email": "d7bff9e173dc1fe03b4a6137be267a6f",
       "ck_alumno_estado_nombre": "0e8f9abab97cce6d37986f84c8b18978",
+      "ck_alumno_nombre": "cf5c57acb24d755ead7996cf600d95a4",
       "ck_alumno_telefono": "aa7bbc879f6f8c7b2f29c7379d9b8b3c",
       "ck_calificacion_nota": "e80709be9e966412bbaad386de1442b6",
       "ck_curso_anio_ciclo_lectivo": "74a4791d9b91b8a0984aa5b5302ec7df",
@@ -2382,6 +2470,7 @@
       "uq_usuario_rol_nombre": "11c26606a36a31768407f703c2a42fd3"
     },
     "triggers": {
+      "trg_alumno_coherencia": "c3a7e017abdc0aa779d1f1dad284f6d2",
       "trg_alumno_inscripciones": "e42f1cce62984f2a107f9774eb874be9",
       "trg_asignacion_docente_calificaciones_vigentes": "6a92c73f2a9d43aa64c62655826b9940",
       "trg_asignacion_docente_ciclo_lectivo": "520dcd30720dfb031a35521cb4f7fbc1",
@@ -2410,6 +2499,7 @@
       "trg_usuario_ultimo_administrador": "d70bf770a1f4c183a4b1f436ee681941"
     },
     "functions": {
+      "fn_alumno_coherencia()": "e15f41c70b420862e535961849f20c73",
       "fn_alumno_inscripciones()": "7257ffcef80d3368e7f03050d65b21db",
       "fn_anio_ciclo_lectivo_actual()": "022a2c698204d62d15b52302336c26e3",
       "fn_asignacion_docente_calificaciones_vigentes()": "6d0b70809c221f4569d22b6e5ba8dc79",
@@ -2434,7 +2524,7 @@
       "fn_fecha_actual()": "cd69e9a211ca93ea8fe666ab6c82fe02",
       "fn_inscripcion_calificaciones_vigentes()": "79b34b87dd6abdc7d791886acab7ed44",
       "fn_inscripcion_ciclo_lectivo()": "06b9c593cd527f9c9ebe114fd54a8d0f",
-      "fn_inscripcion_coherencia()": "1a6e4fabed6ac62febcda8996deb3223",
+      "fn_inscripcion_coherencia()": "cc7a76e828252140da191835b8e81c8c",
       "fn_inscripcion_fecha_ciclo_lectivo()": "9f6cc5161d053f82e11f04021c884192",
       "fn_usuario_asignaciones_vigentes()": "11027198ddfdf1c16ebb527b890ae4d9",
       "fn_usuario_rol_institucion_inmutables()": "f0b9057322ec96ebad06e5d4c7f791d8",

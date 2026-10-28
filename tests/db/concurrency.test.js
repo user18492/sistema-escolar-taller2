@@ -2,9 +2,10 @@
 // inscripción activa, el último administrador, el profesor activo de una asignación, la evaluación
 // vigente y ya tomada de una calificación, la asignación vigente de una evaluación, la asignación
 // que no se da de baja con evaluaciones vigentes, la baja en cascada de las calificaciones de una
-// evaluación, el curso que no se da de baja con inscripciones vigentes y el curso vigente de una
-// asignación) se sostienen con bloqueos de fila: la segunda operación espera a la primera y, al
-// seguir, ya la ve.
+// evaluación, el curso que no se da de baja con inscripciones vigentes, el curso vigente de una
+// asignación y el egreso de un alumno sin inscripción activa, con el alumno activo de una
+// inscripción activa) se sostienen con bloqueos de fila: la segunda operación espera a la primera y,
+// al seguir, ya la ve.
 const { group, test } = require('../lib/framework');
 const { connectSuite } = require('../lib/pg-admin');
 const { isPending } = require('../lib/sql');
@@ -39,8 +40,12 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
     const coursePendingEnrollment = await fixtures.createCourse();
     const studentPendingEnrollment = await fixtures.createStudent();
     const courseBeingDeleted = await fixtures.createCourse();
+    // Alumnos: uno al que una prueba inscribe mientras otra sesión lo pasa a egresado, y otro al que
+    // una prueba pasa a egresado mientras otra sesión lo inscribe
+    const studentBeingEnrolled = await fixtures.createStudent();
+    const studentGraduating = await fixtures.createStudent();
     return { courseA, courseB, student, adminA, adminB, teacher, assignment, removableAssignment, pendingAssignment,
-      coursePendingEnrollment, studentPendingEnrollment, courseBeingDeleted,
+      coursePendingEnrollment, studentPendingEnrollment, courseBeingDeleted, studentBeingEnrolled, studentGraduating,
       grading: { ...grading, secondEvaluationId, cascadeEvaluationId } };
   },
 }, () => {
@@ -270,6 +275,66 @@ group('db.concurrency', 'Reglas con dos sesiones simultáneas', {
              (SELECT COUNT(*)::INT FROM inscripcion i WHERE i.curso_id = c.curso_id AND i.fecha_eliminacion IS NULL) AS inscripciones
         FROM curso c WHERE c.curso_id = $1`, [coursePendingEnrollment.id]);
     t.equal(state, { vigente: true, inscripciones: 1 }, 'El curso quedó vigente, con la inscripción creada mientras tanto');
+  });
+
+  test('graduate-pending-enrollment', 'Se inscribe a un alumno mientras se lo pasa a egresado: el egreso espera y se rechaza', async (t) => {
+    const { courseA, studentBeingEnrolled } = t.data;
+    const other = await second(t);
+    let committed = false;
+    try {
+      await t.db.query('BEGIN');
+      await t.db.query(`INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id)
+                        VALUES ($1, $2, (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'ACTIVA'))`,
+      [studentBeingEnrolled.id, courseA.id]);
+      await other.query('BEGIN');
+      const pending = other.query(`UPDATE alumno SET alumno_estado_id = (SELECT alumno_estado_id FROM alumno_estado WHERE nombre = 'EGRESADO')
+                                    WHERE alumno_id = $1`, [studentBeingEnrolled.id])
+        .then(() => ({ ok: true }), (error) => ({ ok: false, constraint: error.constraint }));
+      t.check(await isPending(pending), 'El egreso no esperó el bloqueo del alumno');
+      await t.db.query('COMMIT');
+      committed = true;
+      const result = await pending;
+      t.check(!result.ok && result.constraint === 'ck_alumno_inscripcion_activa', 'El egreso no se rechazó', result);
+      await other.query('ROLLBACK');
+    } finally {
+      if (!committed) await t.db.query('ROLLBACK').catch(() => {});
+      await other.end();
+    }
+    const state = await t.sqlOne(`
+      SELECT e.nombre AS estado,
+             (SELECT COUNT(*)::INT FROM inscripcion i JOIN inscripcion_estado ie USING (inscripcion_estado_id)
+               WHERE i.alumno_id = a.alumno_id AND i.fecha_eliminacion IS NULL AND ie.nombre = 'ACTIVA') AS activas
+        FROM alumno a JOIN alumno_estado e USING (alumno_estado_id) WHERE a.alumno_id = $1`, [studentBeingEnrolled.id]);
+    t.equal(state, { estado: 'ACTIVO', activas: 1 }, 'El alumno quedó activo, con la inscripción creada mientras tanto');
+  });
+
+  test('enrollment-graduating-student', 'Se pasa a egresado a un alumno mientras se lo inscribe: la inscripción espera y se rechaza', async (t) => {
+    const { courseA, studentGraduating } = t.data;
+    const other = await second(t);
+    let committed = false;
+    try {
+      await t.db.query('BEGIN');
+      await t.db.query(`UPDATE alumno SET alumno_estado_id = (SELECT alumno_estado_id FROM alumno_estado WHERE nombre = 'EGRESADO')
+                         WHERE alumno_id = $1`, [studentGraduating.id]);
+      await other.query('BEGIN');
+      const pending = other.query(`INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id)
+                                   VALUES ($1, $2, (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'ACTIVA'))`,
+      [studentGraduating.id, courseA.id])
+        .then(() => ({ ok: true }), (error) => ({ ok: false, constraint: error.constraint }));
+      t.check(await isPending(pending), 'La inscripción no esperó el bloqueo del alumno');
+      await t.db.query('COMMIT');
+      committed = true;
+      const result = await pending;
+      t.check(!result.ok && result.constraint === 'ck_inscripcion_alumno_activo', 'La inscripción no se rechazó', result);
+      await other.query('ROLLBACK');
+    } finally {
+      if (!committed) await t.db.query('ROLLBACK').catch(() => {});
+      await other.end();
+    }
+    const state = await t.sqlOne(`
+      SELECT e.nombre AS estado, (SELECT COUNT(*)::INT FROM inscripcion i WHERE i.alumno_id = a.alumno_id) AS inscripciones
+        FROM alumno a JOIN alumno_estado e USING (alumno_estado_id) WHERE a.alumno_id = $1`, [studentGraduating.id]);
+    t.equal(state, { estado: 'EGRESADO', inscripciones: 0 }, 'El alumno quedó egresado y sin inscripciones');
   });
 
   test('assignment-deleted-course', 'Se da de baja el curso mientras se le crea una asignación: el alta espera y se rechaza', async (t) => {

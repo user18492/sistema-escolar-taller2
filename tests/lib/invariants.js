@@ -88,6 +88,15 @@ module.exports = [
            WHERE a.fecha_eliminacion IS NOT NULL AND e.nombre = 'ACTIVA' AND i.fecha_eliminacion IS NULL`,
   },
   {
+    id: 'alumno-egresado-sin-activa',
+    description: 'Un alumno egresado no tiene inscripciones activas y vigentes',
+    // Un egresado no se inscribe ni se le reactiva una inscripción, y con una activa no se egresa
+    // (plans/secretario-alumnos/00-base-de-datos-y-backend.md)
+    sql: `SELECT i.inscripcion_id FROM inscripcion i JOIN inscripcion_estado e USING (inscripcion_estado_id)
+           JOIN alumno a USING (alumno_id) JOIN alumno_estado ae ON ae.alumno_estado_id = a.alumno_estado_id
+           WHERE ae.nombre = 'EGRESADO' AND e.nombre = 'ACTIVA' AND i.fecha_eliminacion IS NULL`,
+  },
+  {
     id: 'evaluacion-fecha-del-ciclo',
     description: 'El año de la fecha de una evaluación vigente es el ciclo lectivo del curso de su asignación',
     sql: `SELECT e.evaluacion_id FROM evaluacion e JOIN asignacion_docente a USING (asignacion_docente_id)

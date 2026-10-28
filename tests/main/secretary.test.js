@@ -33,7 +33,10 @@ group('main.secretary.students', 'Secretario: alumnos', {
     const enrollmentId = await fixtures.enroll({ studentId: enrolled.id, courseId: course.id });
     const free = await fixtures.createStudent();
     const deleted = await fixtures.createStudent({ deleted: true });
-    return { course, enrolled, enrollmentId, free, deleted };
+    // Un alumno con una inscripción activa, al que una prueba intenta pasar a egresado
+    const graduating = await fixtures.createStudent();
+    const graduatingEnrollment = await fixtures.enroll({ studentId: graduating.id, courseId: course.id });
+    return { course, enrolled, enrollmentId, free, deleted, graduating, graduatingEnrollment };
   },
 }, () => {
   test('list', 'El listado trae a los alumnos de la institución, vigentes y dados de baja, con su estado', async (t) => {
@@ -46,6 +49,23 @@ group('main.secretary.students', 'Secretario: alumnos', {
     const byId = new Map(expected.map((row) => [row.id, row]));
     t.check(students.every((student) => student.status === STUDENT_STATUS[byId.get(student.id)?.estado] && Boolean(student.deletedAt) === byId.get(student.id)?.deleted),
       'El estado y la baja de cada alumno coinciden con la base');
+    await t.logout();
+  });
+
+  test('list-active-enrollment', 'El listado informa qué alumnos tienen una inscripción activa y vigente', async (t) => {
+    await t.login('secretary');
+    const { students } = await t.ok('students.list');
+    const expected = await t.sql(`
+      SELECT a.alumno_id AS id,
+             EXISTS (SELECT 1 FROM inscripcion i JOIN inscripcion_estado e USING (inscripcion_estado_id)
+                      WHERE i.alumno_id = a.alumno_id AND e.nombre = 'ACTIVA' AND i.fecha_eliminacion IS NULL) AS activa
+        FROM alumno a WHERE a.institucion_id = (SELECT institucion_id FROM institucion WHERE cuit = $1)`, [SM]);
+    const byId = new Map(expected.map((row) => [row.id, row.activa]));
+    t.equal(students.filter((student) => student.hasActiveEnrollment !== byId.get(student.id)).map((student) => student.id), [],
+      'hasActiveEnrollment coincide con la base para cada alumno');
+    const flagOf = (id) => students.find((student) => student.id === id)?.hasActiveEnrollment;
+    t.equal({ graduating: flagOf(t.data.graduating.id), free: flagOf(t.data.free.id) }, { graduating: true, free: false },
+      'El alumno inscripto trae true y el que no tiene inscripciones, false');
     await t.logout();
   });
 
@@ -87,6 +107,26 @@ group('main.secretary.students', 'Secretario: alumnos', {
     await t.logout();
   });
 
+  test('graduate-with-active-enrollment', 'Un alumno con una inscripción activa no pasa a egresado; después de cancelarla, sí', async (t) => {
+    await t.login('secretary');
+    const { graduating, graduatingEnrollment } = t.data;
+    const data = (status, phone) => ({ ...studentData(t.year, {}), firstName: graduating.firstName, lastName: graduating.lastName,
+      dni: graduating.dni, email: graduating.email, birthDate: graduating.birthDate, phone, status });
+    const row = () => t.sqlOne(`
+      SELECT a.telefono, a.direccion_calle, e.nombre AS estado FROM alumno a JOIN alumno_estado e USING (alumno_estado_id)
+       WHERE a.alumno_id = $1`, [graduating.id]);
+    const before = await row();
+    await t.rejects('STUDENT_HAS_ACTIVE_ENROLLMENT', 'students.update', graduating.id, data('GRADUATED', '3794111222'));
+    t.equal(await row(), before, 'El egreso rechazado no cambió la fila');
+    const kept = await t.ok('students.update', graduating.id, data('ACTIVE', '3794111333'));
+    t.equal(kept.student?.hasActiveEnrollment, true, 'Activo y con otro teléfono, se guarda y la respuesta informa la inscripción activa');
+    await t.ok('enrollments.update', graduatingEnrollment, { status: 'CANCELLED' });
+    const graduated = await t.ok('students.update', graduating.id, data('GRADUATED', '3794111333'));
+    t.equal((await row()).estado, 'EGRESADO', 'Con la inscripción cancelada, pasó a egresado');
+    t.equal(graduated.student?.hasActiveEnrollment, false, 'La respuesta ya no informa una inscripción activa');
+    await t.logout();
+  });
+
   test('delete-restore', 'La baja cancela la inscripción activa sin darla de baja; la restauración no la reactiva', async (t) => {
     await t.login('secretary');
     const { enrolled, enrollmentId } = t.data;
@@ -116,7 +156,14 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     const evaluationId = await fixtures.createEvaluation({ assignmentId: assignment.id });
     const scored = await fixtures.enroll({ studentId: students[1].id, courseId: course.id });
     await fixtures.score({ evaluationId, enrollmentId: scored });
-    return { course, pastCourse, students, active, scored };
+    // Inscripciones canceladas de un alumno egresado y de uno dado de baja, que no se reactivan
+    const graduatedEnrollment = await fixtures.enroll({
+      studentId: (await fixtures.createStudent({ status: 'EGRESADO' })).id, courseId: course.id, status: 'CANCELADA',
+    });
+    const deletedStudentEnrollment = await fixtures.enroll({
+      studentId: (await fixtures.createStudent({ deleted: true })).id, courseId: course.id, status: 'CANCELADA',
+    });
+    return { course, pastCourse, students, active, scored, graduatedEnrollment, deletedStudentEnrollment };
   },
 }, () => {
   const expectedListed = (t) => t.sql(`
@@ -198,6 +245,18 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     t.equal(same.changed, false, 'Guardar el mismo estado no cambia nada');
     await t.ok('enrollments.update', id, { status: 'ACTIVE' });
     t.equal(await status(), 'ACTIVA', 'Volvió a activa');
+    await t.logout();
+  });
+
+  test('reactivate-inactive-student', 'La inscripción cancelada de un alumno egresado o dado de baja no se reactiva', async (t) => {
+    await t.login('secretary');
+    const { graduatedEnrollment, deletedStudentEnrollment } = t.data;
+    await t.rejects('STUDENT_NOT_ACTIVE', 'enrollments.update', graduatedEnrollment, { status: 'ACTIVE' });
+    await t.rejects('STUDENT_DELETED', 'enrollments.update', deletedStudentEnrollment, { status: 'ACTIVE' });
+    const states = await t.sql(`
+      SELECT e.nombre AS estado FROM inscripcion i JOIN inscripcion_estado e USING (inscripcion_estado_id)
+       WHERE i.inscripcion_id = ANY($1::INT[])`, [[graduatedEnrollment, deletedStudentEnrollment]]);
+    t.equal(states, [{ estado: 'CANCELADA' }, { estado: 'CANCELADA' }], 'Las dos siguen canceladas');
     await t.logout();
   });
 

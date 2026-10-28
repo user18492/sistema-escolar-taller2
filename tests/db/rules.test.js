@@ -366,7 +366,15 @@ group('db.enrollments', 'Reglas de alumnos e inscripciones', {
     const toDelete = await fixtures.createStudent();
     const toDeleteEnrollment = await fixtures.enroll({ studentId: toDelete.id, courseId: course.id });
     const graduated = await fixtures.createStudent({ status: 'EGRESADO' });
-    return { course, otherCourse, pastCourse, foreignCourse, otherInstitution, student, enrollmentId, free, toDelete, toDeleteEnrollment, graduated };
+    const deletedStudent = await fixtures.createStudent({ deleted: true });
+    // Un alumno con una inscripción cancelada, que una prueba intenta reactivar, y otro con una
+    // activa dada de baja, a la que una prueba le quita la baja
+    const reactivable = await fixtures.createStudent();
+    const reactivableEnrollment = await fixtures.enroll({ studentId: reactivable.id, courseId: course.id, status: 'CANCELADA' });
+    const withDeletedActive = await fixtures.createStudent();
+    const deletedActiveEnrollment = await fixtures.enroll({ studentId: withDeletedActive.id, courseId: course.id, deleted: true });
+    return { course, otherCourse, pastCourse, foreignCourse, otherInstitution, student, enrollmentId, free, toDelete, toDeleteEnrollment, graduated,
+      deletedStudent, reactivable, reactivableEnrollment, withDeletedActive, deletedActiveEnrollment };
   },
 }, () => {
   const enrollSql = (studentId, courseId, status = 'ACTIVA', date = null) => ({
@@ -374,12 +382,91 @@ group('db.enrollments', 'Reglas de alumnos e inscripciones', {
           VALUES ($1, $2, (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = $3), COALESCE($4::date, CURRENT_DATE))`,
     params: [studentId, courseId, status, date],
   });
+  const setStudentStatus = (studentId, status) => ({
+    sql: `UPDATE alumno SET alumno_estado_id = (SELECT alumno_estado_id FROM alumno_estado WHERE nombre = $2) WHERE alumno_id = $1`,
+    params: [studentId, status],
+  });
+  const setEnrollmentStatus = (enrollmentId, status) => ({
+    sql: `UPDATE inscripcion SET inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = $2)
+           WHERE inscripcion_id = $1`,
+    params: [enrollmentId, status],
+  });
 
   test('student-checks', 'Teléfono con solo dígitos y dni y email únicos por institución (también con dados de baja)', async (t) => {
     const { student, free } = t.data;
     await rejects(t, 'teléfono con guiones', { sql: `UPDATE alumno SET telefono = '379-412-3456' WHERE alumno_id = $1`, params: [free.id] }, 'ck_alumno_telefono');
     await rejects(t, 'dni repetido', { sql: `UPDATE alumno SET dni = $2 WHERE alumno_id = $1`, params: [free.id, student.dni] }, 'uq_alumno_institucion_dni');
     await rejects(t, 'email repetido', { sql: `UPDATE alumno SET email = $2 WHERE alumno_id = $1`, params: [free.id, student.email] }, 'uq_alumno_institucion_email');
+  });
+
+  test('student-format', 'Formato de los datos del alumno: nombre y apellido sin espacios de más, dni, email en minúsculas y altura', async (t) => {
+    const update = (column, value) => ({ sql: `UPDATE alumno SET ${column} = $2 WHERE alumno_id = $1`, params: [t.data.free.id, value] });
+    const invalid = [
+      ['nombre con un espacio al principio', 'nombre', ' Alumno', 'ck_alumno_nombre'],
+      ['nombre vacío', 'nombre', '', 'ck_alumno_nombre'],
+      ['apellido con un espacio al final', 'apellido', 'Suite ', 'ck_alumno_apellido'],
+      ['dni que empieza con 0', 'dni', '0123456', 'ck_alumno_dni'],
+      ['dni de 6 dígitos', 'dni', '123456', 'ck_alumno_dni'],
+      ['email con mayúsculas', 'email', 'Formato.Alumno@prueba.edu.ar', 'ck_alumno_email'],
+      ['email sin @', 'email', 'formato.alumno.prueba.edu.ar', 'ck_alumno_email'],
+      ['altura 0', 'direccion_altura', '0', 'ck_alumno_direccion_altura'],
+      ['altura 100000', 'direccion_altura', '100000', 'ck_alumno_direccion_altura'],
+      ['altura con una letra', 'direccion_altura', '12a', 'ck_alumno_direccion_altura'],
+    ];
+    for (const [label, column, value, constraint] of invalid) {
+      await rejects(t, label, update(column, value), constraint);
+    }
+    await passes(t, 'dni de 7 dígitos', update('dni', '7654321'));
+    await passes(t, 'altura 1', update('direccion_altura', '1'));
+    await passes(t, 'altura 99999', update('direccion_altura', '99999'));
+  });
+
+  test('deleted-student-frozen', 'Un alumno dado de baja no se modifica, salvo su restauración', async (t) => {
+    const update = (set) => ({ sql: `UPDATE alumno SET ${set} WHERE alumno_id = $1`, params: [t.data.deletedStudent.id] });
+    const changes = [
+      ['cambiar el nombre', `nombre = 'Otro'`],
+      ['cambiar el estado', `alumno_estado_id = (SELECT alumno_estado_id FROM alumno_estado WHERE nombre = 'EGRESADO')`],
+      ['cambiar el email', `email = 'otro.' || email`],
+      ['un UPDATE sin cambios', 'nombre = nombre'],
+      ['cambiar la fecha de baja', `fecha_eliminacion = now() - interval '1 day'`],
+      ['restaurarlo y cambiar el nombre', `fecha_eliminacion = NULL, nombre = 'Otro'`],
+    ];
+    for (const [label, set] of changes) {
+      await rejects(t, label, update(set), 'ck_alumno_vigente');
+    }
+    await passes(t, 'restaurarlo', update('fecha_eliminacion = NULL'));
+  });
+
+  test('graduate-with-active-enrollment', 'Un alumno con una inscripción activa y vigente no pasa a egresado; un egresado sí vuelve a activo', async (t) => {
+    const { student, enrollmentId, graduated } = t.data;
+    await rejects(t, 'egreso con una inscripción activa', setStudentStatus(student.id, 'EGRESADO'), 'ck_alumno_inscripcion_activa');
+    await passes(t, 'egreso después de cancelar la inscripción', [
+      setEnrollmentStatus(enrollmentId, 'CANCELADA'),
+      setStudentStatus(student.id, 'EGRESADO'),
+    ]);
+    await passes(t, 'egreso después de dar de baja la inscripción', [
+      { sql: `UPDATE inscripcion SET fecha_eliminacion = now() WHERE inscripcion_id = $1`, params: [enrollmentId] },
+      setStudentStatus(student.id, 'EGRESADO'),
+    ]);
+    await passes(t, 'un egresado vuelve a activo', setStudentStatus(graduated.id, 'ACTIVO'));
+  });
+
+  test('inactive-student-reactivation', 'La inscripción de un alumno egresado o dado de baja no vuelve a quedar activa y vigente', async (t) => {
+    const { reactivable, reactivableEnrollment, withDeletedActive, deletedActiveEnrollment } = t.data;
+    await rejects(t, 'reactivar la cancelada de un alumno egresado', [
+      setStudentStatus(reactivable.id, 'EGRESADO'),
+      setEnrollmentStatus(reactivableEnrollment, 'ACTIVA'),
+    ], 'ck_inscripcion_alumno_activo');
+    await rejects(t, 'reactivar la cancelada de un alumno dado de baja', [
+      { sql: `UPDATE alumno SET fecha_eliminacion = now() WHERE alumno_id = $1`, params: [reactivable.id] },
+      setEnrollmentStatus(reactivableEnrollment, 'ACTIVA'),
+    ], 'ck_inscripcion_alumno_vigente');
+    // El egreso pasa: la activa está dada de baja
+    await rejects(t, 'quitarle la baja a la activa de un alumno egresado', [
+      setStudentStatus(withDeletedActive.id, 'EGRESADO'),
+      { sql: `UPDATE inscripcion SET fecha_eliminacion = NULL WHERE inscripcion_id = $1`, params: [deletedActiveEnrollment] },
+    ], 'ck_inscripcion_alumno_activo');
+    await passes(t, 'reactivar la cancelada de un alumno activo', setEnrollmentStatus(reactivableEnrollment, 'ACTIVA'));
   });
 
   test('enrollment-coherence', 'La inscripción es de la misma institución, del año del ciclo del curso y no de un ciclo cerrado, y el alumno con inscripciones conserva su institución', {
@@ -432,15 +519,14 @@ group('db.enrollments', 'Reglas de alumnos e inscripciones', {
     t.check(foreign.code === 'P0002', 'Un alumno de otra institución da no_data_found', foreign);
   });
 
-  test('deleted-student-enrollable', 'Hoy la base acepta inscribir a un alumno dado de baja o egresado', {
-    kind: 'current',
-    affectedBy: ['secretario-alumnos', 'secretario-inscripciones'],
+  test('deleted-student-enrollable', 'Un alumno dado de baja o egresado no se inscribe', {
+    history: [{ plan: 'plans/secretario-alumnos/00-base-de-datos-y-backend.md', date: '2026-10-28', change: 'La base ya no inscribe a un alumno dado de baja ni a un egresado: esperan ck_inscripcion_alumno_vigente y ck_inscripcion_alumno_activo (pasa de current a estable)' }],
   }, async (t) => {
-    await passes(t, 'alumno dado de baja', [
+    await rejects(t, 'alumno dado de baja', [
       { sql: `UPDATE alumno SET fecha_eliminacion = now() WHERE alumno_id = $1`, params: [t.data.free.id] },
       enrollSql(t.data.free.id, t.data.otherCourse.id),
-    ]);
-    await passes(t, 'alumno egresado', enrollSql(t.data.graduated.id, t.data.otherCourse.id));
+    ], 'ck_inscripcion_alumno_vigente');
+    await rejects(t, 'alumno egresado', enrollSql(t.data.graduated.id, t.data.otherCourse.id), 'ck_inscripcion_alumno_activo');
   });
 
   test('completed-in-current-cycle', 'Hoy la base acepta una inscripción finalizada en el ciclo actual', {
