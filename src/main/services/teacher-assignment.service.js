@@ -3,6 +3,7 @@ const userRepository = require('../repositories/user.repository');
 const courseRepository = require('../repositories/course.repository');
 const subjectRepository = require('../repositories/subject.repository');
 const profileImageService = require('./profile-image.service');
+const schoolYearService = require('./school-year.service');
 const { toListedCourse } = require('./course.service');
 
 // Error previsto, con un mensaje apto para la UI (como CourseError en course.service.js).
@@ -41,13 +42,15 @@ function toListedSubject(subject) {
 
 // Lista explícita de campos, como toListedCourse (course.service.js): lo que muestran la tabla de
 // Docencia y sus filtros, y los ids para identificar la fila, al profesor y a la materia. `course`
-// trae los mismos campos que un curso de listCourses.
-function toListedTeacherAssignment({ id, teacher, course, subject }) {
+// trae los mismos campos que un curso de listCourses. `hasEvaluations` dice si tiene evaluaciones
+// vigentes: entonces no se da de baja ni cambia de curso ni de materia.
+function toListedTeacherAssignment({ id, teacher, course, subject, hasEvaluations }) {
   return {
     id,
     teacher: toListedTeacher(teacher),
     course: toListedCourse(course),
     subject: toListedSubject(subject),
+    hasEvaluations,
   };
 }
 
@@ -60,7 +63,7 @@ async function listTeacherAssignments(currentUser) {
 
 // Lo que muestran de cada asignación la tabla de Asignaciones del Profesor, sus filtros y la
 // tarjeta de la vista Gestión, y los ids para identificar la asignación y la materia: los campos de
-// toListedTeacherAssignment sin el profesor, que es quien las consulta.
+// toListedTeacherAssignment sin el profesor, que es quien las consulta, ni hasEvaluations.
 function toOwnTeacherAssignment({ id, course, subject }) {
   return {
     id,
@@ -77,20 +80,25 @@ async function listOwnTeacherAssignments(currentUser) {
   return teacherAssignments.map(toOwnTeacherAssignment);
 }
 
+// La asignación no está entre las vigentes a cargo del profesor de la sesión: no existe, fue dada de
+// baja o es de otro profesor, sin distinguir los casos. Lo usan también los servicios que rechazan
+// una escritura porque otra sesión dio de baja la asignación después de comprobarla.
+function ownTeacherAssignmentNotFoundError() {
+  return new TeacherAssignmentError('TEACHER_ASSIGNMENT_NOT_FOUND', 'La asignación no existe o no está a tu cargo.');
+}
+
 // La asignación docente vigente con ese id, si está a cargo de `currentUser` (el profesor de la
 // sesión): una de las de listOwnTeacherAssignments, con sus mismos campos. El id llega del
 // renderer, así que acá se comprueba que sea suya, con el profesor de la sesión.
-// Lanza un TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND si no existe, si fue dada de baja o
-// si es de otro profesor, sin distinguir los casos: quien pide un id ajeno no se entera de si esa
-// asignación existe.
+// Lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de ownTeacherAssignmentNotFoundError
+// si no existe, si fue dada de baja o si es de otro profesor, sin distinguir los casos: quien pide
+// un id ajeno no se entera de si esa asignación existe.
 async function getOwnTeacherAssignment(currentUser, teacherAssignmentId) {
   const teacherAssignment = await teacherAssignmentRepository.findActiveByIdAndTeacher(
     teacherAssignmentId,
     currentUser.id
   );
-  if (!teacherAssignment) {
-    throw new TeacherAssignmentError('TEACHER_ASSIGNMENT_NOT_FOUND', 'La asignación no existe o no está a tu cargo.');
-  }
+  if (!teacherAssignment) throw ownTeacherAssignmentNotFoundError();
   return toOwnTeacherAssignment(teacherAssignment);
 }
 
@@ -113,13 +121,24 @@ async function findActiveTeacherAssignment(teacherAssignmentId, institutionId) {
   throw await notActiveError(teacherAssignmentId, institutionId);
 }
 
-// ---------- Alta y edición: qué se puede asignar ----------
-
-// Las asignaciones se crean para el ciclo lectivo del año en curso, el mismo que anuncia el
-// formulario y el de un curso nuevo (createCourse, course.service.js).
-function currentSchoolYear() {
-  return new Date().getFullYear();
+// Lo de un ciclo lectivo cerrado es de solo lectura: una asignación de un curso de un ciclo anterior
+// al actual no se edita ni se da de baja. `schoolYear` es el ciclo lectivo de ese curso.
+function closedSchoolYearError(schoolYear) {
+  return new TeacherAssignmentError('SCHOOL_YEAR_CLOSED', schoolYearService.closedSchoolYearMessage(schoolYear));
 }
+
+// Lanza el TeacherAssignmentError SCHOOL_YEAR_CLOSED si el curso de `teacherAssignment` (la de
+// findActiveTeacherAssignment) es de un ciclo lectivo cerrado. Se comprueba antes de escribir, para
+// que gane a los demás errores; si el ciclo se cierra en el medio, la base rechaza la escritura y
+// ese rechazo se traduce al mismo error.
+async function assertSchoolYearNotClosed(teacherAssignment) {
+  const { schoolYear } = teacherAssignment.course;
+  if (await schoolYearService.isClosedSchoolYear(schoolYear)) {
+    throw closedSchoolYearError(schoolYear);
+  }
+}
+
+// ---------- Alta y edición: qué se puede asignar ----------
 
 // Profesores de la institución que pueden recibir una asignación: los activos, sin los suspendidos
 // ni los dados de baja.
@@ -128,15 +147,17 @@ function findAssignableTeachers(institutionId) {
 }
 
 // Cursos de la institución que pueden recibir una asignación: los vigentes del ciclo lectivo en
-// curso.
+// curso, el mismo que anuncia el formulario y el de un curso nuevo (createCourse,
+// course.service.js), según la base.
 function findAssignableCourses(institutionId) {
-  return courseRepository.findByInstitution(institutionId, currentSchoolYear());
+  return courseRepository.findInCurrentSchoolYearByInstitution(institutionId);
 }
 
 // El alta, la edición y las materias de un curso solo aceptan lo que ofrecen findAssignableTeachers
 // y findAssignableCourses: los ids llegan del renderer y la lista que tiene a la vista puede haber
 // quedado vieja (otra sesión suspendió al profesor o dio de baja el curso). La excepción es la
-// asignación que se edita, que puede conservar el profesor y el curso que ya tiene.
+// asignación que se edita, que solo conserva su curso: el profesor, aunque sea el que ya tiene,
+// tiene que ser uno de findAssignableTeachers.
 function teacherNotAvailableError() {
   return new TeacherAssignmentError('TEACHER_NOT_AVAILABLE', 'El profesor elegido ya no está disponible.');
 }
@@ -148,11 +169,18 @@ async function assertAssignableTeacher(institutionId, teacherId) {
   }
 }
 
+function courseNotAvailableError() {
+  return new TeacherAssignmentError('COURSE_NOT_AVAILABLE', 'El curso elegido ya no está disponible.');
+}
+
+// Devuelve el curso elegido.
 async function assertAssignableCourse(institutionId, courseId) {
   const courses = await findAssignableCourses(institutionId);
-  if (!courses.some((course) => course.id === courseId)) {
-    throw new TeacherAssignmentError('COURSE_NOT_AVAILABLE', 'El curso elegido ya no está disponible.');
+  const course = courses.find((candidate) => candidate.id === courseId);
+  if (!course) {
+    throw courseNotAvailableError();
   }
+  return course;
 }
 
 // Profesores que ofrece el formulario de alta: los activos de la institución de `currentUser`, por
@@ -189,10 +217,18 @@ async function listAssignableSubjects(currentUser, courseId, teacherAssignmentId
 // Llama a `save` (el INSERT o el UPDATE) y devuelve su resultado. Una materia la dicta un solo
 // profesor en cada curso: si PostgreSQL rechaza el cambio porque ya tiene uno con otra asignación
 // vigente, lanza un TeacherAssignmentError DUPLICATE_VALUE con fieldErrors.subject. Y un usuario
-// dado de baja no recibe asignaciones: si otra sesión dio de baja al profesor después de comprobar
-// que se podía elegir, PostgreSQL también lo rechaza y se lanza TEACHER_NOT_AVAILABLE, como en
-// assertAssignableTeacher.
-async function saveTeacherAssignment(save) {
+// suspendido o dado de baja no recibe asignaciones ni las conserva: si otra sesión suspendió o dio
+// de baja al profesor después de comprobar que se podía elegir, PostgreSQL también lo rechaza y se
+// lanza TEACHER_NOT_AVAILABLE, como en assertAssignableTeacher. Un curso dado de baja tampoco recibe
+// asignaciones: si otra sesión lo dio de baja después de comprobar que se podía elegir, PostgreSQL
+// lo rechaza y se lanza COURSE_NOT_AVAILABLE, como en assertAssignableCourse; solo lo alcanzan el
+// alta y el cambio de curso, porque un curso con asignaciones vigentes no se da de baja. Si el ciclo
+// lectivo `schoolYear` (el del curso que se eligió o, al editar, el del que tenía la asignación) se
+// cerró después de comprobarlo, PostgreSQL lo rechaza y se lanza SCHOOL_YEAR_CLOSED. Solo al editar
+// (una asignación nueva no tiene evaluaciones): si la asignación tiene evaluaciones vigentes,
+// PostgreSQL rechaza el cambio de curso o de materia y se lanza TEACHER_ASSIGNMENT_HAS_EVALUATIONS,
+// sin fieldErrors; el cambio de profesor no, y el nuevo hereda las evaluaciones.
+async function saveTeacherAssignment(save, schoolYear) {
   try {
     return await save();
   } catch (error) {
@@ -201,8 +237,20 @@ async function saveTeacherAssignment(save) {
         subject: 'Esta materia ya tiene un profesor asignado en el curso.',
       });
     }
-    if (teacherAssignmentRepository.isDeletedTeacherError(error)) {
+    if (teacherAssignmentRepository.isUnavailableTeacherError(error)) {
       throw teacherNotAvailableError();
+    }
+    if (teacherAssignmentRepository.isDeletedCourseError(error)) {
+      throw courseNotAvailableError();
+    }
+    if (teacherAssignmentRepository.isClosedSchoolYearError(error)) {
+      throw closedSchoolYearError(schoolYear);
+    }
+    if (teacherAssignmentRepository.isWithEvaluationsError(error)) {
+      throw new TeacherAssignmentError(
+        'TEACHER_ASSIGNMENT_HAS_EVALUATIONS',
+        'La asignación tiene evaluaciones: no se puede cambiar su curso ni su materia.'
+      );
     }
     throw error;
   }
@@ -222,15 +270,17 @@ function subjectNotInGradeError() {
 // índice único de asignacion_docente al insertar, así que tampoco pasan dos altas simultáneas; una
 // asignación dada de baja no cuenta.
 // También lanza un TeacherAssignmentError si el profesor o el curso no se pueden elegir
-// (TEACHER_NOT_AVAILABLE, COURSE_NOT_AVAILABLE) o si la materia no es del grado del curso
-// (SUBJECT_NOT_IN_GRADE, con fieldErrors.subject).
+// (TEACHER_NOT_AVAILABLE, COURSE_NOT_AVAILABLE, también si otra sesión los suspendió o dio de baja
+// después de comprobarlos) o si la materia no es del grado del curso (SUBJECT_NOT_IN_GRADE, con
+// fieldErrors.subject).
 async function createTeacherAssignment(currentUser, { teacherId, courseId, subjectId }) {
   const { institutionId } = currentUser;
   await assertAssignableTeacher(institutionId, teacherId);
-  await assertAssignableCourse(institutionId, courseId);
+  const course = await assertAssignableCourse(institutionId, courseId);
 
-  const teacherAssignment = await saveTeacherAssignment(() =>
-    teacherAssignmentRepository.create({ teacherId, courseId, subjectId })
+  const teacherAssignment = await saveTeacherAssignment(
+    () => teacherAssignmentRepository.create({ teacherId, courseId, subjectId }),
+    course.schoolYear
   );
   if (!teacherAssignment) throw subjectNotInGradeError();
   return toListedTeacherAssignment(teacherAssignment);
@@ -238,28 +288,42 @@ async function createTeacherAssignment(currentUser, { teacherId, courseId, subje
 
 // Guarda el profesor, el curso y la materia de una asignación docente vigente de la institución de
 // `currentUser` y la devuelve como quedó, con los campos de listTeacherAssignments. `data` trae los
-// mismos campos que en createTeacherAssignment. La asignación puede conservar el profesor y el
-// curso que ya tiene aunque el alta no los ofrezca (un profesor suspendido, un curso de otro ciclo
-// lectivo o dado de baja); si cambian, el nuevo tiene que ser uno de listAssignableTeachers o de
-// listAssignableCourses. Su profesor nunca está dado de baja: la base no deja dar de baja a un
-// usuario con asignaciones vigentes.
+// mismos campos que en createTeacherAssignment. Si cambia de curso, el nuevo tiene que ser uno de
+// listAssignableCourses; el que ya tiene no se vuelve a comprobar: está vigente, porque un curso con
+// asignaciones vigentes no se da de baja, y es del ciclo lectivo actual, porque las de un ciclo
+// cerrado no se editan. El profesor, aunque sea el que ya tiene, tiene que ser uno de
+// listAssignableTeachers: si quedó suspendido, hay que reemplazarlo. Nunca está dado de baja: la base
+// no deja dar de baja a un usuario con asignaciones vigentes del ciclo lectivo actual. Una
+// asignación de un curso de un ciclo lectivo cerrado no se edita.
+// Con evaluaciones vigentes, la asignación conserva su curso y su materia: se le puede cambiar el
+// profesor, y el nuevo hereda las evaluaciones y sus calificaciones, pero el cambio de curso o de
+// materia se rechaza. Lo decide la base, que retiene la fila al modificarla, sin control previo:
+// así tampoco pasa un cambio simultáneo con el alta de una evaluación.
 // La unicidad es la del alta, sin contar a la propia asignación: si la materia ya tiene un profesor
 // en ese curso con otra asignación vigente, no se guarda nada y se lanza un TeacherAssignmentError
 // DUPLICATE_VALUE con fieldErrors.subject. La aplica el mismo índice único al modificar la fila,
 // que no choca consigo misma: guardarla sin cambios, o cambiarle solo el profesor, no es un
 // duplicado, y tampoco pasan dos ediciones simultáneas.
 // También lanza un TeacherAssignmentError si la asignación no existe en la institución
-// (TEACHER_ASSIGNMENT_NOT_FOUND) o fue dada de baja (TEACHER_ASSIGNMENT_ALREADY_DELETED), si el
-// profesor o el curso nuevos no se pueden elegir (TEACHER_NOT_AVAILABLE, COURSE_NOT_AVAILABLE) o si
-// la materia no es del grado del curso (SUBJECT_NOT_IN_GRADE, con fieldErrors.subject).
+// (TEACHER_ASSIGNMENT_NOT_FOUND) o fue dada de baja (TEACHER_ASSIGNMENT_ALREADY_DELETED), si su
+// curso es de un ciclo lectivo cerrado (SCHOOL_YEAR_CLOSED, que gana a los errores siguientes), si
+// el profesor no se puede elegir (TEACHER_NOT_AVAILABLE, también el que ya tenía), si el curso
+// nuevo no se puede elegir (COURSE_NOT_AVAILABLE, también si otra sesión lo dio de baja después de
+// comprobarlo), si tiene evaluaciones vigentes y cambia el curso o la materia
+// (TEACHER_ASSIGNMENT_HAS_EVALUATIONS, sin fieldErrors, que gana a DUPLICATE_VALUE: el trigger corre
+// antes que el índice único) o si la materia no es del grado del curso (SUBJECT_NOT_IN_GRADE, con
+// fieldErrors.subject; con ella el UPDATE no modifica nada, así que no llega a
+// TEACHER_ASSIGNMENT_HAS_EVALUATIONS).
 async function updateTeacherAssignment(currentUser, teacherAssignmentId, { teacherId, courseId, subjectId }) {
   const { institutionId } = currentUser;
   const currentAssignment = await findActiveTeacherAssignment(teacherAssignmentId, institutionId);
-  if (teacherId !== currentAssignment.teacher.id) await assertAssignableTeacher(institutionId, teacherId);
+  await assertSchoolYearNotClosed(currentAssignment);
+  await assertAssignableTeacher(institutionId, teacherId);
   if (courseId !== currentAssignment.course.id) await assertAssignableCourse(institutionId, courseId);
 
-  const updatedAssignment = await saveTeacherAssignment(() =>
-    teacherAssignmentRepository.update(teacherAssignmentId, institutionId, { teacherId, courseId, subjectId })
+  const updatedAssignment = await saveTeacherAssignment(
+    () => teacherAssignmentRepository.update(teacherAssignmentId, institutionId, { teacherId, courseId, subjectId }),
+    currentAssignment.course.schoolYear
   );
   if (updatedAssignment) return toListedTeacherAssignment(updatedAssignment);
   // El UPDATE no modificó nada: otra sesión dio de baja la asignación después de consultarla (lo
@@ -273,15 +337,35 @@ async function updateTeacherAssignment(currentUser, teacherAssignmentId, { teach
 // Baja lógica de una asignación docente de la institución de `currentUser`: la fila queda con su
 // fecha de baja, deja de listarse y su materia vuelve a estar entre las de listAssignableSubjects
 // para ese curso, así que se puede asignar a otro profesor. Se puede dar de baja cualquiera de las
-// de listTeacherAssignments, también las de otro ciclo lectivo, las de un profesor suspendido y las
-// de un curso dado de baja.
+// de listTeacherAssignments del ciclo lectivo actual sin evaluaciones vigentes (hasEvaluations
+// false), también las de un profesor suspendido; las de un ciclo cerrado no. Su curso está vigente:
+// uno con asignaciones vigentes no se da de baja. Las evaluaciones las decide la base, que retiene
+// la fila al darla de baja, sin control previo: así tampoco pasa una baja simultánea con el alta de
+// una evaluación.
 // Devuelve la asignación dada de baja, con los campos de listTeacherAssignments. Lanza un
-// TeacherAssignmentError si no existe en la institución (TEACHER_ASSIGNMENT_NOT_FOUND) o si ya
-// estaba dada de baja (TEACHER_ASSIGNMENT_ALREADY_DELETED).
+// TeacherAssignmentError si no existe en la institución (TEACHER_ASSIGNMENT_NOT_FOUND), si ya
+// estaba dada de baja (TEACHER_ASSIGNMENT_ALREADY_DELETED), si su curso es de un ciclo lectivo
+// cerrado (SCHOOL_YEAR_CLOSED) o si tiene evaluaciones vigentes
+// (TEACHER_ASSIGNMENT_HAS_EVALUATIONS).
 async function deleteTeacherAssignment(currentUser, teacherAssignmentId) {
   const { institutionId } = currentUser;
-  const deletedAssignment = await teacherAssignmentRepository.markAsDeleted(teacherAssignmentId, institutionId);
+  const teacherAssignment = await findActiveTeacherAssignment(teacherAssignmentId, institutionId);
+  await assertSchoolYearNotClosed(teacherAssignment);
+
+  let deletedAssignment;
+  try {
+    deletedAssignment = await teacherAssignmentRepository.markAsDeleted(teacherAssignmentId, institutionId);
+  } catch (error) {
+    if (teacherAssignmentRepository.isClosedSchoolYearError(error)) {
+      throw closedSchoolYearError(teacherAssignment.course.schoolYear);
+    }
+    if (teacherAssignmentRepository.isWithEvaluationsError(error)) {
+      throw new TeacherAssignmentError('TEACHER_ASSIGNMENT_HAS_EVALUATIONS', 'La asignación tiene evaluaciones: no se puede eliminar.');
+    }
+    throw error;
+  }
   if (deletedAssignment) return toListedTeacherAssignment(deletedAssignment);
+  // El UPDATE no marcó nada: otra sesión dio de baja la asignación después de consultarla.
   throw await notActiveError(teacherAssignmentId, institutionId);
 }
 
@@ -289,6 +373,7 @@ module.exports = {
   listTeacherAssignments,
   listOwnTeacherAssignments,
   getOwnTeacherAssignment,
+  ownTeacherAssignmentNotFoundError,
   listAssignableTeachers,
   listAssignableCourses,
   listAssignableSubjects,

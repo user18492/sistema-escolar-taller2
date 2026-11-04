@@ -1,6 +1,7 @@
 const scoreRepository = require('../repositories/score.repository');
 const enrollmentRepository = require('../repositories/enrollment.repository');
 const evaluationService = require('./evaluation.service');
+const schoolYearService = require('./school-year.service');
 const { toListedStudent } = require('./enrollment.service');
 
 // Error previsto, con un mensaje apto para la UI (como TeacherAssignmentError en
@@ -29,6 +30,46 @@ function isScoreValue(value) {
     value <= MAX_SCORE_VALUE &&
     Number(value.toFixed(SCORE_VALUE_DECIMALS)) === value
   );
+}
+
+// ---------- Ciclo lectivo cerrado ----------
+
+// Lo de un ciclo lectivo cerrado es de solo lectura: en una evaluación de un curso de un ciclo
+// anterior al actual no se cargan, no se corrigen ni se dan de baja calificaciones. `schoolYear` es
+// el ciclo lectivo de ese curso.
+function closedSchoolYearError(schoolYear) {
+  return new ScoreError('SCHOOL_YEAR_CLOSED', schoolYearService.closedSchoolYearMessage(schoolYear));
+}
+
+// Lanza el ScoreError SCHOOL_YEAR_CLOSED si el curso de `teacherAssignment` (la de
+// getOwnAssignmentEvaluation) es de un ciclo lectivo cerrado. Se comprueba apenas se comprueban la
+// asignación y la evaluación, antes de validar la nota, para que gane a los demás errores; si el
+// ciclo se cierra en el medio, la base rechaza la escritura y ese rechazo se traduce al mismo error.
+async function assertSchoolYearNotClosed(teacherAssignment) {
+  const { schoolYear } = teacherAssignment.course;
+  if (await schoolYearService.isClosedSchoolYear(schoolYear)) {
+    throw closedSchoolYearError(schoolYear);
+  }
+}
+
+// ---------- Evaluación ya tomada ----------
+
+// Una calificación se carga o se corrige a partir de la fecha de su evaluación: antes, la evaluación
+// todavía no se tomó.
+function futureEvaluationError() {
+  return new ScoreError(
+    'EVALUATION_IN_FUTURE',
+    'La evaluación todavía no se tomó: se puede calificar a partir de su fecha.'
+  );
+}
+
+// Lanza el ScoreError EVALUATION_IN_FUTURE si la fecha de `evaluation` (la de
+// getOwnAssignmentEvaluation, 'AAAA-MM-DD') es posterior a hoy, con la fecha de la base
+// (getCurrentSchoolYear). Si la evaluación pasa a una fecha futura en el medio, la base rechaza la
+// escritura (trg_calificacion_coherencia, db/schema.sql) y ese rechazo se traduce al mismo error.
+async function assertEvaluationTaken(evaluation) {
+  const { today } = await schoolYearService.getCurrentSchoolYear();
+  if (evaluation.evaluationDate > today) throw futureEvaluationError();
 }
 
 // ---------- Inscripción vigente ----------
@@ -81,7 +122,7 @@ function toListedScore(enrollment, score) {
 // Los ids llegan del renderer, así que antes se comprueba que la asignación sea suya y que la
 // evaluación sea de esa asignación (getOwnAssignmentEvaluation): el curso sale de la asignación y
 // nunca de lo que envía el renderer.
-// Devuelve { evaluation, scores }, con la evaluación como en listOwnAssignmentEvaluations.
+// Devuelve { evaluation, scores }, con la evaluación como en getOwnAssignmentEvaluation.
 // Lanza los errores de getOwnAssignmentEvaluation: TEACHER_ASSIGNMENT_NOT_FOUND y
 // EVALUATION_NOT_FOUND.
 async function listOwnEvaluationScores(currentUser, teacherAssignmentId, evaluationId) {
@@ -135,25 +176,43 @@ async function createOrUpdateScore(evaluationId, enrollmentId, value) {
 // no existe o es de otro curso, sin distinguir los casos, ENROLLMENT_DELETED si se dio de baja y
 // ENROLLMENT_NOT_ACTIVE si fue finalizada o cancelada.
 // También lanza los errores de getOwnAssignmentEvaluation: TEACHER_ASSIGNMENT_NOT_FOUND y
-// EVALUATION_NOT_FOUND.
+// EVALUATION_NOT_FOUND, un ScoreError SCHOOL_YEAR_CLOSED si la evaluación es de un curso de un
+// ciclo lectivo cerrado y un ScoreError EVALUATION_IN_FUTURE si su fecha todavía no llegó, con la
+// fecha de la base (assertEvaluationTaken). Se comprueban en ese orden, y todos ganan a
+// INVALID_SCORE y a los errores de la inscripción. PostgreSQL vuelve a comprobar al guardar que la
+// evaluación siga vigente y que su fecha ya haya llegado (trg_calificacion_coherencia), por si
+// cambia en el medio: esos rechazos se traducen a EVALUATION_NOT_FOUND, con el mismo mensaje que
+// el de getOwnAssignmentEvaluation, y a EVALUATION_IN_FUTURE.
 async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluationId, { enrollmentId, value }) {
+  const { teacherAssignment, evaluation } = await evaluationService.getOwnAssignmentEvaluation(
+    currentUser,
+    teacherAssignmentId,
+    evaluationId
+  );
+  await assertSchoolYearNotClosed(teacherAssignment);
+  await assertEvaluationTaken(evaluation);
   if (!isScoreValue(value)) {
     throw new ScoreError(
       'INVALID_SCORE',
       `La calificación tiene que ser un número de ${MIN_SCORE_VALUE} a ${MAX_SCORE_VALUE}, con hasta dos decimales.`
     );
   }
-  const { teacherAssignment, evaluation } = await evaluationService.getOwnAssignmentEvaluation(
-    currentUser,
-    teacherAssignmentId,
-    evaluationId
-  );
   await assertEnrollmentNotDeleted(teacherAssignment.course.id, enrollmentId, 'cargar ni modificar');
 
   let score;
   try {
     score = await createOrUpdateScore(evaluation.id, enrollmentId, value);
   } catch (error) {
+    if (scoreRepository.isClosedSchoolYearError(error)) {
+      throw closedSchoolYearError(teacherAssignment.course.schoolYear);
+    }
+    // La evaluación se dio de baja o pasó a una fecha futura después de consultarla
+    if (scoreRepository.isEvaluationDeletedError(error)) {
+      throw evaluationService.evaluationNotFoundError();
+    }
+    if (scoreRepository.isFutureEvaluationError(error)) {
+      throw futureEvaluationError();
+    }
     if (scoreRepository.isEnrollmentNotInCourseError(error)) {
       throw new ScoreError('ENROLLMENT_NOT_FOUND', 'El alumno no está inscripto en el curso de esta evaluación.');
     }
@@ -191,19 +250,24 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
 // de baja, tenga o no una calificación vigente, y ENROLLMENT_NOT_ACTIVE si fue finalizada o
 // cancelada.
 // También lanza los errores de getOwnAssignmentEvaluation: TEACHER_ASSIGNMENT_NOT_FOUND y
-// EVALUATION_NOT_FOUND.
+// EVALUATION_NOT_FOUND, y un ScoreError SCHOOL_YEAR_CLOSED si la evaluación es de un curso de un
+// ciclo lectivo cerrado, que gana a los errores de la inscripción y a SCORE_NOT_FOUND.
 async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evaluationId, enrollmentId) {
   const { teacherAssignment, evaluation } = await evaluationService.getOwnAssignmentEvaluation(
     currentUser,
     teacherAssignmentId,
     evaluationId
   );
+  await assertSchoolYearNotClosed(teacherAssignment);
   await assertEnrollmentNotDeleted(teacherAssignment.course.id, enrollmentId, 'eliminar');
 
   let deletedScore;
   try {
     deletedScore = await scoreRepository.markAsDeleted(evaluation.id, enrollmentId);
   } catch (error) {
+    if (scoreRepository.isClosedSchoolYearError(error)) {
+      throw closedSchoolYearError(teacherAssignment.course.schoolYear);
+    }
     if (scoreRepository.isEnrollmentDeletedError(error)) {
       throw enrollmentDeletedError('eliminar');
     }

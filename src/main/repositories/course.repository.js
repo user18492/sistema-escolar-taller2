@@ -3,7 +3,10 @@ const { Course } = require('../models/course.model');
 const { EDUCATION_LEVEL_BY_COLUMN_VALUE } = require('./grade.repository');
 
 // Listado de los cursos vigentes de una institución (los dados de baja no se listan), de todos los
-// ciclos lectivos o, si $2 no es null, solo de ese, con el nombre y el nivel educativo de su grado.
+// ciclos lectivos o, si $2 no es null, solo de ese, con el nombre y el nivel educativo de su grado,
+// y si tienen asignaciones docentes vigentes (`tiene_asignaciones`) e inscripciones vigentes, en
+// cualquier estado (`tiene_inscripciones`): con alguna, la base no deja editarlos ni darlos de baja
+// (trg_curso_coherencia, db/schema.sql).
 // El orden es total: primero el ciclo lectivo más reciente y, dentro de cada uno, primaria antes
 // que secundaria, el grado (del catálogo, de 1° a 6°), la división y el turno; curso_id desempata,
 // así dos consultas sobre los mismos datos dan siempre el mismo orden.
@@ -15,7 +18,15 @@ const FIND_BY_INSTITUTION_SQL = `
          c.turno,
          c.anio_ciclo_lectivo,
          g.nombre AS grado_nombre,
-         g.nivel_educativo
+         g.nivel_educativo,
+         EXISTS (SELECT 1
+                   FROM asignacion_docente a
+                  WHERE a.curso_id = c.curso_id
+                    AND a.fecha_eliminacion IS NULL) AS tiene_asignaciones,
+         EXISTS (SELECT 1
+                   FROM inscripcion i
+                  WHERE i.curso_id = c.curso_id
+                    AND i.fecha_eliminacion IS NULL) AS tiene_inscripciones
     FROM curso c
     JOIN grado g ON g.grado_id = c.grado_id
    WHERE c.institucion_id = $1
@@ -26,8 +37,9 @@ const FIND_BY_INSTITUTION_SQL = `
 
 // Los cursos vigentes de una institución del ciclo lectivo del año en curso, con el nombre y el
 // nivel educativo de su grado, en el orden de FIND_BY_INSTITUTION_SQL. El año en curso lo resuelve
-// la base (CURRENT_DATE), con el mismo reloj que la fecha de una inscripción nueva, cuyo año
-// trg_inscripcion_fecha_ciclo_lectivo (db/schema.sql) exige que sea el ciclo lectivo del curso.
+// la base (fn_anio_ciclo_lectivo_actual, db/schema.sql), con la misma fecha que la de una
+// inscripción nueva, cuyo año trg_inscripcion_fecha_ciclo_lectivo exige que sea el ciclo lectivo
+// del curso.
 const FIND_IN_CURRENT_SCHOOL_YEAR_BY_INSTITUTION_SQL = `
   SELECT c.curso_id,
          c.institucion_id,
@@ -41,7 +53,7 @@ const FIND_IN_CURRENT_SCHOOL_YEAR_BY_INSTITUTION_SQL = `
     JOIN grado g ON g.grado_id = c.grado_id
    WHERE c.institucion_id = $1
      AND c.fecha_eliminacion IS NULL
-     AND c.anio_ciclo_lectivo = EXTRACT(YEAR FROM CURRENT_DATE)::INT
+     AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
    ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id
 `;
 
@@ -72,11 +84,13 @@ const FIND_ACTIVE_BY_ID_SQL = `
      AND c.fecha_eliminacion IS NULL
 `;
 
-// Alta en la institución. Devuelve la fila creada, con el nombre y el nivel educativo de su grado.
+// Alta en la institución, para el ciclo lectivo actual, que resuelve la base
+// (fn_anio_ciclo_lectivo_actual, db/schema.sql). Devuelve la fila creada, con el nombre y el nivel
+// educativo de su grado.
 const CREATE_SQL = `
   WITH created AS (
     INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
-    VALUES ($1, $2, $3, $4, $5)
+    VALUES ($1, $2, $3, $4, fn_anio_ciclo_lectivo_actual())
     RETURNING curso_id, institucion_id, grado_id, division, turno, anio_ciclo_lectivo
   )
   SELECT c.curso_id,
@@ -91,8 +105,10 @@ const CREATE_SQL = `
     JOIN grado g ON g.grado_id = c.grado_id
 `;
 
-// Edición: solo modifica un curso vigente de la institución y conserva su ciclo lectivo. Devuelve
-// la fila como quedó, con el nombre y el nivel educativo de su grado.
+// Edición: solo modifica un curso vigente de la institución y conserva su ciclo lectivo; la base
+// tampoco deja modificar uno dado de baja. Si el curso tiene asignaciones docentes vigentes o
+// inscripciones vigentes, la base rechaza el cambio, aunque los valores sean los que ya tenía.
+// Devuelve la fila como quedó, con el nombre y el nivel educativo de su grado.
 const UPDATE_SQL = `
   WITH updated AS (
     UPDATE curso
@@ -117,8 +133,9 @@ const UPDATE_SQL = `
 `;
 
 // Baja lógica: la fila se conserva con la fecha de baja. Solo marca un curso vigente de la
-// institución, así una segunda baja (repetida o simultánea) no pisa la fecha de la primera.
-// Devuelve la fila, con el nombre y el nivel educativo de su grado.
+// institución, así una segunda baja (repetida o simultánea) no pisa la fecha de la primera; la base
+// tampoco lo permitiría. Si el curso tiene asignaciones docentes vigentes o inscripciones vigentes,
+// la base rechaza la baja. Devuelve la fila, con el nombre y el nivel educativo de su grado.
 const MARK_AS_DELETED_SQL = `
   WITH deleted AS (
     UPDATE curso
@@ -162,12 +179,23 @@ const COLUMN_VALUE_BY_SHIFT = Object.fromEntries(
 // Turnos que admite curso.turno, con los códigos del sistema.
 const SHIFTS = Object.keys(COLUMN_VALUE_BY_SHIFT);
 
-// Índice único y clave foránea de curso (con los nombres que les da db/schema.sql) que rechazan un
-// alta o una edición por un motivo previsto: la institución ya tiene ese curso vigente o su grado no
-// está en el catálogo. PostgreSQL informa el nombre del índice como el de una restricción.
+// Índice único, clave foránea y restricción de curso (con los nombres que les da db/schema.sql) que
+// rechazan un alta, una edición o una baja por un motivo previsto: la institución ya tiene ese curso
+// vigente, su grado no está en el catálogo o el curso es de un ciclo lectivo cerrado (la informa
+// trg_curso_ciclo_lectivo). PostgreSQL informa el nombre del índice como el de una restricción.
 const UNIQUE_INDEX = 'uq_curso_institucion_grado_division_turno_anio_ciclo_lectivo';
 const GRADE_FOREIGN_KEY = 'fk_curso_grado';
+const CLOSED_SCHOOL_YEAR_CONSTRAINT = 'ck_curso_ciclo_lectivo_cerrado';
 
+// Reglas que valida trg_curso_coherencia, con el nombre que informa cada una (db/schema.sql): un
+// curso con asignaciones docentes vigentes o con inscripciones vigentes no se edita ni se da de
+// baja. La de las asignaciones también la informa trg_curso_asignaciones_vigentes, que dispara
+// antes con el cambio de grado.
+const WITH_TEACHER_ASSIGNMENTS_CONSTRAINT = 'ck_curso_asignaciones_vigentes';
+const WITH_ENROLLMENTS_CONSTRAINT = 'ck_curso_inscripciones_vigentes';
+
+// `hasTeacherAssignments` y `hasEnrollments` solo llegan de FIND_BY_INSTITUTION_SQL; con las demás
+// consultas quedan undefined.
 function toCourse(row) {
   return new Course({
     id: row.curso_id,
@@ -178,12 +206,14 @@ function toCourse(row) {
     division: row.division,
     shift: SHIFT_BY_COLUMN_VALUE[row.turno],
     schoolYear: row.anio_ciclo_lectivo,
+    hasTeacherAssignments: row.tiene_asignaciones,
+    hasEnrollments: row.tiene_inscripciones,
   });
 }
 
 // Cursos vigentes de la institución, de todos los ciclos lectivos o, con `schoolYear` (un año), solo
 // de ese, ordenados por ciclo lectivo (el más reciente primero), nivel educativo, grado, división y
-// turno.
+// turno, con hasTeacherAssignments y hasEnrollments.
 async function findByInstitution(institutionId, schoolYear = null) {
   const { rows } = await query(FIND_BY_INSTITUTION_SQL, [institutionId, schoolYear]);
   return rows.map(toCourse);
@@ -209,17 +239,16 @@ async function findActiveById(courseId, institutionId) {
   return rows.length > 0 ? toCourse(rows[0]) : null;
 }
 
-// Crea un curso en la institución. `gradeId` es un grado_id del catálogo, `division` una letra
-// mayúscula, `shift` uno de SHIFTS y `schoolYear` el año del ciclo lectivo. Devuelve el curso
-// creado. Si ya hay uno igual vigente en la institución o el grado no existe, PostgreSQL rechaza
-// el alta: ver isDuplicateError e isUnknownGradeError.
-async function create(institutionId, { gradeId, division, shift, schoolYear }) {
+// Crea un curso en la institución, del ciclo lectivo actual según la base. `gradeId` es un grado_id
+// del catálogo, `division` una letra mayúscula y `shift` uno de SHIFTS. Devuelve el curso creado.
+// Si ya hay uno igual vigente en la institución en el ciclo lectivo o el grado no existe,
+// PostgreSQL rechaza el alta: ver isDuplicateError e isUnknownGradeError.
+async function create(institutionId, { gradeId, division, shift }) {
   const { rows } = await query(CREATE_SQL, [
     institutionId,
     gradeId,
     division,
     COLUMN_VALUE_BY_SHIFT[shift],
-    schoolYear,
   ]);
   return toCourse(rows[0]);
 }
@@ -228,7 +257,9 @@ async function create(institutionId, { gradeId, division, shift, schoolYear }) {
 // valores que admite create; el ciclo lectivo no cambia. Devuelve el curso como quedó; null si no
 // existe en la institución o fue dado de baja. Si la institución ya tiene otro curso vigente igual
 // en ese ciclo lectivo o el grado no existe, PostgreSQL rechaza el cambio: ver isDuplicateError e
-// isUnknownGradeError.
+// isUnknownGradeError; también si el curso es de un ciclo lectivo cerrado: ver
+// isClosedSchoolYearError, y si tiene asignaciones docentes vigentes o inscripciones vigentes,
+// aunque se guarde sin cambios: ver isWithTeacherAssignmentsError e isWithEnrollmentsError.
 async function update(courseId, institutionId, { gradeId, division, shift }) {
   const { rows } = await query(UPDATE_SQL, [
     courseId,
@@ -241,7 +272,10 @@ async function update(courseId, institutionId, { gradeId, division, shift }) {
 }
 
 // Da de baja el curso, que deja de listarse. Devuelve el curso dado de baja; null si no existe en
-// la institución o ya estaba dado de baja.
+// la institución o ya estaba dado de baja. PostgreSQL rechaza la baja si el curso es de un ciclo
+// lectivo cerrado: ver isClosedSchoolYearError, y si tiene asignaciones docentes vigentes o
+// inscripciones vigentes: ver isWithTeacherAssignmentsError e isWithEnrollmentsError. La baja es
+// definitiva: la base no deja modificar ni restaurar un curso dado de baja.
 async function markAsDeleted(courseId, institutionId) {
   const { rows } = await query(MARK_AS_DELETED_SQL, [courseId, institutionId]);
   return rows.length > 0 ? toCourse(rows[0]) : null;
@@ -264,6 +298,24 @@ function isUnknownGradeError(error) {
   return error?.code === '23503' && error.constraint === GRADE_FOREIGN_KEY;
 }
 
+// true si `error` es el rechazo de trg_curso_ciclo_lectivo a la edición o la baja de un curso de un
+// ciclo lectivo cerrado: ese ciclo queda en solo lectura.
+function isClosedSchoolYearError(error) {
+  return error?.code === '23514' && error.constraint === CLOSED_SCHOOL_YEAR_CONSTRAINT;
+}
+
+// true si `error` indica que el curso tiene asignaciones docentes vigentes: no se edita ni se da de
+// baja.
+function isWithTeacherAssignmentsError(error) {
+  return error?.code === '23514' && error.constraint === WITH_TEACHER_ASSIGNMENTS_CONSTRAINT;
+}
+
+// true si `error` indica que el curso tiene inscripciones vigentes, en cualquier estado: no se
+// edita ni se da de baja.
+function isWithEnrollmentsError(error) {
+  return error?.code === '23514' && error.constraint === WITH_ENROLLMENTS_CONSTRAINT;
+}
+
 module.exports = {
   findByInstitution,
   findInCurrentSchoolYearByInstitution,
@@ -275,6 +327,9 @@ module.exports = {
   existsInInstitution,
   isDuplicateError,
   isUnknownGradeError,
+  isClosedSchoolYearError,
+  isWithTeacherAssignmentsError,
+  isWithEnrollmentsError,
   SHIFTS,
   SHIFT_BY_COLUMN_VALUE,
   COLUMN_VALUE_BY_SHIFT,

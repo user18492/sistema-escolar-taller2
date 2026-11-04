@@ -1,10 +1,10 @@
 const enrollmentRepository = require('../repositories/enrollment.repository');
 const studentRepository = require('../repositories/student.repository');
 const courseRepository = require('../repositories/course.repository');
-const scoreRepository = require('../repositories/score.repository');
 const institutionRepository = require('../repositories/institution.repository');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const teacherAssignmentService = require('./teacher-assignment.service');
+const schoolYearService = require('./school-year.service');
 const pdfService = require('./pdf.service');
 const { toListedCourse } = require('./course.service');
 const { toIsoDate } = require('./user.service');
@@ -110,7 +110,9 @@ function toInstitutionEnrollment({ id, student, course, enrollmentDate, status }
 // Una página de las inscripciones vigentes (sin baja lógica) de la institución de `currentUser`
 // (el de la sesión) que pasan `filters`, de todos los ciclos lectivos y en cualquier estado, sin las
 // de alumnos dados de baja (vuelven al restaurarlo), en el orden del repositorio: por alumno
-// (apellido y nombre). Filtrar y paginar se hace sobre todas, en la base.
+// (apellido y nombre). Filtrar y paginar se hace sobre todas, en la base. Cada una lleva los campos
+// de toInstitutionEnrollment y `hasScores`: true si tiene calificaciones vigentes, con las que no se
+// da de baja (deleteEnrollment). Las demás respuestas no lo traen.
 // `filters` trae enrollmentIds, studentIds, grades ({ educationLevel, gradeName }), divisions,
 // shifts y statuses, cada uno un arreglo, vacío si no filtra (ver countNotDeletedByInstitution,
 // enrollment.repository.js). `page` es la página pedida (1 la primera) y `pageSize`, cuántas
@@ -137,7 +139,14 @@ async function listEnrollments(currentUser, filters, page, pageSize, enrollmentI
       limit: pageSize,
     })
     : [];
-  return { enrollments: enrollments.map(toInstitutionEnrollment), total, page: currentPage };
+  return {
+    enrollments: enrollments.map((enrollment) => ({
+      ...toInstitutionEnrollment(enrollment),
+      hasScores: enrollment.hasScores,
+    })),
+    total,
+    page: currentPage,
+  };
 }
 
 // Opciones de los filtros Número de inscripción y Alumno de la tabla de Inscripciones del
@@ -255,8 +264,9 @@ async function alreadyEnrolledError(student, course) {
 // Si PostgreSQL rechaza el alta por una restricción de db/schema.sql, lanza un EnrollmentError:
 // STUDENT_ALREADY_ENROLLED si el alumno ya tiene una inscripción vigente y activa
 // (ck_inscripcion_alumno_una_activa) y COURSE_OUT_OF_SCHOOL_YEAR si el curso no es del ciclo lectivo
-// del año en curso (ck_inscripcion_fecha_ciclo_lectivo: la fecha de inscripción es la del día, y su
-// año tiene que ser el ciclo lectivo del curso).
+// del año en curso: ck_inscripcion_ciclo_lectivo_cerrado si es de un ciclo cerrado, que queda en
+// solo lectura, y ck_inscripcion_fecha_ciclo_lectivo si no (la fecha de inscripción es la del día, y
+// su año tiene que ser el ciclo lectivo del curso). Los dos dan el mismo mensaje.
 async function saveEnrollment(institutionId, student, course) {
   try {
     return await enrollmentRepository.create(institutionId, {
@@ -268,7 +278,7 @@ async function saveEnrollment(institutionId, student, course) {
     if (enrollmentRepository.isSecondActiveEnrollmentError(error)) {
       throw await alreadyEnrolledError(student, course);
     }
-    if (enrollmentRepository.isDateOutOfSchoolYearError(error)) {
+    if (enrollmentRepository.isClosedSchoolYearError(error) || enrollmentRepository.isDateOutOfSchoolYearError(error)) {
       throw new EnrollmentError(
         'COURSE_OUT_OF_SCHOOL_YEAR',
         `El curso elegido es del ciclo lectivo ${course.schoolYear}: solo se puede inscribir en un curso durante el año de su ciclo lectivo.`
@@ -327,6 +337,24 @@ async function findNotDeletedEnrollment(institutionId, enrollmentId) {
   return enrollment;
 }
 
+// Lo de un ciclo lectivo cerrado es de solo lectura: una inscripción de un curso de un ciclo anterior
+// al actual no se edita ni se da de baja, en ningún estado, tampoco de activa a finalizada. La base
+// sí acepta ese cambio, pero solo para el cierre del ciclo (school-year.service.js): una inscripción
+// llega a finalizada únicamente así, y la base también rechaza una finalizada en el ciclo actual
+// (ck_inscripcion_finalizada_ciclo_cerrado).
+function closedSchoolYearError(enrollment) {
+  return new EnrollmentError('SCHOOL_YEAR_CLOSED', schoolYearService.closedSchoolYearMessage(enrollment.course.schoolYear));
+}
+
+// Lanza el EnrollmentError SCHOOL_YEAR_CLOSED si el curso de `enrollment` (la de findById) es de un
+// ciclo lectivo cerrado. Se comprueba antes de escribir, para que gane a los demás errores; si el
+// ciclo se cierra en el medio, la base rechaza la escritura y ese rechazo se traduce al mismo error.
+async function assertSchoolYearNotClosed(enrollment) {
+  if (await schoolYearService.isClosedSchoolYear(enrollment.course.schoolYear)) {
+    throw closedSchoolYearError(enrollment);
+  }
+}
+
 // La inscripción vigente con ese id de la institución de `currentUser` (el de la sesión), con los
 // campos de listEnrollments: el formulario de edición muestra su estado actual. Como el listado, la
 // devuelve de cualquier ciclo lectivo y en cualquier estado.
@@ -335,10 +363,19 @@ async function getEnrollment(currentUser, enrollmentId) {
   return toInstitutionEnrollment(await findNotDeletedEnrollment(currentUser.institutionId, enrollmentId));
 }
 
-// Lanza el EnrollmentError INVALID_INPUT si `status` no es ACTIVE, COMPLETED ni CANCELLED.
+// Estados a los que la edición pasa una inscripción. COMPLETED no: una inscripción llega a
+// finalizada solo con el cierre del ciclo lectivo (ver closedSchoolYearError). Los filtros del
+// listado sí aceptan COMPLETED (FILTER_VALIDATORS).
+const EDITABLE_STATUSES = ['ACTIVE', 'CANCELLED'];
+
+// Lanza el EnrollmentError INVALID_INPUT si `status` no es ACTIVE ni CANCELLED, también si es
+// COMPLETED.
 function assertValidStatus(status) {
-  if (!enrollmentRepository.STATUSES.includes(status)) {
-    throw new EnrollmentError('INVALID_INPUT', 'Elegí un estado válido.');
+  if (!EDITABLE_STATUSES.includes(status)) {
+    throw new EnrollmentError(
+      'INVALID_INPUT',
+      'Elegí Activa o Cancelada: una inscripción pasa a finalizada solo con el cierre del ciclo lectivo.'
+    );
   }
 }
 
@@ -354,14 +391,14 @@ function anotherActiveEnrollmentError(enrollment, activeEnrollment) {
   return new EnrollmentError(
     'STUDENT_ALREADY_ENROLLED',
     `${name} ya tiene otra inscripción activa: ${formatEnrollmentNumber(activeEnrollment.id)}. Un alumno solo puede ` +
-      'tener una: para activar esta, primero hay que cancelar o finalizar aquella.'
+      'tener una: para activar esta, primero hay que cancelar aquella.'
   );
 }
 
 // Lanza el EnrollmentError STUDENT_ALREADY_ENROLLED de anotherActiveEnrollmentError si el alumno de
 // `enrollment` tiene una inscripción vigente y activa que no es esa. Cuenta la misma que
-// ck_inscripcion_alumno_una_activa: también si es de un ciclo anterior o de un curso dado de baja,
-// pero no si está dada de baja.
+// ck_inscripcion_alumno_una_activa: también si es de un ciclo anterior, pero no si está dada de baja.
+// Una vigente nunca es de un curso dado de baja: uno con inscripciones vigentes no se da de baja.
 async function assertNoOtherActiveEnrollment(enrollment) {
   const activeEnrollment = await enrollmentRepository.findActiveByStudent(enrollment.student.id);
   if (activeEnrollment && activeEnrollment.id !== enrollment.id) {
@@ -373,8 +410,12 @@ async function assertNoOtherActiveEnrollment(enrollment) {
 // devuelve como quedó; null si no cambió nada (ver enrollmentRepository.updateStatus).
 // Si PostgreSQL rechaza el cambio porque el alumno ya tiene otra inscripción activa
 // (ck_inscripcion_alumno_una_activa: otra sesión la activó o la creó después de comprobarlo), lanza
-// el EnrollmentError STUDENT_ALREADY_ENROLLED. Es la única restricción de db/schema.sql que puede
-// rechazar el cambio de estado (ver UPDATE_STATUS_SQL en enrollment.repository.js).
+// el EnrollmentError STUDENT_ALREADY_ENROLLED; si lo rechaza al activarla porque el alumno está dado
+// de baja (ck_inscripcion_alumno_vigente) o es egresado (ck_inscripcion_alumno_activo),
+// STUDENT_DELETED o STUDENT_NOT_ACTIVE, los códigos del alta, y si lo rechaza porque el ciclo lectivo
+// del curso se cerró después de comprobarlo (ck_inscripcion_ciclo_lectivo_cerrado),
+// SCHOOL_YEAR_CLOSED. Son las únicas restricciones de db/schema.sql que pueden rechazar el cambio de
+// estado (ver UPDATE_STATUS_SQL en enrollment.repository.js).
 async function saveEnrollmentStatus(institutionId, enrollment, status) {
   try {
     return await enrollmentRepository.updateStatus(enrollment.id, institutionId, status);
@@ -383,25 +424,47 @@ async function saveEnrollmentStatus(institutionId, enrollment, status) {
       await assertNoOtherActiveEnrollment(enrollment);
       throw anotherActiveEnrollmentError(enrollment, null);
     }
+    if (enrollmentRepository.isDeletedStudentError(error)) {
+      throw new EnrollmentError('STUDENT_DELETED', 'La inscripción es de un alumno eliminado: no se puede activar.');
+    }
+    if (enrollmentRepository.isInactiveStudentError(error)) {
+      throw new EnrollmentError(
+        'STUDENT_NOT_ACTIVE',
+        'La inscripción es de un alumno egresado: solo se puede activar la de un alumno activo.'
+      );
+    }
+    if (enrollmentRepository.isClosedSchoolYearError(error)) {
+      throw closedSchoolYearError(enrollment);
+    }
     throw error;
   }
 }
 
 // Cambia el estado de la inscripción vigente con ese id de la institución de `currentUser` (el de la
-// sesión). `data` trae status (ACTIVE, COMPLETED o CANCELLED); el controlador ya comprobó su forma.
+// sesión). `data` trae status (ACTIVE o CANCELLED); el controlador ya comprobó su forma. La edición
+// no pasa una inscripción a finalizada: eso lo hace solo el cierre del ciclo lectivo.
 // Solo cambia el estado: el número, el alumno, el curso y la fecha no se leen de `data`.
 // Devuelve { enrollment, changed }: la inscripción como quedó, con los campos de listEnrollments, y
 // si se modificó. Si ya tenía ese estado, no se modifica nada y changed es false.
 // Un alumno solo puede tener una inscripción activa: el cambio a ACTIVE se rechaza si ya tiene otra
 // vigente (las dadas de baja no cuentan). Se comprueba antes de guardar y, si otra sesión activa o
 // crea otra después, la base lo rechaza al guardar, con el mismo error.
-// Lanza un EnrollmentError si el estado no es válido (INVALID_INPUT), si la inscripción no está
-// vigente en la institución (los de findNotDeletedEnrollment) o si el alumno ya tiene otra
-// inscripción vigente y activa (STUDENT_ALREADY_ENROLLED).
+// Solo se activa la inscripción de un alumno vigente y activo: la de un dado de baja o un egresado
+// no. No se comprueba antes: lo decide la base al guardar, que retiene la fila del alumno. Un alumno
+// así no tiene otra inscripción activa vigente, así que no llega a STUDENT_ALREADY_ENROLLED.
+// Una inscripción de un ciclo lectivo cerrado no se edita, aunque se guarde con el estado que ya
+// tiene.
+// Lanza un EnrollmentError si la inscripción no está vigente en la institución (los de
+// findNotDeletedEnrollment), si es de un ciclo lectivo cerrado (SCHOOL_YEAR_CLOSED, que gana a los
+// errores siguientes), si el estado no es ACTIVE ni CANCELLED (INVALID_INPUT, también con
+// COMPLETED), si el alumno ya tiene otra inscripción vigente y activa (STUDENT_ALREADY_ENROLLED) o si
+// se la quiso activar y el alumno está dado de baja (STUDENT_DELETED) o es egresado
+// (STUDENT_NOT_ACTIVE).
 async function updateEnrollment(currentUser, enrollmentId, { status }) {
   const { institutionId } = currentUser;
-  assertValidStatus(status);
   const enrollment = await findNotDeletedEnrollment(institutionId, enrollmentId);
+  await assertSchoolYearNotClosed(enrollment);
+  assertValidStatus(status);
   if (enrollment.status === status) return { enrollment: toInstitutionEnrollment(enrollment), changed: false };
   if (status === ACTIVE_STATUS) await assertNoOtherActiveEnrollment(enrollment);
 
@@ -416,23 +479,11 @@ async function updateEnrollment(currentUser, enrollmentId, { status }) {
 
 // ---------- Baja ----------
 
-// Baja lógica de la inscripción vigente con ese id de la institución de `currentUser` (el de la
-// sesión): completa su fecha de baja y deja de listarse. No cambia nada más: ni su estado, ni su
-// alumno, ni su curso, ni su fecha. Devuelve la inscripción dada de baja, con los campos de
-// listEnrollments.
-// Una inscripción con calificaciones vigentes no se da de baja: las dadas de baja no cuentan, y las
-// de una evaluación dada de baja sí, porque siguen vigentes. Se comprueba al guardar, así que vale
-// también si el profesor carga una nota mientras tanto.
-// El id llega del renderer y la fila que tiene a la vista puede haber quedado vieja, así que no se
-// confía en ella: la baja solo marca una inscripción vigente de la institución y sin calificaciones
-// vigentes y, si no marca nada, se busca de nuevo para saber por qué.
-// Lanza un EnrollmentError si no existe en la institución (ENROLLMENT_NOT_FOUND; una de otra
-// institución cuenta como inexistente), si ya estaba dada de baja, p. ej., desde otra sesión
-// (ENROLLMENT_ALREADY_DELETED) o si tiene calificaciones vigentes (ENROLLMENT_HAS_SCORES).
-async function deleteEnrollment(currentUser, enrollmentId) {
-  const { institutionId } = currentUser;
-  const deletedEnrollment = await enrollmentRepository.markAsDeleted(enrollmentId, institutionId);
-  if (deletedEnrollment) return toInstitutionEnrollment(deletedEnrollment);
+// La inscripción vigente con ese id de la institución, que se va a dar de baja, con su alumno, su
+// curso y su estado (enrollmentRepository.findById). Como findNotDeletedEnrollment, pero con los
+// errores de la baja: lanza un EnrollmentError si no existe en la institución (ENROLLMENT_NOT_FOUND)
+// o si ya estaba dada de baja (ENROLLMENT_ALREADY_DELETED).
+async function findEnrollmentToDelete(institutionId, enrollmentId) {
   const enrollment = await enrollmentRepository.findById(enrollmentId, institutionId);
   if (!enrollment) {
     throw new EnrollmentError('ENROLLMENT_NOT_FOUND', 'La inscripción ya no existe.');
@@ -440,15 +491,50 @@ async function deleteEnrollment(currentUser, enrollmentId) {
   if (enrollment.deletedAt) {
     throw new EnrollmentError('ENROLLMENT_ALREADY_DELETED', 'La inscripción ya había sido eliminada.');
   }
-  if (await scoreRepository.existsNotDeletedByEnrollment(enrollmentId)) {
-    throw new EnrollmentError(
-      'ENROLLMENT_HAS_SCORES',
-      'La inscripción tiene calificaciones cargadas. Solo se puede eliminar una inscripción sin calificaciones.'
-    );
+  return enrollment;
+}
+
+// Baja lógica de la inscripción vigente con ese id de la institución de `currentUser` (el de la
+// sesión): completa su fecha de baja y deja de listarse. No cambia nada más: ni su estado, ni su
+// alumno, ni su curso, ni su fecha. Devuelve la inscripción dada de baja, con los campos de
+// listEnrollments, sin hasScores. La baja es definitiva: la base no modifica ni restaura una
+// inscripción dada de baja.
+// Una inscripción con calificaciones vigentes no se da de baja: las dadas de baja no cuentan, y una
+// evaluación dada de baja ya no tiene calificaciones vigentes. No se comprueba antes: lo decide la
+// base al guardar (ck_inscripcion_calificaciones_vigentes), así que vale también si el profesor carga
+// una nota mientras tanto. Una de un ciclo lectivo cerrado tampoco se da de baja, tenga o no
+// calificaciones.
+// El id llega del renderer y la fila que tiene a la vista puede haber quedado vieja, así que no se
+// confía en ella: se busca de nuevo antes de la baja, que solo marca una inscripción vigente de la
+// institución y, si no marca nada, se busca otra vez para saber por qué.
+// Lanza un EnrollmentError si no existe en la institución (ENROLLMENT_NOT_FOUND; una de otra
+// institución cuenta como inexistente), si ya estaba dada de baja, p. ej., desde otra sesión
+// (ENROLLMENT_ALREADY_DELETED), si es de un ciclo lectivo cerrado (SCHOOL_YEAR_CLOSED, que gana a
+// ENROLLMENT_HAS_SCORES: la base lo rechaza antes) o si tiene calificaciones vigentes
+// (ENROLLMENT_HAS_SCORES).
+async function deleteEnrollment(currentUser, enrollmentId) {
+  const { institutionId } = currentUser;
+  const enrollment = await findEnrollmentToDelete(institutionId, enrollmentId);
+  await assertSchoolYearNotClosed(enrollment);
+
+  let deletedEnrollment;
+  try {
+    deletedEnrollment = await enrollmentRepository.markAsDeleted(enrollmentId, institutionId);
+  } catch (error) {
+    if (enrollmentRepository.isClosedSchoolYearError(error)) throw closedSchoolYearError(enrollment);
+    if (enrollmentRepository.isEnrollmentWithScoresError(error)) {
+      throw new EnrollmentError(
+        'ENROLLMENT_HAS_SCORES',
+        'La inscripción tiene calificaciones cargadas. Solo se puede eliminar una inscripción sin calificaciones.'
+      );
+    }
+    throw error;
   }
-  // Otra sesión le dio de baja las calificaciones después del UPDATE: ya se puede dar de baja, pero
-  // no se reintenta sola.
-  throw new Error(`No se dio de baja la inscripción ${enrollmentId}, que está vigente y sin calificaciones vigentes`);
+  if (deletedEnrollment) return toInstitutionEnrollment(deletedEnrollment);
+  // El UPDATE no marcó nada: otra sesión la dio de baja después de leerla. Se busca de nuevo para
+  // informarlo.
+  await findEnrollmentToDelete(institutionId, enrollmentId);
+  throw new Error(`No se dio de baja la inscripción ${enrollmentId}, que está vigente`);
 }
 
 // ---------- Comprobante ----------
@@ -479,15 +565,16 @@ function toEnrollmentReceipt(enrollment, student, institution, issueDate) {
       email: institution.email,
       phone: institution.phone,
     },
-    issueDate: toIsoDate(issueDate),
+    issueDate,
   };
 }
 
 // Abre en el visor de PDF predeterminado el comprobante de la inscripción vigente con ese id de la
 // institución de `currentUser` (el de la sesión), con el contenido de buildEnrollmentReceiptHtml
 // (enrollment-receipt.template.js): los datos de la inscripción, de su alumno y de la institución,
-// tal como están en la base al generarlo, y la fecha del día como fecha de emisión. Como Editar,
-// vale para una de cualquier ciclo lectivo y en cualquier estado. El id llega del renderer y la fila
+// tal como están en la base al generarlo, y la fecha del día según la base (getCurrentSchoolYear)
+// como fecha de emisión. A diferencia de Editar, vale para una de cualquier ciclo lectivo, también
+// de uno cerrado, y en cualquier estado: solo lee. El id llega del renderer y la fila
 // que tiene a la vista puede haber quedado vieja, así que la inscripción se busca de nuevo antes de
 // generarlo. El alumno es siempre de la misma institución (trg_inscripcion_coherencia, db/schema.sql)
 // y se lo busca aunque esté dado de baja.
@@ -498,7 +585,8 @@ async function openEnrollmentReceipt(currentUser, enrollmentId) {
   const enrollment = await findNotDeletedEnrollment(institutionId, enrollmentId);
   const student = await studentRepository.findById(enrollment.student.id, institutionId);
   const institution = await institutionRepository.findById(institutionId);
-  const receipt = toEnrollmentReceipt(enrollment, student, institution, new Date());
+  const { today } = await schoolYearService.getCurrentSchoolYear();
+  const receipt = toEnrollmentReceipt(enrollment, student, institution, today);
   await pdfService.openHtmlAsPdf(
     buildEnrollmentReceiptHtml(receipt),
     `Comprobante de inscripción ${receipt.number}.pdf`

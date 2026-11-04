@@ -2,7 +2,7 @@
 // estudios del grado de ese curso.
 // Incluye al profesor, el curso y la materia, para mostrarlos sin otra consulta.
 class TeacherAssignment {
-  constructor({ id, teacher, course, gradeSubjectId, subject }) {
+  constructor({ id, teacher, course, gradeSubjectId, subject, hasEvaluations }) {
     this.id = id;
     // El profesor: un User con los datos que trae la consulta (los demás quedan undefined).
     this.teacher = teacher;
@@ -12,6 +12,9 @@ class TeacherAssignment {
     this.gradeSubjectId = gradeSubjectId;
     // La materia: un Subject.
     this.subject = subject;
+    // true si tiene evaluaciones vigentes: entonces conserva su curso y su materia y no se da de
+    // baja; el profesor sí se cambia.
+    this.hasEvaluations = hasEvaluations;
   }
 }
 

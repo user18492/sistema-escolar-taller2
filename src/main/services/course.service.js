@@ -1,4 +1,5 @@
 const courseRepository = require('../repositories/course.repository');
+const schoolYearService = require('./school-year.service');
 
 // Error previsto, con un mensaje apto para la UI (como UserError en user.service.js).
 // `fieldErrors` ({ campo: mensaje }), si llega, indica qué campos del formulario están mal.
@@ -42,11 +43,44 @@ function parseCourseData(data) {
   return { gradeId: data.gradeId, division: division.toUpperCase(), shift: data.shift };
 }
 
+// Lo de un ciclo lectivo cerrado es de solo lectura: un curso de un ciclo anterior al actual no se
+// edita ni se da de baja.
+function closedSchoolYearError(schoolYear) {
+  return new CourseError('SCHOOL_YEAR_CLOSED', schoolYearService.closedSchoolYearMessage(schoolYear));
+}
+
+// Lanza el CourseError SCHOOL_YEAR_CLOSED si `course` es de un ciclo lectivo cerrado. Se comprueba
+// antes de escribir, para que gane a los demás errores; si el ciclo se cierra en el medio, la base
+// rechaza la escritura y ese rechazo se traduce al mismo error.
+async function assertSchoolYearNotClosed(course) {
+  if (await schoolYearService.isClosedSchoolYear(course.schoolYear)) {
+    throw closedSchoolYearError(course.schoolYear);
+  }
+}
+
+// Un curso con asignaciones docentes vigentes o con inscripciones vigentes, en cualquier estado, no
+// se edita ni se da de baja. Lo decide la base, que retiene la fila al modificarla, sin control
+// previo: así tampoco pasa una edición o una baja simultánea con el alta de una asignación o de una
+// inscripción. Devuelve el CourseError COURSE_IN_USE, sin fieldErrors, si `error` es uno de esos
+// rechazos (`action` completa el mensaje: 'editar' o 'eliminar'); null si no.
+function inUseError(error, action) {
+  if (courseRepository.isWithTeacherAssignmentsError(error)) {
+    return new CourseError('COURSE_IN_USE', `El curso tiene asignaciones docentes: no se puede ${action}.`);
+  }
+  if (courseRepository.isWithEnrollmentsError(error)) {
+    return new CourseError('COURSE_IN_USE', `El curso tiene inscripciones: no se puede ${action}.`);
+  }
+  return null;
+}
+
 // Llama a `save` (el INSERT o el UPDATE) y devuelve su resultado. Si PostgreSQL lo rechaza por un
-// motivo previsto, lanza un CourseError: GRADE_NOT_FOUND si el grado no está en el catálogo y
+// motivo previsto, lanza un CourseError: GRADE_NOT_FOUND si el grado no está en el catálogo,
 // DUPLICATE_VALUE, con `duplicateMessage`, si la institución ya tiene otro curso vigente igual en
-// ese ciclo lectivo.
-async function saveCourse(save, duplicateMessage) {
+// ese ciclo lectivo, SCHOOL_YEAR_CLOSED si el curso es de un ciclo lectivo cerrado (`schoolYear`,
+// el del curso editado) y COURSE_IN_USE si tiene asignaciones docentes o inscripciones vigentes
+// (ver inUseError). En un alta no pasan los dos últimos, porque el curso nuevo es del ciclo actual y
+// no tiene nada.
+async function saveCourse(save, duplicateMessage, schoolYear = null) {
   try {
     return await save();
   } catch (error) {
@@ -56,7 +90,10 @@ async function saveCourse(save, duplicateMessage) {
     if (courseRepository.isDuplicateError(error)) {
       throw new CourseError('DUPLICATE_VALUE', duplicateMessage);
     }
-    throw error;
+    if (courseRepository.isClosedSchoolYearError(error)) {
+      throw closedSchoolYearError(schoolYear);
+    }
+    throw inUseError(error, 'editar') ?? error;
   }
 }
 
@@ -69,10 +106,22 @@ async function notActiveError(courseId, institutionId) {
   return new CourseError('COURSE_NOT_FOUND', 'El curso ya no existe.');
 }
 
-// Lista explícita de campos, como toListedUser (user.service.js): lo que muestra la tabla de Cursos
-// y el id para identificar la fila. `gradeName` es el valor de grado.nombre (1°, 2°, ... 6°),
-// `educationLevel` PRIMARY o SECONDARY, `shift` MORNING o AFTERNOON y `schoolYear` el año del ciclo
-// lectivo.
+// El curso vigente con ese id de la institución, que se va a editar o dar de baja. El id llega del
+// renderer y la fila que tiene a la vista puede haber quedado vieja, así que se busca de nuevo.
+// Lanza el CourseError de notActiveError si no está vigente y SCHOOL_YEAR_CLOSED si es de un ciclo
+// lectivo cerrado.
+async function findEditableCourse(courseId, institutionId) {
+  const course = await courseRepository.findActiveById(courseId, institutionId);
+  if (!course) throw await notActiveError(courseId, institutionId);
+  await assertSchoolYearNotClosed(course);
+  return course;
+}
+
+// Lista explícita de campos, como toListedUser (user.service.js): lo que se muestra de un curso y el
+// id para identificarlo. `gradeName` es el valor de grado.nombre (1°, 2°, ... 6°), `educationLevel`
+// PRIMARY o SECONDARY, `shift` MORNING o AFTERNOON y `schoolYear` el año del ciclo lectivo. Lo usan
+// también enrollment.service.js y teacher-assignment.service.js para el curso de sus filas; la tabla
+// de Cursos usa toInstitutionCourse.
 function toListedCourse(course) {
   return {
     id: course.id,
@@ -84,57 +133,94 @@ function toListedCourse(course) {
   };
 }
 
+// Lo que muestra la tabla de Cursos: los campos de toListedCourse, más si el curso tiene
+// asignaciones docentes vigentes (`hasTeacherAssignments`) y si tiene inscripciones vigentes, en
+// cualquier estado (`hasEnrollments`): con alguno en true, no se edita ni se da de baja. Solo los
+// calcula el listado de la institución; con las demás consultas llegan en false: un curso recién
+// creado no tiene ninguno, y uno que se pudo editar o dar de baja tampoco, porque si no la base lo
+// rechaza.
+function toInstitutionCourse(course) {
+  return {
+    ...toListedCourse(course),
+    hasTeacherAssignments: course.hasTeacherAssignments ?? false,
+    hasEnrollments: course.hasEnrollments ?? false,
+  };
+}
+
 // Cursos vigentes de la institución de `currentUser` (el de la sesión), de todos los ciclos
-// lectivos, en el orden del repositorio.
+// lectivos, en el orden del repositorio, con hasTeacherAssignments y hasEnrollments.
 async function listCourses(currentUser) {
   const courses = await courseRepository.findByInstitution(currentUser.institutionId);
-  return courses.map(toListedCourse);
+  return courses.map(toInstitutionCourse);
 }
 
 // Crea un curso en la institución de `currentUser` y lo devuelve con los campos de listCourses.
 // `data` trae gradeId (un grado del catálogo, que define también el nivel educativo), division (una
 // letra, que se guarda en mayúscula) y shift (MORNING o AFTERNOON). El ciclo lectivo no se elige:
-// es siempre el año en curso, el mismo que anuncia el formulario.
+// es siempre el actual, que resuelve la base al guardar.
 // Lanza un CourseError si algún dato no es válido (INVALID_INPUT, con fieldErrors si es la
 // división), si el grado no está en el catálogo (GRADE_NOT_FOUND) o si la institución ya tiene un
 // curso vigente con ese grado, división y turno en el ciclo lectivo (DUPLICATE_VALUE): uno dado de
 // baja no cuenta.
 async function createCourse(currentUser, data) {
   const values = parseCourseData(data);
-  const schoolYear = new Date().getFullYear();
+  const { year } = await schoolYearService.getCurrentSchoolYear();
   const course = await saveCourse(
-    () => courseRepository.create(currentUser.institutionId, { ...values, schoolYear }),
-    `Ya existe un curso con ese grado, división y turno en el ciclo lectivo ${schoolYear}.`
+    () => courseRepository.create(currentUser.institutionId, values),
+    `Ya existe un curso con ese grado, división y turno en el ciclo lectivo ${year}.`
   );
-  return toListedCourse(course);
+  return toInstitutionCourse(course);
 }
 
 // Guarda el grado, la división y el turno de un curso vigente de la institución de `currentUser` y
 // lo devuelve como quedó, con los campos de listCourses. `data` trae los mismos campos que en
-// createCourse. El ciclo lectivo no se edita: el curso conserva el suyo.
-// Lanza un CourseError si algún dato no es válido (INVALID_INPUT, con fieldErrors si es la
-// división), si el curso no existe en la institución (COURSE_NOT_FOUND) o fue dado de baja
-// (COURSE_ALREADY_DELETED), si el grado no está en el catálogo (GRADE_NOT_FOUND) o si la
-// institución ya tiene otro curso vigente con ese grado, división y turno en el mismo ciclo lectivo
-// (DUPLICATE_VALUE): guardarlo sin cambios no es un duplicado y uno dado de baja no cuenta.
+// createCourse. El ciclo lectivo no se edita: el curso conserva el suyo, y uno de un ciclo cerrado
+// no se edita. Tampoco uno con asignaciones docentes vigentes o inscripciones vigentes, en cualquier
+// estado, aunque se guarde sin cambios: las dadas de baja no cuentan.
+// Lanza un CourseError si el curso no existe en la institución (COURSE_NOT_FOUND) o fue dado de
+// baja (COURSE_ALREADY_DELETED), si es de un ciclo lectivo cerrado (SCHOOL_YEAR_CLOSED, que gana a
+// los errores siguientes), si algún dato no es válido (INVALID_INPUT, con fieldErrors si es la
+// división), si tiene asignaciones docentes o inscripciones vigentes (COURSE_IN_USE, sin
+// fieldErrors, que gana a los dos siguientes: el trigger corre antes que el índice único y que la
+// clave foránea), si el grado no está en el catálogo (GRADE_NOT_FOUND) o si la institución ya tiene
+// otro curso vigente con ese grado, división y turno en el mismo ciclo lectivo (DUPLICATE_VALUE):
+// guardarlo sin cambios no es un duplicado y uno dado de baja no cuenta.
 async function updateCourse(currentUser, courseId, data) {
+  const { institutionId } = currentUser;
+  const currentCourse = await findEditableCourse(courseId, institutionId);
   const values = parseCourseData(data);
   const course = await saveCourse(
-    () => courseRepository.update(courseId, currentUser.institutionId, values),
-    'Ya existe otro curso con ese grado, división y turno en el mismo ciclo lectivo.'
+    () => courseRepository.update(courseId, institutionId, values),
+    'Ya existe otro curso con ese grado, división y turno en el mismo ciclo lectivo.',
+    currentCourse.schoolYear
   );
-  if (course) return toListedCourse(course);
-  throw await notActiveError(courseId, currentUser.institutionId);
+  if (course) return toInstitutionCourse(course);
+  // El UPDATE no modificó nada: otra sesión dio de baja el curso después de consultarlo.
+  throw await notActiveError(courseId, institutionId);
 }
 
 // Baja lógica de un curso de la institución de `currentUser`: la fila queda con su fecha de baja,
-// deja de listarse y su grado, división y turno se pueden volver a crear en ese ciclo lectivo.
+// deja de listarse y su grado, división y turno se pueden volver a crear en ese ciclo lectivo. La
+// baja es definitiva: el curso ya no se modifica, no se restaura y no recibe asignaciones docentes
+// ni inscripciones. Uno de un ciclo cerrado no se da de baja, y tampoco uno con asignaciones
+// docentes vigentes o inscripciones vigentes, en cualquier estado: las dadas de baja no cuentan.
 // Devuelve el curso dado de baja, con los campos de listCourses. Lanza un CourseError si no existe
-// en la institución (COURSE_NOT_FOUND) o si ya estaba dado de baja (COURSE_ALREADY_DELETED).
+// en la institución (COURSE_NOT_FOUND), si ya estaba dado de baja (COURSE_ALREADY_DELETED), si es
+// de un ciclo lectivo cerrado (SCHOOL_YEAR_CLOSED) o si tiene asignaciones docentes o inscripciones
+// vigentes (COURSE_IN_USE, sin fieldErrors).
 async function deleteCourse(currentUser, courseId) {
-  const deletedCourse = await courseRepository.markAsDeleted(courseId, currentUser.institutionId);
-  if (deletedCourse) return toListedCourse(deletedCourse);
-  throw await notActiveError(courseId, currentUser.institutionId);
+  const { institutionId } = currentUser;
+  const course = await findEditableCourse(courseId, institutionId);
+  let deletedCourse;
+  try {
+    deletedCourse = await courseRepository.markAsDeleted(courseId, institutionId);
+  } catch (error) {
+    if (courseRepository.isClosedSchoolYearError(error)) throw closedSchoolYearError(course.schoolYear);
+    throw inUseError(error, 'eliminar') ?? error;
+  }
+  if (deletedCourse) return toInstitutionCourse(deletedCourse);
+  // El UPDATE no marcó nada: otra sesión dio de baja el curso después de consultarlo.
+  throw await notActiveError(courseId, institutionId);
 }
 
 module.exports = { listCourses, createCourse, updateCourse, deleteCourse, toListedCourse, CourseError };

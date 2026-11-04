@@ -5,6 +5,7 @@ const { app, dialog } = require('electron');
 const { createMainWindow } = require('./src/main/main-window');
 const { createSystemTray } = require('./src/main/system-tray');
 const { checkConnection, closeConnection } = require('./src/main/database/connection');
+const schoolYearService = require('./src/main/services/school-year.service');
 const { registerProfileImageScheme, handleProfileImageRequests } = require('./src/main/profile-image-protocol');
 
 // Electron exige registrar los esquemas propios antes de que la aplicación esté lista.
@@ -46,6 +47,10 @@ function describeConnectionError(error) {
         'Corregí DB_USER y DB_PASSWORD en el archivo .env.';
     case '3D000':
       return `La base '${DB_NAME}' no existe. Ejecutá "npm run db:setup" para crearla.`;
+    // Falta una función o un procedimiento de db/schema.sql (p. ej., el del cierre de los ciclos
+    // lectivos): la base se creó con una versión anterior del esquema.
+    case '42883':
+      return 'La base de datos no está actualizada. Borrala y ejecutá "npm run db:setup" para recrearla.';
     default:
       return 'Ocurrió un error inesperado al conectar con la base de datos. ' +
         'El detalle se muestra en la consola.';
@@ -55,6 +60,9 @@ function describeConnectionError(error) {
 app.whenReady().then(async () => {
   try {
     await checkConnection();
+    // Antes de abrir la ventana, las inscripciones activas de los ciclos lectivos ya cerrados pasan
+    // a finalizadas. Es idempotente: en los arranques siguientes ya no encuentra ninguna.
+    await schoolYearService.closePastSchoolYears();
   } catch (error) {
     console.error('No se pudo conectar a la base de datos:', error);
     dialog.showErrorBox('Error de conexión con la base de datos', describeConnectionError(error));

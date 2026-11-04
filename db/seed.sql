@@ -22,33 +22,36 @@ INSERT INTO institucion (nombre, direccion_calle, direccion_altura, email, telef
     ('Instituto San Martin', 'Av. Belgrano', '1234', 'contacto@institucion.edu.ar', '543794123456', '30-71234567-8'),
     ('Colegio Manuel Belgrano', 'Av. 3 de Abril', '845', 'contacto@colegiobelgrano.edu.ar', '543794467890', '30-69854321-5');
 
--- Usuarios del Instituto San Martin: 22 (2 administradores, 5 secretarios, 15 profesores), 21
--- vigentes y 1 dada de baja.
--- Julián Romero tiene dos cuentas, una de secretario y otra de profesor, con el mismo dni, el mismo
--- email y la misma contraseña: al iniciar sesión elige con cuál ingresar. Lo permiten los índices
--- únicos de usuario, que solo impiden repetir el dni o el email dentro de una institución y un rol.
+-- Usuarios: 15 cuentas por institución, 30 en total, con los mismos casos en las dos: 2
+-- administradores, 4 secretarios (2 activos, 1 suspendido y 1 dado de baja) y 9 profesores (7
+-- activos, 1 suspendido y 1 dado de baja). Uno de los secretarios activos también es profesor.
+-- Una persona con dos roles en una institución, o que trabaja en las dos, tiene una cuenta por cada
+-- una, con el mismo dni, el mismo email y la misma contraseña: al iniciar sesión elige con cuál
+-- ingresar. Lo permiten los índices únicos de usuario, que solo impiden repetir el dni o el email
+-- dentro de una institución y un rol.
+-- Silvia Gómez, Nicolás Aguirre y Gabriela Ojeda son profesores en las dos instituciones; nadie más
+-- está en las dos.
+-- Los secretarios suspendidos y dados de baja se cargan así en el INSERT. Los profesores suspendidos
+-- y dados de baja se cargan activos y cambian de estado después de sus asignaciones docentes (más
+-- abajo): un profesor recibe asignaciones solo si está activo, y uno con asignaciones vigentes no se
+-- da de baja.
+
+-- Usuarios del Instituto San Martin.
 -- Credenciales de acceso (email / contraseña en texto plano):
 --   mariana.sosa@institucion.edu.ar          / 7$4GhQ4yd9WZ$pyE  (ADMIN)
 --   hernan.acosta@institucion.edu.ar         / SUs&LVqS3AbKnq6x  (ADMIN)
 --   valeria.benitez@institucion.edu.ar       / B@cC5iimsQJHXQ5d  (SECRETARIO)
 --   julian.romero@institucion.edu.ar         / 6!y$GWY*7qYjVp%9  (SECRETARIO y PROFESOR)
---   mariajose.duarte@institucion.edu.ar      / b6@m3cSRn!Vpmcg!  (SECRETARIO)
 --   ricardo.medina@institucion.edu.ar        / pzvg3&4JpNWM#e*#  (SECRETARIO, suspendido)
 --   marta.quiroga@institucion.edu.ar         / 94yS!pdcW4Dg%T5f  (SECRETARIO, dada de baja)
---   silvia.gomez@institucion.edu.ar          / 5i#aTSG@#u!y@NZF  (PROFESOR)
---   pablo.fernandez@institucion.edu.ar       / BaeU6Qw4#ZeP#EmW  (PROFESOR)
+--   silvia.gomez@institucion.edu.ar          / 5i#aTSG@#u!y@NZF  (PROFESOR, también en el Colegio Manuel Belgrano)
+--   nicolas.aguirre@institucion.edu.ar       / i#EyS6Z&H4AbNU*z  (PROFESOR, también en el Colegio Manuel Belgrano)
+--   gabriela.ojeda@institucion.edu.ar        / L$KPrw7ym3!Lreq$  (PROFESOR, también en el Colegio Manuel Belgrano)
 --   lorena.martinez@institucion.edu.ar       / &2q2pmAiRq6vQhnf  (PROFESOR)
+--   pablo.fernandez@institucion.edu.ar       / BaeU6Qw4#ZeP#EmW  (PROFESOR)
 --   diego.gonzalez@institucion.edu.ar        / K8JB!HZ6tp5*wGy3  (PROFESOR)
---   maria.gonzalez@institucion.edu.ar        / %DyUVMWL%txf7P&X  (PROFESOR)
---   federico.ruizdiaz@institucion.edu.ar     / 9m3vyf3r&XW7Hy!R  (PROFESOR)
---   nicolas.aguirre@institucion.edu.ar       / i#EyS6Z&H4AbNU*z  (PROFESOR)
---   gabriela.ojeda@institucion.edu.ar        / L$KPrw7ym3!Lreq$  (PROFESOR)
---   sebastian.cabrera@institucion.edu.ar     / tD2ti8JxngfedD*Y  (PROFESOR)
---   florencia.nunez@institucion.edu.ar       / j9dJDaabPnTL@Q#%  (PROFESOR)
---   juanpablo.delafuente@institucion.edu.ar  / jbWhcR7p$68b%N5$  (PROFESOR)
---   camila.ortiz@institucion.edu.ar          / Xn9h33Tt8%V@QTfG  (PROFESOR)
---   carolina.vallejos@institucion.edu.ar     / Ffdc4Ry*Jw*c$nN5  (PROFESOR, suspendido)
---   roberto.sanchez@institucion.edu.ar       / #2cPN9n$Af3XN$x!  (PROFESOR, suspendido)
+--   carolina.vallejos@institucion.edu.ar     / Ffdc4Ry*Jw*c$nN5  (PROFESOR, suspendida)
+--   roberto.sanchez@institucion.edu.ar       / #2cPN9n$Af3XN$x!  (PROFESOR, dado de baja)
 INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, email, password_hash, dni, fecha_nacimiento) VALUES
     -- Administradores
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'ADMIN'),
@@ -81,61 +84,19 @@ INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, e
      '$2b$10$oQGJbmkjCELqXwZrN5T0PuoF24xC24TToDIjoy6nAoKZnu0OI2YEq', '36904127', '1992-01-09'),
 
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'SECRETARIO'),
-     TRUE,
-     (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'María José', 'Duarte', 'mariajose.duarte@institucion.edu.ar',
-     -- Email: mariajose.duarte@institucion.edu.ar / Contraseña: b6@m3cSRn!Vpmcg!
-     '$2b$10$c6iYlyXR7.ZTuQTDcTkFF.nxsMKWGGiPGEzhH9bZVsHl5SXunde/q', '30587214', '1983-12-03'),
-
-    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'SECRETARIO'),
      FALSE,
      (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
      'Ricardo', 'Medina', 'ricardo.medina@institucion.edu.ar',
      -- Email: ricardo.medina@institucion.edu.ar / Contraseña: pzvg3&4JpNWM#e*#
      '$2b$10$oidAwnRpgD4EJEyZXBFWv.l7acqqs/c/Ds.a8JIFgrNqlOvciILm2', '22648390', '1971-06-17'),
 
-    -- Profesores
+    -- Profesores. Los tres primeros también son profesores en el Colegio Manuel Belgrano
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
      TRUE,
      (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
      'Silvia', 'Gómez', 'silvia.gomez@institucion.edu.ar',
      -- Email: silvia.gomez@institucion.edu.ar / Contraseña: 5i#aTSG@#u!y@NZF
      '$2b$10$oA/cHInu9hbZeEDoGTjRFeAC/EeGLt982QphE64ytc1qnJcVxUGym', '20473158', '1968-09-28'),
-
-    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
-     TRUE,
-     (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'Pablo', 'Fernández', 'pablo.fernandez@institucion.edu.ar',
-     -- Email: pablo.fernandez@institucion.edu.ar / Contraseña: BaeU6Qw4#ZeP#EmW
-     '$2b$10$K9mIpAu9XGp9dp/M0cqV7elhVr2Hz5tCAcyh0hj/I7hu9LHi9rdVG', '31742806', '1985-04-11'),
-
-    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
-     TRUE,
-     (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'Lorena', 'Martínez', 'lorena.martinez@institucion.edu.ar',
-     -- Email: lorena.martinez@institucion.edu.ar / Contraseña: &2q2pmAiRq6vQhnf
-     '$2b$10$zP1soIkq1hXRnsRR2Xdq.e738DWr5QoZVYSIttVpqTHk7QTiEchja', '29158473', '1981-11-30'),
-
-    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
-     TRUE,
-     (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'Diego', 'González', 'diego.gonzalez@institucion.edu.ar',
-     -- Email: diego.gonzalez@institucion.edu.ar / Contraseña: K8JB!HZ6tp5*wGy3
-     '$2b$10$WnVWJaHEBXa0.Q31kJUUQu9cwqcaJQ9cwh4xpFokePiRhMgxvO8US', '34926051', '1989-07-05'),
-
-    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
-     TRUE,
-     (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'María', 'González', 'maria.gonzalez@institucion.edu.ar',
-     -- Email: maria.gonzalez@institucion.edu.ar / Contraseña: %DyUVMWL%txf7P&X
-     '$2b$10$SEQZzb1K0fq/y4VPcqjf2./8MmpQiX5jPKiU0actrOKQ/o3PcH5iq', '27315894', '1979-02-22'),
-
-    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
-     TRUE,
-     (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'Federico', 'Ruiz Díaz', 'federico.ruizdiaz@institucion.edu.ar',
-     -- Email: federico.ruizdiaz@institucion.edu.ar / Contraseña: 9m3vyf3r&XW7Hy!R
-     '$2b$10$Ua1SFVAr4DKIupz0LU0VXe6eiZfJnE8PvdghSoipDMV86N2Gkqr0a', '38207649', '1994-03-16'),
 
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
      TRUE,
@@ -154,40 +115,35 @@ INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, e
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
      TRUE,
      (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'Sebastián', 'Cabrera', 'sebastian.cabrera@institucion.edu.ar',
-     -- Email: sebastian.cabrera@institucion.edu.ar / Contraseña: tD2ti8JxngfedD*Y
-     '$2b$10$da23fLqokz5sR5yTaKGKOOp97aEx2hjh4mfVRraK97bmFNs62Qz3q', '32051736', '1986-05-24'),
+     'Lorena', 'Martínez', 'lorena.martinez@institucion.edu.ar',
+     -- Email: lorena.martinez@institucion.edu.ar / Contraseña: &2q2pmAiRq6vQhnf
+     '$2b$10$zP1soIkq1hXRnsRR2Xdq.e738DWr5QoZVYSIttVpqTHk7QTiEchja', '29158473', '1981-11-30'),
 
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
      TRUE,
      (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'Florencia', 'Núñez', 'florencia.nunez@institucion.edu.ar',
-     -- Email: florencia.nunez@institucion.edu.ar / Contraseña: j9dJDaabPnTL@Q#%
-     '$2b$10$n0v64UVebOuQEfy1SbHE.ezmfMS.NE6OhekwwXnvoHfIe1Tlz4Zx.', '37629184', '1993-08-13'),
+     'Pablo', 'Fernández', 'pablo.fernandez@institucion.edu.ar',
+     -- Email: pablo.fernandez@institucion.edu.ar / Contraseña: BaeU6Qw4#ZeP#EmW
+     '$2b$10$K9mIpAu9XGp9dp/M0cqV7elhVr2Hz5tCAcyh0hj/I7hu9LHi9rdVG', '31742806', '1985-04-11'),
 
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
      TRUE,
      (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'Juan Pablo', 'De la Fuente', 'juanpablo.delafuente@institucion.edu.ar',
-     -- Email: juanpablo.delafuente@institucion.edu.ar / Contraseña: jbWhcR7p$68b%N5$
-     '$2b$10$lOyrlEGRGD1vTeU4lilgH..KA3LnM7EX1i3DylZZRzQypUBSn/XJq', '26504372', '1977-09-01'),
+     'Diego', 'González', 'diego.gonzalez@institucion.edu.ar',
+     -- Email: diego.gonzalez@institucion.edu.ar / Contraseña: K8JB!HZ6tp5*wGy3
+     '$2b$10$WnVWJaHEBXa0.Q31kJUUQu9cwqcaJQ9cwh4xpFokePiRhMgxvO8US', '34926051', '1989-07-05'),
 
+    -- Se suspende después de sus asignaciones docentes
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
      TRUE,
-     (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-     'Camila', 'Ortiz', 'camila.ortiz@institucion.edu.ar',
-     -- Email: camila.ortiz@institucion.edu.ar / Contraseña: Xn9h33Tt8%V@QTfG
-     '$2b$10$i9BMM7Y3fv5AAl0rK5xfSudaHQzL362Hq9Ed.kubAk3E06J7CH7O.', '43518270', '2001-06-29'),
-
-    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
-     FALSE,
      (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
      'Carolina', 'Vallejos', 'carolina.vallejos@institucion.edu.ar',
      -- Email: carolina.vallejos@institucion.edu.ar / Contraseña: Ffdc4Ry*Jw*c$nN5
      '$2b$10$YbLO0tIckpTS4VriOs1Rv.CDNJMXEfLyDfVhQhsREbhDAS.TSqdv2', '35460918', '1990-10-19'),
 
+    -- Se da de baja después de dar de baja su asignación docente
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
-     FALSE,
+     TRUE,
      (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
      'Roberto', 'Sánchez', 'roberto.sanchez@institucion.edu.ar',
      -- Email: roberto.sanchez@institucion.edu.ar / Contraseña: #2cPN9n$Af3XN$x!
@@ -201,10 +157,12 @@ INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, e
      -- Email: julian.romero@institucion.edu.ar / Contraseña: 6!y$GWY*7qYjVp%9
      '$2b$10$oQGJbmkjCELqXwZrN5T0PuoF24xC24TToDIjoy6nAoKZnu0OI2YEq', '36904127', '1992-01-09');
 
--- Usuaria dada de baja del Instituto San Martin, en un INSERT aparte porque es la única fila que
--- carga fecha_eliminacion. Como toda cuenta dada de baja, queda además suspendida
+-- Secretaria dada de baja del Instituto San Martin, en un INSERT aparte porque carga
+-- fecha_eliminacion. Como toda cuenta dada de baja, queda además suspendida
 -- (ck_usuario_baja_suspendido). No cuenta para la unicidad del dni y del email, y un alta con su
 -- dni y su rol propone restaurarla en lugar de crear otra cuenta.
+-- La fecha de baja es del ciclo lectivo actual y no futura, la misma que la de los profesores dados
+-- de baja (más abajo): el 2 de marzo o, si se carga antes, el día de la carga.
 INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, email, password_hash, dni, fecha_nacimiento, fecha_eliminacion) VALUES
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'SECRETARIO'),
      FALSE,
@@ -212,15 +170,26 @@ INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, e
      'Marta', 'Quiroga', 'marta.quiroga@institucion.edu.ar',
      -- Email: marta.quiroga@institucion.edu.ar / Contraseña: 94yS!pdcW4Dg%T5f
      '$2b$10$kHQoz41VopLxfkRP6IcBEO/0gjeomRKvFOy6x4Pd7vUVHlHU0HA06', '21904736', '1970-04-08',
-     '2026-08-14 12:00:00-03');
+     LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 3, 2), fn_fecha_actual())::TIMESTAMPTZ);
 
--- Usuarios del Colegio Manuel Belgrano: 2 (1 administrador, 1 profesor).
--- Silvia Gómez pertenece a las dos instituciones: tiene una fila en cada una, con el mismo dni, el
--- mismo email y la misma contraseña. Lo permiten los índices únicos de usuario, que solo impiden
--- repetirlos dentro de una misma institución y un mismo rol.
+-- Usuarios del Colegio Manuel Belgrano: los mismos casos que en el Instituto San Martin. Silvia
+-- Gómez, Nicolás Aguirre y Gabriela Ojeda repiten el dni, el email, la fecha de nacimiento y la
+-- contraseña de su cuenta del Instituto San Martin.
 -- Credenciales de acceso (email / contraseña en texto plano):
---   claudia.ramirez@colegiobelgrano.edu.ar   / yLG*B4FfvR#&7h8W  (ADMIN)
---   silvia.gomez@institucion.edu.ar          / 5i#aTSG@#u!y@NZF  (PROFESOR, también en el Instituto San Martin)
+--   claudia.ramirez@colegiobelgrano.edu.ar    / yLG*B4FfvR#&7h8W  (ADMIN)
+--   gustavo.leiva@colegiobelgrano.edu.ar      / x8zjKX@3@mLqDZzm  (ADMIN)
+--   patricia.baez@colegiobelgrano.edu.ar      / zV7NhpwBth!3Q6Fr  (SECRETARIO)
+--   andres.caceres@colegiobelgrano.edu.ar     / H2y5wPr6Y@dGm9LL  (SECRETARIO y PROFESOR)
+--   susana.robledo@colegiobelgrano.edu.ar     / *Z8A%!urV3yvrEXZ  (SECRETARIO, suspendida)
+--   hector.galarza@colegiobelgrano.edu.ar     / rANbZ!thr##MWq7k  (SECRETARIO, dado de baja)
+--   silvia.gomez@institucion.edu.ar           / 5i#aTSG@#u!y@NZF  (PROFESOR, también en el Instituto San Martin)
+--   nicolas.aguirre@institucion.edu.ar        / i#EyS6Z&H4AbNU*z  (PROFESOR, también en el Instituto San Martin)
+--   gabriela.ojeda@institucion.edu.ar         / L$KPrw7ym3!Lreq$  (PROFESOR, también en el Instituto San Martin)
+--   natalia.fleitas@colegiobelgrano.edu.ar    / kNxwBF!#gy5mvyc$  (PROFESOR)
+--   martin.sotelo@colegiobelgrano.edu.ar      / V&Z8x4pSpAtxQ29i  (PROFESOR)
+--   veronica.almiron@colegiobelgrano.edu.ar   / ngcreT%aYt3dC4aP  (PROFESOR)
+--   esteban.montiel@colegiobelgrano.edu.ar    / 9wHPuRG&@ebgS%q&  (PROFESOR, suspendido)
+--   alicia.insaurralde@colegiobelgrano.edu.ar / gCK5j*nb8DrvBgm7  (PROFESOR, dada de baja)
 INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, email, password_hash, dni, fecha_nacimiento) VALUES
     -- Administradores
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'ADMIN'),
@@ -230,13 +199,112 @@ INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, e
      -- Email: claudia.ramirez@colegiobelgrano.edu.ar / Contraseña: yLG*B4FfvR#&7h8W
      '$2b$10$KNNZUhJSlMYpbphT/.IYUuih1ecwN12grgR0TU/Q7NrjKnaGVZSei', '24613875', '1975-03-19'),
 
-    -- Profesores
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'ADMIN'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Gustavo', 'Leiva', 'gustavo.leiva@colegiobelgrano.edu.ar',
+     -- Email: gustavo.leiva@colegiobelgrano.edu.ar / Contraseña: x8zjKX@3@mLqDZzm
+     '$2b$10$4FkHIvLQ4tVXXekV1vMWW.GpaHmKGXDNqTpKFuXeyK5BTMXkr0m/6', '23158640', '1972-07-22'),
+
+    -- Secretarios
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'SECRETARIO'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Patricia', 'Báez', 'patricia.baez@colegiobelgrano.edu.ar',
+     -- Email: patricia.baez@colegiobelgrano.edu.ar / Contraseña: zV7NhpwBth!3Q6Fr
+     '$2b$10$8eWeEtHmkIAbNLFx/NcPp.UvfjKRCz3vW3wQVJr/Gd./TiTiCyckm', '30914827', '1984-03-09'),
+
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'SECRETARIO'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Andrés', 'Cáceres', 'andres.caceres@colegiobelgrano.edu.ar',
+     -- Email: andres.caceres@colegiobelgrano.edu.ar / Contraseña: H2y5wPr6Y@dGm9LL
+     '$2b$10$qG/fQCwVbEajKnRsWoi2peK1mLOWAx2XITeQGLQObsvawQbQ2ok/i', '35287416', '1990-11-15'),
+
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'SECRETARIO'),
+     FALSE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Susana', 'Robledo', 'susana.robledo@colegiobelgrano.edu.ar',
+     -- Email: susana.robledo@colegiobelgrano.edu.ar / Contraseña: *Z8A%!urV3yvrEXZ
+     '$2b$10$U.kD9MDghC/jfd6sE8Dvk.X7gKeQJL.6HHpVGVLAG30OsQ3a1whqa', '18452973', '1967-05-03'),
+
+    -- Profesores. Los tres primeros también son profesores en el Instituto San Martin
     ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
      TRUE,
      (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
      'Silvia', 'Gómez', 'silvia.gomez@institucion.edu.ar',
      -- Email: silvia.gomez@institucion.edu.ar / Contraseña: 5i#aTSG@#u!y@NZF
-     '$2b$10$oA/cHInu9hbZeEDoGTjRFeAC/EeGLt982QphE64ytc1qnJcVxUGym', '20473158', '1968-09-28');
+     '$2b$10$oA/cHInu9hbZeEDoGTjRFeAC/EeGLt982QphE64ytc1qnJcVxUGym', '20473158', '1968-09-28'),
+
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Nicolás', 'Aguirre', 'nicolas.aguirre@institucion.edu.ar',
+     -- Email: nicolas.aguirre@institucion.edu.ar / Contraseña: i#EyS6Z&H4AbNU*z
+     '$2b$10$1eFgBEB8k6vj92v0qwsgzOeNznCMJLA2AUVFEcCNFELvOBrahJK0e', '40183527', '1997-01-27'),
+
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Gabriela', 'Ojeda', 'gabriela.ojeda@institucion.edu.ar',
+     -- Email: gabriela.ojeda@institucion.edu.ar / Contraseña: L$KPrw7ym3!Lreq$
+     '$2b$10$v/3k5RatlbsuDRRWBbrYp.4LC5piRaHI.2a5H7hbFWLaNLtgTeBeq', '23796405', '1973-12-08'),
+
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Natalia', 'Fleitas', 'natalia.fleitas@colegiobelgrano.edu.ar',
+     -- Email: natalia.fleitas@colegiobelgrano.edu.ar / Contraseña: kNxwBF!#gy5mvyc$
+     '$2b$10$uh0JNQHaeNf93t9/DVJYOOYMrtZEHOBUbvz7RnieqflaqVtjCUL5W', '33670592', '1988-01-18'),
+
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Martín', 'Sotelo', 'martin.sotelo@colegiobelgrano.edu.ar',
+     -- Email: martin.sotelo@colegiobelgrano.edu.ar / Contraseña: V&Z8x4pSpAtxQ29i
+     '$2b$10$mSu3zQw2a4Ewd1cvH3xpFuVJJN/kLAsyubdUcDHU1Zf7tnx0zc2hy', '30258164', '1983-06-25'),
+
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Verónica', 'Almirón', 'veronica.almiron@colegiobelgrano.edu.ar',
+     -- Email: veronica.almiron@colegiobelgrano.edu.ar / Contraseña: ngcreT%aYt3dC4aP
+     '$2b$10$mvWloiOLV8bHsihV2y4NEOycjcqv2n8TiVythmrqrKthEkaicFNZW', '39184756', '1995-10-04'),
+
+    -- Se suspende después de sus asignaciones docentes
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Esteban', 'Montiel', 'esteban.montiel@colegiobelgrano.edu.ar',
+     -- Email: esteban.montiel@colegiobelgrano.edu.ar / Contraseña: 9wHPuRG&@ebgS%q&
+     '$2b$10$U9OjidzLLP/nZKDemvhA8.08RAoA8WXLOhjXaRHqli6nzUUGo0tOC', '27563019', '1979-12-12'),
+
+    -- Se da de baja después de dar de baja su asignación docente
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Alicia', 'Insaurralde', 'alicia.insaurralde@colegiobelgrano.edu.ar',
+     -- Email: alicia.insaurralde@colegiobelgrano.edu.ar / Contraseña: gCK5j*nb8DrvBgm7
+     '$2b$10$1VvsiJvBrr1xwo50sWeEK.EBpWFOgUztYuNIoh8PQjnXyAOLGemwu', '16825347', '1962-04-20'),
+
+    -- Segunda cuenta de Andrés Cáceres, que también es secretario
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR'),
+     TRUE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Andrés', 'Cáceres', 'andres.caceres@colegiobelgrano.edu.ar',
+     -- Email: andres.caceres@colegiobelgrano.edu.ar / Contraseña: H2y5wPr6Y@dGm9LL
+     '$2b$10$qG/fQCwVbEajKnRsWoi2peK1mLOWAx2XITeQGLQObsvawQbQ2ok/i', '35287416', '1990-11-15');
+
+-- Secretario dado de baja del Colegio Manuel Belgrano, como Marta Quiroga en el Instituto San
+-- Martin
+INSERT INTO usuario (usuario_rol_id, estado, institucion_id, nombre, apellido, email, password_hash, dni, fecha_nacimiento, fecha_eliminacion) VALUES
+    ((SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'SECRETARIO'),
+     FALSE,
+     (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+     'Héctor', 'Galarza', 'hector.galarza@colegiobelgrano.edu.ar',
+     -- Email: hector.galarza@colegiobelgrano.edu.ar / Contraseña: rANbZ!thr##MWq7k
+     '$2b$10$LcaLC6ct/8/yIqaLoADJzeQ0moKl9nppMXM8tFGMJiGzw8S8RGOBK', '17039584', '1964-09-27',
+     LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 3, 2), fn_fecha_actual())::TIMESTAMPTZ);
 
 -- Materias: catálogo global. Ninguna depende de un grado ni de un nivel educativo: en cuáles se
 -- dicta cada una lo define grado_materia
@@ -329,252 +397,10 @@ WHERE g.nivel_educativo = 'SECUNDARIA'
                    'Filosofía', 'Psicología', 'Economía')
 ORDER BY g.grado_id, m.materia_id;
 
--- Cursos: 18 por institución, 36 en total, todos del ciclo lectivo 2026, el único cargado. Cada
--- institución tiene los 12 grados con una división A y, en dos grados de cada nivel, más
--- divisiones; cada INSERT cruza los grados con sus divisiones.
-
--- Instituto San Martin: los 12 grados, con la división A. Primaria cursa a la mañana y secundaria
--- a la tarde
-INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
-SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-       g.grado_id, 'A',
-       CASE g.nivel_educativo WHEN 'PRIMARIA' THEN 'MAÑANA' ELSE 'TARDE' END,
-       2026
-FROM grado g
-ORDER BY g.grado_id;
-
--- Instituto San Martin: 1° y 2° de cada nivel suman una división A a la mañana y una B a la
--- tarde. La A de primaria no se repite: es la del INSERT anterior, que ya cursa a la mañana. En
--- secundaria queda una división A en cada turno: son cursos distintos, porque el turno también
--- los identifica
-INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
-SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
-       g.grado_id, d.division, d.turno, 2026
-FROM grado g
-CROSS JOIN (VALUES ('A', 'MAÑANA'), ('B', 'TARDE')) AS d(division, turno)
-WHERE g.nombre IN ('1°', '2°')
-  AND NOT (g.nivel_educativo = 'PRIMARIA' AND d.division = 'A')
-ORDER BY g.grado_id, d.division;
-
--- Colegio Manuel Belgrano: los 12 grados, con la división A. Al revés que en el Instituto San
--- Martin, primaria cursa a la tarde y secundaria a la mañana
-INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
-SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
-       g.grado_id, 'A',
-       CASE g.nivel_educativo WHEN 'PRIMARIA' THEN 'TARDE' ELSE 'MAÑANA' END,
-       2026
-FROM grado g
-ORDER BY g.grado_id;
-
--- Colegio Manuel Belgrano: 5° y 6° de cada nivel suman una división A a la mañana y una B a la
--- tarde. La A de secundaria no se repite: es la del INSERT anterior, que ya cursa a la mañana. En
--- primaria queda una división A en cada turno
-INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
-SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
-       g.grado_id, d.division, d.turno, 2026
-FROM grado g
-CROSS JOIN (VALUES ('A', 'MAÑANA'), ('B', 'TARDE')) AS d(division, turno)
-WHERE g.nombre IN ('5°', '6°')
-  AND NOT (g.nivel_educativo = 'SECUNDARIA' AND d.division = 'A')
-ORDER BY g.grado_id, d.division;
-
--- Asignaciones docentes: 10 en el Instituto San Martin y 9 en el Colegio Manuel Belgrano, 19 en
--- total, todas vigentes y de profesores activos.
--- Cada fila de VALUES nombra al profesor por su email (el de su cuenta vigente de profesor: el
--- mismo email puede tener en la institución otra cuenta, con otro rol), al curso por los datos que
--- lo identifican dentro de la institución y a la materia por su nombre; los LEFT JOIN los traducen
--- a sus ids. Son LEFT JOIN para que un dato que no existe (por ejemplo, una materia que no es del
--- plan de estudios del grado) deje su id en NULL y el INSERT falle por NOT NULL: con un JOIN, la
--- fila se saltearía sin avisar.
-
--- Instituto San Martin: 8 profesores. Pablo Fernández tiene dos materias de un mismo curso y Diego
--- González, una misma materia en dos cursos
-INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
-SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
-FROM (VALUES
-    -- Primaria
-    ('pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, 'Lengua'),
-    ('pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, 'Matemática'),
-    ('lorena.martinez@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 2026, 'Ciencias Naturales'),
-    ('diego.gonzalez@institucion.edu.ar', 'PRIMARIA', '5°', 'A', 'MAÑANA', 2026, 'Inglés'),
-    ('diego.gonzalez@institucion.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, 'Inglés'),
-
-    -- Secundaria
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'TARDE', 2026, 'Matemática'),
-    ('maria.gonzalez@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'TARDE', 2026, 'Historia'),
-    ('nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2026, 'Biología'),
-    ('federico.ruizdiaz@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'TARDE', 2026, 'Física'),
-    ('gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'TARDE', 2026, 'Literatura')
-) AS a(email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, materia)
-LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
-LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
-                   AND u.usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR')
-                   AND u.fecha_eliminacion IS NULL
-LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
-LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
-                 AND c.division = a.division AND c.turno = a.turno
-                 AND c.anio_ciclo_lectivo = a.anio_ciclo_lectivo
-LEFT JOIN materia m ON m.nombre = a.materia
-LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
-ORDER BY c.curso_id, gm.grado_materia_id;
-
--- Colegio Manuel Belgrano: todas de Silvia Gómez, la única profesora de la institución. Dicta
--- Matemática hasta 3° de secundaria y Física en el ciclo orientado
-INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
-SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
-FROM (VALUES
-    -- Primaria
-    ('silvia.gomez@institucion.edu.ar', 'PRIMARIA', '5°', 'A', 'TARDE', 2026, 'Matemática'),
-    ('silvia.gomez@institucion.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, 'Matemática'),
-
-    -- Secundaria
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, 'Matemática'),
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, 'Matemática'),
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'MAÑANA', 2026, 'Matemática'),
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'MAÑANA', 2026, 'Física'),
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, 'Física'),
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, 'Física'),
-    ('silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2026, 'Física')
-) AS a(email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, materia)
-LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
-LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
-                   AND u.usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR')
-                   AND u.fecha_eliminacion IS NULL
-LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
-LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
-                 AND c.division = a.division AND c.turno = a.turno
-                 AND c.anio_ciclo_lectivo = a.anio_ciclo_lectivo
-LEFT JOIN materia m ON m.nombre = a.materia
-LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
-ORDER BY c.curso_id, gm.grado_materia_id;
-
 -- Estados de alumno
 INSERT INTO alumno_estado (nombre) VALUES
     ('ACTIVO'),
     ('EGRESADO');
-
--- Alumnos: 20 por institución, 40 en total: 32 activos y 8 egresados.
--- Cada fila de VALUES nombra el estado por su nombre y el LEFT JOIN lo traduce a su id. Como en las
--- asignaciones docentes, es LEFT JOIN para que un estado que no existe deje su id en NULL y el
--- INSERT falle por NOT NULL: con un JOIN, la fila se saltearía sin avisar.
--- Los datos tienen el formato que deja el formulario de alumnos
--- (renderer/shared/components/field-validation.component.js): dni de 8 dígitos, teléfono de 10 dígitos y
--- una edad de entre 5 y 25 años.
--- Lucía Maidana está en las dos instituciones, con el mismo dni: egresó de la primaria del Colegio
--- Manuel Belgrano y cursa la secundaria en el Instituto San Martin. Lo permite la restricción
--- UNIQUE (institucion_id, dni), que solo impide repetirlo dentro de una misma institución.
-
--- Instituto San Martin: 16 activos y 4 egresados
-INSERT INTO alumno (institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
-                    direccion_calle, direccion_altura, dni, fecha_nacimiento)
-SELECT i.institucion_id, e.alumno_estado_id, a.nombre, a.apellido, a.email, a.telefono,
-       a.direccion_calle, a.direccion_altura, a.dni, a.fecha_nacimiento::date
-FROM (VALUES
-    -- Activos
-    ('ACTIVO', 'Camila', 'Álvarez', 'camila.alvarez@institucion.edu.ar',
-     '3794123456', 'Av. Belgrano', '1245', '48123456', '2010-03-12'),
-    ('ACTIVO', 'Tomás', 'Benítez', 'tomas.benitez@institucion.edu.ar',
-     '3794157821', 'Junín', '830', '47982310', '2009-07-25'),
-    ('ACTIVO', 'Julieta', 'Cabrera', 'julieta.cabrera@institucion.edu.ar',
-     '3794219034', 'Rivadavia', '2570', '49204775', '2011-11-08'),
-    ('ACTIVO', 'Martina', 'Escobar', 'martina.escobar@institucion.edu.ar',
-     '3794456602', 'Córdoba', '1880', '48556941', '2010-05-17'),
-    ('ACTIVO', 'Lautaro', 'Ferreyra', 'lautaro.ferreyra@institucion.edu.ar',
-     '3794523388', 'Mendoza', '640', '47331408', '2009-09-02'),
-    ('ACTIVO', 'Valentina', 'Gauna', 'valentina.gauna@institucion.edu.ar',
-     '3794607715', 'La Rioja', '1120', '49617882', '2011-12-21'),
-    ('ACTIVO', 'Delfina', 'Ibarra', 'delfina.ibarra@institucion.edu.ar',
-     '3794805563', 'Salta', '755', '48998127', '2010-02-09'),
-    ('ACTIVO', 'Thiago', 'Juárez', 'thiago.juarez@institucion.edu.ar',
-     '3794948871', 'Catamarca', '1460', '47145690', '2009-10-26'),
-    -- También en el Colegio Manuel Belgrano, como egresada
-    ('ACTIVO', 'Lucía', 'Maidana', 'lucia.maidana@institucion.edu.ar',
-     '3794273184', 'San Juan', '1432', '53412768', '2013-09-14'),
-    ('ACTIVO', 'Benjamín', 'Navarro', 'benjamin.navarro@institucion.edu.ar',
-     '3794389105', 'Santa Fe', '968', '54876213', '2014-08-19'),
-    ('ACTIVO', 'Emma', 'Pereyra', 'emma.pereyra@institucion.edu.ar',
-     '3794492376', 'Tucumán', '1715', '55930472', '2016-01-27'),
-    ('ACTIVO', 'Joaquín', 'Quiroga', 'joaquin.quiroga@institucion.edu.ar',
-     '3794536048', 'Av. Maipú', '2310', '56704189', '2017-06-05'),
-    ('ACTIVO', 'Sofía', 'Ramírez', 'sofia.ramirez@institucion.edu.ar',
-     '3794621897', 'Bolívar', '540', '57318642', '2018-10-11'),
-    ('ACTIVO', 'Mateo', 'Sandoval', 'mateo.sandoval@institucion.edu.ar',
-     '3794745529', '9 de Julio', '1390', '58260715', '2019-03-30'),
-    ('ACTIVO', 'Isabella', 'Torres', 'isabella.torres@institucion.edu.ar',
-     '3794863740', 'Pellegrini', '1127', '59047386', '2020-07-16'),
-    ('ACTIVO', 'Agustín', 'Vera', 'agustin.vera@institucion.edu.ar',
-     '3794186653', 'Hipólito Yrigoyen', '2085', '51539027', '2012-05-23'),
-
-    -- Egresados
-    ('EGRESADO', 'Facundo', 'Duarte', 'facundo.duarte@institucion.edu.ar',
-     '3794331120', 'San Martín', '415', '46870223', '2008-01-30'),
-    ('EGRESADO', 'Bautista', 'Herrera', 'bautista.herrera@institucion.edu.ar',
-     '3794712049', 'Entre Ríos', '2035', '46204559', '2008-06-14'),
-    ('EGRESADO', 'Ignacio', 'Villalba', 'ignacio.villalba@institucion.edu.ar',
-     '3794295071', 'Av. 3 de Abril', '1203', '44917560', '2006-11-19'),
-    ('EGRESADO', 'Milagros', 'Zárate', 'milagros.zarate@institucion.edu.ar',
-     '3794079412', '25 de Mayo', '1658', '45382974', '2007-04-08')
-) AS a(estado, nombre, apellido, email, telefono, direccion_calle, direccion_altura, dni,
-       fecha_nacimiento)
-LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
-LEFT JOIN alumno_estado e ON e.nombre = a.estado
-ORDER BY a.apellido, a.nombre;
-
--- Colegio Manuel Belgrano: 16 activos y 4 egresados
-INSERT INTO alumno (institucion_id, alumno_estado_id, nombre, apellido, email, telefono,
-                    direccion_calle, direccion_altura, dni, fecha_nacimiento)
-SELECT i.institucion_id, e.alumno_estado_id, a.nombre, a.apellido, a.email, a.telefono,
-       a.direccion_calle, a.direccion_altura, a.dni, a.fecha_nacimiento::date
-FROM (VALUES
-    -- Activos
-    ('ACTIVO', 'Morena', 'Acuña', 'morena.acuna@colegiobelgrano.edu.ar',
-     '3794518203', 'Perú', '1139', '50794158', '2011-08-25'),
-    ('ACTIVO', 'Renata', 'Aguilar', 'renata.aguilar@colegiobelgrano.edu.ar',
-     '3794317742', 'Lavalle', '1175', '50218436', '2011-02-18'),
-    ('ACTIVO', 'Felipe', 'Barrios', 'felipe.barrios@colegiobelgrano.edu.ar',
-     '3794428916', 'Av. Independencia', '3240', '52607981', '2013-06-07'),
-    ('ACTIVO', 'Abril', 'Cardozo', 'abril.cardozo@colegiobelgrano.edu.ar',
-     '3794553027', 'Quintana', '892', '54139865', '2014-12-02'),
-    ('ACTIVO', 'Bruno', 'Domínguez', 'bruno.dominguez@colegiobelgrano.edu.ar',
-     '3794635108', 'Mariano Moreno', '1536', '49873214', '2010-09-29'),
-    ('ACTIVO', 'Catalina', 'Espinoza', 'catalina.espinoza@colegiobelgrano.edu.ar',
-     '3794782691', 'Paraguay', '1048', '56381702', '2017-03-15'),
-    ('ACTIVO', 'Dante', 'Franco', 'dante.franco@colegiobelgrano.edu.ar',
-     '3794849350', 'Av. Armenia', '2765', '57692043', '2018-08-22'),
-    ('ACTIVO', 'Olivia', 'Giménez', 'olivia.gimenez@colegiobelgrano.edu.ar',
-     '3794924673', 'Uruguay', '674', '58945127', '2020-01-10'),
-    ('ACTIVO', 'Simón', 'Gutiérrez', 'simon.gutierrez@colegiobelgrano.edu.ar',
-     '3794673945', 'Necochea', '1582', '52093671', '2012-12-09'),
-    ('ACTIVO', 'Francisco', 'López', 'francisco.lopez@colegiobelgrano.edu.ar',
-     '3794091835', 'Chaco', '1921', '55406398', '2015-11-04'),
-    ('ACTIVO', 'Jazmín', 'Meza', 'jazmin.meza@colegiobelgrano.edu.ar',
-     '3794731068', 'Plácido Martínez', '936', '48371925', '2009-01-20'),
-    ('ACTIVO', 'Guadalupe', 'Molina', 'guadalupe.molina@colegiobelgrano.edu.ar',
-     '3794167204', 'Santiago del Estero', '1367', '48735019', '2009-04-26'),
-    ('ACTIVO', 'Ramiro', 'Peralta', 'ramiro.peralta@colegiobelgrano.edu.ar',
-     '3794235586', 'Jujuy', '805', '51264870', '2012-07-13'),
-    ('ACTIVO', 'Mía', 'Rojas', 'mia.rojas@colegiobelgrano.edu.ar',
-     '3794376419', 'Brasil', '1490', '53850746', '2014-05-31'),
-    ('ACTIVO', 'Lorenzo', 'Silva', 'lorenzo.silva@colegiobelgrano.edu.ar',
-     '3794460952', 'San Lorenzo', '2218', '47508263', '2008-10-03'),
-    ('ACTIVO', 'Valentín', 'Vargas', 'valentin.vargas@colegiobelgrano.edu.ar',
-     '3794887531', 'Av. Pujol', '2407', '55183409', '2015-06-18'),
-
-    -- Egresados
-    ('EGRESADO', 'Micaela', 'Bravo', 'micaela.bravo@colegiobelgrano.edu.ar',
-     '3794026497', 'Buenos Aires', '1763', '45126834', '2007-02-11'),
-    ('EGRESADO', 'Nahuel', 'Correa', 'nahuel.correa@colegiobelgrano.edu.ar',
-     '3794149728', 'Don Bosco', '1294', '45673092', '2007-09-05'),
-    -- También en el Instituto San Martin, como activa
-    ('EGRESADO', 'Lucía', 'Maidana', 'lucia.maidana@colegiobelgrano.edu.ar',
-     '3794273184', 'San Juan', '1432', '53412768', '2013-09-14'),
-    ('EGRESADO', 'Aldana', 'Ríos', 'aldana.rios@colegiobelgrano.edu.ar',
-     '3794263815', 'Las Heras', '517', '44305718', '2006-03-28')
-) AS a(estado, nombre, apellido, email, telefono, direccion_calle, direccion_altura, dni,
-       fecha_nacimiento)
-LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
-LEFT JOIN alumno_estado e ON e.nombre = a.estado
-ORDER BY a.apellido, a.nombre;
 
 -- Estados de inscripción
 INSERT INTO inscripcion_estado (nombre) VALUES
@@ -582,147 +408,806 @@ INSERT INTO inscripcion_estado (nombre) VALUES
     ('CANCELADA'),
     ('FINALIZADA');
 
--- Inscripciones: 20 por institución, 40 en total: 16 activas, 14 canceladas y 10 finalizadas.
--- Cada fila de VALUES nombra el estado por su nombre, al alumno por su email y al curso por los
--- datos que lo identifican dentro de la institución; los LEFT JOIN los traducen a sus ids. Como en
--- las asignaciones docentes, son LEFT JOIN para que un dato que no existe deje su id en NULL y el
--- INSERT falle por NOT NULL: con un JOIN, la fila se saltearía sin avisar.
--- Las activas son de alumnos activos, y ningún alumno tiene más de una: lo exige
--- trg_inscripcion_coherencia. Las canceladas cubren los dos casos: el alumno que dejó de cursar,
--- que sigue activo y sin inscripción activa, y el cambio de curso, que tiene una inscripción
--- posterior del mismo alumno en el curso destino. Cada finalizada es anterior a la inscripción de
--- su alumno en el grado siguiente: las finalizadas y los cambios de división son de los primeros
--- días hábiles de enero.
--- El año de cada fecha de inscripción es el ciclo lectivo de su curso, como exige
--- trg_inscripcion_fecha_ciclo_lectivo: las inscripciones se hacen durante ese año, a partir de
--- enero.
--- El ORDER BY las inserta por fecha de inscripción, para que los ids sigan el orden en que se
--- habrían cargado.
--- Quedan alumnos sin ninguna inscripción, algunos de ellos activos.
+-- Alumnos, inscripciones, evaluaciones y calificaciones: las dos instituciones tienen los mismos
+-- casos, con las mismas fechas y notas, así las cantidades coinciden en cualquier fecha. Por
+-- institución: 391 alumnos; en el ciclo lectivo actual, 388 inscripciones y 113 evaluaciones, y en
+-- el anterior, 312 inscripciones (finalizadas), 100 evaluaciones y 2596 calificaciones. Ningún
+-- alumno está en las dos.
+-- Cada alumno tiene un ordinal n (de 1 a 391, el mismo en las dos instituciones) del que salen sus
+-- datos, sus fechas y sus notas. Los datos se arman en tablas temporales, que se borran con el
+-- COMMIT.
+-- Los alumnos se cargan acá, antes del lote del ciclo lectivo anterior (más abajo), porque
+-- seed_alumno calcula las fechas de nacimiento con fn_anio_ciclo_lectivo_actual(): tiene que
+-- crearse con el reloj real, antes de fijarlo en el ciclo anterior.
 
--- Instituto San Martin: 8 activas, 7 canceladas y 5 finalizadas
-INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
-SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, ins.fecha_inscripcion::date
+-- Cursos del ciclo lectivo actual, con las inscripciones activas y vigentes que tiene cada uno al
+-- terminar el seed (de 20 a
+-- 35, 381 en total, todas distintas). Los alumnos regulares (una sola inscripción, activa) de cada
+-- curso son las inscripciones activas menos las de los casos especiales que terminan activos en él
+-- (1° B de primaria, 1° A de secundaria y 3° A de primaria, uno cada uno): 378 en total. Sus n son
+-- consecutivos, en el orden de la tabla, de n_desde a n_hasta. La edad es la de sus alumnos al 30 de
+-- junio
+CREATE TEMP TABLE seed_curso ON COMMIT DROP AS
+SELECT c.*,
+       (SUM(c.regulares) OVER (ORDER BY c.orden) - c.regulares + 1)::INT AS n_desde,
+       (SUM(c.regulares) OVER (ORDER BY c.orden))::INT AS n_hasta
 FROM (VALUES
-    -- Activas
-    ('ACTIVA', 'camila.alvarez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-09'),
-    ('ACTIVA', 'tomas.benitez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-10'),
-    ('ACTIVA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2026-01-13'),
-    ('ACTIVA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2026-01-15'),
-    -- Terminó la primaria en el Colegio Manuel Belgrano
-    ('ACTIVA', 'lucia.maidana@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'TARDE', 2026, '2026-02-20'),
-    ('ACTIVA', 'joaquin.quiroga@institucion.edu.ar', 'PRIMARIA', '4°', 'A', 'MAÑANA', 2026, '2026-03-04'),
-    ('ACTIVA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-19'),
-    ('ACTIVA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-20'),
+    (1, 'PRIMARIA', '1°', 'A', 28, 28, 6),
+    (2, 'PRIMARIA', '1°', 'B', 22, 21, 6),
+    (3, 'PRIMARIA', '2°', 'A', 31, 31, 7),
+    (4, 'PRIMARIA', '3°', 'A', 26, 25, 8),
+    (5, 'PRIMARIA', '4°', 'A', 34, 34, 9),
+    (6, 'PRIMARIA', '5°', 'A', 24, 24, 10),
+    (7, 'PRIMARIA', '6°', 'A', 29, 29, 11),
+    (8, 'SECUNDARIA', '1°', 'A', 33, 32, 12),
+    (9, 'SECUNDARIA', '1°', 'B', 21, 21, 12),
+    (10, 'SECUNDARIA', '2°', 'A', 30, 30, 13),
+    (11, 'SECUNDARIA', '3°', 'A', 25, 25, 14),
+    (12, 'SECUNDARIA', '4°', 'A', 35, 35, 15),
+    (13, 'SECUNDARIA', '5°', 'A', 23, 23, 16),
+    (14, 'SECUNDARIA', '6°', 'A', 20, 20, 17)
+) AS c(orden, nivel_educativo, grado, division, activas, regulares, edad);
 
-    -- Canceladas porque el alumno dejó de cursar
-    ('CANCELADA', 'martina.escobar@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-11'),
-    ('CANCELADA', 'lautaro.ferreyra@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-12'),
-    ('CANCELADA', 'thiago.juarez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 2026, '2026-02-18'),
-    ('CANCELADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 2026, '2026-01-22'),
+-- Alumnos: los 378 regulares (n de 1 a 378) y los 13 de los casos especiales (n = 378 + caso):
+--   1 y 2: cambio de división; 3: abandono con notas; 4: abandono sin notas; 5: dado de baja con
+--   notas; 6: dado de baja sin notas; 7: inscripción cargada por error; 8 a 11: egresados; 12 y
+--   13: activos sin inscripción.
+-- n = 40·q + r da el nombre r y el apellido (r + q) mod 40 de las listas, sin repetir pares. En el
+-- Colegio Manuel Belgrano el nombre y el apellido salen de n + 400, así no repiten los del
+-- Instituto San Martin. El email lleva el nombre y el apellido sin tildes. El dni de cada
+-- institución tiene su propio rango. La fecha de nacimiento da la edad del grado al 30 de junio
+-- del ciclo actual, con el mes y el día según n: así la edad queda entre 5 y 25 años (la que
+-- acepta el formulario) en cualquier fecha del año
+CREATE TEMP TABLE seed_alumno ON COMMIT DROP AS
+WITH listas AS (
+    SELECT ARRAY['Sofía', 'Mateo', 'Valentina', 'Benjamín', 'Martina', 'Thiago', 'Catalina', 'Joaquín',
+                 'Emilia', 'Lautaro', 'Lucía', 'Santiago', 'Camila', 'Tomás', 'Agustina', 'Facundo',
+                 'Milagros', 'Bautista', 'Julieta', 'Ramiro', 'Florencia', 'Ignacio', 'Abril', 'Máximo',
+                 'Delfina', 'Gonzalo', 'Morena', 'Franco', 'Renata', 'Agustín', 'Victoria', 'Iván',
+                 'Antonella', 'Simón', 'Guadalupe', 'Ezequiel', 'Zoe', 'Valentín', 'Malena', 'Nahuel'] AS nombres,
+           ARRAY['sofia', 'mateo', 'valentina', 'benjamin', 'martina', 'thiago', 'catalina', 'joaquin',
+                 'emilia', 'lautaro', 'lucia', 'santiago', 'camila', 'tomas', 'agustina', 'facundo',
+                 'milagros', 'bautista', 'julieta', 'ramiro', 'florencia', 'ignacio', 'abril', 'maximo',
+                 'delfina', 'gonzalo', 'morena', 'franco', 'renata', 'agustin', 'victoria', 'ivan',
+                 'antonella', 'simon', 'guadalupe', 'ezequiel', 'zoe', 'valentin', 'malena', 'nahuel'] AS nombres_email,
+           ARRAY['Acuña', 'Barrios', 'Cabrera', 'Duarte', 'Escobar', 'Figueroa', 'Giménez', 'Herrera',
+                 'Ibáñez', 'Juárez', 'Ledesma', 'Maidana', 'Núñez', 'Ortiz', 'Paredes', 'Quintana',
+                 'Ríos', 'Silva', 'Torres', 'Vera', 'Zárate', 'Aquino', 'Coronel', 'Domínguez',
+                 'Espíndola', 'Gauna', 'Lezcano', 'Molina', 'Navarro', 'Peralta', 'Retamozo', 'Saucedo',
+                 'Toledo', 'Villalba', 'Alegre', 'Brítez', 'Cardozo', 'Encina', 'Morínigo', 'Pereyra'] AS apellidos,
+           ARRAY['acuna', 'barrios', 'cabrera', 'duarte', 'escobar', 'figueroa', 'gimenez', 'herrera',
+                 'ibanez', 'juarez', 'ledesma', 'maidana', 'nunez', 'ortiz', 'paredes', 'quintana',
+                 'rios', 'silva', 'torres', 'vera', 'zarate', 'aquino', 'coronel', 'dominguez',
+                 'espindola', 'gauna', 'lezcano', 'molina', 'navarro', 'peralta', 'retamozo', 'saucedo',
+                 'toledo', 'villalba', 'alegre', 'britez', 'cardozo', 'encina', 'morinigo', 'pereyra'] AS apellidos_email,
+           ARRAY['San Juan', 'Junín', 'Mendoza', 'Carlos Pellegrini', 'Bolívar', 'La Rioja', 'Córdoba',
+                 'Catamarca', 'Salta', 'Tucumán', 'Santa Fe', 'Av. Independencia', 'Av. Maipú',
+                 'Rivadavia', 'Moreno', 'Hipólito Yrigoyen'] AS calles
+),
+ordinales AS (
+    -- Regulares
+    SELECT n, NULL::INT AS caso, sc.edad, 'ACTIVO' AS estado
+    FROM seed_curso sc
+    CROSS JOIN generate_series(sc.n_desde, sc.n_hasta) AS n
+    UNION ALL
+    -- Casos especiales
+    SELECT 378 + e.caso, e.caso, e.edad, e.estado
+    FROM (VALUES
+        (1, 6, 'ACTIVO'), (2, 12, 'ACTIVO'), (3, 15, 'ACTIVO'), (4, 10, 'ACTIVO'), (5, 13, 'ACTIVO'),
+        (6, 9, 'ACTIVO'), (7, 8, 'ACTIVO'), (8, 18, 'EGRESADO'), (9, 18, 'EGRESADO'),
+        (10, 19, 'EGRESADO'), (11, 19, 'EGRESADO'), (12, 6, 'ACTIVO'), (13, 12, 'ACTIVO')
+    ) AS e(caso, edad, estado)
+),
+datos AS (
+    SELECT inst.cuit, o.n, o.caso, o.estado, inst.dominio, inst.dni_base, inst.telefono_base,
+           inst.calle_base,
+           (o.n + inst.desplazamiento) % 40 AS r,
+           (o.n + inst.desplazamiento) / 40 AS q,
+           1 + (o.n * 7) % 12 AS mes_nacimiento,
+           1 + (o.n * 11) % 28 AS dia_nacimiento,
+           o.edad
+    FROM ordinales o
+    CROSS JOIN (VALUES
+        ('30-71234567-8', 'institucion.edu.ar', 0, 47000000, 0, 0),
+        ('30-69854321-5', 'colegiobelgrano.edu.ar', 400, 49000000, 500000, 5)
+    ) AS inst(cuit, dominio, desplazamiento, dni_base, telefono_base, calle_base)
+)
+SELECT d.cuit, d.n, d.caso, d.estado,
+       l.nombres[d.r + 1] AS nombre,
+       l.apellidos[(d.r + d.q) % 40 + 1] AS apellido,
+       l.nombres_email[d.r + 1] || '.' || l.apellidos_email[(d.r + d.q) % 40 + 1] || '@' || d.dominio AS email,
+       '3794' || lpad(((d.n * 7331 + d.telefono_base) % 1000000)::TEXT, 6, '0') AS telefono,
+       l.calles[(d.n + d.calle_base) % 16 + 1] AS direccion_calle,
+       (1 + (d.n * 389) % 4999)::TEXT AS direccion_altura,
+       (d.dni_base + (d.n * 7919) % 1000000)::TEXT AS dni,
+       make_date(fn_anio_ciclo_lectivo_actual() - d.edad
+                     - CASE WHEN d.mes_nacimiento > 6 THEN 1 ELSE 0 END,
+                 d.mes_nacimiento, d.dia_nacimiento) AS fecha_nacimiento
+FROM datos d
+CROSS JOIN listas l;
 
-    -- Canceladas por cambio de curso: dos de división (de la A a la B) y uno de grado (de 3° a 4°)
-    ('CANCELADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-05'),
-    ('CANCELADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-07'),
-    ('CANCELADA', 'joaquin.quiroga@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-23'),
+-- Todos se cargan ACTIVO. Los de estado EGRESADO en seed_alumno (casos 8 a 11) pasan a EGRESADO
+-- después del cierre del ciclo lectivo anterior (más abajo): un egresado no recibe inscripciones
+-- activas, y las del ciclo anterior quedan activas hasta el cierre
+INSERT INTO alumno (institucion_id, alumno_estado_id, nombre, apellido, email, telefono, direccion_calle, direccion_altura, dni, fecha_nacimiento)
+SELECT i.institucion_id, e.alumno_estado_id, s.nombre, s.apellido, s.email, s.telefono,
+       s.direccion_calle, s.direccion_altura, s.dni, s.fecha_nacimiento
+FROM seed_alumno s
+JOIN institucion i ON i.cuit = s.cuit
+JOIN alumno_estado e ON e.nombre = 'ACTIVO'
+ORDER BY i.institucion_id, s.apellido, s.nombre;
 
-    -- Finalizadas: el grado anterior, de alumnos que después se inscribieron en el siguiente
-    ('FINALIZADA', 'julieta.cabrera@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-01-02'),
-    ('FINALIZADA', 'valentina.gauna@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2026, '2026-01-12'),
-    ('FINALIZADA', 'sofia.ramirez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-06'),
-    ('FINALIZADA', 'mateo.sandoval@institucion.edu.ar', 'PRIMARIA', '1°', 'B', 'TARDE', 2026, '2026-01-09'),
-    ('FINALIZADA', 'agustin.vera@institucion.edu.ar', 'SECUNDARIA', '2°', 'B', 'TARDE', 2026, '2026-01-08')
-) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
-LEFT JOIN institucion i ON i.cuit = '30-71234567-8'
-LEFT JOIN alumno a ON a.institucion_id = i.institucion_id AND a.email = ins.email
-LEFT JOIN grado g ON g.nombre = ins.grado AND g.nivel_educativo = ins.nivel_educativo
-LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
-                 AND c.division = ins.division AND c.turno = ins.turno
-                 AND c.anio_ciclo_lectivo = ins.anio_ciclo_lectivo
-LEFT JOIN inscripcion_estado e ON e.nombre = ins.estado
-ORDER BY ins.fecha_inscripcion::date, a.alumno_id;
-
--- Colegio Manuel Belgrano: 8 activas, 7 canceladas y 5 finalizadas
-INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
-SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id, ins.fecha_inscripcion::date
+-- Asignaciones docentes del ciclo lectivo actual: 29 por institución, 58 en total: 28 vigentes (dos
+-- materias en cada curso) y 1 dada de baja (baja = TRUE), la del profesor dado de baja. Las dos
+-- instituciones tienen las mismas: la misma materia de cada curso la dicta el profesor equivalente
+-- (Natalia Fleitas por Lorena Martínez, Martín Sotelo por Pablo Fernández, Verónica Almirón por
+-- Diego González, Andrés Cáceres por Julián Romero, Esteban Montiel por Carolina Vallejos y Alicia
+-- Insaurralde por Roberto Sánchez) o el mismo profesor, si trabaja en las dos.
+-- Cada fila nombra a la institución por su cuit, al profesor por su email (el de su cuenta vigente
+-- de profesor: el mismo email puede tener en la institución otra cuenta, con otro rol), al curso por
+-- los datos que lo identifican dentro de la institución en un ciclo lectivo (el JOIN completa el
+-- año) y a la materia por su nombre. La usan los INSERT de los dos ciclos: el ciclo anterior toma
+-- las de la división A (más abajo)
+CREATE TEMP TABLE seed_asignacion ON COMMIT DROP AS
+SELECT *
 FROM (VALUES
-    -- Activas
-    ('ACTIVA', 'renata.aguilar@colegiobelgrano.edu.ar', 'SECUNDARIA', '4°', 'A', 'MAÑANA', 2026, '2026-02-09'),
-    ('ACTIVA', 'felipe.barrios@colegiobelgrano.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-03-11'),
-    ('ACTIVA', 'abril.cardozo@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, '2026-02-11'),
-    ('ACTIVA', 'catalina.espinoza@colegiobelgrano.edu.ar', 'PRIMARIA', '4°', 'A', 'TARDE', 2026, '2026-02-24'),
-    ('ACTIVA', 'olivia.gimenez@colegiobelgrano.edu.ar', 'PRIMARIA', '1°', 'A', 'TARDE', 2026, '2026-02-26'),
-    ('ACTIVA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-14'),
-    ('ACTIVA', 'mia.rojas@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-01-21'),
-    ('ACTIVA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-16'),
+    -- Instituto San Martin, primaria
+    ('30-71234567-8', 'lorena.martinez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 'Lengua', FALSE),
+    ('30-71234567-8', 'lorena.martinez@institucion.edu.ar', 'PRIMARIA', '1°', 'A', 'MAÑANA', 'Matemática', FALSE),
+    ('30-71234567-8', 'carolina.vallejos@institucion.edu.ar', 'PRIMARIA', '1°', 'B', 'TARDE', 'Lengua', FALSE),
+    ('30-71234567-8', 'julian.romero@institucion.edu.ar', 'PRIMARIA', '1°', 'B', 'TARDE', 'Matemática', FALSE),
+    ('30-71234567-8', 'pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 'Lengua', FALSE),
+    ('30-71234567-8', 'pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 'Matemática', FALSE),
+    ('30-71234567-8', 'roberto.sanchez@institucion.edu.ar', 'PRIMARIA', '2°', 'A', 'MAÑANA', 'Educación Física', TRUE),
+    ('30-71234567-8', 'julian.romero@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 'Matemática', FALSE),
+    ('30-71234567-8', 'lorena.martinez@institucion.edu.ar', 'PRIMARIA', '3°', 'A', 'MAÑANA', 'Ciencias Naturales', FALSE),
+    ('30-71234567-8', 'pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '4°', 'A', 'MAÑANA', 'Lengua', FALSE),
+    ('30-71234567-8', 'diego.gonzalez@institucion.edu.ar', 'PRIMARIA', '4°', 'A', 'MAÑANA', 'Inglés', FALSE),
+    ('30-71234567-8', 'pablo.fernandez@institucion.edu.ar', 'PRIMARIA', '5°', 'A', 'MAÑANA', 'Matemática', FALSE),
+    ('30-71234567-8', 'diego.gonzalez@institucion.edu.ar', 'PRIMARIA', '5°', 'A', 'MAÑANA', 'Inglés', FALSE),
+    ('30-71234567-8', 'julian.romero@institucion.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 'Ciencias Sociales', FALSE),
+    ('30-71234567-8', 'diego.gonzalez@institucion.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 'Inglés', FALSE),
 
-    -- Canceladas porque el alumno dejó de cursar
-    ('CANCELADA', 'morena.acuna@colegiobelgrano.edu.ar', 'SECUNDARIA', '3°', 'A', 'MAÑANA', 2026, '2026-02-13'),
-    ('CANCELADA', 'simon.gutierrez@colegiobelgrano.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 2026, '2026-02-19'),
-    ('CANCELADA', 'jazmin.meza@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-09'),
-    ('CANCELADA', 'valentin.vargas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 2026, '2026-02-20'),
+    -- Instituto San Martin, secundaria
+    ('30-71234567-8', 'silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'TARDE', 'Matemática', FALSE),
+    ('30-71234567-8', 'gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'TARDE', 'Historia', FALSE),
+    ('30-71234567-8', 'silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'B', 'MAÑANA', 'Matemática', FALSE),
+    ('30-71234567-8', 'nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '1°', 'B', 'MAÑANA', 'Biología', FALSE),
+    ('30-71234567-8', 'silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'TARDE', 'Matemática', FALSE),
+    ('30-71234567-8', 'nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'TARDE', 'Biología', FALSE),
+    ('30-71234567-8', 'gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 'Lengua', FALSE),
+    ('30-71234567-8', 'nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'TARDE', 'Fisicoquímica', FALSE),
+    ('30-71234567-8', 'gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'TARDE', 'Literatura', FALSE),
+    ('30-71234567-8', 'silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'TARDE', 'Física', FALSE),
+    ('30-71234567-8', 'diego.gonzalez@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 'Inglés', FALSE),
+    ('30-71234567-8', 'nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'TARDE', 'Química', FALSE),
+    ('30-71234567-8', 'gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'TARDE', 'Literatura', FALSE),
+    ('30-71234567-8', 'carolina.vallejos@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'TARDE', 'Filosofía', FALSE),
 
-    -- Canceladas por cambio de curso: dos de división (de la A a la B) y uno de grado (de 1° a 2°)
-    ('CANCELADA', 'felipe.barrios@colegiobelgrano.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 2026, '2026-02-27'),
-    ('CANCELADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-08'),
-    ('CANCELADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-05'),
+    -- Colegio Manuel Belgrano, primaria
+    ('30-69854321-5', 'natalia.fleitas@colegiobelgrano.edu.ar', 'PRIMARIA', '1°', 'A', 'TARDE', 'Lengua', FALSE),
+    ('30-69854321-5', 'natalia.fleitas@colegiobelgrano.edu.ar', 'PRIMARIA', '1°', 'A', 'TARDE', 'Matemática', FALSE),
+    ('30-69854321-5', 'esteban.montiel@colegiobelgrano.edu.ar', 'PRIMARIA', '1°', 'B', 'MAÑANA', 'Lengua', FALSE),
+    ('30-69854321-5', 'andres.caceres@colegiobelgrano.edu.ar', 'PRIMARIA', '1°', 'B', 'MAÑANA', 'Matemática', FALSE),
+    ('30-69854321-5', 'martin.sotelo@colegiobelgrano.edu.ar', 'PRIMARIA', '2°', 'A', 'TARDE', 'Lengua', FALSE),
+    ('30-69854321-5', 'martin.sotelo@colegiobelgrano.edu.ar', 'PRIMARIA', '2°', 'A', 'TARDE', 'Matemática', FALSE),
+    ('30-69854321-5', 'alicia.insaurralde@colegiobelgrano.edu.ar', 'PRIMARIA', '2°', 'A', 'TARDE', 'Educación Física', TRUE),
+    ('30-69854321-5', 'andres.caceres@colegiobelgrano.edu.ar', 'PRIMARIA', '3°', 'A', 'TARDE', 'Matemática', FALSE),
+    ('30-69854321-5', 'natalia.fleitas@colegiobelgrano.edu.ar', 'PRIMARIA', '3°', 'A', 'TARDE', 'Ciencias Naturales', FALSE),
+    ('30-69854321-5', 'martin.sotelo@colegiobelgrano.edu.ar', 'PRIMARIA', '4°', 'A', 'TARDE', 'Lengua', FALSE),
+    ('30-69854321-5', 'veronica.almiron@colegiobelgrano.edu.ar', 'PRIMARIA', '4°', 'A', 'TARDE', 'Inglés', FALSE),
+    ('30-69854321-5', 'martin.sotelo@colegiobelgrano.edu.ar', 'PRIMARIA', '5°', 'A', 'TARDE', 'Matemática', FALSE),
+    ('30-69854321-5', 'veronica.almiron@colegiobelgrano.edu.ar', 'PRIMARIA', '5°', 'A', 'TARDE', 'Inglés', FALSE),
+    ('30-69854321-5', 'andres.caceres@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 'Ciencias Sociales', FALSE),
+    ('30-69854321-5', 'veronica.almiron@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'TARDE', 'Inglés', FALSE),
 
-    -- Finalizadas: Nahuel Correa y Lucía Maidana son egresados; ella cursa la secundaria en el
-    -- Instituto San Martin. Los otros tres se inscribieron después en el grado siguiente
-    ('FINALIZADA', 'nahuel.correa@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'B', 'TARDE', 2026, '2026-01-06'),
-    ('FINALIZADA', 'lucia.maidana@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'A', 'MAÑANA', 2026, '2026-01-07'),
-    ('FINALIZADA', 'guadalupe.molina@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 2026, '2026-01-02'),
-    ('FINALIZADA', 'mia.rojas@colegiobelgrano.edu.ar', 'PRIMARIA', '6°', 'B', 'TARDE', 2026, '2026-01-12'),
-    ('FINALIZADA', 'lorenzo.silva@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'B', 'TARDE', 2026, '2026-01-13')
-) AS ins(estado, email, nivel_educativo, grado, division, turno, anio_ciclo_lectivo, fecha_inscripcion)
-LEFT JOIN institucion i ON i.cuit = '30-69854321-5'
-LEFT JOIN alumno a ON a.institucion_id = i.institucion_id AND a.email = ins.email
-LEFT JOIN grado g ON g.nombre = ins.grado AND g.nivel_educativo = ins.nivel_educativo
+    -- Colegio Manuel Belgrano, secundaria
+    ('30-69854321-5', 'silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 'Matemática', FALSE),
+    ('30-69854321-5', 'gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '1°', 'A', 'MAÑANA', 'Historia', FALSE),
+    ('30-69854321-5', 'silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '1°', 'B', 'TARDE', 'Matemática', FALSE),
+    ('30-69854321-5', 'nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '1°', 'B', 'TARDE', 'Biología', FALSE),
+    ('30-69854321-5', 'silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 'Matemática', FALSE),
+    ('30-69854321-5', 'nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '2°', 'A', 'MAÑANA', 'Biología', FALSE),
+    ('30-69854321-5', 'gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'MAÑANA', 'Lengua', FALSE),
+    ('30-69854321-5', 'nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '3°', 'A', 'MAÑANA', 'Fisicoquímica', FALSE),
+    ('30-69854321-5', 'gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'MAÑANA', 'Literatura', FALSE),
+    ('30-69854321-5', 'silvia.gomez@institucion.edu.ar', 'SECUNDARIA', '4°', 'A', 'MAÑANA', 'Física', FALSE),
+    ('30-69854321-5', 'veronica.almiron@colegiobelgrano.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 'Inglés', FALSE),
+    ('30-69854321-5', 'nicolas.aguirre@institucion.edu.ar', 'SECUNDARIA', '5°', 'A', 'MAÑANA', 'Química', FALSE),
+    ('30-69854321-5', 'gabriela.ojeda@institucion.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 'Literatura', FALSE),
+    ('30-69854321-5', 'esteban.montiel@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 'Filosofía', FALSE)
+) AS a(cuit, email, nivel_educativo, grado, division, turno, materia, baja);
+
+-- Evaluaciones de cada asignación, con el día y el mes de su fecha (el año es el del ciclo de la
+-- asignación). En el ciclo actual, las cuatro de cada asignación vigente y, además, un recuperatorio
+-- en Matemática de 2° A de primaria, que se da de baja; en el ciclo anterior (más abajo), las cuatro,
+-- sin el recuperatorio. k interviene en la nota
+CREATE TEMP TABLE seed_evaluacion ON COMMIT DROP AS
+SELECT *
+FROM (VALUES
+    ('Evaluación diagnóstica', 3, 20, 1, FALSE),
+    ('Recuperatorio', 4, 10, 5, TRUE),
+    ('Trabajo práctico 1', 5, 15, 2, FALSE),
+    ('Evaluación escrita 1', 8, 21, 3, FALSE),
+    ('Trabajo práctico 2', 11, 13, 4, FALSE)
+) AS e(titulo, mes, dia, k, recuperatorio);
+
+-- Ciclo lectivo anterior (el actual - 1, sin año fijo): un lote histórico, cargado con todos los
+-- triggers activos. Los datos de un ciclo cerrado no se pueden cargar (trg_curso_ciclo_lectivo y los
+-- de las demás tablas), así que, dentro de esta transacción, se fija el reloj de la base
+-- (fn_fecha_actual(), de la que sale todo lo del ciclo lectivo) en el 31 de diciembre del año
+-- anterior, se carga ese ciclo como si fuera el actual, se restaura el reloj y se cierra el ciclo
+-- con sp_inscripcion_finalizar_ciclos_cerrados, como lo hace la aplicación al iniciarse.
+-- Por institución carga 12 cursos, 25 asignaciones, 312 inscripciones, 100 evaluaciones y 2596
+-- calificaciones, todas vigentes; el cierre deja las inscripciones finalizadas.
+-- El reemplazo de la función es transaccional: si el seed falla, ON_ERROR_STOP corta, la
+-- transacción se deshace y la función vuelve sola a la original.
+-- Para restaurarla se guarda su definición (pg_get_functiondef) antes de fijar el reloj y se
+-- ejecuta esa misma: no se escribe CURRENT_DATE a mano, porque la suite de pruebas la reemplaza
+-- antes del seed para congelar la fecha (tests/lib/clock.js).
+-- Va antes de las inscripciones del ciclo actual (un alumno tiene una sola inscripción activa
+-- vigente, y las del ciclo anterior quedan finalizadas recién con el cierre) y antes de suspender o
+-- dar de baja profesores (solo un profesor activo recibe asignaciones).
+-- Con el reloj fijado, fn_anio_ciclo_lectivo_actual() devuelve el año anterior: este tramo usa
+-- seed_reloj.anio_anterior para que se lea sin ambigüedad.
+CREATE TEMP TABLE seed_reloj ON COMMIT DROP AS
+SELECT pg_get_functiondef('fn_fecha_actual()'::regprocedure) AS definicion,
+       fn_fecha_actual() AS fecha_real,
+       fn_anio_ciclo_lectivo_actual() - 1 AS anio_anterior;
+
+-- Se fija el reloj en el 31 de diciembre del año anterior. Sin RAISE NOTICE: psql no tiene que
+-- mostrar avisos
+DO $$
+DECLARE
+    v_anio  INT;
+BEGIN
+    SELECT r.anio_anterior INTO v_anio FROM seed_reloj r;
+
+    EXECUTE format('CREATE OR REPLACE FUNCTION fn_fecha_actual() RETURNS DATE LANGUAGE sql STABLE AS %L',
+                   format('SELECT DATE %L', to_char(make_date(v_anio, 12, 31), 'YYYY-MM-DD')));
+
+    IF fn_ciclo_lectivo_estado(v_anio) IS DISTINCT FROM 'ACTUAL' THEN
+        RAISE EXCEPTION 'No se pudo fijar el reloj en el ciclo lectivo %', v_anio;
+    END IF;
+END
+$$;
+
+-- Cursos del ciclo anterior: 12 por institución, los 12 grados con la división A (sin las B de 1°),
+-- con el mismo turno que la A del ciclo actual (la misma expresión que los INSERT del ciclo actual,
+-- más abajo)
+
+-- Instituto San Martin: la primaria a la mañana y la secundaria a la tarde
+INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
+       g.grado_id, d.division,
+       CASE WHEN (g.nivel_educativo = 'PRIMARIA') = (d.division = 'A') THEN 'MAÑANA' ELSE 'TARDE' END,
+       r.anio_anterior
+FROM grado g
+CROSS JOIN (VALUES ('A')) AS d(division)
+CROSS JOIN seed_reloj r
+ORDER BY g.grado_id, d.division;
+
+-- Colegio Manuel Belgrano: la primaria a la tarde y la secundaria a la mañana
+INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+       g.grado_id, d.division,
+       CASE WHEN (g.nivel_educativo = 'PRIMARIA') = (d.division = 'A') THEN 'TARDE' ELSE 'MAÑANA' END,
+       r.anio_anterior
+FROM grado g
+CROSS JOIN (VALUES ('A')) AS d(division)
+CROSS JOIN seed_reloj r
+ORDER BY g.grado_id, d.division;
+
+-- Asignaciones docentes del ciclo anterior: las de seed_asignacion de la división A, 25 por
+-- institución (dos materias en cada curso y la de Educación Física de 2° A de primaria), todas
+-- vigentes. También las de los profesores que en el ciclo actual se suspenden o se dan de baja: en
+-- un ciclo cerrado quedan vigentes y con su profesor, y no impiden su baja
+-- (trg_usuario_asignaciones_vigentes solo cuenta las del ciclo actual). Los LEFT JOIN dejan en NULL
+-- el id de un dato que no existe, y el INSERT falla por NOT NULL
+INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
+SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
+FROM seed_asignacion a
+CROSS JOIN seed_reloj r
+LEFT JOIN institucion i ON i.cuit = a.cuit
+LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
+                   AND u.usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR')
+                   AND u.fecha_eliminacion IS NULL
+LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
 LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
-                 AND c.division = ins.division AND c.turno = ins.turno
-                 AND c.anio_ciclo_lectivo = ins.anio_ciclo_lectivo
-LEFT JOIN inscripcion_estado e ON e.nombre = ins.estado
-ORDER BY ins.fecha_inscripcion::date, a.alumno_id;
+                 AND c.division = a.division AND c.turno = a.turno
+                 AND c.anio_ciclo_lectivo = r.anio_anterior
+LEFT JOIN materia m ON m.nombre = a.materia
+LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
+WHERE a.division = 'A'
+ORDER BY i.institucion_id, c.curso_id, gm.grado_materia_id;
 
--- Evaluaciones: 5 por asignación docente, 95 en total, todas vigentes.
--- El INSERT cruza las asignaciones con las cinco evaluaciones de VALUES, así que todas tienen los
--- mismos títulos y las mismas fechas. Un título solo no se puede repetir dentro de una asignación
--- (uq_evaluacion_asignacion_docente_titulo).
--- VALUES da el día y el mes de cada fecha; el año es el ciclo lectivo del curso de la asignación,
--- como exige trg_evaluacion_fecha_ciclo_lectivo. Las cinco son días de clase de 2026, el único
--- ciclo lectivo cargado: no caen en fin de semana ni en feriado.
--- El ORDER BY deja juntas las de cada asignación, en orden de fecha.
+-- Inscripciones del ciclo anterior: 312 por institución. En cada curso del ciclo anterior se
+-- inscriben los regulares (seed_curso.n_desde a n_hasta) de la A del grado siguiente del ciclo
+-- actual, que cursaron ese grado, y en 6° A de secundaria, los egresados (casos 8 a 11, n de 386 a
+-- 389). Sin inscripción en el ciclo anterior: 1° A y 1° B de primaria y 1° B de secundaria, que
+-- ingresaron en el actual, y los casos especiales 1 a 7, 12 y 13.
+-- El LEFT JOIN deja n_desde y n_hasta en NULL si el curso actual no existe en seed_curso: el curso
+-- se queda sin inscripciones y la cantidad no cierra (tests/db/schema.test.js)
+CREATE TEMP TABLE seed_curso_anterior ON COMMIT DROP AS
+SELECT x.nivel_educativo, x.grado, x.egresados,
+       CASE WHEN x.egresados THEN 378 + 8 ELSE sc.n_desde END AS n_desde,
+       CASE WHEN x.egresados THEN 378 + 11 ELSE sc.n_hasta END AS n_hasta
+FROM (VALUES
+    ('PRIMARIA', '1°', 'PRIMARIA', '2°', FALSE),
+    ('PRIMARIA', '2°', 'PRIMARIA', '3°', FALSE),
+    ('PRIMARIA', '3°', 'PRIMARIA', '4°', FALSE),
+    ('PRIMARIA', '4°', 'PRIMARIA', '5°', FALSE),
+    ('PRIMARIA', '5°', 'PRIMARIA', '6°', FALSE),
+    ('PRIMARIA', '6°', 'SECUNDARIA', '1°', FALSE),
+    ('SECUNDARIA', '1°', 'SECUNDARIA', '2°', FALSE),
+    ('SECUNDARIA', '2°', 'SECUNDARIA', '3°', FALSE),
+    ('SECUNDARIA', '3°', 'SECUNDARIA', '4°', FALSE),
+    ('SECUNDARIA', '4°', 'SECUNDARIA', '5°', FALSE),
+    ('SECUNDARIA', '5°', 'SECUNDARIA', '6°', FALSE),
+    ('SECUNDARIA', '6°', NULL, NULL, TRUE)
+) AS x(nivel_educativo, grado, nivel_actual, grado_actual, egresados)
+LEFT JOIN seed_curso sc ON sc.nivel_educativo = x.nivel_actual AND sc.grado = x.grado_actual
+                       AND sc.division = 'A';
+
+-- Todas activas (el cierre, más abajo, las finaliza), con la fecha de los regulares del ciclo
+-- actual en el año anterior: entre el 2 y el 26 de febrero, según n; la de los egresados, el 2 de
+-- febrero. Los LEFT JOIN dejan el curso en NULL si no existe, y el INSERT falla por NOT NULL
+INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
+SELECT a.alumno_id, c.curso_id, e.inscripcion_estado_id,
+       make_date(r.anio_anterior, 2, CASE WHEN sca.egresados THEN 2 ELSE 2 + (s.n * 7) % 25 END) AS fecha
+FROM seed_curso_anterior sca
+CROSS JOIN generate_series(sca.n_desde, sca.n_hasta) AS o(n)
+CROSS JOIN seed_reloj r
+JOIN seed_alumno s ON s.n = o.n
+JOIN institucion i ON i.cuit = s.cuit
+JOIN alumno a ON a.institucion_id = i.institucion_id AND a.dni = s.dni
+JOIN inscripcion_estado e ON e.nombre = 'ACTIVA'
+LEFT JOIN grado g ON g.nombre = sca.grado AND g.nivel_educativo = sca.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = 'A'
+                 AND c.anio_ciclo_lectivo = r.anio_anterior
+ORDER BY i.institucion_id, fecha, s.n;
+
+-- Evaluaciones del ciclo anterior: las de seed_evaluacion sin el recuperatorio, en cada una de sus 25
+-- asignaciones, 100 por institución
 INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion)
-SELECT a.asignacion_docente_id, e.titulo, make_date(c.anio_ciclo_lectivo, e.mes, e.dia)
+SELECT a.asignacion_docente_id, se.titulo, make_date(r.anio_anterior, se.mes, se.dia)
 FROM asignacion_docente a
 JOIN curso c ON c.curso_id = a.curso_id
-CROSS JOIN (VALUES
-    ('Evaluación diagnóstica', 3, 18),
-    ('Trabajo práctico 1', 4, 23),
-    ('Evaluación escrita 1', 6, 10),
-    ('Trabajo práctico 2', 9, 2),
-    ('Evaluación escrita 2', 11, 12)
-) AS e(titulo, mes, dia)
-ORDER BY a.asignacion_docente_id, e.mes, e.dia;
+JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
+CROSS JOIN seed_reloj r
+JOIN seed_evaluacion se ON NOT se.recuperatorio
+WHERE c.anio_ciclo_lectivo = r.anio_anterior
+ORDER BY c.institucion_id, c.curso_id, gm.grado_materia_id, se.mes, se.dia;
 
--- Calificaciones: una por cada evaluación y cada inscripción activa del curso de su asignación,
--- 35 en total.
--- El INSERT no las enumera: une cada evaluación con las inscripciones del curso de su asignación,
--- así que ninguna evaluación queda con un alumno del curso sin calificar.
--- Solo cuentan las inscripciones activas: trg_calificacion_coherencia rechaza las demás, también
--- al cargarlas. Por eso quedan sin calificaciones las evaluaciones de los cursos que no tienen
--- ninguna inscripción activa.
--- La nota se calcula con los dos ids, para que sea la misma en cada carga: va de 4 a 10 de a 0,25,
--- así que hay enteras y con decimales.
--- El ORDER BY deja juntas las de cada evaluación.
+-- Calificaciones del ciclo anterior: una por inscripción y evaluación de su curso, todas vigentes
+-- (con el reloj en el 31 de diciembre, todas las evaluaciones ya se tomaron): 2596 por institución
+-- (4 evaluaciones por 312 inscripciones en dos asignaciones y 25 en la tercera de 2° A de
+-- primaria). Nota de 4 a 10, en pasos de 0,25, con otra fórmula que la del ciclo actual (unas 23 %
+-- menores que 6)
 INSERT INTO calificacion (evaluacion_id, inscripcion_id, nota)
 SELECT e.evaluacion_id, i.inscripcion_id,
-       4 + (e.evaluacion_id * 7 + i.inscripcion_id * 3) % 25 * 0.25
-FROM evaluacion e
-JOIN asignacion_docente a ON a.asignacion_docente_id = e.asignacion_docente_id
-JOIN inscripcion i ON i.curso_id = a.curso_id
-JOIN inscripcion_estado s ON s.inscripcion_estado_id = i.inscripcion_estado_id
-WHERE s.nombre = 'ACTIVA'
-ORDER BY e.evaluacion_id, i.inscripcion_id;
+       LEAST(10, 4 + (s.n * 3 % 7) * 0.75 + ((s.n + 2 * se.k) % 5) * 0.5)
+FROM inscripcion i
+JOIN curso c ON c.curso_id = i.curso_id
+CROSS JOIN seed_reloj r
+JOIN institucion inst ON inst.institucion_id = c.institucion_id
+JOIN alumno al ON al.alumno_id = i.alumno_id
+JOIN seed_alumno s ON s.cuit = inst.cuit AND s.dni = al.dni
+JOIN asignacion_docente a ON a.curso_id = c.curso_id
+JOIN evaluacion e ON e.asignacion_docente_id = a.asignacion_docente_id
+JOIN seed_evaluacion se ON se.titulo = e.titulo
+WHERE c.anio_ciclo_lectivo = r.anio_anterior
+ORDER BY c.institucion_id, e.evaluacion_id, i.inscripcion_id;
+
+-- Se restaura el reloj con la definición guardada, y el ciclo anterior queda cerrado
+DO $$
+DECLARE
+    v_reloj  RECORD;
+BEGIN
+    SELECT r.definicion, r.fecha_real, r.anio_anterior INTO v_reloj FROM seed_reloj r;
+
+    EXECUTE v_reloj.definicion;
+
+    IF fn_fecha_actual() IS DISTINCT FROM v_reloj.fecha_real
+       OR fn_ciclo_lectivo_estado(v_reloj.anio_anterior) IS DISTINCT FROM 'CERRADO' THEN
+        RAISE EXCEPTION 'No se pudo restaurar el reloj después de cargar el ciclo lectivo %', v_reloj.anio_anterior;
+    END IF;
+END
+$$;
+
+-- Cierre del ciclo anterior: sus inscripciones activas pasan a FINALIZADA. Dentro de un DO, porque
+-- un CALL suelto escribe su resultado
+DO $$
+DECLARE
+    v_finalizadas  INT;
+BEGIN
+    CALL sp_inscripcion_finalizar_ciclos_cerrados(v_finalizadas);
+END
+$$;
+
+-- Egresados (casos 8 a 11): pasan a EGRESADO después del cierre, ya sin inscripciones activas
+-- (trg_alumno_coherencia)
+UPDATE alumno al
+   SET alumno_estado_id = (SELECT alumno_estado_id FROM alumno_estado WHERE nombre = 'EGRESADO')
+  FROM seed_alumno s
+  JOIN institucion i ON i.cuit = s.cuit
+ WHERE s.estado = 'EGRESADO'
+   AND al.institucion_id = i.institucion_id
+   AND al.dni = s.dni;
+
+-- Cursos del ciclo lectivo actual: 14 por institución, 28 en total, todos vigentes
+-- (fn_anio_ciclo_lectivo_actual(), ya con el reloj restaurado). Con los 12 por institución del
+-- ciclo anterior, el seed carga 52 cursos.
+-- Cada institución tiene los 12 grados con una división A y, además, una división B en 1° de cada
+-- nivel, en el otro turno que la A de su nivel. Cada INSERT cruza los grados con sus divisiones.
+
+-- Instituto San Martin: la primaria cursa a la mañana y la secundaria a la tarde; las dos B, al
+-- revés (1° B de primaria a la tarde y 1° B de secundaria a la mañana)
+INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-71234567-8'),
+       g.grado_id, d.division,
+       CASE WHEN (g.nivel_educativo = 'PRIMARIA') = (d.division = 'A') THEN 'MAÑANA' ELSE 'TARDE' END,
+       fn_anio_ciclo_lectivo_actual()
+FROM grado g
+CROSS JOIN (VALUES ('A'), ('B')) AS d(division)
+WHERE d.division = 'A' OR g.nombre = '1°'
+ORDER BY g.grado_id, d.division;
+
+-- Colegio Manuel Belgrano: los mismos cursos con los turnos invertidos. La primaria cursa a la tarde
+-- y la secundaria a la mañana; las dos B, al revés (1° B de primaria a la mañana y 1° B de
+-- secundaria a la tarde)
+INSERT INTO curso (institucion_id, grado_id, division, turno, anio_ciclo_lectivo)
+SELECT (SELECT institucion_id FROM institucion WHERE cuit = '30-69854321-5'),
+       g.grado_id, d.division,
+       CASE WHEN (g.nivel_educativo = 'PRIMARIA') = (d.division = 'A') THEN 'TARDE' ELSE 'MAÑANA' END,
+       fn_anio_ciclo_lectivo_actual()
+FROM grado g
+CROSS JOIN (VALUES ('A'), ('B')) AS d(division)
+WHERE d.division = 'A' OR g.nombre = '1°'
+ORDER BY g.grado_id, d.division;
+
+-- Asignaciones docentes del ciclo lectivo actual: las de seed_asignacion (más arriba), unidas a los
+-- cursos del ciclo actual. Los LEFT JOIN traducen cada dato a su id. Son LEFT JOIN para que un dato
+-- que no existe (por ejemplo, una materia que no es del plan de estudios del grado) deje su id en
+-- NULL y el INSERT falle por NOT NULL: con un JOIN, la fila se saltearía sin avisar.
+-- En cada institución se cargan primero las vigentes, con todos los profesores activos (solo un
+-- profesor activo recibe asignaciones: trg_asignacion_docente_coherencia); después, la del profesor
+-- que se da de baja, que se da de baja antes que él (uno con asignaciones vigentes del ciclo actual
+-- no se da de baja: trg_usuario_asignaciones_vigentes; la suya del ciclo anterior queda vigente en
+-- el ciclo cerrado), y por último se suspende al profesor suspendido, que conserva sus dos
+-- asignaciones vigentes.
+-- Las bajas llevan la fecha de la de los secretarios dados de baja: el 2 de marzo del ciclo actual
+-- o, si se carga antes, el día de la carga.
+
+-- Instituto San Martin: las 28 vigentes
+INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
+SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
+FROM seed_asignacion a
+LEFT JOIN institucion i ON i.cuit = a.cuit
+LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
+                   AND u.usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR')
+                   AND u.fecha_eliminacion IS NULL
+LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = a.division AND c.turno = a.turno
+                 AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+LEFT JOIN materia m ON m.nombre = a.materia
+LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
+WHERE a.cuit = '30-71234567-8'
+  AND NOT a.baja
+ORDER BY c.curso_id, gm.grado_materia_id;
+
+-- Instituto San Martin: la asignación de Roberto Sánchez, que se da de baja, y después él
+INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
+SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
+FROM seed_asignacion a
+LEFT JOIN institucion i ON i.cuit = a.cuit
+LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
+                   AND u.usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR')
+                   AND u.fecha_eliminacion IS NULL
+LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = a.division AND c.turno = a.turno
+                 AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+LEFT JOIN materia m ON m.nombre = a.materia
+LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
+WHERE a.cuit = '30-71234567-8'
+  AND a.baja;
+
+UPDATE asignacion_docente
+   SET fecha_eliminacion = LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 3, 2), fn_fecha_actual())::TIMESTAMPTZ
+ WHERE usuario_id = (SELECT u.usuario_id
+                       FROM usuario u
+                       JOIN institucion i ON i.institucion_id = u.institucion_id
+                       JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
+                      WHERE i.cuit = '30-71234567-8'
+                        AND u.email = 'roberto.sanchez@institucion.edu.ar'
+                        AND r.nombre = 'PROFESOR')
+   AND curso_id IN (SELECT curso_id FROM curso WHERE anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual());
+
+UPDATE usuario u
+   SET estado = FALSE,
+       fecha_eliminacion = LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 3, 2), fn_fecha_actual())::TIMESTAMPTZ
+  FROM institucion i, usuario_rol r
+ WHERE i.institucion_id = u.institucion_id
+   AND r.usuario_rol_id = u.usuario_rol_id
+   AND i.cuit = '30-71234567-8'
+   AND u.email = 'roberto.sanchez@institucion.edu.ar'
+   AND r.nombre = 'PROFESOR';
+
+-- Instituto San Martin: se suspende a Carolina Vallejos
+UPDATE usuario u
+   SET estado = FALSE
+  FROM institucion i, usuario_rol r
+ WHERE i.institucion_id = u.institucion_id
+   AND r.usuario_rol_id = u.usuario_rol_id
+   AND i.cuit = '30-71234567-8'
+   AND u.email = 'carolina.vallejos@institucion.edu.ar'
+   AND r.nombre = 'PROFESOR';
+
+-- Colegio Manuel Belgrano: las 28 vigentes
+INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
+SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
+FROM seed_asignacion a
+LEFT JOIN institucion i ON i.cuit = a.cuit
+LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
+                   AND u.usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR')
+                   AND u.fecha_eliminacion IS NULL
+LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = a.division AND c.turno = a.turno
+                 AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+LEFT JOIN materia m ON m.nombre = a.materia
+LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
+WHERE a.cuit = '30-69854321-5'
+  AND NOT a.baja
+ORDER BY c.curso_id, gm.grado_materia_id;
+
+-- Colegio Manuel Belgrano: la asignación de Alicia Insaurralde, que se da de baja, y después ella
+INSERT INTO asignacion_docente (usuario_id, curso_id, grado_materia_id)
+SELECT u.usuario_id, c.curso_id, gm.grado_materia_id
+FROM seed_asignacion a
+LEFT JOIN institucion i ON i.cuit = a.cuit
+LEFT JOIN usuario u ON u.institucion_id = i.institucion_id AND u.email = a.email
+                   AND u.usuario_rol_id = (SELECT usuario_rol_id FROM usuario_rol WHERE nombre = 'PROFESOR')
+                   AND u.fecha_eliminacion IS NULL
+LEFT JOIN grado g ON g.nombre = a.grado AND g.nivel_educativo = a.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = a.division AND c.turno = a.turno
+                 AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+LEFT JOIN materia m ON m.nombre = a.materia
+LEFT JOIN grado_materia gm ON gm.grado_id = g.grado_id AND gm.materia_id = m.materia_id
+WHERE a.cuit = '30-69854321-5'
+  AND a.baja;
+
+UPDATE asignacion_docente
+   SET fecha_eliminacion = LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 3, 2), fn_fecha_actual())::TIMESTAMPTZ
+ WHERE usuario_id = (SELECT u.usuario_id
+                       FROM usuario u
+                       JOIN institucion i ON i.institucion_id = u.institucion_id
+                       JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
+                      WHERE i.cuit = '30-69854321-5'
+                        AND u.email = 'alicia.insaurralde@colegiobelgrano.edu.ar'
+                        AND r.nombre = 'PROFESOR')
+   AND curso_id IN (SELECT curso_id FROM curso WHERE anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual());
+
+UPDATE usuario u
+   SET estado = FALSE,
+       fecha_eliminacion = LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 3, 2), fn_fecha_actual())::TIMESTAMPTZ
+  FROM institucion i, usuario_rol r
+ WHERE i.institucion_id = u.institucion_id
+   AND r.usuario_rol_id = u.usuario_rol_id
+   AND i.cuit = '30-69854321-5'
+   AND u.email = 'alicia.insaurralde@colegiobelgrano.edu.ar'
+   AND r.nombre = 'PROFESOR';
+
+-- Colegio Manuel Belgrano: se suspende a Esteban Montiel
+UPDATE usuario u
+   SET estado = FALSE
+  FROM institucion i, usuario_rol r
+ WHERE i.institucion_id = u.institucion_id
+   AND r.usuario_rol_id = u.usuario_rol_id
+   AND i.cuit = '30-69854321-5'
+   AND u.email = 'esteban.montiel@colegiobelgrano.edu.ar'
+   AND r.nombre = 'PROFESOR';
+
+-- Inscripciones, evaluaciones y calificaciones del ciclo lectivo actual. Todas sus fechas son de ese
+-- ciclo y ninguna inscripción es futura: cada fecha es la del día y mes indicados o, si se carga
+-- antes, el día de la carga. Solo se califican las evaluaciones con fecha de hoy o anterior.
+
+-- Inscripciones de cada alumno, con su curso y su fecha. tipo: 'error' (la del caso 7, que se da de
+-- baja), 'inicial' (la primera, activa) o 'cambio' (la del curso nuevo en un cambio de división).
+-- Los regulares se inscriben entre el 2 y el 26 de febrero, según n. califica_hasta: solo se
+-- califican las evaluaciones de la inscripción con fecha anterior. Los LEFT JOIN dejan el curso
+-- en NULL si no existe, y el INSERT falla por NOT NULL
+CREATE TEMP TABLE seed_inscripcion ON COMMIT DROP AS
+SELECT i.institucion_id, s.n, s.caso, x.tipo, a.alumno_id, c.curso_id,
+       LEAST(make_date(fn_anio_ciclo_lectivo_actual(), x.mes, x.dia), fn_fecha_actual()) AS fecha,
+       make_date(fn_anio_ciclo_lectivo_actual(), x.hasta_mes, x.hasta_dia) AS califica_hasta
+FROM (
+    -- Regulares
+    SELECT n, 'inicial' AS tipo, sc.nivel_educativo, sc.grado, sc.division,
+           2 AS mes, 2 + (n * 7) % 25 AS dia, NULL::INT AS hasta_mes, NULL::INT AS hasta_dia
+    FROM seed_curso sc
+    CROSS JOIN generate_series(sc.n_desde, sc.n_hasta) AS n
+    UNION ALL
+    -- Casos especiales
+    SELECT 378 + e.caso, e.tipo, e.nivel_educativo, e.grado, e.division, e.mes, e.dia,
+           e.hasta_mes, e.hasta_dia
+    FROM (VALUES
+        -- 1 y 2: cambio de división el 20 de abril; la inscripción vieja se cancela
+        (1, 'inicial', 'PRIMARIA', '1°', 'A', 2, 2, 4, 20),
+        (1, 'cambio', 'PRIMARIA', '1°', 'B', 4, 20, NULL, NULL),
+        (2, 'inicial', 'SECUNDARIA', '1°', 'B', 2, 2, 4, 20),
+        (2, 'cambio', 'SECUNDARIA', '1°', 'A', 4, 20, NULL, NULL),
+        -- 3 y 4: abandono, con notas y sin notas; la inscripción se cancela y el alumno sigue ACTIVO
+        (3, 'inicial', 'SECUNDARIA', '4°', 'A', 2, 2, 6, 1),
+        (4, 'inicial', 'PRIMARIA', '5°', 'A', 2, 2, 3, 1),
+        -- 5 y 6: alumno dado de baja, con notas y sin notas (sp_alumno_dar_de_baja cancela la
+        -- inscripción)
+        (5, 'inicial', 'SECUNDARIA', '2°', 'A', 2, 2, 7, 1),
+        (6, 'inicial', 'PRIMARIA', '4°', 'A', 2, 2, 3, 1),
+        -- 7: inscripción cargada por error en 2° A, dada de baja, y la correcta en 3° A
+        (7, 'error', 'PRIMARIA', '2°', 'A', 2, 16, NULL, NULL),
+        (7, 'inicial', 'PRIMARIA', '3°', 'A', 2, 16, NULL, NULL)
+    ) AS e(caso, tipo, nivel_educativo, grado, division, mes, dia, hasta_mes, hasta_dia)
+) AS x
+JOIN seed_alumno s ON s.n = x.n
+JOIN institucion i ON i.cuit = s.cuit
+JOIN alumno a ON a.institucion_id = i.institucion_id AND a.dni = s.dni
+LEFT JOIN grado g ON g.nombre = x.grado AND g.nivel_educativo = x.nivel_educativo
+LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grado_id
+                 AND c.division = x.division
+                 AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+                 AND c.fecha_eliminacion IS NULL;
+
+-- Caso 7: la inscripción cargada por error, que se da de baja al día siguiente. Una dada de baja ya
+-- no cuenta para la regla de una sola inscripción activa por alumno
+INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
+SELECT si.alumno_id, si.curso_id, e.inscripcion_estado_id, si.fecha
+FROM seed_inscripcion si
+JOIN inscripcion_estado e ON e.nombre = 'ACTIVA'
+WHERE si.tipo = 'error'
+ORDER BY si.institucion_id, si.fecha, si.n;
+
+UPDATE inscripcion i
+   SET fecha_eliminacion = LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 2, 17), fn_fecha_actual())::TIMESTAMPTZ
+  FROM seed_inscripcion si
+ WHERE si.tipo = 'error'
+   AND i.alumno_id = si.alumno_id
+   AND i.curso_id = si.curso_id;
+
+-- Las inscripciones iniciales, todas activas
+INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
+SELECT si.alumno_id, si.curso_id, e.inscripcion_estado_id, si.fecha
+FROM seed_inscripcion si
+JOIN inscripcion_estado e ON e.nombre = 'ACTIVA'
+WHERE si.tipo = 'inicial'
+ORDER BY si.institucion_id, si.fecha, si.n;
+
+INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion)
+SELECT a.asignacion_docente_id, se.titulo, make_date(c.anio_ciclo_lectivo, se.mes, se.dia)
+FROM asignacion_docente a
+JOIN curso c ON c.curso_id = a.curso_id
+JOIN grado g ON g.grado_id = c.grado_id
+JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
+JOIN materia m ON m.materia_id = gm.materia_id
+JOIN seed_evaluacion se ON NOT se.recuperatorio
+                        OR (g.nivel_educativo = 'PRIMARIA' AND g.nombre = '2°'
+                            AND c.division = 'A' AND m.nombre = 'Matemática')
+WHERE a.fecha_eliminacion IS NULL
+  AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+ORDER BY c.institucion_id, c.curso_id, gm.grado_materia_id, se.mes, se.dia;
+
+-- Calificaciones de cada inscripción activa y vigente en las evaluaciones vigentes de su curso con
+-- fecha de hoy o anterior, a partir de su fecha de inscripción y antes de su califica_hasta, si no
+-- tiene ninguna en esa evaluación. Se ejecuta ahora y otra vez después de los cambios de división.
+-- Nota de 4,50 a 10, en pasos de 0,25 (unas 14 % menores que 6).
+-- Excepción: en Lengua de 2° A de primaria, los 3 regulares de mayor n quedan sin calificar en la
+-- Evaluación escrita 1
+PREPARE seed_calificar AS
+INSERT INTO calificacion (evaluacion_id, inscripcion_id, nota)
+SELECT e.evaluacion_id, i.inscripcion_id,
+       LEAST(10, 4.5 + (si.n * 5 % 7) * 0.75 + ((si.n + 3 * se.k) % 5) * 0.5)
+FROM seed_inscripcion si
+JOIN inscripcion i ON i.alumno_id = si.alumno_id AND i.curso_id = si.curso_id
+JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+JOIN asignacion_docente a ON a.curso_id = i.curso_id
+JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
+JOIN materia m ON m.materia_id = gm.materia_id
+JOIN evaluacion e ON e.asignacion_docente_id = a.asignacion_docente_id
+JOIN seed_evaluacion se ON se.titulo = e.titulo
+WHERE ie.nombre = 'ACTIVA'
+  AND i.fecha_eliminacion IS NULL
+  AND a.fecha_eliminacion IS NULL
+  AND e.fecha_eliminacion IS NULL
+  AND e.fecha_evaluacion <= fn_fecha_actual()
+  AND e.fecha_evaluacion >= i.fecha_inscripcion
+  AND (si.califica_hasta IS NULL OR e.fecha_evaluacion < si.califica_hasta)
+  AND NOT EXISTS (SELECT 1
+                    FROM calificacion x
+                   WHERE x.evaluacion_id = e.evaluacion_id
+                     AND x.inscripcion_id = i.inscripcion_id)
+  AND NOT EXISTS (SELECT 1
+                    FROM seed_curso sc
+                   WHERE sc.nivel_educativo = 'PRIMARIA' AND sc.grado = '2°' AND sc.division = 'A'
+                     AND si.n BETWEEN sc.n_hasta - 2 AND sc.n_hasta
+                     AND m.nombre = 'Lengua'
+                     AND e.titulo = 'Evaluación escrita 1')
+ORDER BY si.institucion_id, e.evaluacion_id, i.inscripcion_id;
+
+EXECUTE seed_calificar;
+
+-- Calificación dada de baja: en Lengua de 2° A de primaria, la de la Evaluación diagnóstica del
+-- regular de menor n se da de baja y se carga otra, con un punto más (hasta 10). Si todavía no se
+-- tomó, no hace nada
+WITH baja AS (
+    UPDATE calificacion ca
+       SET fecha_eliminacion = LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 3, 27), fn_fecha_actual())::TIMESTAMPTZ
+      FROM seed_curso sc, seed_inscripcion si, inscripcion i, evaluacion e, asignacion_docente a,
+           grado_materia gm, materia m
+     WHERE sc.nivel_educativo = 'PRIMARIA' AND sc.grado = '2°' AND sc.division = 'A'
+       AND si.n = sc.n_desde
+       AND i.alumno_id = si.alumno_id AND i.curso_id = si.curso_id
+       AND ca.inscripcion_id = i.inscripcion_id
+       AND e.evaluacion_id = ca.evaluacion_id
+       AND e.titulo = 'Evaluación diagnóstica'
+       AND a.asignacion_docente_id = e.asignacion_docente_id
+       AND gm.grado_materia_id = a.grado_materia_id
+       AND m.materia_id = gm.materia_id
+       AND m.nombre = 'Lengua'
+       AND ca.fecha_eliminacion IS NULL
+    RETURNING ca.evaluacion_id, ca.inscripcion_id, ca.nota
+)
+INSERT INTO calificacion (evaluacion_id, inscripcion_id, nota)
+SELECT evaluacion_id, inscripcion_id, LEAST(10, nota + 1)
+FROM baja
+ORDER BY inscripcion_id;
+
+-- El recuperatorio se da de baja, y con él sus calificaciones (trg_evaluacion_baja_calificaciones)
+UPDATE evaluacion
+   SET fecha_eliminacion = LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 4, 13), fn_fecha_actual())::TIMESTAMPTZ
+ WHERE titulo = 'Recuperatorio';
+
+-- Casos 1 a 4: la inscripción inicial pasa a CANCELADA, con sus calificaciones
+UPDATE inscripcion i
+   SET inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'CANCELADA')
+  FROM seed_inscripcion si
+ WHERE si.tipo = 'inicial'
+   AND si.caso BETWEEN 1 AND 4
+   AND i.alumno_id = si.alumno_id
+   AND i.curso_id = si.curso_id;
+
+-- Casos 5 y 6: el alumno se da de baja, y sp_alumno_dar_de_baja cancela su inscripción. Dentro de un
+-- DO, porque un CALL suelto escribe su resultado
+DO $$
+DECLARE
+    v_alumno      RECORD;
+    v_canceladas  INT;
+BEGIN
+    FOR v_alumno IN
+        SELECT si.alumno_id, si.institucion_id
+          FROM seed_inscripcion si
+         WHERE si.tipo = 'inicial'
+           AND si.caso IN (5, 6)
+         ORDER BY si.institucion_id, si.caso
+    LOOP
+        CALL sp_alumno_dar_de_baja(v_alumno.alumno_id, v_alumno.institucion_id, v_canceladas);
+    END LOOP;
+END
+$$;
+
+-- Casos 1 y 2: la inscripción en el curso nuevo, activa, y sus calificaciones
+INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
+SELECT si.alumno_id, si.curso_id, e.inscripcion_estado_id, si.fecha
+FROM seed_inscripcion si
+JOIN inscripcion_estado e ON e.nombre = 'ACTIVA'
+WHERE si.tipo = 'cambio'
+ORDER BY si.institucion_id, si.fecha, si.n;
+
+EXECUTE seed_calificar;
+
+DEALLOCATE seed_calificar;
 
 COMMIT;

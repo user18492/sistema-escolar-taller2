@@ -15,7 +15,12 @@
 // con un toast (toast.component.js), salvo los errores de un campo, que se marcan en el formulario.
 // Eliminar la da de baja (baja lógica, window.api.evaluations.delete) después de confirmarlo en un
 // modal (confirm-modal.component.js) y también lo avisa con un toast: la evaluación sale de la
-// tabla y del filtro Título, y sus calificaciones se conservan.
+// tabla y del filtro Título, y sus calificaciones también se dan de baja. Si tiene alguna cargada
+// (de las que se ven en Calificaciones, con la cantidad que llega con la lista), el modal lo
+// advierte con la cantidad.
+// El ciclo lectivo actual llega con la lista, de la base (school-year.js): si la asignación es de un
+// ciclo cerrado, sus evaluaciones se ven en solo lectura, con Nueva evaluación, Editar y Eliminar
+// deshabilitados; Gestionar sigue abriendo sus calificaciones.
 
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
@@ -57,9 +62,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar las evaluaciones. Intentá nuevamente.';
 
-  // En el orden en que llegan del proceso principal: por fecha
+  // En el orden en que llegan del proceso principal: por fecha. Cada una trae scoreCount, cuántas
+  // calificaciones tiene cargadas al pedir la lista: Calificaciones es otra vista, así que al volver
+  // de ella la lista se pide de nuevo.
   let evaluations = [];
   let isLoaded = false;
+  // Si la asignación es de un ciclo lectivo cerrado, el motivo con el que Nueva evaluación, Editar y
+  // Eliminar quedan deshabilitados; null si no, o hasta que llega con la lista
+  let readOnlyTitle = null;
   // La evaluación elegida en el filtro Título, por su id. Vacío (nada elegido) no filtra.
   let selectedEvaluationIds = [];
 
@@ -77,19 +87,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const toDisplayDate = (isoDate) => isoDate.split('-').reverse().join('/');
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
-  // evaluacion_id en data-evaluation-id.
+  // evaluacion_id en data-evaluation-id. En una asignación de un ciclo cerrado lleva Editar y
+  // Eliminar deshabilitados, con el motivo como title.
   const createRow = ({ id, title, evaluationDate }) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.evaluationId = String(id);
     row.cells[0].querySelector('.text-truncate').textContent = title;
     row.cells[1].textContent = toDisplayDate(evaluationDate);
     // "Gestionar" abre las calificaciones de esa evaluación y le pasa el id de la asignación y el
-    // de la evaluación, con los que esa vista las carga. El destino se asigna antes de conectar el
-    // <row-actions>, que lo lee al generarse.
+    // de la evaluación, con los que esa vista las carga. El destino y el motivo de solo lectura se
+    // asignan antes de conectar el <row-actions>, que los lee al generarse.
     const rowActions = row.querySelector('row-actions');
     const scoresParams = new URLSearchParams(assignmentParams);
     scoresParams.set('evaluationId', String(id));
     rowActions.setAttribute('manage-href', `${rowActions.getAttribute('manage-href')}?${scoresParams.toString()}`);
+    if (readOnlyTitle) rowActions.setAttribute('read-only-title', readOnlyTitle);
     return row;
   };
 
@@ -132,24 +144,42 @@ document.addEventListener('DOMContentLoaded', () => {
     else showMessage('No hay evaluaciones registradas para esta asignación.');
   };
 
-  // Pide la lista con el id de la URL, a la par de la tarjeta, y al llegar arma las opciones de
-  // Título y muestra las evaluaciones. Sin id en la URL, o con uno que no es un número, el proceso
-  // principal responde que no pudo identificar la asignación. Punto de entrada también para volver
-  // a pedirla después de un alta, si no había cargado, y cuando una edición o una baja avisan que
-  // quedó vieja.
+  // Nueva evaluación: deshabilitado, con el motivo como title, si la asignación es de un ciclo
+  // cerrado (readOnlyTitle)
+  const syncCreateButton = () => {
+    openEvaluationModalBtn.disabled = readOnlyTitle !== null;
+    if (readOnlyTitle) openEvaluationModalBtn.title = readOnlyTitle;
+    else openEvaluationModalBtn.removeAttribute('title');
+  };
+
+  // Pide la lista con el id de la URL, a la par de la tarjeta, junto con el ciclo lectivo actual. Al
+  // llegar, y con la asignación de la tarjeta, que dice si su ciclo está cerrado, arma las opciones de
+  // Título y muestra las evaluaciones. Si no llega la lista o el ciclo lectivo, la tabla muestra el
+  // error. Sin id en la URL, o con uno que no es un número, el proceso principal responde que no pudo
+  // identificar la asignación. Punto de entrada también para volver a pedirla después de un alta, si
+  // no había cargado, y cuando un alta, una edición o una baja avisan que quedó vieja.
   async function loadEvaluations() {
     isLoaded = false;
     showMessage('Cargando evaluaciones…');
     let response;
+    let schoolYear = null;
     try {
-      response = await window.api?.evaluations?.listByOwnAssignment(Number(assignmentId));
+      [response, schoolYear] = await Promise.all([
+        window.api?.evaluations?.listByOwnAssignment(Number(assignmentId)),
+        loadCurrentSchoolYear(),
+      ]);
     } catch (error) {
       console.error('Error al cargar las evaluaciones:', error);
     }
-    if (!response?.ok) {
+    await assignmentRequest;
+    if (!response?.ok || !schoolYear) {
       showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
       return;
     }
+    // Sin la asignación (no se pudo cargar), la tarjeta y la tabla ya se ocultaron
+    const isClosed = Boolean(assignment) && assignment.course.schoolYear < schoolYear.year;
+    readOnlyTitle = isClosed ? closedSchoolYearTitle(assignment.course.schoolYear) : null;
+    syncCreateButton();
     evaluations = response.evaluations;
     isLoaded = true;
     fillFilterOptions();
@@ -192,12 +222,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // a la página donde quedó. El filtro Título elige una de las evaluaciones que ya estaban, así que
   // nunca mostraría a la nueva: se quita (fillFilterOptions), y ella pasa a ser una de sus opciones.
   // Si la lista no se había podido cargar, se vuelve a pedir: mostrar solo la evaluación nueva
-  // taparía el error.
-  const insertEvaluation = (newEvaluation) => {
+  // taparía el error. La respuesta del alta no trae scoreCount: una evaluación nueva no tiene
+  // calificaciones.
+  const insertEvaluation = (createdEvaluation) => {
     if (!isLoaded) {
       loadEvaluations();
       return;
     }
+    const newEvaluation = { ...createdEvaluation, scoreCount: 0 };
     placeEvaluation(newEvaluation);
     fillFilterOptions();
     renderRows({ page: Math.floor(evaluations.indexOf(newEvaluation) / pagination.pageSize) + 1 });
@@ -207,8 +239,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // datos nuevos, sin recargarla, y la tabla pasa a la página donde quedó. Su opción del filtro
   // Título muestra los datos nuevos y cambia de lugar con ella. El filtro elige por id: si estaba
   // aplicado, la editada es la elegida (es la única fila a la vista) y lo sigue siendo, y el
-  // embudo, que la nombra por su título, se actualiza.
-  const replaceEvaluation = (updatedEvaluation) => {
+  // embudo, que la nombra por su título, se actualiza. La respuesta de la edición no trae
+  // scoreCount: conserva el de la que reemplaza, porque editar no cambia sus calificaciones.
+  const replaceEvaluation = (savedEvaluation) => {
+    const { scoreCount } = evaluations.find(({ id }) => id === savedEvaluation.id);
+    const updatedEvaluation = { ...savedEvaluation, scoreCount };
     evaluations = evaluations.filter(({ id }) => id !== updatedEvaluation.id);
     placeEvaluation(updatedEvaluation);
     const option = evaluationOption(updatedEvaluation.id);
@@ -388,7 +423,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Crea la evaluación en la asignación de la vista o guarda los cambios de la que se edita, según
   // el modo; al terminar cierra el modal y lo avisa con un toast. Los errores de un campo se marcan
   // en el formulario y los demás salen en un toast: en ambos casos el modal sigue abierto con lo
-  // que se escribió. Solo se cierra si la evaluación que se editaba ya no está vigente.
+  // que se escribió. Solo se cierra si la evaluación que se editaba ya no está vigente o si el ciclo
+  // lectivo de la asignación se cerró.
   const saveEvaluation = async () => {
     // El campo ya validado (DD/MM) se envía como 'AAAA-MM-DD', con el año que anuncia el modal: el
     // ciclo lectivo de la asignación
@@ -407,10 +443,13 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Error al guardar la evaluación:', error);
     }
-    // La evaluación que se editaba ya no está vigente: la lista se vuelve a pedir antes de liberar
+    // La evaluación que se editaba ya no está vigente o, con la vista abierta desde antes del cambio
+    // de año, el ciclo lectivo de la asignación se cerró: la lista se vuelve a pedir antes de liberar
     // el modal, que se cierra más abajo
-    const isGone = Boolean(editingEvaluation) && NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
-    if (isGone) await loadEvaluations();
+    const errorCode = response?.error?.code;
+    const isStale = (Boolean(editingEvaluation) && NO_LONGER_ACTIVE_CODES.includes(errorCode))
+      || errorCode === 'SCHOOL_YEAR_CLOSED';
+    if (isStale) await loadEvaluations();
     setSaving(false);
 
     if (response?.ok) {
@@ -427,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const error = response?.error;
     if (showFieldErrors(error?.fieldErrors)) return;
-    if (isGone) closeEvaluationModal();
+    if (isStale) closeEvaluationModal();
     showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
   };
 
@@ -475,8 +514,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Eliminar evaluación ----------
 
+  // Descripción del modal para la evaluación de la fila del botón (la de la lista en memoria, por su
+  // data-evaluation-id): si tiene calificaciones cargadas, cuántas (de la lista cargada) y que
+  // también se dan de baja; sin ninguna, queda la del marcado.
+  const describeDeletion = (trigger) => {
+    const evaluationId = trigger.closest('tr')?.dataset.evaluationId;
+    const scoreCount = evaluations.find(({ id }) => String(id) === evaluationId)?.scoreCount ?? 0;
+    if (scoreCount === 0) return '';
+    return scoreCount === 1
+      ? '¿Quieres eliminar esta evaluación? Tiene 1 calificación cargada, que también se dará de baja.'
+      : `¿Quieres eliminar esta evaluación? Tiene ${scoreCount} calificaciones cargadas, que también se darán de baja.`;
+  };
+
   // El id sale del data-evaluation-id de la fila del botón (el evaluacion_id, fijado al crearla),
   // no de su posición en la tabla, y se envía con el de la asignación con el que se pidió la lista.
+  // La base da de baja con ella sus calificaciones vigentes, o rechaza la baja si alguna es de una
+  // inscripción finalizada (EVALUATION_HAS_COMPLETED_SCORES): ese rechazo sale en el toast de error
+  // como cualquier otro, y la lista no se recarga porque no cambió nada.
   // Avisa el resultado con un toast y no resuelve ningún mensaje, así el modal se cierra siempre.
   const deleteEvaluation = async (trigger) => {
     const row = trigger.closest('tr');
@@ -500,13 +554,16 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       return;
     }
-    if (isGone) await loadEvaluations();
+    // También si el ciclo lectivo de la asignación se cerró con la vista abierta desde antes del
+    // cambio de año: la lista vuelve en solo lectura
+    if (isGone || response?.error?.code === 'SCHOOL_YEAR_CLOSED') await loadEvaluations();
     showToast({ type: 'error', title: 'No se pudo eliminar la evaluación', description: errorDescription(response?.error) });
   };
 
   // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
   // cierra. Si la fila ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
   setupConfirmModal(document.getElementById('deleteEvaluationOverlay'), {
+    describe: describeDeletion,
     onConfirm: deleteEvaluation,
     fallbackFocus: () => focusAfterRemoval('delete'),
   });
