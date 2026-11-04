@@ -32,13 +32,20 @@ const FILTER_ITEM_CHECKS = {
   statuses: isString,
 };
 
-// Un objeto con los seis filtros, cada uno un arreglo (vacío si no filtra) con elementos de su tipo.
+const isPlainObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+// Parte de la fecha de inscripción que filtra (un entero) o null si no filtra; que esté en rango
+// lo comprueba el servicio.
+const isDatePart = (value) => value === null || Number.isInteger(value);
+
+// Un objeto con los seis filtros, cada uno un arreglo (vacío si no filtra) con elementos de su tipo,
+// y enrollmentDate: { day, month, year }, cada parte un entero o null.
 function isEnrollmentFilters(value) {
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.entries(FILTER_ITEM_CHECKS).every(([filter, isItem]) => Array.isArray(value[filter]) && value[filter].every(isItem))
+    isPlainObject(value) &&
+    Object.entries(FILTER_ITEM_CHECKS).every(([filter, isItem]) => Array.isArray(value[filter]) && value[filter].every(isItem)) &&
+    isPlainObject(value.enrollmentDate) &&
+    ['day', 'month', 'year'].every((part) => isDatePart(value.enrollmentDate[part]))
   );
 }
 

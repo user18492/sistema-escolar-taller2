@@ -42,9 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Tabla: inscripciones de la institución ----------
 
-  // Los filtros de Número de inscripción / Alumno / Curso / Estado viven en los encabezados
-  // de la tabla y los gestiona el componente compartido column-filter.js; Curso incrusta
-  // <course-filter>, el mismo filtro compuesto de Docencia.
+  // Los filtros de Número de inscripción / Alumno / Curso / Fecha de inscripción / Estado viven en
+  // los encabezados de la tabla y los gestiona el componente compartido column-filter.js; Curso
+  // incrusta <course-filter>, el mismo filtro compuesto de Docencia, y Fecha de inscripción tiene un
+  // campo para el día, otro para el mes y otro para el año, cada uno opcional.
   const table = document.querySelector('.enrollments-card .data-table');
   const tbody = table.tBodies[0];
   const rowTemplate = document.getElementById('enrollmentRowTemplate');
@@ -77,7 +78,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // Lo que filtra cada dato, con los nombres que espera el proceso principal: las inscripciones y
   // los alumnos elegidos (por su id); del curso, los grados marcados, las divisiones escritas y los
   // turnos activos, y los estados marcados. Vacío (nada elegido, "Todos" o sin texto) no filtra.
-  const activeFilters = { enrollmentIds: [], studentIds: [], grades: [], divisions: [], shifts: [], statuses: [] };
+  // De la fecha de inscripción, el día, el mes y el año escritos, cada uno por separado: null si su
+  // campo está vacío o incompleto.
+  const NO_DATE = { day: null, month: null, year: null };
+  const activeFilters = {
+    enrollmentIds: [],
+    studentIds: [],
+    grades: [],
+    divisions: [],
+    shifts: [],
+    statuses: [],
+    enrollmentDate: NO_DATE,
+  };
+
+  // Parte de la fecha que filtra: el número escrito ('05' → 5) o null si el campo no filtra
+  const toDatePart = (text) => (text ? Number(text) : null);
 
   // Valores de activeFilters que fija cada columna, por su data-filter, después de un cambio: los
   // tres de Curso los da su componente y los demás llegan en el detalle de column-filter-change
@@ -90,9 +105,14 @@ document.addEventListener('DOMContentLoaded', () => {
       shifts: courseFilter.selectedShifts,
     }),
     status: ({ values }) => ({ statuses: values }),
+    date: ({ texts }) => ({
+      enrollmentDate: { day: toDatePart(texts.day), month: toDatePart(texts.month), year: toDatePart(texts.year) },
+    }),
   };
 
-  const hasActiveFilters = () => Object.values(activeFilters).some((values) => values.length > 0);
+  const hasActiveFilters = () =>
+    Object.entries(activeFilters).some(([filter, value]) =>
+      (filter === 'enrollmentDate' ? Object.values(value).some((part) => part !== null) : value.length > 0));
 
   // Cargando, error o sin resultados, en una única fila de todo el ancho
   const showMessage = (message) => {
@@ -243,7 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Cada filtro de columna avisa sus cambios (column-filter.js). Si lo que filtra no cambió (Curso
-  // avisa cada clic dentro de su panel), la tabla y la página quedan como están; si cambió, se
+  // avisa cada clic dentro de su panel, y Fecha de inscripción, cada tecla, aunque un día, un mes o
+  // un año incompleto todavía no filtre), la tabla y la página quedan como están; si cambió, se
   // vuelven a pedir las inscripciones desde la página 1.
   table.tHead.addEventListener('column-filter-change', (event) => {
     const values = FILTER_VALUES[event.target.dataset.filter](event.detail);

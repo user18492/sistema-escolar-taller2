@@ -6,9 +6,10 @@
 // de cargar (p. ej. con los datos de la base) y funcionan igual que las escritas en el marcado.
 // Después de cada cambio del usuario (elegir, marcar o desmarcar, "Limpiar filtro", escribir en
 // el campo de texto o usar un componente interno), el <th class="column-filter"> emite el evento
-// column-filter-change (burbujea) con detail { values, text }: los data-value no vacíos de las
-// opciones marcadas y el valor que filtra el campo de texto ('' si no hay o si el año está
-// incompleto). La vista lo escucha para filtrar sus filas; la inicialización no lo emite.
+// column-filter-change (burbujea) con detail { values, text, texts }: los data-value no vacíos de
+// las opciones marcadas, el valor que filtra el (primer) campo de texto ('' si no hay o si el valor
+// está incompleto) y, por su atributo name, el que filtra cada campo de texto con nombre (en un panel
+// con varios). La vista lo escucha para filtrar sus filas; la inicialización no lo emite.
 // Si la vista quita una opción marcada (p. ej., la de un registro que se eliminó), emite
 // column-filter-refresh sobre el <th class="column-filter"> para que el embudo refleje las
 // marcadas que quedan; no emite column-filter-change, así que la vista actualiza su propio filtro.
@@ -25,8 +26,12 @@
 //     (valor vacío) desmarca las demás y cierra el panel, como en la selección única
 //   - buscador .searchable-input, que oculta las opciones que no coinciden
 //   - campo de texto .column-filter-input (Enter cierra el panel)
-//   - campo de año .column-filter-input[data-format="year"]: solo admite hasta 4 dígitos y
-//     filtra únicamente con el año completo (AAAA); vacío equivale a todos los años
+//   - campos numéricos .column-filter-input[data-format]: "year" (AAAA), "month" (MM, 01 a 12) o
+//     "day" (DD, 01 a 31). Solo admiten dígitos, hasta su largo, y rechazan lo que no puede llegar
+//     a un valor del rango; filtran únicamente completos y, al cerrar el panel, uno incompleto se
+//     descarta. Vacío no filtra.
+//   - varios campos de texto con name (p. ej. día, mes y año de una fecha, cada uno opcional): el
+//     embudo los resume con su data-label ("Día 15, Año 2025")
 //   - componentes con estado propio (p. ej. <grade-dropdown variant="panel"> o <course-filter>)
 // El embudo del encabezado se rellena (.has-selection) mientras el filtro tenga algo activo.
 
@@ -35,12 +40,25 @@
   const VIEWPORT_MARGIN = 12;
   const HEADER_GAP = 8;
 
-  const YEAR_LENGTH = 4;
+  // Largo y rango de cada campo numérico (data-format); sin rango, cualquier valor completo vale
+  const NUMERIC_FORMATS = {
+    year: { length: 4 },
+    month: { length: 2, min: 1, max: 12 },
+    day: { length: 2, min: 1, max: 31 },
+  };
 
-  // Campo de año: se descartan los caracteres que no son dígitos (letras, espacios, signos,
-  // separadores) y se rechaza la edición completa si dejaría más de 4 dígitos, en lugar de
-  // recortarla y alterar el año ya escrito.
-  const setupYearInput = (input) => {
+  // Si los dígitos todavía pueden llegar a un valor del rango: completos, que estén en él;
+  // incompletos, que completarlos con ceros no lo supere (en el día, un 4 inicial ya no puede).
+  const isAcceptedDigits = (digits, { length, min = 0, max = Infinity }) => {
+    if (digits.length > length) return false;
+    if (digits.length === length) return Number(digits) >= min && Number(digits) <= max;
+    return Number(digits.padEnd(length, '0')) <= max;
+  };
+
+  // Campo numérico: se descartan los caracteres que no son dígitos (letras, espacios, signos,
+  // separadores) y se rechaza la edición completa si dejaría más dígitos que su largo o un valor
+  // fuera de su rango, en lugar de recortarla y alterar lo ya escrito.
+  const setupNumericInput = (input, format) => {
     let previousValue = input.value;
 
     // También antes de cada edición, por si el valor cambió por código (p. ej. "Limpiar filtro")
@@ -51,7 +69,7 @@
     input.addEventListener('input', () => {
       const { value, selectionStart } = input;
       const digits = value.replace(/\D/g, '');
-      const accepted = digits.length <= YEAR_LENGTH;
+      const accepted = isAcceptedDigits(digits, format);
 
       if (!accepted || digits !== value) {
         // El cursor queda junto al mismo dígito, o donde empezaba la edición rechazada
@@ -84,8 +102,8 @@
     if (!toggle || !panel) return;
 
     const search = panel.querySelector('.searchable-input');
-    const textInput = panel.querySelector('.column-filter-input');
-    const isYearInput = textInput?.dataset.format === 'year';
+    const textInputs = Array.from(panel.querySelectorAll('.column-filter-input'));
+    const formatOf = (input) => NUMERIC_FORMATS[input.dataset.format];
     const getOptions = () => Array.from(panel.querySelectorAll('.dropdown-option'));
     const isMultiple = panel.querySelector('[role="listbox"]')?.getAttribute('aria-multiselectable') === 'true';
     const emptyState = panel.querySelector('.dropdown-empty');
@@ -96,17 +114,26 @@
     const selectedOptions = () => getOptions().filter((option) => option.classList.contains('selected'));
     const optionLabel = (option) => (option.querySelector('.option-name') ?? option).textContent.trim();
 
-    // Un año incompleto (menos de 4 dígitos) todavía no filtra
-    const textValue = () => {
-      const value = textInput?.value.trim() ?? '';
-      if (isYearInput && value.length < YEAR_LENGTH) return '';
+    // Un campo numérico incompleto (p. ej. un año de menos de 4 dígitos) todavía no filtra
+    const inputValue = (input) => {
+      const value = input.value.trim();
+      const format = formatOf(input);
+      if (format && value.length < format.length) return '';
       return value;
     };
+    const textValue = () => (textInputs[0] ? inputValue(textInputs[0]) : '');
 
-    // "Todos" (valor vacío) equivale a no filtrar: el embudo sigue vacío
+    // "Todos" (valor vacío) equivale a no filtrar: el embudo sigue vacío. Con varios campos, cada
+    // uno que filtra va con su etiqueta.
     const activeValue = () => {
       const labels = selectedOptions().filter((option) => option.dataset.value).map(optionLabel);
       if (labels.length) return labels.join(', ');
+      if (textInputs.length > 1) {
+        return textInputs
+          .filter((input) => inputValue(input))
+          .map((input) => `${input.dataset.label ?? input.name} ${inputValue(input)}`)
+          .join(', ');
+      }
       return textValue();
     };
 
@@ -123,6 +150,7 @@
         detail: {
           values: selectedOptions().map((option) => option.dataset.value).filter(Boolean),
           text: textValue(),
+          texts: Object.fromEntries(textInputs.filter((input) => input.name).map((input) => [input.name, inputValue(input)])),
         },
       }));
     };
@@ -181,7 +209,9 @@
     const chooseOption = isMultiple ? toggleOption : selectOption;
 
     const resetFilter = () => {
-      if (textInput) textInput.value = '';
+      textInputs.forEach((input) => {
+        input.value = '';
+      });
       components.forEach((component) => component.clear());
       getOptions().forEach((option) => setSelected(option, false));
       refreshState();
@@ -200,9 +230,11 @@
         closeOpenDropdowns();
         if (search) search.value = '';
         filterOptions();
-      } else if (isYearInput && !textValue()) {
-        // Al cerrar, un año incompleto se descarta: el campo vuelve a representar todos los años
-        textInput.value = '';
+      } else {
+        // Al cerrar, un campo numérico incompleto se descarta: vuelve a no filtrar
+        textInputs.filter((input) => formatOf(input) && !inputValue(input)).forEach((input) => {
+          input.value = '';
+        });
       }
     });
 
@@ -210,7 +242,7 @@
       if (!panel.matches(':popover-open')) return;
       positionPanel();
       const focusTarget = search
-        ?? textInput
+        ?? textInputs[0]
         ?? selectedOptions()[0]
         ?? getOptions()[0]
         ?? panel.querySelector('button, [tabindex="0"]')
@@ -250,17 +282,18 @@
 
     if (search) search.addEventListener('input', filterOptions);
 
-    if (textInput) {
+    textInputs.forEach((input) => {
       // Antes que refreshState, para que el embudo evalúe el valor ya depurado
-      if (isYearInput) setupYearInput(textInput);
-      textInput.addEventListener('input', () => {
+      const format = formatOf(input);
+      if (format) setupNumericInput(input, format);
+      input.addEventListener('input', () => {
         refreshState();
         notifyChange();
       });
-      textInput.addEventListener('keydown', (event) => {
+      input.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') closePanel();
       });
-    }
+    });
 
     // Los componentes mantienen su propio estado al hacer clic o escribir; aquí solo se refresca
     // el embudo y se avisa a la vista si el cambio ocurrió dentro de uno de ellos

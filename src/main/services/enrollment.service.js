@@ -85,10 +85,22 @@ const FILTER_VALIDATORS = {
   statuses: (status) => enrollmentRepository.STATUSES.includes(status),
 };
 
+// Rango de cada parte de la fecha de inscripción que filtra: lo que admiten los campos del filtro
+// (column-filter.js; el año, cualquier valor de 4 dígitos). Las partes son independientes: una
+// combinación imposible (31 de febrero, el año 0000) es válida y no encuentra nada.
+const DATE_PART_RANGES = {
+  day: [1, 31],
+  month: [1, 12],
+  year: [0, 9999],
+};
+const isValidDatePart = (part, value) => value === null || (value >= DATE_PART_RANGES[part][0] && value <= DATE_PART_RANGES[part][1]);
+
 // Los filtros llegan con la forma que comprueba el controlador: acá se validan sus valores.
 // Lanza el EnrollmentError INVALID_INPUT si alguno no es válido.
 function assertValidFilters(filters) {
-  const isValid = Object.entries(FILTER_VALIDATORS).every(([filter, isValidValue]) => filters[filter].every(isValidValue));
+  const isValid =
+    Object.entries(FILTER_VALIDATORS).every(([filter, isValidValue]) => filters[filter].every(isValidValue)) &&
+    Object.keys(DATE_PART_RANGES).every((part) => isValidDatePart(part, filters.enrollmentDate[part]));
   if (!isValid) throw new EnrollmentError('INVALID_INPUT', 'Los filtros enviados no son válidos.');
 }
 
@@ -114,9 +126,9 @@ function toInstitutionEnrollment({ id, student, course, enrollmentDate, status }
 // de toInstitutionEnrollment y `hasScores`: true si tiene calificaciones vigentes, con las que no se
 // da de baja (deleteEnrollment). Las demás respuestas no lo traen.
 // `filters` trae enrollmentIds, studentIds, grades ({ educationLevel, gradeName }), divisions,
-// shifts y statuses, cada uno un arreglo, vacío si no filtra (ver countNotDeletedByInstitution,
-// enrollment.repository.js). `page` es la página pedida (1 la primera) y `pageSize`, cuántas
-// inscripciones tiene cada una. Con `enrollmentId` (un inscripcion_id; null si no), se pide en
+// shifts y statuses, cada uno un arreglo, vacío si no filtra, y enrollmentDate ({ day, month, year },
+// cada parte null si no filtra) (ver countNotDeletedByInstitution, enrollment.repository.js).
+// `page` es la página pedida (1 la primera) y `pageSize`, cuántas inscripciones tiene cada una. Con `enrollmentId` (un inscripcion_id; null si no), se pide en
 // cambio la página donde está esa inscripción, si pasa los filtros: así se muestra una recién
 // creada. Si no los pasa, se usa `page`.
 // Devuelve { enrollments, total, page }: las de la página, cuántas pasan los filtros en total y la

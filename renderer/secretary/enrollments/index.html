@@ -95,7 +95,24 @@
                         <button type="button" class="column-filter-clear">Limpiar filtro</button>
                       </div>
                     </th>
-                    <th>Fecha de inscripción</th>
+                    <th scope="col" class="column-filter" data-filter="date">
+                      <column-filter-toggle target="dateFilter" heading="Fecha de inscripción" label="Filtrar por fecha de inscripción"></column-filter-toggle>
+                      <!-- Día, mes y año filtran por separado: cada uno es opcional -->
+                      <div id="dateFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por fecha de inscripción">
+                        <div class="column-filter-date">
+                          <div class="field">
+                            <input type="text" class="column-filter-input" name="day" data-format="day" data-label="Día" inputmode="numeric" placeholder="DD" aria-label="Día (DD)" autocomplete="off" />
+                          </div>
+                          <div class="field">
+                            <input type="text" class="column-filter-input" name="month" data-format="month" data-label="Mes" inputmode="numeric" placeholder="MM" aria-label="Mes (MM)" autocomplete="off" />
+                          </div>
+                          <div class="field">
+                            <input type="text" class="column-filter-input" name="year" data-format="year" data-label="Año" inputmode="numeric" placeholder="AAAA" aria-label="Año (AAAA)" autocomplete="off" />
+                          </div>
+                        </div>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th scope="col" class="column-filter" data-filter="status">
                       <column-filter-toggle target="statusFilter" heading="Estado" label="Filtrar por estado"></column-filter-toggle>
                       <div id="statusFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por estado">

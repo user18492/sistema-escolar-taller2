@@ -133,6 +133,26 @@ column-filter-toggle {
   outline: none;
 }
 
+/* Varios campos en una fila (día, mes y año de una fecha): el del año, más ancho por sus 4
+   dígitos. Menos relleno lateral que .field input para que entren en el panel estándar. */
+.column-filter-date {
+  display: flex;
+  gap: 6px;
+}
+
+.column-filter-date .field {
+  flex: 2;
+  min-width: 0;
+}
+
+.column-filter-date .field:last-child {
+  flex: 3;
+}
+
+.column-filter-date .field input {
+  padding: 0 10px;
+}
+
 .column-filter-clear {
   width: 100%;
   margin-top: 6px;

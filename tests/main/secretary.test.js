@@ -9,7 +9,8 @@ const { SEED_INSTITUTIONS } = require('../lib/fixtures');
 const { ENROLLMENT_STATUS, STUDENT_STATUS, enrollmentNumber, sortedIds, sortedNumbers } = require('../lib/domain');
 
 const SM = SEED_INSTITUTIONS.SM;
-const EMPTY_FILTERS = { enrollmentIds: [], studentIds: [], grades: [], divisions: [], shifts: [], statuses: [] };
+const NO_DATE = { day: null, month: null, year: null };
+const EMPTY_FILTERS = { enrollmentIds: [], studentIds: [], grades: [], divisions: [], shifts: [], statuses: [], enrollmentDate: NO_DATE };
 
 const studentData = (year, overrides) => ({
   firstName: 'Alumna', lastName: 'Nueva', dni: '', email: '', phone: '3794555000', street: 'Junín', streetNumber: '1200',
@@ -213,6 +214,51 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     [firstPage.enrollments.map((enrollment) => enrollment.id)]);
     const listed = firstPage.enrollments.map(({ id, hasScores }) => ({ id, hasScores })).sort((a, b) => a.id - b.id);
     t.equal(listed, expected, 'En la primera página, hasScores coincide con la base');
+    await t.logout();
+  });
+
+  test('list-date-filter', 'El listado filtra por día, mes y año de la fecha de inscripción, cada uno por separado', async (t) => {
+    await t.login('secretary');
+    const expectedByDate = async ({ day = null, month = null, year = null }, status = null) => sortedNumbers(await t.sql(`
+      SELECT i.inscripcion_id AS id FROM inscripcion i JOIN inscripcion_estado e USING (inscripcion_estado_id)
+        JOIN curso c USING (curso_id) JOIN alumno a USING (alumno_id)
+       WHERE i.fecha_eliminacion IS NULL AND a.fecha_eliminacion IS NULL
+         AND c.institucion_id = (SELECT institucion_id FROM institucion WHERE cuit = $1)
+         AND ($2::INT IS NULL OR EXTRACT(DAY FROM i.fecha_inscripcion) = $2::INT)
+         AND ($3::INT IS NULL OR EXTRACT(MONTH FROM i.fecha_inscripcion) = $3::INT)
+         AND ($4::INT IS NULL OR EXTRACT(YEAR FROM i.fecha_inscripcion) = $4::INT)
+         AND ($5::TEXT IS NULL OR e.nombre = $5::TEXT)`, [SM, day, month, year, status]));
+    const listed = (date, extra = {}) => listAll(t, { ...EMPTY_FILTERS, ...extra, enrollmentDate: { ...NO_DATE, ...date } });
+    // Las partes de la fecha de una inscripción del grupo (de hoy) y de una del seed de otro mes
+    const [today] = await t.sql(`
+      SELECT EXTRACT(DAY FROM fecha_inscripcion)::INT AS day, EXTRACT(MONTH FROM fecha_inscripcion)::INT AS month,
+             EXTRACT(YEAR FROM fecha_inscripcion)::INT AS year
+        FROM inscripcion WHERE inscripcion_id = $1`, [t.data.active]);
+    const cases = [
+      [{ year: today.year }, 'Solo el año'],
+      [{ year: today.year - 1 }, 'Solo el año anterior'],
+      [{ month: today.month }, 'Solo el mes'],
+      [{ day: today.day }, 'Solo el día'],
+      [{ day: today.day, month: today.month }, 'Día y mes, de cualquier año'],
+      [today, 'La fecha completa'],
+      [{ day: 31, month: 2 }, 'Una combinación imposible no encuentra nada'],
+    ];
+    for (const [date, message] of cases) {
+      const result = await listed(date);
+      const expected = await expectedByDate(date);
+      t.equal(result.ids, expected, message);
+      t.equal(result.total, expected.length, `${message}: el total es el filtrado`);
+    }
+    t.check((await expectedByDate(today)).includes(t.data.active), 'La fecha completa encuentra la inscripción de hoy');
+    t.equal((await listed({ year: today.year }, { statuses: ['CANCELLED'] })).ids, await expectedByDate({ year: today.year }, 'CANCELADA'), 'Se combina con el filtro por estado');
+    const firstPage = await t.ok('enrollments.list', { ...EMPTY_FILTERS, enrollmentDate: { ...NO_DATE, year: today.year } }, 1, 2);
+    t.equal([firstPage.enrollments.length, firstPage.total], [Math.min(2, (await expectedByDate({ year: today.year })).length), (await expectedByDate({ year: today.year })).length], 'Pagina sobre el resultado filtrado');
+    for (const enrollmentDate of [{ ...NO_DATE, day: 32 }, { ...NO_DATE, day: 0 }, { ...NO_DATE, month: 13 }, { ...NO_DATE, year: 10000 }]) {
+      await t.rejects('INVALID_INPUT', 'enrollments.list', { ...EMPTY_FILTERS, enrollmentDate }, 1, 10);
+    }
+    await t.rejects('INVALID_INPUT', 'enrollments.list', { ...EMPTY_FILTERS, enrollmentDate: { ...NO_DATE, day: '05' } }, 1, 10);
+    const { enrollmentDate: _omitted, ...withoutDate } = EMPTY_FILTERS;
+    await t.rejects('INVALID_INPUT', 'enrollments.list', withoutDate, 1, 10);
     await t.logout();
   });
 

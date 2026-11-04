@@ -83,7 +83,10 @@ const FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
           OR (g.nivel_educativo, g.nombre) IN (SELECT * FROM UNNEST($4::TEXT[], $5::TEXT[])))
      AND (CARDINALITY($6::TEXT[]) = 0 OR c.division = ANY($6::TEXT[]))
      AND (CARDINALITY($7::TEXT[]) = 0 OR c.turno = ANY($7::TEXT[]))
-     AND (CARDINALITY($8::TEXT[]) = 0 OR ie.nombre = ANY($8::TEXT[]))`;
+     AND (CARDINALITY($8::TEXT[]) = 0 OR ie.nombre = ANY($8::TEXT[]))
+     AND ($9::INT IS NULL OR EXTRACT(DAY FROM i.fecha_inscripcion) = $9::INT)
+     AND ($10::INT IS NULL OR EXTRACT(MONTH FROM i.fecha_inscripcion) = $10::INT)
+     AND ($11::INT IS NULL OR EXTRACT(YEAR FROM i.fecha_inscripcion) = $11::INT)`;
 
 // Cantidad de inscripciones de FILTERED_NOT_DELETED_BY_INSTITUTION_SQL.
 const COUNT_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
@@ -91,8 +94,8 @@ const COUNT_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
   ${FILTERED_NOT_DELETED_BY_INSTITUTION_SQL}
 `;
 
-// Una página de las inscripciones de FILTERED_NOT_DELETED_BY_INSTITUTION_SQL: hasta $9 a partir de
-// la posición $10 (0 es la primera), con su alumno, su curso y su estado, y si tienen calificaciones
+// Una página de las inscripciones de FILTERED_NOT_DELETED_BY_INSTITUTION_SQL: hasta $12 a partir de
+// la posición $13 (0 es la primera), con su alumno, su curso y su estado, y si tienen calificaciones
 // vigentes (`tiene_calificaciones`; las dadas de baja no cuentan): las mismas que impiden darla de
 // baja (ck_inscripcion_calificaciones_vigentes, trg_inscripcion_coherencia en db/schema.sql).
 // El orden es total, como en FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL: el alumno (por apellido y
@@ -120,7 +123,7 @@ const FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
                     AND ca.fecha_eliminacion IS NULL) AS tiene_calificaciones
   ${FILTERED_NOT_DELETED_BY_INSTITUTION_SQL}
    ORDER BY al.apellido, al.nombre, al.alumno_id, i.inscripcion_id
-   LIMIT $9 OFFSET $10
+   LIMIT $12 OFFSET $13
 `;
 
 // Todas las inscripciones vigentes de alumnos vigentes de la institución, sin filtros, con los datos
@@ -141,7 +144,7 @@ const FIND_NOT_DELETED_BY_INSTITUTION_SQL = `
    ORDER BY al.apellido, al.nombre, al.alumno_id, i.inscripcion_id
 `;
 
-// Posición de la inscripción $9 entre las de FILTERED_NOT_DELETED_BY_INSTITUTION_SQL, en el orden de
+// Posición de la inscripción $12 entre las de FILTERED_NOT_DELETED_BY_INSTITUTION_SQL, en el orden de
 // FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL: cuántas la preceden (0 si es la primera). Ninguna
 // fila si la inscripción no pasa los filtros. La comparación de filas sigue el mismo orden total que
 // el ORDER BY del listado: apellido, nombre, alumno_id e inscripcion_id.
@@ -158,7 +161,7 @@ const FIND_POSITION_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
            WHERE (f.apellido, f.nombre, f.alumno_id, f.inscripcion_id)
                  < (t.apellido, t.nombre, t.alumno_id, t.inscripcion_id)) AS preceding_count
     FROM filtered t
-   WHERE t.inscripcion_id = $9
+   WHERE t.inscripcion_id = $12
 `;
 
 // Alta: inscribe al alumno $1 en el curso $2, siempre ACTIVA, con la fecha del día (DEFAULT
@@ -454,9 +457,9 @@ function toInstitutionEnrollment(row) {
   });
 }
 
-// Parámetros $1 a $8 de FILTERED_NOT_DELETED_BY_INSTITUTION_SQL. `filters` trae los códigos del
-// sistema; acá pasan a los valores de las columnas.
-function filterParams(institutionId, { enrollmentIds, studentIds, grades, divisions, shifts, statuses }) {
+// Parámetros $1 a $11 de FILTERED_NOT_DELETED_BY_INSTITUTION_SQL. `filters` trae los códigos del
+// sistema; acá pasan a los valores de las columnas. Las partes de la fecha que no filtran van null.
+function filterParams(institutionId, { enrollmentIds, studentIds, grades, divisions, shifts, statuses, enrollmentDate }) {
   return [
     institutionId,
     enrollmentIds,
@@ -466,14 +469,19 @@ function filterParams(institutionId, { enrollmentIds, studentIds, grades, divisi
     divisions,
     shifts.map((shift) => COLUMN_VALUE_BY_SHIFT[shift]),
     statuses.map((status) => COLUMN_VALUE_BY_STATUS[status]),
+    enrollmentDate.day,
+    enrollmentDate.month,
+    enrollmentDate.year,
   ];
 }
 
 // Cantidad de inscripciones vigentes de alumnos vigentes de la institución, en cualquier estado, que
 // pasan `filters`: { enrollmentIds, studentIds, grades, divisions, shifts, statuses }, cada uno un
-// arreglo, vacío si no filtra. `grades` son pares { educationLevel, gradeName } (PRIMARY o SECONDARY
-// y el nombre del grado, 1° a 6°), `divisions` letras mayúsculas, `shifts` valores de SHIFTS
-// (course.repository.js) y `statuses`, de STATUSES.
+// arreglo, vacío si no filtra, y `enrollmentDate`. `grades` son pares { educationLevel, gradeName }
+// (PRIMARY o SECONDARY y el nombre del grado, 1° a 6°), `divisions` letras mayúsculas, `shifts`
+// valores de SHIFTS (course.repository.js) y `statuses`, de STATUSES. `enrollmentDate` es
+// { day, month, year }: cada parte de la fecha de inscripción filtra por separado (p. ej., solo el
+// año) y es null si no filtra.
 async function countNotDeletedByInstitution(institutionId, filters) {
   const { rows } = await query(COUNT_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL, filterParams(institutionId, filters));
   return rows[0].total;
