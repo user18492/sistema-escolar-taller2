@@ -7,6 +7,8 @@ const { group, test } = require('../lib/framework');
 const { PATHS } = require('../config');
 const { readInventory, readTriggerDetails, diffInventory } = require('../lib/inventory');
 const { SEED_USERS } = require('../lib/fixtures');
+const { attempt, rejectedBy } = require('../lib/sql');
+const clock = require('../lib/clock');
 
 const bcrypt = require(require.resolve('bcrypt', { paths: [PATHS.root] }));
 
@@ -143,5 +145,87 @@ group('db.schema', 'Esquema y seed', () => {
     t.equal(levels, ['PRIMARIA', 'SECUNDARIA'], 'El catálogo de grados tiene los dos niveles educativos');
     const gradesWithoutSubjects = await t.sql(`SELECT g.grado_id FROM grado g WHERE NOT EXISTS (SELECT 1 FROM grado_materia gm WHERE gm.grado_id = g.grado_id)`);
     t.equal(gradesWithoutSubjects, [], 'Todo grado tiene materias en su plan de estudios');
+  });
+
+  // plans/seed-ciclo-anterior/: el seed carga un lote del ciclo anterior con el reloj de la base
+  // fijado en el 31 de diciembre de ese año, lo restaura y cierra el ciclo
+  test('seed-previous-school-year', 'El seed carga el ciclo lectivo anterior cerrado, restaura el reloj y la base protege ese ciclo', async (t) => {
+    const previousYear = (await t.sqlOne(`SELECT fn_anio_ciclo_lectivo_actual() - 1 AS year`)).year;
+    t.equal(previousYear, t.year - 1, 'El ciclo anterior es el año de la corrida menos uno');
+    t.equal((await t.sqlOne(`SELECT fn_ciclo_lectivo_estado($1) AS state`, [previousYear])).state, 'CERRADO', 'El ciclo anterior quedó cerrado');
+
+    // El reloj, como antes del seed: con TEST_TODAY, la fecha congelada; sin ella, la definición
+    // original (CURRENT_DATE) y la fecha de la PC (la suite comprueba que coincide con la de la base)
+    const frozen = clock.frozenDate();
+    const { today } = await t.sqlOne(`SELECT fn_fecha_actual()::TEXT AS today`);
+    t.equal(today, frozen ?? clock.localIsoDate(), 'fn_fecha_actual() devuelve la fecha de la corrida después del seed');
+    if (!frozen) {
+      const { definition } = await t.sqlOne(`SELECT pg_get_functiondef('fn_fecha_actual()'::regprocedure) AS definition`);
+      t.check(/CURRENT_DATE/.test(definition), 'fn_fecha_actual() no volvió a su definición original', definition);
+    }
+
+    // Cantidades por institución del ciclo anterior, con consultas propias
+    const counts = await t.sql(`
+      SELECT i.cuit,
+             (SELECT COUNT(*)::INT FROM curso c
+               WHERE c.institucion_id = i.institucion_id AND c.anio_ciclo_lectivo = $1) AS courses,
+             (SELECT COUNT(*)::INT FROM asignacion_docente a JOIN curso c ON c.curso_id = a.curso_id
+               WHERE c.institucion_id = i.institucion_id AND c.anio_ciclo_lectivo = $1
+                 AND a.fecha_eliminacion IS NULL) AS assignments,
+             (SELECT COUNT(*)::INT FROM inscripcion n JOIN curso c ON c.curso_id = n.curso_id
+               JOIN inscripcion_estado e ON e.inscripcion_estado_id = n.inscripcion_estado_id
+               WHERE c.institucion_id = i.institucion_id AND c.anio_ciclo_lectivo = $1
+                 AND e.nombre = 'FINALIZADA' AND n.fecha_eliminacion IS NULL) AS completed_enrollments,
+             (SELECT COUNT(*)::INT FROM inscripcion n JOIN curso c ON c.curso_id = n.curso_id
+               WHERE c.institucion_id = i.institucion_id AND c.anio_ciclo_lectivo = $1) AS enrollments,
+             (SELECT COUNT(*)::INT FROM evaluacion v JOIN asignacion_docente a ON a.asignacion_docente_id = v.asignacion_docente_id
+               JOIN curso c ON c.curso_id = a.curso_id
+               WHERE c.institucion_id = i.institucion_id AND c.anio_ciclo_lectivo = $1
+                 AND v.fecha_eliminacion IS NULL) AS evaluations,
+             (SELECT COUNT(*)::INT FROM calificacion s JOIN inscripcion n ON n.inscripcion_id = s.inscripcion_id
+               JOIN curso c ON c.curso_id = n.curso_id
+               WHERE c.institucion_id = i.institucion_id AND c.anio_ciclo_lectivo = $1
+                 AND s.fecha_eliminacion IS NULL) AS scores
+        FROM institucion i
+       ORDER BY i.cuit`, [previousYear]);
+    t.equal(counts.length, 2, 'El seed tiene dos instituciones');
+    for (const row of counts) {
+      t.equal(
+        { courses: row.courses, assignments: row.assignments, completed_enrollments: row.completed_enrollments, enrollments: row.enrollments, evaluations: row.evaluations, scores: row.scores },
+        { courses: 12, assignments: 25, completed_enrollments: 312, enrollments: 312, evaluations: 100, scores: 2596 },
+        `Ciclo ${previousYear} de la institución ${row.cuit}`,
+      );
+    }
+
+    const activeInClosed = await t.sql(`
+      SELECT n.inscripcion_id FROM inscripcion n
+        JOIN curso c ON c.curso_id = n.curso_id
+        JOIN inscripcion_estado e ON e.inscripcion_estado_id = n.inscripcion_estado_id
+       WHERE e.nombre = 'ACTIVA' AND fn_ciclo_lectivo_estado(c.anio_ciclo_lectivo) = 'CERRADO'`);
+    t.equal(activeInClosed, [], 'Ninguna inscripción activa en un ciclo cerrado');
+
+    // La base rechaza modificar el ciclo cerrado
+    const sample = await t.sqlOne(`
+      SELECT s.calificacion_id, n.inscripcion_id, c.curso_id
+        FROM calificacion s
+        JOIN inscripcion n ON n.inscripcion_id = s.inscripcion_id
+        JOIN curso c ON c.curso_id = n.curso_id
+       WHERE c.anio_ciclo_lectivo = $1
+       ORDER BY s.calificacion_id
+       LIMIT 1`, [previousYear]);
+    if (!t.check(sample, `No hay calificaciones del ciclo ${previousYear}`)) return;
+    const updates = [
+      ['Una calificación', { sql: `UPDATE calificacion SET nota = 10 - nota WHERE calificacion_id = $1`, params: [sample.calificacion_id] }, 'ck_calificacion_ciclo_lectivo_cerrado'],
+      ['Una inscripción', {
+        sql: `UPDATE inscripcion SET inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'CANCELADA')
+               WHERE inscripcion_id = $1`,
+        params: [sample.inscripcion_id],
+      }, 'ck_inscripcion_ciclo_lectivo_cerrado'],
+      ['Un curso', { sql: `UPDATE curso SET division = 'Z' WHERE curso_id = $1`, params: [sample.curso_id] }, 'ck_curso_ciclo_lectivo_cerrado'],
+    ];
+    for (const [label, statement, constraint] of updates) {
+      const result = await attempt(t.db, statement);
+      t.check(rejectedBy(result, constraint), `${label} del ciclo ${previousYear}: se esperaba el rechazo de ${constraint}`, result);
+    }
   });
 });

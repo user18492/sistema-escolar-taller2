@@ -1,19 +1,11 @@
 {
   "version": 1,
-  "takenAt": "2026-10-28T14:27:26.144Z",
-  "commit": "7fc8b1283ec542ac07e7c5f0a567260cf7ead341",
+  "takenAt": "2026-11-04T18:42:25.467Z",
+  "commit": "afe07020f45e19510259864394f012c3050b7539",
   "branch": "restricciones",
-  "dirty": true,
-  "changedFiles": [
-    "db/schema.sql",
-    "renderer/secretary/enrollments/enrollments.js",
-    "src/main/models/enrollment.model.js",
-    "src/main/repositories/enrollment.repository.js",
-    "src/main/repositories/score.repository.js",
-    "src/main/services/enrollment.service.js",
-    "src/preload/preload.js"
-  ],
-  "today": "2026-10-28",
+  "dirty": false,
+  "changedFiles": [],
+  "today": "2026-11-04",
   "year": 2026,
   "environment": {
     "node": "24.19.0",
@@ -687,6 +679,15 @@
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 1,
+      "knownFailure": null
+    },
+    "db.schema.seed-previous-school-year": {
+      "layer": "db",
+      "status": "pass",
+      "hash": "97f9c3f6f35d",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
       "knownFailure": null
     },
     "db.schema.invariants": {
@@ -2141,8 +2142,8 @@
       "tests": 4
     },
     "enrollments:list": {
-      "calls": 15,
-      "ok": 15,
+      "calls": 21,
+      "ok": 21,
       "tests": 9
     },
     "enrollments:list-by-own-assignment": {
