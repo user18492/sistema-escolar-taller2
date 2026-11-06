@@ -75,6 +75,7 @@ module.exports = {
 
     'scores:list-by-own-evaluation': { roles: ['PROFESOR'], args: [NO_ID, NO_ID] },
     'scores:save': { roles: ['PROFESOR'], args: [NO_ID, NO_ID, {}] },
+    'scores:save-many': { roles: ['PROFESOR'], args: [NO_ID, NO_ID, []] },
     'scores:delete': { roles: ['PROFESOR'], args: [NO_ID, NO_ID, NO_ID] },
 
     'dashboard:get-admin-summary': { roles: ['ADMIN'], args: [] },

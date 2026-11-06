@@ -126,6 +126,56 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.logout();
   });
 
+  test('scores-save-many', 'Guardar calificaciones guarda de una vez cargas, correcciones y bajas; si rechaza un cambio, no guarda ninguno', async (t) => {
+    await t.login(t.data.teacher);
+    const { assignment, course, enrollmentId, cancelled, closed } = t.data;
+    const enrollStudent = async () => t.fixtures.enroll({
+      studentId: (await t.fixtures.createStudent({ institutionId: course.institutionId })).id,
+      courseId: course.id,
+    });
+    const corrected = await enrollStudent();
+    const removed = await enrollStudent();
+    const evaluationId = await t.fixtures.createEvaluation({ assignmentId: assignment.id });
+    await t.fixtures.score({ evaluationId, enrollmentId: corrected, value: 5 });
+    await t.fixtures.score({ evaluationId, enrollmentId: removed, value: 6 });
+    // Notas vigentes de la evaluación, por inscripción
+    const current = async () => Object.fromEntries((await t.sql(`
+      SELECT inscripcion_id AS id, nota::TEXT AS nota FROM calificacion
+       WHERE evaluacion_id = $1 AND fecha_eliminacion IS NULL`, [evaluationId])).map((row) => [row.id, row.nota]));
+    const before = await current();
+    t.equal(before, { [corrected]: '5.00', [removed]: '6.00' }, 'La evaluación empieza con las dos notas del setup');
+    const changes = [
+      { enrollmentId, value: 8 },
+      { enrollmentId: corrected, value: 9.5 },
+      { enrollmentId: removed, value: null },
+    ];
+
+    const notActive = await t.rejects('ENROLLMENT_NOT_ACTIVE', 'scores.saveMany', assignment.id, evaluationId, [...changes, { enrollmentId: cancelled, value: 7 }]);
+    t.equal(notActive?.error?.enrollmentId, cancelled, 'El rechazo identifica la inscripción del cambio rechazado');
+    t.equal(await current(), before, 'Con un cambio rechazado por la base no se guardó ninguno');
+    const invalid = await t.rejects('INVALID_SCORE', 'scores.saveMany', assignment.id, evaluationId, [{ enrollmentId, value: 8 }, { enrollmentId: corrected, value: 10.5 }]);
+    t.equal(invalid?.error?.enrollmentId, corrected, 'La nota inválida identifica su inscripción');
+    t.equal(await current(), before, 'Con una nota inválida no se guardó ninguna');
+
+    const saved = await t.ok('scores.saveMany', assignment.id, evaluationId, changes);
+    const byEnrollment = (list) => [...(list ?? [])].sort((a, b) => a.enrollmentId - b.enrollmentId);
+    t.equal(byEnrollment(saved?.scores), byEnrollment(changes), 'Responde cada nota como quedó guardada');
+    t.equal(await current(), { [enrollmentId]: '8.00', [corrected]: '9.50' }, 'Se cargó una, se corrigió otra y se dio de baja la tercera');
+    const rowsOf = (id) => t.sql(`SELECT nota::TEXT AS nota, fecha_eliminacion IS NOT NULL AS baja FROM calificacion WHERE evaluacion_id = $1 AND inscripcion_id = $2 ORDER BY calificacion_id`, [evaluationId, id]);
+    t.equal(await rowsOf(corrected), [{ nota: '9.50', baja: false }], 'Corregir modifica la misma fila');
+    t.equal(await rowsOf(removed), [{ nota: '6.00', baja: true }], 'La baja conserva la fila con su última nota');
+
+    await t.ok('scores.saveMany', assignment.id, evaluationId, [{ enrollmentId: removed, value: null }]);
+    t.equal(await rowsOf(removed), [{ nota: '6.00', baja: true }], 'La baja de una calificación que ya no está vigente no es un error ni cambia nada');
+
+    await t.rejects('SCHOOL_YEAR_CLOSED', 'scores.saveMany', closed.assignment.id, closed.evaluationId, [{ enrollmentId: closed.enrollmentId, value: null }]);
+    for (const malformed of [[], {}, [{ enrollmentId }], [{ enrollmentId, value: '8' }], [{ enrollmentId, value: 8 }, { enrollmentId, value: null }]]) {
+      await t.rejects('INVALID_INPUT', 'scores.saveMany', assignment.id, evaluationId, malformed);
+    }
+    t.equal(await current(), { [enrollmentId]: '8.00', [corrected]: '9.50' }, 'Los rechazos no cambiaron nada');
+    await t.logout();
+  });
+
   test('evaluation-delete-keeps-scores', 'La baja de una evaluación da de baja sus calificaciones vigentes y conserva sus filas', {
     history: [{ plan: 'plans/profesor-evaluaciones/00-base-de-datos-y-backend.md', date: '2026-10-26', change: 'Después de evaluations.delete la calificación ya no sigue vigente: la evaluación queda sin calificaciones vigentes y la fila de la nota se conserva, con su nota y su fecha de baja' }],
   }, async (t) => {

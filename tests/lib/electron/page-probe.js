@@ -3,7 +3,7 @@
 //   - reemplaza el portapapeles del renderer por uno de prueba (window.__suiteClipboard), así una
 //     prueba nunca pisa el del usuario;
 //   - avisa a la suite, con un console.debug marcado, de los estados de error que quedan a la vista:
-//     toasts de error, mensajes de carga fallida (#…LoadError) y "No se pudo guardar".
+//     toasts de error y mensajes de carga fallida (#…LoadError).
 (() => {
   const report = (kind, data) => console.debug(`[[suite:${kind}]]${JSON.stringify(data)}`);
 
@@ -41,15 +41,12 @@
     if (element.id?.endsWith('LoadError') && !element.hidden && textOf(element)) {
       once(element, `load:${textOf(element)}`, { kind: 'load-error', id: element.id, text: textOf(element) });
     }
-    if (element.matches('save-status') && element.dataset.state === 'error') {
-      once(element, `save:${Date.now()}`, { kind: 'save-status', text: textOf(element) });
-    }
   };
 
   const scan = (root) => {
     if (!(root instanceof Element) && root !== document) return;
     if (root instanceof Element) inspect(root);
-    root.querySelectorAll?.('.toast-error, [id$="LoadError"], save-status').forEach(inspect);
+    root.querySelectorAll?.('.toast-error, [id$="LoadError"]').forEach(inspect);
   };
 
   new MutationObserver((mutations) => {

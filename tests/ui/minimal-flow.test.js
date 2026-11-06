@@ -132,7 +132,10 @@ group('ui.minimal', 'Flujo mínimo con la interfaz: administrador, secretario y 
     await logoutViaUi(t);
   });
 
-  test('teacher', 'El profesor ve la asignación y al alumno, crea una evaluación de hoy y le carga una nota que persiste', { minimal: true }, async (t) => {
+  test('teacher', 'El profesor ve la asignación y al alumno, crea una evaluación de hoy y le carga una nota que persiste', {
+    minimal: true,
+    history: [{ plan: 'Pedido del 2026-11-06: Guardar calificaciones (sin plan en plans/)', date: '2026-11-06', change: 'La nota ya no se guarda al salir del campo: después de escribirla, se comprueba que todavía no está en la base y se guarda con "Guardar calificaciones" y "Sí, guardar" en el modal de confirmación' }],
+  }, async (t) => {
     t.require(flow.enrollment, 'Falló un paso anterior: no hay inscripción');
     const { ui } = t;
     await loginViaUi(t, t.data.teacher);
@@ -179,10 +182,17 @@ group('ui.minimal', 'Flujo mínimo con la interfaz: administrador, secretario y 
       await ui.idle();
       await ui.fill(input, '8');
       await ui.press('Enter');
-      const saved = await waitUntil(async () => (await t.sql(`
+      const isSaved = async () => (await t.sql(`
         SELECT 1 FROM calificacion WHERE evaluacion_id = $1 AND inscripcion_id = $2 AND fecha_eliminacion IS NULL AND nota = 8`,
-      [evaluation.id, flow.enrollment.id])).length === 1, 8000);
-      t.require(saved, 'La nota no quedó en la base');
+      [evaluation.id, flow.enrollment.id])).length === 1;
+      await ui.idle();
+      t.check(!(await isSaved()), 'La nota no se guarda al salir del campo');
+      await waitEnabled(t, '#saveScoresBtn', 'Guardar calificaciones');
+      await ui.click('#saveScoresBtn');
+      await ui.waitModal('#saveScoresOverlay', true);
+      await ui.click('#confirmSaveScoresBtn', { scroll: false });
+      await ui.waitModal('#saveScoresOverlay', false);
+      t.require(await waitUntil(isSaved, 8000), 'La nota no quedó en la base');
       await ui.idle();
     });
 
