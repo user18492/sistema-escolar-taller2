@@ -1,4 +1,5 @@
-/* Componente reutilizable: modal de confirmación para acciones destructivas (Eliminar), para
+/* Componente reutilizable: modal de confirmación para acciones destructivas (Eliminar, salir sin
+   guardar, restaurar un backup sobre los datos actuales), para
    restaurar un registro dado de baja y para un guardado de varios cambios */
 
 confirm-modal {

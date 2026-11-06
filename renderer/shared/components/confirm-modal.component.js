@@ -1,6 +1,7 @@
 // Componente global: modal de confirmación de las acciones sobre una fila de la tabla: las
 // destructivas (Eliminar) y la restauración de un registro dado de baja (Restaurar); también la de
-// un guardado de varios cambios ("Guardar calificaciones").
+// un guardado de varios cambios ("Guardar calificaciones"), la de salir con cambios sin guardar y
+// la de reemplazar los datos existentes (restaurar un backup).
 // Uso: setupConfirmModal(overlay, opciones) con el .modal-overlay del modal, cuyo .confirm-actions
 // tiene el botón Cancelar (.btn-neutral) y el de confirmación (.btn-danger o, al restaurar o
 // guardar, .btn-primary); los estilos están en confirm-modal.css.
@@ -37,7 +38,9 @@
 //     las filas, así que lo abre el botón de triggerSelector (save{entity}Overlay…). "leave"
 //     confirma salir de una vista con cambios sin guardar, con el aspecto de "delete", "Salir sin
 //     guardar" y "Saliendo…" mientras espera (leave{entity}Overlay…); lo abre
-//     unsaved-changes-guard.component.js con open().
+//     unsaved-changes-guard.component.js con open(). "overwrite" confirma reemplazar los datos
+//     existentes (restaurar un backup), con el aspecto de "delete", "Sí, restaurar" y
+//     "Restaurando…" mientras espera (overwrite{entity}Overlay…); lo abre la vista con open().
 // setupConfirmModal devuelve { open(trigger) }, para abrirlo desde código y no con un clic en sus
 // botones; trigger es el control al que vuelve el foco al cerrarlo (si es null, el de
 // fallbackFocus).
@@ -89,6 +92,13 @@
       confirmClass: 'btn-danger',
       confirmLabel: 'Salir sin guardar',
       pendingLabel: 'Saliendo…',
+    },
+    overwrite: {
+      icon: WARNING_ICON,
+      iconClass: 'confirm-icon',
+      confirmClass: 'btn-danger',
+      confirmLabel: 'Sí, restaurar',
+      pendingLabel: 'Restaurando…',
     },
   };
 
