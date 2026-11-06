@@ -1,30 +1,14 @@
 // Vista Backup y restauración del Administrador: la tabla muestra el historial de backups de la
-// institución, del más nuevo al más viejo, paginado en memoria, 10 por página, con
+// institución (backups.list), del más nuevo al más viejo, paginado en memoria, 10 por página, con
 // <table-pagination>.
 // Backup abre el modal "Nuevo backup", donde se elige el formato de compresión (ZIP o TAR.GZ), y
-// Restore pide confirmación antes de reemplazar los datos de la institución por los de un backup
-// (confirm-modal.component.js, variante "overwrite").
-// Por ahora la vista es solo visual: el historial y el archivo que se restaura son datos de prueba,
-// y ni "Realizar backup" ni la confirmación del Restore llaman al proceso principal (solo cierran
-// sus modales).
+// "Realizar backup" lo realiza (backups.create). Restore pide confirmación antes de reemplazar los
+// datos de la institución por los de un backup (confirm-modal.component.js, variante "overwrite").
+// Por ahora el Restore es solo visual: el archivo que se restaura es un dato de prueba y la
+// confirmación no llama al proceso principal (solo cierra el modal).
 
-// Datos de prueba: los reemplazan el historial que devuelve el proceso principal (parte 01 del plan
-// plans/backups) y el archivo que elige el administrador para restaurar (parte 02).
-const MOCK_BACKUPS = [
-  { id: 12, userName: 'Mariana Gómez', createdAt: '2026-11-06T09:15:00-03:00' },
-  { id: 11, userName: 'Carlos Fernández', createdAt: '2026-11-03T18:42:00-03:00' },
-  { id: 10, userName: 'Mariana Gómez', createdAt: '2026-10-30T12:05:00-03:00' },
-  { id: 9, userName: 'María Fernanda Rodríguez Castellanos', createdAt: '2026-10-24T08:30:00-03:00' },
-  { id: 8, userName: 'Carlos Fernández', createdAt: '2026-10-17T19:10:00-03:00' },
-  { id: 7, userName: 'Mariana Gómez', createdAt: '2026-10-09T10:48:00-03:00' },
-  { id: 6, userName: 'Carlos Fernández', createdAt: '2026-09-30T16:20:00-03:00' },
-  { id: 5, userName: 'Mariana Gómez', createdAt: '2026-09-15T11:00:00-03:00' },
-  { id: 4, userName: 'María Fernanda Rodríguez Castellanos', createdAt: '2026-08-28T09:55:00-03:00' },
-  { id: 3, userName: 'Carlos Fernández', createdAt: '2026-07-31T17:35:00-03:00' },
-  { id: 2, userName: 'Mariana Gómez', createdAt: '2026-06-30T13:12:00-03:00' },
-  { id: 1, userName: 'Carlos Fernández', createdAt: '2026-03-02T08:00:00-03:00' },
-];
-
+// Dato de prueba: lo reemplaza el archivo que elige el administrador para restaurar (parte 02 del
+// plan plans/backups).
 const MOCK_RESTORE_FILE = {
   fileName: 'backup-2026-11-03-1842.zip',
   createdAt: '2026-11-03T18:42:00-03:00',
@@ -60,12 +44,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
   };
 
-  // Del más nuevo al más viejo; el id desempata
-  const backups = MOCK_BACKUPS.toSorted(
-    (a, b) => new Date(b.createdAt) - new Date(a.createdAt) || b.id - a.id
-  );
+  const GENERIC_LOAD_ERROR = 'No se pudo cargar el historial de backups. Intentá nuevamente.';
 
-  // Sin backups, en una única fila de todo el ancho
+  // Historial en memoria, del más nuevo al más viejo, como lo devuelve el proceso principal
+  let backups = [];
+  // false mientras carga o si la carga falló: la tabla muestra ese mensaje
+  let isLoaded = false;
+
+  // Cargando, error o sin backups, en una única fila de todo el ancho
   const showMessage = (message) => {
     const row = document.createElement('tr');
     const cell = row.insertCell();
@@ -85,26 +71,81 @@ document.addEventListener('DOMContentLoaded', () => {
     return row;
   };
 
-  // Muestra la página actual del historial (10 por página, en memoria)
-  const renderRows = () => {
-    const pageBackups = pagination.slice(backups);
+  // Muestra la página `page` (por defecto, la actual) del historial (10 por página, en memoria)
+  const renderRows = ({ page } = {}) => {
+    const pageBackups = pagination.slice(backups, { page });
     if (pageBackups.length) tbody.replaceChildren(...pageBackups.map(createRow));
     else showMessage('Todavía no se realizó ningún backup');
   };
 
-  // Previo, Siguiente o un número: el componente ya marcó la página nueva
-  pagination.addEventListener('page-change', renderRows);
+  // Pide el historial; si no llega, la tabla muestra el error
+  async function loadBackups() {
+    isLoaded = false;
+    showMessage('Cargando backups…');
+    let response;
+    try {
+      response = await window.api?.backups?.list();
+    } catch (error) {
+      console.error('Error al cargar los backups:', error);
+    }
+    if (!response?.ok) {
+      showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
+      return;
+    }
+    backups = response.backups;
+    isLoaded = true;
+    renderRows();
+  }
 
-  renderRows();
+  // El backup recién realizado es el más nuevo: va primero, y la tabla pasa a la página 1. Si el
+  // historial no había cargado, se vuelve a pedir, ya con él
+  const insertBackup = (backup) => {
+    if (!isLoaded) {
+      loadBackups();
+      return;
+    }
+    backups = [backup, ...backups];
+    renderRows({ page: 1 });
+  };
+
+  // Previo, Siguiente o un número: el componente ya marcó la página nueva
+  pagination.addEventListener('page-change', () => {
+    if (isLoaded) renderRows();
+  });
+
+  loadBackups();
 
   // ---------- Modal: Nuevo backup ----------
 
   const backupOverlay = document.getElementById('newBackupOverlay');
+  const backupModal = backupOverlay.querySelector('.modal');
+  const backupModalBody = backupOverlay.querySelector('.modal-body');
   const openBackupModalBtn = document.getElementById('openNewBackupModalBtn');
   const cancelBackupBtn = document.getElementById('cancelNewBackupBtn');
   const createBackupBtn = document.getElementById('createBackupBtn');
   const formatDropdown = backupOverlay.querySelector('[data-filter="new-backup-format"]');
   const DEFAULT_FORMAT = 'zip';
+  const SUBMIT_TEXT = createBackupBtn.textContent;
+  const SAVING_TEXT = 'Realizando backup…';
+  let isSaving = false;
+
+  const selectedFormat = () => formatDropdown.querySelector('.dropdown-option.selected')?.dataset.value;
+
+  // Mientras se espera la respuesta, el cuerpo del modal (el dropdown del formato) queda inerte, así
+  // lo enviado coincide con lo que se ve. Los botones del pie quedan con aria-disabled y no con
+  // disabled: conservan el foco, como en confirm-modal.component.js.
+  const setSaving = (saving) => {
+    isSaving = saving;
+    backupModalBody.inert = saving;
+    backupModal.setAttribute('aria-busy', String(saving));
+    [cancelBackupBtn, createBackupBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
+    createBackupBtn.textContent = saving ? SAVING_TEXT : SUBMIT_TEXT;
+  };
+
+  // Los mensajes de los errores previstos (BACKUP_IN_PROGRESS, BACKUP_FILE_EXISTS,
+  // BACKUP_WRITE_FAILED…) llegan listos para mostrar; el de uno inesperado, no.
+  const errorDescription = (error) =>
+    (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
 
   // Elige en el dropdown la opción con ese data-value, como si se la pulsara:
   // dropdown.component.js la marca y la muestra en la etiqueta
@@ -125,16 +166,45 @@ document.addEventListener('DOMContentLoaded', () => {
     openBackupModalBtn.focus();
   };
 
+  // Realiza el backup en el formato elegido. Si sale bien, cierra el modal, avisa el nombre del
+  // archivo y suma la fila al historial; si no, el modal sigue abierto y un toast da el motivo.
+  const createBackup = async () => {
+    closeAllDropdowns();
+    setSaving(true);
+    let response;
+    try {
+      response = await window.api?.backups?.create(selectedFormat());
+    } catch (error) {
+      console.error('Error al realizar el backup:', error);
+    }
+    setSaving(false);
+
+    if (response?.ok) {
+      insertBackup(response.backup);
+      closeBackupModal();
+      showToast({
+        type: 'success',
+        title: 'Backup realizado',
+        description: `Se guardó el archivo ${response.backup.fileName}.`,
+      });
+      return;
+    }
+    showToast({ type: 'error', title: 'No se pudo realizar el backup', description: errorDescription(response?.error) });
+  };
+
   openBackupModalBtn.addEventListener('click', openBackupModal);
-  cancelBackupBtn.addEventListener('click', closeBackupModal);
-  // Por ahora solo cierra el modal: el backup lo realiza la parte 01 del plan
-  createBackupBtn.addEventListener('click', closeBackupModal);
+  cancelBackupBtn.addEventListener('click', () => {
+    if (!isSaving) closeBackupModal();
+  });
+  createBackupBtn.addEventListener('click', () => {
+    if (!isSaving) createBackup();
+  });
 
   // Escape cierra el modal si no hay un desplegable abierto (dropdown.component.js resuelve
   // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
-  // quedado fuera de un control.
+  // quedado fuera de un control. Mientras se realiza el backup, ni Escape ni Cancelar lo cierran.
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && backupOverlay.classList.contains('is-open')) closeBackupModal();
+    if (event.key === 'Escape' && backupOverlay.classList.contains('is-open') && !isSaving) closeBackupModal();
   });
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.

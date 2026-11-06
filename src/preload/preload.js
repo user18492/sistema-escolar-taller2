@@ -53,7 +53,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de profile, de users, de
   // courses, de grades, de schoolYears, de teacherAssignments, de students, de enrollments, de
-  // evaluations, de scores y de dashboard resuelven
+  // evaluations, de scores, de dashboard y de backups resuelven
   // { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal cierra la
   // sesión y vuelve al login.
   // Lo de un ciclo lectivo cerrado (uno anterior al actual, el de schoolYears.getCurrent) es de solo
@@ -539,5 +539,22 @@ contextBridge.exposeInMainWorld('api', {
     // todavía no tiene ninguna), o
     // { ok: false, error: { code, message } }.
     getSecretarySummary: () => ipcRenderer.invoke('dashboard:get-secretary-summary'),
+  },
+  backups: {
+    // Solo ADMIN. Resuelve { ok: true, backups } con el historial de backups de su institución
+    // ({ id, userName, createdAt }, con userName el nombre y el apellido de quien lo realizó, como
+    // eran al realizarlo, y createdAt la fecha y la hora en ISO 8601), del más nuevo al más viejo, o
+    // { ok: false, error: { code, message } }.
+    list: () => ipcRenderer.invoke('backups:list'),
+    // Solo ADMIN. Realiza un backup completo de los datos de su institución (usuarios, alumnos,
+    // cursos, asignaciones docentes, inscripciones, evaluaciones y calificaciones, también los dados
+    // de baja; sin las fotos de perfil) en un archivo comprimido de la carpeta de backups de la
+    // aplicación, y lo registra en el historial. `format` es 'zip' o 'tar.gz'. Resuelve
+    // { ok: true, backup } con el backup registrado (mismos campos que list, más fileName, el nombre
+    // del archivo) o { ok: false, error: { code, message } }, sin dejar ningún archivo ni registro:
+    // INVALID_INPUT indica un formato inválido; BACKUP_IN_PROGRESS, que ya hay un backup o una
+    // restauración en curso; BACKUP_FILE_EXISTS, que ya hay un backup con ese nombre (dos en el mismo
+    // segundo), y BACKUP_WRITE_FAILED, que no se pudo escribir el archivo en la carpeta.
+    create: (format) => ipcRenderer.invoke('backups:create', format),
   },
 });
