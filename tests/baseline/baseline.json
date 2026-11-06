@@ -1,11 +1,17 @@
 {
   "version": 1,
-  "takenAt": "2026-11-04T18:42:25.467Z",
-  "commit": "afe07020f45e19510259864394f012c3050b7539",
-  "branch": "restricciones",
-  "dirty": false,
-  "changedFiles": [],
-  "today": "2026-11-04",
+  "takenAt": "2026-11-06T15:23:00.608Z",
+  "commit": "2bfd27cd179c552ef414f16233b32b4ca842aaa8",
+  "branch": "main",
+  "dirty": true,
+  "changedFiles": [
+    "renderer/shared/components/confirm-modal.component.js",
+    "renderer/shared/components/sidebar.js",
+    "renderer/teacher/evaluation-scores/evaluation-scores.js",
+    "renderer/teacher/evaluation-scores/index.html",
+    "renderer/shared/components/unsaved-changes-guard.component.js"
+  ],
+  "today": "2026-11-06",
   "year": 2026,
   "environment": {
     "node": "24.19.0",
@@ -1356,6 +1362,15 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "main.secretary.enrollments.list-date-filter": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "f9913eebe13a",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "main.secretary.enrollments.form-options": {
       "layer": "main",
       "status": "pass",
@@ -1597,6 +1612,15 @@
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 1,
+      "knownFailure": null
+    },
+    "main.teacher.scores-save-many": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "41281c3d15b0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
       "knownFailure": null
     },
     "main.teacher.evaluation-delete-keeps-scores": {
@@ -1875,10 +1899,10 @@
     "ui.minimal.teacher": {
       "layer": "ui",
       "status": "pass",
-      "hash": "f35efd99c936",
+      "hash": "75cb7483da9e",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "ui.minimal.invariants": {
@@ -1917,7 +1941,52 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "ui.scores.save-button": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "309026cb0a25",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "ui.scores.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.scores-unsaved.leave-unsaved-confirm": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "62277dce45d0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.scores-unsaved.logout-unsaved-confirm": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "4080d115ff77",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.scores-unsaved.leave-without-changes": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "f041ab69b6a2",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.scores-unsaved.invariants": {
       "layer": "ui",
       "status": "pass",
       "hash": "d97564bc2bbc",
@@ -2072,24 +2141,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 110,
-      "ok": 110,
-      "tests": 34
+      "calls": 121,
+      "ok": 121,
+      "tests": 38
     },
     "auth:get-remembered-email": {
-      "calls": 78,
-      "ok": 78,
-      "tests": 47
+      "calls": 84,
+      "ok": 84,
+      "tests": 52
     },
     "auth:login": {
-      "calls": 121,
-      "ok": 113,
-      "tests": 94
+      "calls": 127,
+      "ok": 119,
+      "tests": 100
     },
     "auth:logout": {
-      "calls": 155,
-      "ok": 155,
-      "tests": 109
+      "calls": 163,
+      "ok": 163,
+      "tests": 116
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2142,9 +2211,9 @@
       "tests": 4
     },
     "enrollments:list": {
-      "calls": 21,
-      "ok": 21,
-      "tests": 9
+      "calls": 42,
+      "ok": 36,
+      "tests": 10
     },
     "enrollments:list-by-own-assignment": {
       "calls": 6,
@@ -2187,9 +2256,9 @@
       "tests": 4
     },
     "evaluations:list-by-own-assignment": {
-      "calls": 9,
-      "ok": 9,
-      "tests": 8
+      "calls": 11,
+      "ok": 11,
+      "tests": 10
     },
     "evaluations:update": {
       "calls": 4,
@@ -2217,9 +2286,9 @@
       "tests": 2
     },
     "school-years:get-current": {
-      "calls": 32,
-      "ok": 32,
-      "tests": 18
+      "calls": 38,
+      "ok": 38,
+      "tests": 22
     },
     "scores:delete": {
       "calls": 4,
@@ -2227,14 +2296,19 @@
       "tests": 3
     },
     "scores:list-by-own-evaluation": {
-      "calls": 11,
-      "ok": 9,
-      "tests": 5
+      "calls": 15,
+      "ok": 13,
+      "tests": 9
     },
     "scores:save": {
+      "calls": 11,
+      "ok": 7,
+      "tests": 6
+    },
+    "scores:save-many": {
       "calls": 12,
-      "ok": 8,
-      "tests": 7
+      "ok": 4,
+      "tests": 3
     },
     "students:create": {
       "calls": 6,
@@ -2272,9 +2346,9 @@
       "tests": 3
     },
     "teacher-assignments:get-own": {
-      "calls": 21,
-      "ok": 18,
-      "tests": 7
+      "calls": 27,
+      "ok": 24,
+      "tests": 11
     },
     "teacher-assignments:list": {
       "calls": 6,
@@ -2297,9 +2371,9 @@
       "tests": 6
     },
     "teacher-assignments:list-own": {
-      "calls": 11,
-      "ok": 10,
-      "tests": 10
+      "calls": 15,
+      "ok": 14,
+      "tests": 14
     },
     "teacher-assignments:update": {
       "calls": 10,
@@ -2337,9 +2411,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 144,
-      "ok": 144,
-      "tests": 54
+      "calls": 160,
+      "ok": 160,
+      "tests": 59
     },
     "window:minimize": {
       "calls": 1,

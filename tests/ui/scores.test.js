@@ -1,7 +1,9 @@
 // Capa ui: Calificaciones del Profesor. Una evaluación con fecha futura se ve en solo lectura: se
 // califica a partir de su fecha (plans/profesor-calificaciones.md). Los cambios en las notas, también
 // los de otras páginas, se guardan juntos con "Guardar calificaciones", después de confirmarlo
-// (pedido del 2026-11-06).
+// (pedido del 2026-11-06). Con cambios sin guardar, salir de la vista por la ruta de navegación o
+// "Cerrar sesión" pide confirmación, y "Salir sin guardar" sale sin guardar nada
+// (plans/profesor-calificaciones-sin-guardar/00-salir-de-la-vista.md).
 const { group, test } = require('../lib/framework');
 const { loginViaUi, logoutViaUi } = require('./helpers');
 
@@ -139,6 +141,100 @@ group('ui.scores', 'Calificaciones: evaluación con fecha futura', {
       t.check((await ui.toasts()).some((toast) => toast.type === 'success'), 'Un toast avisa que se guardaron');
       await ui.dismissToasts();
     });
+    await logoutViaUi(t);
+  });
+});
+
+group('ui.scores-unsaved', 'Calificaciones: salir de la vista con cambios sin guardar', {
+  async setup({ fixtures }) {
+    return fixtures.teacherScenario();
+  },
+}, () => {
+  const EVALUATIONS_VIEW = 'teacher/assignment-evaluations/index.html';
+  const BREADCRUMB_EVALUATIONS = `.breadcrumb a[href*="assignment-evaluations"]`;
+  const LEAVE_OVERLAY = '#leaveScoresOverlay';
+
+  // Inicia sesión y abre las calificaciones de la evaluación del setup. Devuelve el selector del
+  // campo de la nota de su alumno.
+  const openScores = async (t) => {
+    const { ui } = t;
+    const { teacher, assignment, enrollmentId, evaluationId } = t.data;
+    await loginViaUi(t, teacher);
+    const query = new URLSearchParams({ assignmentId: String(assignment.id), evaluationId: String(evaluationId) });
+    t.require(await ui.navigate(`${SCORES_VIEW}?${query}`) === SCORES_VIEW, 'No se abrieron las calificaciones de la evaluación');
+    await ui.idle();
+    const input = `tr[data-enrollment-id="${enrollmentId}"] .numeric-stepper-input`;
+    await ui.waitFor(`document.querySelector('${input}') && !document.querySelector('${input}').disabled`, { message: 'La nota del alumno no está disponible en Calificaciones' });
+    return input;
+  };
+
+  // Calificaciones de la evaluación del setup, también las dadas de baja
+  const scoreRows = (t) => t.sql(`
+    SELECT inscripcion_id, nota::TEXT AS nota, fecha_eliminacion IS NOT NULL AS baja FROM calificacion
+     WHERE evaluacion_id = $1 ORDER BY inscripcion_id`, [t.data.evaluationId]);
+
+  // Escribe una nota sin guardarla
+  const changeScore = async (t, input) => {
+    await t.ui.fill(input, '7');
+    await t.ui.press('Enter');
+    await t.ui.idle();
+    t.check(await t.ui.js(`!document.getElementById('saveScoresBtn').disabled`), 'La nota quedó como cambio sin guardar');
+  };
+
+  test('leave-unsaved-confirm', 'Con una nota sin guardar, la ruta de navegación pide confirmación: Cancelar se queda con el cambio y "Salir sin guardar" sale sin guardarlo', async (t) => {
+    const { ui } = t;
+    const input = await openScores(t);
+    const before = await scoreRows(t);
+    await changeScore(t, input);
+
+    await t.step('Cancelar', async () => {
+      await ui.click(BREADCRUMB_EVALUATIONS);
+      await ui.waitModal(LEAVE_OVERLAY, true);
+      t.equal(ui.view(), SCORES_VIEW, 'Con el modal abierto la vista no cambió');
+      await ui.click('#cancelLeaveScoresBtn', { scroll: false });
+      await ui.waitModal(LEAVE_OVERLAY, false);
+      await ui.idle();
+      t.equal(ui.view(), SCORES_VIEW, 'Cancelar se queda en Calificaciones');
+      t.equal(await ui.value(input), '7', 'La nota sin guardar sigue en su campo');
+      t.check(await ui.js(`document.activeElement === document.querySelector('${BREADCRUMB_EVALUATIONS}')`), 'El foco vuelve al enlace de la ruta de navegación');
+    });
+
+    await t.step('Salir sin guardar', async () => {
+      await ui.click(BREADCRUMB_EVALUATIONS);
+      await ui.waitModal(LEAVE_OVERLAY, true);
+      await ui.click('#confirmLeaveScoresBtn', { scroll: false });
+      t.require(await ui.waitForView(EVALUATIONS_VIEW), '"Salir sin guardar" no abrió Evaluaciones', ui.view());
+      await ui.idle();
+      await ui.waitFor(`document.querySelector('tr[data-evaluation-id="${t.data.evaluationId}"]')`, { message: 'Evaluaciones no muestra la evaluación de la asignación' });
+      t.equal(await scoreRows(t), before, 'La nota sin guardar no se guardó');
+    });
+    await logoutViaUi(t);
+  });
+
+  test('logout-unsaved-confirm', 'Con una nota sin guardar, "Cerrar sesión" pide confirmación y al confirmar vuelve al login sin guardarla', async (t) => {
+    const { ui } = t;
+    const input = await openScores(t);
+    const before = await scoreRows(t);
+    await changeScore(t, input);
+
+    await ui.click('.sidebar-profile .profile-button');
+    await ui.waitFor(`document.getElementById('profilePanel').classList.contains('is-open')`, { message: 'No se abrió el menú del perfil' });
+    await ui.click('#profilePanel [data-action="logout"]');
+    await ui.waitModal(LEAVE_OVERLAY, true);
+    t.equal(ui.view(), SCORES_VIEW, 'Con el modal abierto la sesión sigue en Calificaciones');
+    await ui.click('#confirmLeaveScoresBtn', { scroll: false });
+    t.require(await ui.waitForView('auth/login/index.html'), '"Salir sin guardar" no volvió al login', ui.view());
+    await ui.idle();
+    t.equal(await t.call('auth.getCurrentUser'), null, 'La sesión se cerró');
+    t.equal(await scoreRows(t), before, 'La nota sin guardar no se guardó');
+  });
+
+  test('leave-without-changes', 'Sin cambios sin guardar, la ruta de navegación sale de Calificaciones sin pedir confirmación', async (t) => {
+    const { ui } = t;
+    await openScores(t);
+    await ui.click(BREADCRUMB_EVALUATIONS);
+    t.require(await ui.waitForView(EVALUATIONS_VIEW), 'La ruta de navegación no abrió Evaluaciones sin cambios sin guardar', ui.view());
+    await ui.idle();
     await logoutViaUi(t);
   });
 });
