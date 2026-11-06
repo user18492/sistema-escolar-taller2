@@ -3,6 +3,8 @@
 // suite y comprueba el archivo, su contenido y el historial con consultas independientes: las tablas
 // sin institucion_id se filtran por otra cadena que la del repositorio (el profesor o el alumno, no
 // el curso).
+// El restore (plans/backups/02-restore.md) se prueba igual, por la API del preload: el diálogo para
+// elegir el archivo lo responde la prueba (t.chooseFile), con backups reales o modificados a mano.
 const fs = require('node:fs');
 const path = require('node:path');
 const { group, test } = require('../lib/framework');
@@ -216,6 +218,311 @@ group('main.admin.backups', 'Administrador: backups', {
     t.check(firstResult?.ok === true, 'El primer backup se realizó', firstResult);
     t.equal(await respaldoCount(t), countBefore + 1, 'Solo se registró el que se realizó');
     t.equal(listBackupFiles(t), firstResult?.ok ? [firstResult.backup.fileName] : [], 'Solo quedó el archivo del que se realizó');
+    await t.logout();
+  });
+});
+
+// ---------- Restore (plans/backups/02-restore.md) ----------
+
+const { replaceTodaySql } = require('../lib/clock');
+const { tableHashes, changedTables } = require('../lib/db-snapshot');
+
+const TABLE_NAMES = TABLES.map(([name]) => name);
+
+// Las filas de la institución en cada una de las 7 tablas, con todas sus columnas y por id.
+async function institutionRows(t, institutionId) {
+  const rows = {};
+  for (const [name, idColumn, where] of TABLES) rows[name] = await rowsOf(t, name, idColumn, where, [institutionId]);
+  return rows;
+}
+
+const respaldoRows = (t) => rowsOf(t, 'respaldo', 'respaldo_id');
+
+// Los triggers de usuario de las 7 tablas que no quedaron habilitados (tgenabled distinto de 'O'),
+// y cuántos hay en total.
+async function triggersState(t) {
+  const rows = await t.sql(`
+    SELECT c.relname AS table, tg.tgname AS trigger, tg.tgenabled AS enabled
+      FROM pg_trigger tg JOIN pg_class c ON c.oid = tg.tgrelid
+     WHERE NOT tg.tgisinternal AND c.relname = ANY($1)`, [TABLE_NAMES]);
+  return { total: rows.length, notEnabled: rows.filter((row) => row.enabled !== 'O') };
+}
+
+// Archivos de prueba para elegir en el diálogo, en la carpeta de la corrida (fuera de userData).
+function restoreFilePath(t, name) {
+  const directory = path.join(path.dirname(t.harness.userData), 'restore-files');
+  fs.mkdirSync(directory, { recursive: true });
+  return path.join(directory, name);
+}
+
+function writeRaw(t, name, bytes) {
+  const file = restoreFilePath(t, name);
+  fs.writeFileSync(file, bytes);
+  return file;
+}
+
+// Un ZIP con `entries` ({ nombre: contenido }); un contenido que no es Buffer se guarda como JSON.
+function writeZip(t, name, entries) {
+  const file = restoreFilePath(t, name);
+  const zip = new AdmZip();
+  for (const [entryName, content] of Object.entries(entries)) {
+    zip.addFile(entryName, Buffer.isBuffer(content) ? content : Buffer.from(JSON.stringify(content), 'utf8'));
+  }
+  zip.writeZip(file);
+  return file;
+}
+
+// Elige `file` en el diálogo (respondido por la prueba) y devuelve la respuesta de selectFile.
+async function selectFile(t, file) {
+  t.chooseFile(file);
+  return t.call('backups.selectFile');
+}
+
+// Restaura el backup ya elegido desde la vista Backup y restauración: la respuesta tiene que ser ok
+// y la ventana tiene que volver al login con el aviso.
+async function restoreAndWaitLogin(t) {
+  await t.ui.navigate('admin/backups/index.html');
+  const value = await t.call('backups.restore');
+  t.require(value?.ok === true, 'backups.restore no se realizó', value);
+  await t.ui.waitFor(`location.pathname.endsWith('/auth/login/index.html') && location.search.includes('notice=system-restored')`,
+    { timeoutMs: 10000, message: 'La ventana no volvió al login con ?notice=system-restored' });
+}
+
+const deepCopy = (value) => JSON.parse(JSON.stringify(value));
+
+group('main.admin.restore', 'Administrador: restore de un backup', {
+  async setup({ fixtures }) {
+    const institutionId = await fixtures.institutionId(SM);
+    const otherInstitutionId = await fixtures.institutionId(MB);
+    // Datos propios de la institución en las 7 tablas, con filas dadas de baja
+    const course = await fixtures.createCourse();
+    const emptyCourse = await fixtures.createCourse();
+    await fixtures.createCourse({ deleted: true });
+    const teacher = await fixtures.createUser({ role: 'PROFESOR' });
+    const secretary = await fixtures.createUser({ role: 'SECRETARIO' });
+    await fixtures.createUser({ role: 'SECRETARIO', deleted: true });
+    const assignment = await fixtures.assign({ teacherId: teacher.id, courseId: course.id });
+    const student = await fixtures.createStudent();
+    await fixtures.createStudent({ deleted: true });
+    const enrollmentId = await fixtures.enroll({ studentId: student.id, courseId: course.id });
+    const evaluationId = await fixtures.createEvaluation({ assignmentId: assignment.id });
+    await fixtures.score({ evaluationId, enrollmentId, value: 8.25 });
+    // Otro administrador de la institución y uno de la otra
+    const otherAdmin = await fixtures.createUser({ role: 'ADMIN' });
+    const foreignAdmin = await fixtures.createUser({ role: 'ADMIN', institutionId: otherInstitutionId });
+    return { institutionId, otherInstitutionId, emptyCourse, secretary, student, otherAdmin, foreignAdmin };
+  },
+}, () => {
+  test('restore-roundtrip', 'Backup, cambios y restore: las 7 tablas de la institución quedan como en el backup (con sus ids), la otra institución y el historial no cambian, la sesión se cierra y las altas siguientes no chocan', async (t) => {
+    await t.login('admin');
+    const { backup } = await t.ok('backups.create', 'zip');
+    t.require(backup?.fileName, 'No se realizó el backup', backup);
+    const file = path.join(backupsDir(t), backup.fileName);
+    const { content } = await readArchive(t, file, 'zip');
+    const atBackup = await institutionRows(t, t.data.institutionId);
+
+    // Cambios en el ciclo actual: altas, una edición y bajas lógicas
+    const newStudent = await t.fixtures.createStudent();
+    const newCourse = await t.fixtures.createCourse();
+    await t.db.query(`UPDATE alumno SET nombre = 'Editado' WHERE alumno_id = $1`, [t.data.student.id]);
+    await t.db.query(`UPDATE curso SET fecha_eliminacion = now() WHERE curso_id = $1`, [t.data.emptyCourse.id]);
+    await t.db.query(`UPDATE usuario SET estado = false, fecha_eliminacion = now() WHERE usuario_id = $1`, [t.data.secretary.id]);
+    const changed = await institutionRows(t, t.data.institutionId);
+    t.check(JSON.stringify(changed) !== JSON.stringify(atBackup), 'Los cambios no se ven en la base');
+
+    const otherBefore = await institutionRows(t, t.data.otherInstitutionId);
+    const respaldoBefore = await respaldoRows(t);
+    const dialogsBefore = t.harness.dialogs.length;
+
+    const selected = await selectFile(t, file);
+    t.require(selected?.ok === true, 'backups.selectFile no aceptó el backup', selected);
+    t.equal(selected.file, { fileName: backup.fileName, createdAt: content.createdAt, userName: backup.userName },
+      'selectFile devuelve el nombre del archivo, la fecha del backup y quién lo realizó');
+    const dialog = t.harness.dialogs[dialogsBefore];
+    t.equal(dialog?.kind, 'showOpenDialog', 'Se abrió el diálogo para elegir el archivo');
+    t.equal(dialog?.options?.defaultPath, backupsDir(t), 'El diálogo abre en la carpeta de backups');
+    t.equal(dialog?.options?.properties, ['openFile'], 'El diálogo elige un solo archivo');
+    t.equal(dialog?.options?.filters, [{ name: 'Backups', extensions: ['zip', 'gz'] }], 'El diálogo filtra los backups');
+    t.equal(await institutionRows(t, t.data.institutionId), changed, 'Elegir el archivo no cambia los datos');
+
+    await restoreAndWaitLogin(t);
+
+    t.equal(await institutionRows(t, t.data.institutionId), atBackup, 'Las 7 tablas de la institución quedaron idénticas a las del backup, ids incluidos');
+    t.equal(await institutionRows(t, t.data.otherInstitutionId), otherBefore, 'Las filas de la otra institución no cambiaron');
+    t.equal(await respaldoRows(t), respaldoBefore, 'La tabla respaldo no cambió (el restore no se registra)');
+    t.check(!(await t.sqlOne(`SELECT 1 AS found FROM alumno WHERE alumno_id = $1`, [newStudent.id])), 'El alumno creado después del backup ya no está');
+    t.check(!(await t.sqlOne(`SELECT 1 AS found FROM curso WHERE curso_id = $1`, [newCourse.id])), 'El curso creado después del backup ya no está');
+    const triggers = await triggersState(t);
+    t.check(triggers.total > 0, 'No se encontraron los triggers de las tablas');
+    t.equal(triggers.notEnabled, [], 'Los triggers quedaron habilitados después del restore');
+    t.equal(await t.call('auth.getCurrentUser'), null, 'La sesión quedó cerrada');
+    await t.rejects('UNAUTHENTICATED', 'backups.list');
+
+    // Las altas siguientes toman ids nuevos en las 7 tablas
+    const maxIds = Object.fromEntries(TABLES.map(([name, idColumn]) => [name, Math.max(0, ...content.tables[name].map((row) => row[idColumn]))]));
+    const teacher = await t.fixtures.createUser({ role: 'PROFESOR' });
+    const student = await t.fixtures.createStudent();
+    const course = await t.fixtures.createCourse();
+    const assignment = await t.fixtures.assign({ teacherId: teacher.id, courseId: course.id });
+    const enrollmentId = await t.fixtures.enroll({ studentId: student.id, courseId: course.id });
+    const evaluationId = await t.fixtures.createEvaluation({ assignmentId: assignment.id });
+    const scoreId = await t.fixtures.score({ evaluationId, enrollmentId });
+    const created = { usuario: teacher.id, alumno: student.id, curso: course.id, asignacion_docente: assignment.id, inscripcion: enrollmentId, evaluacion: evaluationId, calificacion: scoreId };
+    for (const [name, id] of Object.entries(created)) t.check(id > maxIds[name], `${name}: el alta nueva tomó un id del backup`, { id, max: maxIds[name] });
+
+    // Y se puede volver a iniciar sesión con una cuenta del backup
+    await t.login('admin');
+    await t.ok('backups.list');
+    await t.logout();
+  });
+
+  test('restore-closed-school-year', 'Un backup TAR.GZ hecho en un ciclo y restaurado en el siguiente se carga, y sus inscripciones activas de ese ciclo quedan FINALIZADA', async (t) => {
+    const previousYear = t.year - 1;
+    const closed = await t.fixtures.inSchoolYear(previousYear, async () => {
+      const course = await t.fixtures.createCourse();
+      const student = await t.fixtures.createStudent();
+      return { course, enrollmentId: await t.fixtures.enroll({ studentId: student.id, courseId: course.id }) };
+    });
+    await t.login('admin');
+
+    // El backup se hace con el reloj de la base en el ciclo anterior
+    const { definition } = await t.sqlOne(`SELECT pg_get_functiondef('fn_fecha_actual()'::regprocedure) AS definition`);
+    let backup;
+    await t.db.query(replaceTodaySql(`${previousYear}-11-20`));
+    try {
+      ({ backup } = await t.ok('backups.create', 'tar.gz'));
+    } finally {
+      await t.db.query(definition);
+    }
+    t.require(backup?.fileName, 'No se realizó el backup', backup);
+    const file = path.join(backupsDir(t), backup.fileName);
+    const { content } = await readArchive(t, file, 'tar.gz');
+    const activeId = (await t.sqlOne(`SELECT inscripcion_estado_id AS id FROM inscripcion_estado WHERE nombre = 'ACTIVA'`)).id;
+    const finishedId = (await t.sqlOne(`SELECT inscripcion_estado_id AS id FROM inscripcion_estado WHERE nombre = 'FINALIZADA'`)).id;
+    t.equal(content.tables.inscripcion.find((row) => row.inscripcion_id === closed.enrollmentId)?.inscripcion_estado_id, activeId,
+      'En el backup, la inscripción del ciclo anterior está activa');
+
+    // Con el reloj en el ciclo siguiente, como al iniciar la aplicación, el ciclo del backup ya cerró
+    await t.db.query(`CALL sp_inscripcion_finalizar_ciclos_cerrados(NULL)`);
+    const selected = await selectFile(t, file);
+    t.require(selected?.ok === true, 'backups.selectFile no aceptó el backup TAR.GZ', selected);
+    await restoreAndWaitLogin(t);
+
+    const enrollment = await t.sqlOne(`SELECT inscripcion_estado_id FROM inscripcion WHERE inscripcion_id = $1`, [closed.enrollmentId]);
+    t.equal(enrollment?.inscripcion_estado_id, finishedId, 'La inscripción activa del ciclo cerrado quedó FINALIZADA');
+    const stillActive = await t.sql(`
+      SELECT i.inscripcion_id FROM inscripcion i JOIN curso c ON c.curso_id = i.curso_id
+       WHERE c.institucion_id = $1 AND c.anio_ciclo_lectivo < $2 AND i.fecha_eliminacion IS NULL AND i.inscripcion_estado_id = $3`,
+    [t.data.institutionId, t.year, activeId]);
+    t.equal(stillActive, [], 'No quedan inscripciones activas en ciclos cerrados');
+
+    // El resto, como en el backup: solo cambian las inscripciones activas de ciclos cerrados
+    const closedCourses = new Set(content.tables.curso.filter((row) => row.anio_ciclo_lectivo < t.year).map((row) => row.curso_id));
+    const expected = deepCopy(content.tables);
+    for (const row of expected.inscripcion) {
+      if (closedCourses.has(row.curso_id) && row.fecha_eliminacion === null && row.inscripcion_estado_id === activeId) row.inscripcion_estado_id = finishedId;
+    }
+    t.equal(await institutionRows(t, t.data.institutionId), expected, 'Las filas son las del backup, con esas inscripciones finalizadas');
+    t.equal((await triggersState(t)).notEnabled, [], 'Los triggers quedaron habilitados');
+  });
+
+  test('restore-errors', 'Archivo dañado, de otra institución, de otro esquema o sin administrador activo, y restore sin backup elegido: cada uno con su código y sin cambiar la base', async (t) => {
+    // Un backup de la otra institución, realizado por su administrador
+    await t.login(t.data.foreignAdmin);
+    const { backup: foreign } = await t.ok('backups.create', 'zip');
+    await t.logout();
+    await t.login('admin');
+    const { backup } = await t.ok('backups.create', 'zip');
+    t.require(foreign?.fileName && backup?.fileName, 'No se realizaron los backups', { foreign, backup });
+    const valid = path.join(backupsDir(t), backup.fileName);
+    const { content } = await readArchive(t, valid, 'zip');
+
+    const before = await tableHashes(t.db);
+    const adminRoleId = (await t.sqlOne(`SELECT usuario_rol_id AS id FROM usuario_rol WHERE nombre = 'ADMIN'`)).id;
+    const withoutAdmins = deepCopy(content);
+    for (const row of withoutAdmins.tables.usuario) if (row.usuario_rol_id === adminRoleId) row.estado = false;
+    const reorderedColumns = deepCopy(content);
+    reorderedColumns.columns.alumno = [...reorderedColumns.columns.alumno].reverse();
+    const changedCatalog = deepCopy(content);
+    changedCatalog.catalogs.grado[0].nombre = `${changedCatalog.catalogs.grado[0].nombre} (otro)`;
+    const missingTable = deepCopy(content);
+    delete missingTable.tables.calificacion;
+
+    const cases = [
+      ['un archivo que no es un ZIP', writeRaw(t, 'danado.zip', 'esto no es un zip'), 'BACKUP_INVALID_FILE'],
+      ['un TAR.GZ dañado', writeRaw(t, 'danado.tar.gz', Buffer.from([0x1f, 0x8b, 0x08, 0x00, 0x01, 0x02, 0x03])), 'BACKUP_INVALID_FILE'],
+      ['otra extensión', writeRaw(t, 'backup.json', JSON.stringify(content)), 'BACKUP_INVALID_FILE'],
+      ['un ZIP sin backup.json', writeZip(t, 'sin-json.zip', { 'otro.json': content }), 'BACKUP_INVALID_FILE'],
+      ['un backup.json que no es JSON', writeZip(t, 'no-json.zip', { 'backup.json': Buffer.from('{ "formatVersion": 1, ') }), 'BACKUP_INVALID_FILE'],
+      ['otra versión del formato', writeZip(t, 'version.zip', { 'backup.json': { ...deepCopy(content), formatVersion: 2 } }), 'BACKUP_INVALID_FILE'],
+      ['una tabla de menos', writeZip(t, 'sin-tabla.zip', { 'backup.json': missingTable }), 'BACKUP_INVALID_FILE'],
+      ['sin administradores activos', writeZip(t, 'sin-admin.zip', { 'backup.json': withoutAdmins }), 'BACKUP_INVALID_FILE'],
+      ['de la otra institución', path.join(backupsDir(t), foreign.fileName), 'BACKUP_OTHER_INSTITUTION'],
+      ['las columnas en otro orden', writeZip(t, 'columnas.zip', { 'backup.json': reorderedColumns }), 'BACKUP_INCOMPATIBLE'],
+      ['un catálogo distinto', writeZip(t, 'catalogo.zip', { 'backup.json': changedCatalog }), 'BACKUP_INCOMPATIBLE'],
+    ];
+    for (const [label, file, code] of cases) {
+      // Antes, una elección válida: la fallida la descarta
+      t.check((await selectFile(t, valid))?.ok === true, 'El backup válido no se aceptó');
+      t.allowRejection('backups:select-file', code, label);
+      const value = await selectFile(t, file);
+      t.check(value?.ok === false && value.error?.code === code, `${label}: selectFile tenía que responder ${code}`, value);
+      await t.rejects('BACKUP_NO_SELECTION', 'backups.restore');
+    }
+
+    // Cancelar el diálogo: sin archivo, y descarta la elección anterior
+    t.check((await selectFile(t, valid))?.ok === true, 'El backup válido no se aceptó');
+    t.allow('dialog', /^showOpenDialog:/, 'diálogo cancelado');
+    t.equal(await t.call('backups.selectFile'), { ok: true, file: null }, 'Si se cancela el diálogo, selectFile devuelve file: null');
+    await t.rejects('BACKUP_NO_SELECTION', 'backups.restore');
+
+    // El backup elegido por un administrador no lo restaura otro
+    t.check((await selectFile(t, valid))?.ok === true, 'El backup válido no se aceptó');
+    await t.logout();
+    await t.login(t.data.otherAdmin);
+    await t.rejects('BACKUP_NO_SELECTION', 'backups.restore');
+    t.check((await t.call('auth.getCurrentUser'))?.role === 'ADMIN', 'La sesión sigue abierta');
+    await t.logout();
+
+    t.equal(changedTables(before, await tableHashes(t.db)), [], 'La base quedó igual');
+    t.equal((await triggersState(t)).notEnabled, [], 'Los triggers siguen habilitados');
+  });
+
+  test('restore-rolled-back', 'Si la carga falla a mitad (un id del backup ya es de la otra institución), responde BACKUP_INCOMPATIBLE, no cambia nada, los triggers quedan habilitados y la sesión sigue abierta', async (t) => {
+    await t.login('admin');
+    const { backup } = await t.ok('backups.create', 'zip');
+    const { content } = await readArchive(t, path.join(backupsDir(t), backup.fileName), 'zip');
+    // Un usuario sin referencias en el backup pasa a tener el id de uno de la otra institución
+    const foreignUser = await t.sqlOne(`SELECT usuario_id FROM usuario WHERE institucion_id = $1 ORDER BY usuario_id LIMIT 1`, [t.data.otherInstitutionId]);
+    const tampered = deepCopy(content);
+    tampered.tables.usuario.find((row) => row.usuario_id === t.data.secretary.id).usuario_id = foreignUser.usuario_id;
+    const file = writeZip(t, 'id-ocupado.zip', { 'backup.json': tampered });
+
+    const before = await tableHashes(t.db);
+    t.check((await selectFile(t, file))?.ok === true, 'El backup modificado se tenía que aceptar al elegirlo');
+    await t.ui.navigate('admin/backups/index.html');
+    await t.rejects('BACKUP_INCOMPATIBLE', 'backups.restore');
+    t.equal(changedTables(before, await tableHashes(t.db)), [], 'La base quedó igual');
+    t.equal((await triggersState(t)).notEnabled, [], 'Los triggers quedaron habilitados después del restore fallido');
+    t.check((await t.call('auth.getCurrentUser'))?.role === 'ADMIN', 'La sesión sigue abierta');
+    t.equal(t.ui.view(), 'admin/backups/index.html', 'La ventana sigue en la vista');
+    await t.logout();
+  });
+
+  test('one-at-a-time', 'Mientras corre un backup, elegir un archivo o restaurar se rechaza con BACKUP_IN_PROGRESS, sin abrir el diálogo', async (t) => {
+    await t.login('admin');
+    // Sin los archivos de las pruebas anteriores, que pueden ser del mismo segundo
+    fs.rmSync(backupsDir(t), { recursive: true, force: true });
+    const fault = t.injectFault({ match: /SET TRANSACTION ISOLATION LEVEL REPEATABLE READ/i, action: 'delay', ms: 800 });
+    const first = t.call('backups.create', 'zip');
+    const deadline = Date.now() + 5000;
+    while (fault.hits < 1 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    t.check(fault.hits === 1, 'El backup no llegó a leer los datos', { hits: fault.hits });
+    const dialogsBefore = t.harness.dialogs.length;
+    await t.rejects('BACKUP_IN_PROGRESS', 'backups.selectFile');
+    await t.rejects('BACKUP_IN_PROGRESS', 'backups.restore');
+    t.equal(t.harness.dialogs.length, dialogsBefore, 'No se abrió el diálogo');
+    t.check((await first)?.ok === true, 'El backup se realizó');
     await t.logout();
   });
 });

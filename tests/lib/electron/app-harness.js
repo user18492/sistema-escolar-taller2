@@ -121,6 +121,8 @@ class AppHarness {
     this.openPathResult = '';
     this.windows = new Set();
     this.dialogs = [];
+    // Respuestas de dialog.showOpenDialog que programa la prueba (t.chooseFile)
+    this.openDialogAnswers = [];
     this.clipboardAtStart = null;
     this.isolationProblems = [];
 
@@ -146,9 +148,14 @@ class AppHarness {
   stubSystem() {
     const record = (kind) => (...args) => {
       const [title, message] = typeof args[0] === 'string' ? args : [args[1]?.title ?? args[0]?.title, args[1]?.message ?? args[0]?.message];
-      const entry = { kind, title, message, at: Date.now() };
+      // Las opciones (el segundo argumento si el primero es la ventana), para comprobarlas
+      const options = typeof args[0] === 'string' ? undefined : (args[1] ?? args[0]);
+      const entry = { kind, title, message, options, at: Date.now() };
       this.dialogs.push(entry);
       this.monitor.push({ type: 'dialog', message: `${kind}: ${title ?? ''} ${message ?? ''}`.trim() });
+      // El selector de archivos responde lo que la prueba programó (openDialogAnswers, en orden) o,
+      // si no programó nada, como si se cancelara
+      if (kind === 'showOpenDialog' && this.openDialogAnswers.length) return Promise.resolve(this.openDialogAnswers.shift());
       return kind.endsWith('Sync') ? (kind.includes('MessageBox') ? 0 : undefined) : Promise.resolve(kind.includes('MessageBox') ? { response: 0 } : { canceled: true, filePaths: [] });
     };
     for (const name of ['showErrorBox', 'showMessageBox', 'showMessageBoxSync', 'showOpenDialog', 'showOpenDialogSync', 'showSaveDialog', 'showSaveDialogSync']) {

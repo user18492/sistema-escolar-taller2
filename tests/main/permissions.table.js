@@ -87,5 +87,9 @@ module.exports = {
     'backups:list': { roles: ['ADMIN'], args: [] },
     // Un formato inválido: el ADMIN recibe INVALID_INPUT y no se escribe nada
     'backups:create': { roles: ['ADMIN'], args: ['rar'] },
+    // Abren el diálogo de archivos o cambian la sesión: main.permissions.backups-restore y
+    // main.admin.restore
+    'backups:select-file': { roles: ['ADMIN'], args: [], matrix: false },
+    'backups:restore': { roles: ['ADMIN'], args: [], matrix: false },
   },
 };

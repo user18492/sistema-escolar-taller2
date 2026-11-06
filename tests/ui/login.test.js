@@ -51,4 +51,18 @@ group('ui.login', 'Login con la interfaz', {
     await ui.waitFor(`!document.getElementById('loginError').hidden`, { message: 'El login no mostró el aviso' });
     t.equal(await t.call('auth.getCurrentUser'), null, 'La sesión quedó cerrada');
   });
+
+  test('system-restored-notice', 'Con ?notice=system-restored (después de restaurar un backup), el login muestra su aviso, distinto del de una cuenta suspendida', async (t) => {
+    const { ui } = t;
+    await t.logout();
+    await ui.navigate('auth/login/index.html?notice=account-suspended');
+    await ui.waitFor(`!document.getElementById('loginError').hidden`, { message: 'El login no mostró el aviso de la cuenta suspendida' });
+    const suspendedText = await ui.text('#loginError');
+    await ui.navigate('auth/login/index.html?notice=system-restored');
+    await ui.waitFor(`!document.getElementById('loginError').hidden`, { message: 'El login no mostró el aviso del restore' });
+    const restoredText = (await ui.text('#loginError')).trim();
+    t.check(restoredText.length > 0 && restoredText !== suspendedText.trim(), 'El aviso del restore es propio', { restoredText, suspendedText });
+    await ui.navigate('auth/login/index.html?notice=otro');
+    t.check(await ui.js(`document.getElementById('loginError').hidden`), 'Un aviso desconocido no muestra nada');
+  });
 });

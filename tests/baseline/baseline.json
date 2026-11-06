@@ -1,22 +1,19 @@
 {
   "version": 1,
-  "takenAt": "2026-11-06T21:07:13.060Z",
-  "commit": "9d48ed477ab2b3a8687f445771d832ff846b08cc",
+  "takenAt": "2026-11-06T21:32:52.476Z",
+  "commit": "46205a3e6d4a4d71d2bc420407630dd08dba7ac5",
   "branch": "backups",
   "dirty": true,
   "changedFiles": [
-    "db/schema.sql",
-    "package-lock.json",
-    "package.json",
     "renderer/admin/backups/backups.js",
-    "renderer/admin/backups/index.html",
-    "src/main/main-window.js",
-    "src/preload/preload.js",
+    "renderer/auth/login/login.js",
     "src/main/ipc/backup.controller.js",
-    "src/main/models/backup.model.js",
+    "src/main/navigation-guard.js",
     "src/main/repositories/backup-file.repository.js",
     "src/main/repositories/backup.repository.js",
-    "src/main/services/backup.service.js"
+    "src/main/repositories/enrollment.repository.js",
+    "src/main/services/backup.service.js",
+    "src/preload/preload.js"
   ],
   "today": "2026-11-06",
   "year": 2026,
@@ -1081,6 +1078,60 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "main.admin.restore.restore-roundtrip": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "5339b1a41486",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.restore.restore-closed-school-year": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d4f5d2da0734",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.restore.restore-errors": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "c55a80946cc2",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.restore.restore-rolled-back": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d0d19c70a166",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.restore.one-at-a-time": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d8b266f4caa9",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.restore.invariants": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "main.detection.unexpected-error": {
       "layer": "main",
       "status": "pass",
@@ -1292,6 +1343,15 @@
       "layer": "main",
       "status": "pass",
       "hash": "faba983c10a4",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.permissions.backups-restore": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "51a191d45e2c",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -1957,6 +2017,15 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "ui.login.system-restored-notice": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "1b6595454cd6",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "ui.login.invariants": {
       "layer": "ui",
       "status": "pass",
@@ -2257,24 +2326,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 122,
-      "ok": 122,
-      "tests": 38
+      "calls": 128,
+      "ok": 128,
+      "tests": 42
     },
     "auth:get-remembered-email": {
-      "calls": 86,
-      "ok": 86,
-      "tests": 53
+      "calls": 93,
+      "ok": 93,
+      "tests": 57
     },
     "auth:login": {
-      "calls": 132,
-      "ok": 124,
-      "tests": 105
+      "calls": 140,
+      "ok": 132,
+      "tests": 110
     },
     "auth:logout": {
-      "calls": 170,
-      "ok": 170,
-      "tests": 122
+      "calls": 179,
+      "ok": 179,
+      "tests": 128
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2282,14 +2351,24 @@
       "tests": 3
     },
     "backups:create": {
-      "calls": 10,
-      "ok": 3,
-      "tests": 5
+      "calls": 16,
+      "ok": 9,
+      "tests": 10
     },
     "backups:list": {
-      "calls": 3,
-      "ok": 3,
-      "tests": 3
+      "calls": 8,
+      "ok": 7,
+      "tests": 6
+    },
+    "backups:restore": {
+      "calls": 17,
+      "ok": 2,
+      "tests": 5
+    },
+    "backups:select-file": {
+      "calls": 29,
+      "ok": 17,
+      "tests": 5
     },
     "courses:create": {
       "calls": 4,
@@ -2537,9 +2616,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 163,
-      "ok": 163,
-      "tests": 60
+      "calls": 173,
+      "ok": 173,
+      "tests": 65
     },
     "window:minimize": {
       "calls": 1,
