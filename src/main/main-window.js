@@ -1,6 +1,7 @@
 const path = require('node:path');
 const { BrowserWindow } = require('electron');
 const { registerWindowControls } = require('./ipc/window.controller');
+const { registerAppHandlers } = require('./ipc/app.controller');
 const { registerAuthHandlers } = require('./ipc/auth.controller');
 const { registerUserHandlers } = require('./ipc/user.controller');
 const { registerProfileHandlers } = require('./ipc/profile.controller');
@@ -14,6 +15,7 @@ const { registerEvaluationHandlers } = require('./ipc/evaluation.controller');
 const { registerScoreHandlers } = require('./ipc/score.controller');
 const { registerDashboardHandlers } = require('./ipc/dashboard.controller');
 const { guardNavigation, showEntryView } = require('./navigation-guard');
+const { registerQuitGuard } = require('./quit-guard');
 
 const PRELOAD_PATH = path.join(__dirname, '..', 'preload', 'preload.js');
 const ICON_PATH = path.join(__dirname, '..', '..', 'resources', 'icon_app.png');
@@ -35,6 +37,7 @@ function createMainWindow() {
 
   mainWindow.setMenu(null);
   registerWindowControls(mainWindow);
+  registerAppHandlers(mainWindow);
   registerAuthHandlers(mainWindow);
   registerUserHandlers(mainWindow);
   registerProfileHandlers(mainWindow);
@@ -48,6 +51,7 @@ function createMainWindow() {
   registerScoreHandlers(mainWindow);
   registerDashboardHandlers(mainWindow);
   guardNavigation(mainWindow);
+  registerQuitGuard(mainWindow);
   showEntryView(mainWindow);
 
   return mainWindow;

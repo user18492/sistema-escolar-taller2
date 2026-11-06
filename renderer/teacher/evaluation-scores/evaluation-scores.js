@@ -28,7 +28,9 @@
 // hasUnsavedChanges dice si quedan cambios sin guardar. Con cambios, salir de la vista por el menú
 // lateral, la ruta de navegación, "Configuración" o "Cerrar sesión" pide confirmación en un modal
 // (unsaved-changes-guard.component.js): "Cancelar" se queda con los cambios y "Salir sin guardar"
-// los descarta y sale. En solo lectura o si la carga falló no hay cambios, así que no pregunta.
+// los descarta y sale. Lo mismo al cerrar la aplicación con "Salir" de la bandeja o al apagar,
+// reiniciar o cerrar la sesión de Windows: la ventana se muestra con el modal, y "Salir sin guardar"
+// cierra la aplicación. En solo lectura o si la carga falló no hay cambios, así que no pregunta.
 // Si al guardar el proceso principal responde que la inscripción de un alumno se dio de baja (la
 // vista estaba abierta desde antes de la baja), un toast lo avisa y la lista se vuelve a pedir, sin
 // esa inscripción y con el resto de los cambios sin guardar.
@@ -174,12 +176,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // "Guardar calificaciones" está disponible si hay cambios sin guardar; en solo lectura
   // (readOnlyTitle), deshabilitado con el motivo como title. Con cambios, dice cuántos son entre
   // paréntesis, de todas las páginas y aunque el filtro oculte sus filas: "Guardar calificaciones (3)".
+  // Como se llama con cada cambio de las calificaciones, también le avisa al proceso principal si
+  // quedan cambios sin guardar, para el cierre de la aplicación (unsavedChangesGuard, al final).
   const syncSaveButton = () => {
     const changeCount = scores.filter(hasDraft).length;
     saveScoresBtn.textContent = changeCount ? `Guardar calificaciones (${changeCount})` : 'Guardar calificaciones';
     saveScoresBtn.disabled = readOnlyTitle !== null || !changeCount;
     if (readOnlyTitle) saveScoresBtn.title = readOnlyTitle;
     else saveScoresBtn.removeAttribute('title');
+    unsavedChangesGuard.notify();
   };
 
   // La nota `value` (null: sin nota) pasa a ser la de la calificación: si es la guardada, deja de
@@ -574,9 +579,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Componente compartido unsaved-changes-guard.component.js: con cambios sin guardar, salir de la
-  // vista pide confirmación. Al cancelar, el foco vuelve al control que lo abrió o, si ya no está,
-  // al primer campo de la página que se puede editar.
-  setupUnsavedChangesGuard(document.getElementById('leaveScoresOverlay'), {
+  // vista o cerrar la aplicación pide confirmación. Al cancelar, el foco vuelve al control que lo
+  // abrió o, si ya no está, al primer campo de la página que se puede editar. Se crea antes de la
+  // primera llamada a syncSaveButton, que es al cargar la lista.
+  const unsavedChangesGuard = setupUnsavedChangesGuard(document.getElementById('leaveScoresOverlay'), {
     hasUnsavedChanges,
     fallbackFocus: () => tbody.querySelector('.numeric-stepper-input:not(:disabled)'),
   });

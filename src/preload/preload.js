@@ -13,6 +13,24 @@ contextBridge.exposeInMainWorld('api', {
       return () => ipcRenderer.removeListener('window:maximized-change', handler);
     },
   },
+  // Cierre de la aplicación con cambios sin guardar en la vista ("Salir" de la bandeja o el apagado,
+  // el reinicio o el cierre de sesión de Windows). No piden sesión.
+  app: {
+    // La vista informa si tiene cambios sin guardar (true o false) cada vez que cambia: con cambios,
+    // el proceso principal no cierra la aplicación y le pide la confirmación con onQuitRequested.
+    // Resuelve { ok: true }, o { ok: false, error: { code: 'INVALID_INPUT', message } } si value no
+    // es un booleano.
+    setUnsavedChanges: (value) => ipcRenderer.invoke('app:set-unsaved-changes', value),
+    // Cierra la aplicación sin volver a preguntar ("Salir sin guardar").
+    quit: () => ipcRenderer.invoke('app:quit'),
+    // El proceso principal pide confirmar el cierre, ya con la ventana visible. Devuelve la función
+    // que deja de escucharlo.
+    onQuitRequested: (callback) => {
+      const handler = () => callback();
+      ipcRenderer.on('app:quit-requested', handler);
+      return () => ipcRenderer.removeListener('app:quit-requested', handler);
+    },
+  },
   auth: {
     // Resuelve { ok: true, user } con la sesión iniciada o { ok: false, error: { code, message } }, con el
     // mensaje listo para mostrar. Si las credenciales permiten ingresar con varias cuentas (en varias

@@ -7,6 +7,7 @@ const { createSystemTray } = require('./src/main/system-tray');
 const { checkConnection, closeConnection } = require('./src/main/database/connection');
 const schoolYearService = require('./src/main/services/school-year.service');
 const { registerProfileImageScheme, handleProfileImageRequests } = require('./src/main/profile-image-protocol');
+const { blockQuitIfUnsaved } = require('./src/main/quit-guard');
 
 // Electron exige registrar los esquemas propios antes de que la aplicación esté lista.
 registerProfileImageScheme();
@@ -78,7 +79,10 @@ app.whenReady().then(async () => {
   app.on('activate', showMainWindow);
 });
 
-app.on('before-quit', () => {
+// Con cambios sin guardar en la vista, "Salir" de la bandeja no cierra: la vista pide confirmación
+// (quit-guard.js). isQuitting queda en false, así la ✕ sigue ocultando la ventana si se cancela.
+app.on('before-quit', (event) => {
+  if (blockQuitIfUnsaved(event, mainWindow)) return;
   isQuitting = true;
 });
 
