@@ -24,10 +24,13 @@ const INSTITUTIONS_TITLE = 'Elegí una institución';
 const UNEXPECTED_ERROR_MESSAGE = 'No se pudo iniciar sesión. Intentá nuevamente.';
 const UNRECOGNIZED_ROLE_MESSAGE = 'Tu cuenta no tiene un rol habilitado. Contactá al administrador.';
 
-// El proceso principal abre el login con ?notice=account-suspended después de cerrar la sesión de
-// una cuenta suspendida o dada de baja (SUSPENDED_NOTICE en navigation-guard.js).
-const SUSPENDED_NOTICE = 'account-suspended';
-const SUSPENDED_NOTICE_MESSAGE = 'Tu sesión se cerró porque tu cuenta fue suspendida. Contactá al administrador.';
+// Avisos con los que el proceso principal abre el login (?notice=) después de cerrar la sesión, y su
+// mensaje: account-suspended, la de una cuenta suspendida o dada de baja, y system-restored, al
+// restaurar un backup (SUSPENDED_NOTICE y RESTORED_NOTICE en navigation-guard.js).
+const NOTICE_MESSAGES = {
+  'account-suspended': 'Tu sesión se cerró porque tu cuenta fue suspendida. Contactá al administrador.',
+  'system-restored': 'Se restauró el sistema a un backup anterior. Iniciá sesión nuevamente.',
+};
 
 // Mismos mensajes que auth.service.js (y las mismas reglas, en isValidEmail de
 // field-validation.component.js), para avisar sin esperar al proceso principal, que vuelve a
@@ -147,9 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const setInstitutionError = (message) => setError(institutionError, message);
 
   // Queda a la vista hasta que se edita un campo o se envía el formulario.
-  if (new URLSearchParams(window.location.search).get('notice') === SUSPENDED_NOTICE) {
-    setFormError(SUSPENDED_NOTICE_MESSAGE);
-  }
+  const notice = new URLSearchParams(window.location.search).get('notice');
+  if (Object.hasOwn(NOTICE_MESSAGES, notice ?? '')) setFormError(NOTICE_MESSAGES[notice]);
 
   // Los campos quedan de solo lectura y no deshabilitados: conservan el foco y lo enviado
   // coincide con lo que se ve hasta que llega la respuesta.

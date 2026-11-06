@@ -2,18 +2,11 @@
 // institución (backups.list), del más nuevo al más viejo, paginado en memoria, 10 por página, con
 // <table-pagination>.
 // Backup abre el modal "Nuevo backup", donde se elige el formato de compresión (ZIP o TAR.GZ), y
-// "Realizar backup" lo realiza (backups.create). Restore pide confirmación antes de reemplazar los
-// datos de la institución por los de un backup (confirm-modal.component.js, variante "overwrite").
-// Por ahora el Restore es solo visual: el archivo que se restaura es un dato de prueba y la
-// confirmación no llama al proceso principal (solo cierra el modal).
-
-// Dato de prueba: lo reemplaza el archivo que elige el administrador para restaurar (parte 02 del
-// plan plans/backups).
-const MOCK_RESTORE_FILE = {
-  fileName: 'backup-2026-11-03-1842.zip',
-  createdAt: '2026-11-03T18:42:00-03:00',
-  userName: 'Carlos Fernández',
-};
+// "Realizar backup" lo realiza (backups.create). Restore abre el diálogo del sistema para elegir el
+// archivo (backups.selectFile, que lo lee y lo valida) y pide confirmación antes de reemplazar los
+// datos de la institución por los de ese backup (confirm-modal.component.js, variante "overwrite").
+// Al confirmar, backups.restore los reemplaza; si sale bien, el proceso principal cierra la sesión y
+// abre el login.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -212,17 +205,75 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Confirmación: Restaurar backup ----------
 
   const restoreBtn = document.getElementById('openRestoreBtn');
+  const GENERIC_RESTORE_ERROR = 'No se pudo restaurar el backup. Intentá nuevamente.';
+
+  // El backup elegido con backups.selectFile ({ fileName, createdAt, userName }), que describe la
+  // confirmación
+  let restoreFile = null;
+  let isSelecting = false;
+
+  // Mientras el diálogo del sistema está abierto (y se lee el archivo elegido), Backup y Restore
+  // quedan deshabilitados: el proceso principal haría esperar o rechazaría la otra operación
+  const setSelecting = (selecting) => {
+    isSelecting = selecting;
+    openBackupModalBtn.disabled = selecting;
+    restoreBtn.disabled = selecting;
+  };
+
+  // Restaura el backup elegido. Si sale bien, el modal sigue en "Restaurando…" (la promesa no se
+  // resuelve) hasta que el proceso principal abre el login; si no, muestra el motivo. Sin un backup
+  // elegido, reintentar no sirve: hay que volver a elegirlo con Restore.
+  const restoreBackup = async () => {
+    let response;
+    try {
+      response = await window.api?.backups?.restore();
+    } catch (error) {
+      console.error('Error al restaurar el backup:', error);
+    }
+    if (response?.ok) return new Promise(() => {});
+    const error = response?.error;
+    const message = error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : GENERIC_RESTORE_ERROR;
+    return { message, canRetry: error?.code !== 'BACKUP_NO_SELECTION' };
+  };
 
   // Componente compartido confirm-modal.component.js, variante "overwrite": no está en las filas,
-  // así que lo abre Restore desde código, y al cerrarse el foco vuelve a ese botón. Por ahora
-  // confirmar solo lo cierra: la restauración la realiza la parte 02 del plan.
+  // así que lo abre Restore desde código, y al cerrarse el foco vuelve a ese botón.
   const restoreConfirm = setupConfirmModal(document.getElementById('overwriteBackupOverlay'), {
     beforeOpen: closeAllDropdowns,
     describe: () => {
-      const { fileName, createdAt, userName } = MOCK_RESTORE_FILE;
+      const { fileName, createdAt, userName } = restoreFile;
       return `Se reemplazarán todos los datos actuales de la institución por los del backup del ${formatDateTime(createdAt)}, realizado por ${userName} (${fileName}). Los cambios posteriores a ese backup se perderán y la sesión se cerrará.`;
     },
+    onConfirm: restoreBackup,
   });
 
-  restoreBtn.addEventListener('click', () => restoreConfirm.open(restoreBtn));
+  // Elige el archivo en el diálogo del sistema. Si se cancela, no pasa nada; si el archivo no se
+  // puede restaurar, un toast da el motivo; si se puede, se pide la confirmación.
+  const selectRestoreFile = async () => {
+    closeAllDropdowns();
+    setSelecting(true);
+    let response;
+    try {
+      response = await window.api?.backups?.selectFile();
+    } catch (error) {
+      console.error('Error al elegir el backup a restaurar:', error);
+    }
+    setSelecting(false);
+
+    if (!response?.ok) {
+      showToast({ type: 'error', title: 'No se puede restaurar el backup', description: errorDescription(response?.error) });
+      restoreBtn.focus();
+      return;
+    }
+    if (!response.file) {
+      restoreBtn.focus();
+      return;
+    }
+    restoreFile = response.file;
+    restoreConfirm.open(restoreBtn);
+  };
+
+  restoreBtn.addEventListener('click', () => {
+    if (!isSelecting) selectRestoreFile();
+  });
 });

@@ -1,5 +1,6 @@
 const { query, runInTransaction } = require('../database/connection');
 const { Backup } = require('../models/backup.model');
+const { finalizeActiveInClosedSchoolYears } = require('./enrollment.repository');
 
 // ---------- Historial (tabla respaldo) ----------
 
@@ -140,6 +141,26 @@ const COLUMNS_SQL = `
    GROUP BY table_name
 `;
 
+const INSTITUTION_TABLE_NAMES = INSTITUTION_TABLES.map((table) => table.name);
+const CATALOG_TABLE_NAMES = CATALOG_TABLES.map((table) => table.name);
+
+// Por cada tabla de INSTITUTION_TABLES, los nombres de sus columnas en el orden de la tabla.
+async function readColumns(runQuery) {
+  const { rows } = await runQuery(COLUMNS_SQL, [INSTITUTION_TABLE_NAMES]);
+  const columnsByTable = new Map(rows.map((row) => [row.table_name, row.columns]));
+  return Object.fromEntries(INSTITUTION_TABLE_NAMES.map((name) => [name, columnsByTable.get(name) ?? []]));
+}
+
+// Las filas completas de cada catálogo de CATALOG_TABLES.
+async function readCatalogs(runQuery) {
+  const catalogs = {};
+  for (const name of CATALOG_TABLE_NAMES) {
+    const { rows } = await runQuery(CATALOG_TABLE_SQL[name]);
+    catalogs[name] = rows[0].rows;
+  }
+  return catalogs;
+}
+
 // Lee, en una sola transacción REPEATABLE READ de solo lectura, todo lo que guarda el backup de la
 // institución: { createdAt, institution: { id, cuit, name }, columns, catalogs, tables }.
 // `columns` lleva, por cada tabla de INSTITUTION_TABLES, los nombres de sus columnas; `catalogs` y
@@ -154,19 +175,11 @@ async function readInstitutionSnapshot(institutionId) {
     if (headerRows.length === 0) return null;
     const header = headerRows[0];
 
-    const tableNames = INSTITUTION_TABLES.map((table) => table.name);
-    const { rows: columnRows } = await transactionQuery(COLUMNS_SQL, [tableNames]);
-    const columnsByTable = new Map(columnRows.map((row) => [row.table_name, row.columns]));
-    const columns = Object.fromEntries(tableNames.map((name) => [name, columnsByTable.get(name) ?? []]));
-
-    const catalogs = {};
-    for (const { name } of CATALOG_TABLES) {
-      const { rows } = await transactionQuery(CATALOG_TABLE_SQL[name]);
-      catalogs[name] = rows[0].rows;
-    }
+    const columns = await readColumns(transactionQuery);
+    const catalogs = await readCatalogs(transactionQuery);
 
     const tables = {};
-    for (const name of tableNames) {
+    for (const name of INSTITUTION_TABLE_NAMES) {
       const { rows } = await transactionQuery(INSTITUTION_TABLE_SQL[name], [institutionId]);
       tables[name] = rows[0].rows;
     }
@@ -181,4 +194,114 @@ async function readInstitutionSnapshot(institutionId) {
   });
 }
 
-module.exports = { findAllByInstitution, create, readInstitutionSnapshot };
+// ---------- Restore ----------
+
+// La institución $1, para comparar la del backup con la de la sesión.
+const INSTITUTION_SQL = `
+  SELECT institucion_id, cuit, nombre
+    FROM institucion
+   WHERE institucion_id = $1
+`;
+
+// Lo que el restore compara con un backup antes de cargarlo: { institution, columns, catalogs },
+// con la institución $1 ({ id, cuit, name }, o null si no existe) y las columnas y los catálogos
+// actuales, en la misma forma que readInstitutionSnapshot. `runQuery` es `query` o la función de una
+// transacción.
+async function readRestoreReference(institutionId, runQuery = query) {
+  const { rows } = await runQuery(INSTITUTION_SQL, [institutionId]);
+  const institution = rows.length > 0 ? { id: rows[0].institucion_id, cuit: rows[0].cuit, name: rows[0].nombre } : null;
+  return { institution, columns: await readColumns(runQuery), catalogs: await readCatalogs(runQuery) };
+}
+
+// Si otra sesión tiene bloqueada alguna de las tablas (o filas que hay que borrar), el restore la
+// espera hasta 10 segundos y después se cancela con el código 55P03 (isLockTimeoutError).
+const LOCK_TIMEOUT_SQL = `SET LOCAL lock_timeout = '10s'`;
+const LOCK_NOT_AVAILABLE = '55P03';
+
+// Los nombres de tabla son las constantes de INSTITUTION_TABLES, nunca datos recibidos.
+const DISABLE_TRIGGERS_SQL = Object.fromEntries(INSTITUTION_TABLE_NAMES.map((name) => [name, `ALTER TABLE ${name} DISABLE TRIGGER USER`]));
+const ENABLE_TRIGGERS_SQL = Object.fromEntries(INSTITUTION_TABLE_NAMES.map((name) => [name, `ALTER TABLE ${name} ENABLE TRIGGER USER`]));
+
+// Borra las filas de la institución $1, con la misma condición que las lee el backup.
+const DELETE_SQL = Object.fromEntries(INSTITUTION_TABLES.map(({ name, where }) => [name, `DELETE FROM ${name} t WHERE ${where}`]));
+
+// Carga las filas $1 (un arreglo JSON con las columnas de la tabla, como las guarda el backup) con
+// sus ids: OVERRIDING SYSTEM VALUE deja fijar las claves GENERATED ALWAYS AS IDENTITY.
+const INSERT_SQL = Object.fromEntries(INSTITUTION_TABLE_NAMES.map((name) => [name, `
+  INSERT INTO ${name} OVERRIDING SYSTEM VALUE
+  SELECT * FROM json_populate_recordset(NULL::${name}, $1::JSON)
+`]));
+
+// Resguardo: deja la secuencia de la clave en el mayor id de la tabla, sin hacerla retroceder.
+// setval es estricta: si la tabla está vacía y la secuencia nunca se usó, GREATEST da NULL y no la
+// cambia.
+const RESET_SEQUENCE_SQL = Object.fromEntries(INSTITUTION_TABLES.map(({ name, idColumn }) => [name, `
+  SELECT setval(seq.name, GREATEST((SELECT MAX(t.${idColumn}) FROM ${name} t), s.last_value))
+    FROM (SELECT pg_get_serial_sequence('${name}', '${idColumn}')::REGCLASS AS name) seq
+    LEFT JOIN pg_sequences s ON format('%I.%I', s.schemaname, s.sequencename)::REGCLASS = seq.name
+`]));
+
+// Reemplaza los datos de la institución $1 en las 7 tablas de INSTITUTION_TABLES por los de `data`
+// (el contenido de un backup: data.tables, en la forma de readInstitutionSnapshot), todo en una sola
+// transacción: cualquier error la deshace por completo, incluido el DISABLE TRIGGER. `validate`
+// recibe lo que devuelve readRestoreReference, leído dentro de la transacción, y lanza un error si
+// el backup ya no se puede cargar en esta base: así la comprobación es la del momento del restore y
+// no la de cuando se eligió el archivo. Al terminar, pasa a FINALIZADA las inscripciones activas de
+// los ciclos ya cerrados, como al iniciar la aplicación. La tabla respaldo no se toca.
+// Lanza el error de PostgreSQL tal cual: isLockTimeoutError y isPrimaryKeyError reconocen los
+// previstos.
+async function replaceInstitutionData(institutionId, data, validate) {
+  return runInTransaction(async (transactionQuery) => {
+    await transactionQuery(LOCK_TIMEOUT_SQL);
+    validate(await readRestoreReference(institutionId, transactionQuery));
+
+    // Los triggers de usuario de las 7 tablas se deshabilitan mientras dura la carga: los del ciclo
+    // lectivo y los de coherencia rechazarían el historial (cursos de ciclos cerrados, inscripciones
+    // finalizadas, asignaciones de profesores suspendidos o dados de baja, filas dadas de baja), que
+    // ya los cumplía cuando se hizo el backup. DISABLE TRIGGER USER no toca los triggers internos de
+    // las claves foráneas, así que estas, los CHECK y los índices únicos siguen validando cada fila.
+    // Requisitos y efectos: DB_USER tiene que ser el dueño de las tablas (db/setup-db crea el esquema
+    // con ese usuario); el cambio es parte de la transacción (un error lo deshace), y su bloqueo
+    // (SHARE ROW EXCLUSIVE) deja en espera las escrituras de las otras instituciones en esas tablas
+    // hasta que termina el restore. Ninguna de las tablas tiene triggers de DELETE.
+    for (const name of INSTITUTION_TABLE_NAMES) await transactionQuery(DISABLE_TRIGGERS_SQL[name]);
+
+    // Las que referencian a otras primero, y la carga en el orden inverso
+    for (const name of [...INSTITUTION_TABLE_NAMES].reverse()) await transactionQuery(DELETE_SQL[name], [institutionId]);
+    for (const name of INSTITUTION_TABLE_NAMES) await transactionQuery(INSERT_SQL[name], [JSON.stringify(data.tables[name])]);
+
+    // Los ids del backup se conservan: las secuencias nunca retroceden y las filas no cambian de
+    // institución, así que la otra institución no puede tener esos ids, salvo que la base se haya
+    // recreado (la clave primaria lo rechaza: isPrimaryKeyError).
+    for (const name of INSTITUTION_TABLE_NAMES) await transactionQuery(RESET_SEQUENCE_SQL[name]);
+
+    for (const name of INSTITUTION_TABLE_NAMES) await transactionQuery(ENABLE_TRIGGERS_SQL[name]);
+
+    // Un backup de un ciclo que ya cerró deja inscripciones activas en ese ciclo
+    await finalizeActiveInClosedSchoolYears(transactionQuery);
+  });
+}
+
+// true si `error` es el vencimiento de LOCK_TIMEOUT_SQL: otra sesión tenía bloqueado lo que el
+// restore necesitaba.
+function isLockTimeoutError(error) {
+  return error?.code === LOCK_NOT_AVAILABLE;
+}
+
+// true si `error` es una clave primaria repetida (pk_* en db/schema.sql) al cargar las filas de un
+// backup: otra institución ya tiene ese id.
+function isPrimaryKeyError(error) {
+  return error?.code === '23505' && typeof error.constraint === 'string' && error.constraint.startsWith('pk_');
+}
+
+module.exports = {
+  INSTITUTION_TABLE_NAMES,
+  CATALOG_TABLE_NAMES,
+  findAllByInstitution,
+  create,
+  readInstitutionSnapshot,
+  readRestoreReference,
+  replaceInstitutionData,
+  isLockTimeoutError,
+  isPrimaryKeyError,
+};

@@ -26,6 +26,13 @@ function getDirectory() {
   return path.join(app.getPath('userData'), DIRECTORY_NAME);
 }
 
+// Crea la carpeta de backups si no existe y devuelve su ruta.
+async function ensureDirectory() {
+  const directory = getDirectory();
+  await fs.mkdir(directory, { recursive: true });
+  return directory;
+}
+
 async function exists(filePath) {
   try {
     await fs.access(filePath);
@@ -80,11 +87,10 @@ const WRITERS = { zip: writeZip, 'tar.gz': writeTarGz };
 // con un nombre válido. Nunca reemplaza un backup: si `fileName` ya existe, lanza un error que
 // reconoce isFileExistsError. Los errores del disco salen como los lanza fs (isFileSystemError).
 async function write(fileName, buffer, format) {
-  const directory = getDirectory();
+  const directory = await ensureDirectory();
   const filePath = path.join(directory, fileName);
   const partialPath = filePath + PARTIAL_SUFFIX;
 
-  await fs.mkdir(directory, { recursive: true });
   if (await exists(filePath)) throw fileExistsError(filePath);
 
   try {
@@ -104,13 +110,105 @@ async function remove(fileName) {
   await fs.rm(path.join(getDirectory(), fileName), { force: true });
 }
 
+// ---------- Lectura ----------
+
+// Tamaño máximo de backup.json sin descomprimir: un archivo más grande no se lee (no es un backup
+// del sistema, o es uno armado para agotar la memoria).
+const MAX_ENTRY_BYTES = 50 * 1024 * 1024;
+
+// El archivo no se pudo leer como un backup: no es un ZIP ni un TAR.GZ válido, no tiene
+// backup.json, este pasa de MAX_ENTRY_BYTES o no es un JSON. Lo lanza read.
+class BackupFileReadError extends Error {
+  constructor(message, cause) {
+    super(message, { cause });
+    this.name = 'BackupFileReadError';
+  }
+}
+
+// La ruta de una entrada de un TAR, sin el "./" inicial que agregan algunas herramientas.
+const entryPath = (name) => name.replace(/^\.\//, '');
+
+// adm-zip lee el índice del ZIP sin descomprimir nada: el tamaño declarado se comprueba antes, y el
+// descomprimido, después, por si el índice miente.
+async function readZipEntry(filePath) {
+  const zip = new AdmZip(await fs.readFile(filePath));
+  const entry = zip.getEntries().find((zipEntry) => !zipEntry.isDirectory && zipEntry.entryName === ENTRY_NAME);
+  if (!entry) return null;
+  if (entry.header.size > MAX_ENTRY_BYTES) throw new BackupFileReadError(`${ENTRY_NAME} pasa de ${MAX_ENTRY_BYTES} bytes`);
+  const buffer = entry.getData();
+  if (buffer.length > MAX_ENTRY_BYTES) throw new BackupFileReadError(`${ENTRY_NAME} pasa de ${MAX_ENTRY_BYTES} bytes`);
+  return buffer;
+}
+
+// tar.t recorre las entradas sin escribir nada en el disco: solo se juntan en memoria los datos de
+// backup.json, y se dejan de juntar si pasan de MAX_ENTRY_BYTES. `strict` convierte en errores las
+// advertencias de un archivo dañado, que si no se ignorarían.
+async function readTarGzEntry(filePath) {
+  let chunks = null;
+  let size = 0;
+  let tooLarge = false;
+  await tar.t({
+    file: filePath,
+    strict: true,
+    onReadEntry: (entry) => {
+      if (entry.type !== 'File' || entryPath(entry.path) !== ENTRY_NAME || chunks) return;
+      if (entry.size > MAX_ENTRY_BYTES) {
+        tooLarge = true;
+        return;
+      }
+      chunks = [];
+      entry.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > MAX_ENTRY_BYTES) tooLarge = true;
+        else chunks.push(chunk);
+      });
+    },
+  });
+  if (tooLarge) throw new BackupFileReadError(`${ENTRY_NAME} pasa de ${MAX_ENTRY_BYTES} bytes`);
+  return chunks ? Buffer.concat(chunks) : null;
+}
+
+const READERS = { zip: readZipEntry, 'tar.gz': readTarGzEntry };
+
+// El formato del archivo `filePath` por su extensión (sin distinguir mayúsculas), o null si no es
+// la de ninguno de FORMATS.
+function formatOf(filePath) {
+  const name = path.basename(filePath).toLowerCase();
+  return FORMATS.find((format) => name.endsWith(EXTENSIONS[format])) ?? null;
+}
+
+// Lee el backup `filePath` (cualquier ruta, no solo de la carpeta de backups): según su extensión,
+// lo descomprime como ZIP o como TAR.GZ, toma solo la entrada backup.json (el resto se ignora) y
+// devuelve su contenido ya interpretado como JSON, sin comprobar su forma. Cualquier fallo, incluido
+// el de leer el archivo del disco, lanza un BackupFileReadError, con el error original en `cause`.
+async function read(filePath) {
+  const format = formatOf(filePath);
+  if (!format) throw new BackupFileReadError(`La extensión de ${filePath} no es la de un backup`);
+  let buffer;
+  try {
+    buffer = await READERS[format](filePath);
+  } catch (error) {
+    if (error instanceof BackupFileReadError) throw error;
+    throw new BackupFileReadError(`No se pudo leer ${filePath}`, error);
+  }
+  if (!buffer) throw new BackupFileReadError(`${filePath} no tiene ${ENTRY_NAME}`);
+  try {
+    return JSON.parse(buffer.toString('utf8'));
+  } catch (error) {
+    throw new BackupFileReadError(`${ENTRY_NAME} no es un JSON válido`, error);
+  }
+}
+
 module.exports = {
   FORMATS,
   EXTENSIONS,
   ENTRY_NAME,
+  BackupFileReadError,
   getDirectory,
+  ensureDirectory,
   write,
   remove,
+  read,
   isFileExistsError,
   isFileSystemError,
 };

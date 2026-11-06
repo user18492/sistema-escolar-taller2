@@ -1,3 +1,5 @@
+const path = require('node:path');
+const { dialog } = require('electron');
 const backupRepository = require('../repositories/backup.repository');
 const backupFileRepository = require('../repositories/backup-file.repository');
 
@@ -22,8 +24,8 @@ const SLUG_MAX_LENGTH = 40;
 
 // ---------- Una operación a la vez ----------
 
-// Un backup (o, más adelante, un restore) a la vez en este proceso: mientras corre uno, otro se
-// rechaza con BACKUP_IN_PROGRESS en vez de esperar.
+// Una operación a la vez en este proceso (un backup, la elección del archivo a restaurar o un
+// restore): mientras corre una, otra se rechaza con BACKUP_IN_PROGRESS en vez de esperar.
 let operationInProgress = false;
 
 async function runExclusive(operation) {
@@ -165,4 +167,200 @@ async function create(user, format) {
   });
 }
 
-module.exports = { BackupError, FORMATS, list, create };
+// ---------- Restore: validación del archivo ----------
+
+const INVALID_FILE_MESSAGE = 'El archivo elegido no es un backup válido del sistema.';
+const INCOMPATIBLE_MESSAGE = 'El backup es de otra versión del sistema o de otra base de datos.';
+
+const invalidFile = (message = INVALID_FILE_MESSAGE) => new BackupError('BACKUP_INVALID_FILE', message);
+const incompatible = () => new BackupError('BACKUP_INCOMPATIBLE', INCOMPATIBLE_MESSAGE);
+
+const { INSTITUTION_TABLE_NAMES, CATALOG_TABLE_NAMES } = backupRepository;
+
+// Valor de usuario_rol.nombre de los administradores.
+const ADMIN_ROLE = 'ADMIN';
+
+// Las tablas del backup que llevan institucion_id: todas sus filas tienen que ser de la institución
+// del archivo.
+const TABLES_WITH_INSTITUTION = ['usuario', 'alumno', 'curso'];
+
+// Las referencias entre las tablas del backup: cada fila de `table` apunta, con `column`, a una fila
+// de `target` que también está en el archivo. Sin esto, un archivo modificado a mano podría cargar
+// filas que apunten a otra institución: mientras dura la carga, los triggers que lo impiden están
+// deshabilitados y las claves foráneas solo comprueban que la fila exista.
+const REFERENCES = [
+  { table: 'asignacion_docente', column: 'usuario_id', target: 'usuario' },
+  { table: 'asignacion_docente', column: 'curso_id', target: 'curso' },
+  { table: 'inscripcion', column: 'alumno_id', target: 'alumno' },
+  { table: 'inscripcion', column: 'curso_id', target: 'curso' },
+  { table: 'evaluacion', column: 'asignacion_docente_id', target: 'asignacion_docente' },
+  { table: 'calificacion', column: 'evaluacion_id', target: 'evaluacion' },
+  { table: 'calificacion', column: 'inscripcion_id', target: 'inscripcion' },
+];
+
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isRowList = (value) => Array.isArray(value) && value.every(isPlainObject);
+const isText = (value) => typeof value === 'string' && value.length > 0;
+const hasAll = (object, names, isValid) => isPlainObject(object) && names.every((name) => isValid(object[name]));
+const isColumnList = (value) => Array.isArray(value) && value.every(isText);
+const idColumnOf = (table) => `${table}_id`;
+
+// Regla 1: el formato es el que escribe create, con todas sus claves.
+function hasBackupShape(content) {
+  return (
+    isPlainObject(content)
+    && content.formatVersion === FORMAT_VERSION
+    && isText(content.createdAt) && !Number.isNaN(Date.parse(content.createdAt))
+    && isPlainObject(content.institution) && Number.isInteger(content.institution.id) && isText(content.institution.cuit)
+    && isText(content.institution.name)
+    && isPlainObject(content.createdBy) && Number.isInteger(content.createdBy.id) && typeof content.createdBy.firstName === 'string'
+    && typeof content.createdBy.lastName === 'string'
+    && hasAll(content.columns, INSTITUTION_TABLE_NAMES, isColumnList)
+    && hasAll(content.catalogs, CATALOG_TABLE_NAMES, isRowList)
+    && hasAll(content.tables, INSTITUTION_TABLE_NAMES, isRowList)
+  );
+}
+
+// Las filas de las tablas son de la institución del archivo y solo se referencian entre ellas
+// (parte de la regla 1).
+function hasConsistentRows(content) {
+  const { tables } = content;
+  const idsOf = new Map(INSTITUTION_TABLE_NAMES.map((table) => [table, new Set(tables[table].map((row) => row[idColumnOf(table)]))]));
+  return (
+    INSTITUTION_TABLE_NAMES.every((table) => tables[table].every((row) => Number.isInteger(row[idColumnOf(table)])))
+    && TABLES_WITH_INSTITUTION.every((table) => tables[table].every((row) => row.institucion_id === content.institution.id))
+    && REFERENCES.every(({ table, column, target }) => tables[table].every((row) => idsOf.get(target).has(row[column])))
+  );
+}
+
+// Dos filas de un catálogo, con las mismas columnas y los mismos valores.
+function isSameRow(a, b) {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length
+    && keys.every((key) => Object.hasOwn(b, key) && JSON.stringify(a[key]) === JSON.stringify(b[key]));
+}
+
+// Regla 3: las columnas de las 7 tablas son las de la base, tabla por tabla y en orden, y cada fila
+// de los catálogos del archivo está igual en la base (la base puede tener filas de más).
+function isCompatible(content, reference) {
+  const sameColumns = INSTITUTION_TABLE_NAMES.every((table) => {
+    const current = reference.columns[table];
+    const fromFile = content.columns[table];
+    return current.length === fromFile.length && current.every((column, index) => column === fromFile[index]);
+  });
+  if (!sameColumns) return false;
+  return CATALOG_TABLE_NAMES.every((table) => {
+    const idColumn = idColumnOf(table);
+    const currentById = new Map(reference.catalogs[table].map((row) => [row[idColumn], row]));
+    return content.catalogs[table].every((row) => currentById.has(row[idColumn]) && isSameRow(row, currentById.get(row[idColumn])));
+  });
+}
+
+// Regla 4: hay al menos un administrador activo y vigente, para poder ingresar después del restore.
+// El rol se busca en el catálogo de la base, que ya se comprobó igual al del archivo.
+function hasActiveAdmin(content, reference) {
+  const adminRole = reference.catalogs.usuario_rol.find((row) => row.nombre === ADMIN_ROLE);
+  return Boolean(adminRole) && content.tables.usuario.some((row) =>
+    row.usuario_rol_id === adminRole.usuario_rol_id && row.estado === true && row.fecha_eliminacion === null);
+}
+
+// Comprueba que el contenido de un backup (`content`, el backup.json ya interpretado) se puede
+// restaurar en la institución de `reference` (lo que devuelve backupRepository.readRestoreReference
+// para la institución de la sesión), con las reglas en orden: el formato (BACKUP_INVALID_FILE), la
+// institución (BACKUP_OTHER_INSTITUTION, con la del archivo en el mensaje), el esquema y los
+// catálogos (BACKUP_INCOMPATIBLE), las filas de la institución del archivo y referenciadas entre
+// ellas (BACKUP_INVALID_FILE) y un administrador activo y vigente (BACKUP_INVALID_FILE). Lanza
+// el BackupError de la primera que no se cumple. La usan selectFile y, otra vez dentro de la
+// transacción, restore.
+function validateContent(content, reference) {
+  if (!hasBackupShape(content)) throw invalidFile();
+  const { institution } = reference;
+  if (!institution) throw new Error('No existe la institución de la sesión');
+  if (content.institution.id !== institution.id || content.institution.cuit !== institution.cuit) {
+    throw new BackupError(
+      'BACKUP_OTHER_INSTITUTION',
+      `El backup es de otra institución: ${content.institution.name} (CUIT ${content.institution.cuit}). Solo se pueden restaurar backups de ${institution.name}.`
+    );
+  }
+  if (!isCompatible(content, reference)) throw incompatible();
+  if (!hasConsistentRows(content)) throw invalidFile();
+  if (!hasActiveAdmin(content, reference)) {
+    throw invalidFile('El backup no tiene ningún administrador activo: después de restaurarlo nadie podría ingresar.');
+  }
+}
+
+// ---------- Restore: elección del archivo y carga ----------
+
+// El backup elegido con selectFile, que restore carga: { userId, data }, con el usuario de la sesión
+// que lo eligió y el contenido ya validado. null si no hay ninguno. Vive en memoria del proceso
+// principal: cada elección reemplaza a la anterior.
+let pendingSelection = null;
+
+const DIALOG_OPTIONS = {
+  title: 'Elegí el backup a restaurar',
+  properties: ['openFile'],
+  filters: [{ name: 'Backups', extensions: ['zip', 'gz'] }],
+};
+
+// Lee y valida el backup `filePath` para la institución de `user`, y lo deja como la selección
+// pendiente. Devuelve { fileName, createdAt, userName }: el nombre del archivo, la fecha de la
+// instantánea (ISO 8601) y el nombre y el apellido de quien lo realizó. Lanza los BackupError de
+// validateContent.
+async function selectPath(user, filePath) {
+  let content;
+  try {
+    content = await backupFileRepository.read(filePath);
+  } catch (error) {
+    if (error instanceof backupFileRepository.BackupFileReadError) throw invalidFile();
+    throw error;
+  }
+  validateContent(content, await backupRepository.readRestoreReference(user.institutionId));
+  pendingSelection = { userId: user.id, data: content };
+  return {
+    fileName: path.basename(filePath),
+    createdAt: content.createdAt,
+    userName: `${content.createdBy.firstName} ${content.createdBy.lastName}`.trim(),
+  };
+}
+
+// Abre sobre `browserWindow` el diálogo para elegir un backup, en la carpeta de backups, y lo lee y
+// lo valida (selectPath). Devuelve null si se cancela, y si no, lo que devuelve selectPath. Una
+// elección nueva, aunque se cancele o falle, descarta la anterior. Lanza un BackupError
+// BACKUP_IN_PROGRESS si ya hay un backup o una restauración en curso, y los de selectPath.
+async function selectFile(user, browserWindow) {
+  return runExclusive(async () => {
+    pendingSelection = null;
+    const defaultPath = await backupFileRepository.ensureDirectory();
+    const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, { ...DIALOG_OPTIONS, defaultPath });
+    if (canceled || !filePaths?.length) return null;
+    return selectPath(user, filePaths[0]);
+  });
+}
+
+// Reemplaza los datos de la institución de `user` por los del backup que eligió con selectFile,
+// validándolo otra vez contra la base dentro de la transacción. Si sale bien, descarta la selección;
+// la sesión la cierra quien llama. No se registra en el historial. Lanza un BackupError:
+// BACKUP_IN_PROGRESS; BACKUP_NO_SELECTION si no hay un backup elegido por este usuario;
+// BACKUP_BUSY si otra sesión tiene bloqueadas las tablas más de 10 segundos; BACKUP_INCOMPATIBLE si
+// otra institución ya tiene alguno de sus ids (la base se recreó), y los de validateContent.
+async function restore(user) {
+  return runExclusive(async () => {
+    const selection = pendingSelection;
+    if (!selection || selection.userId !== user.id) {
+      throw new BackupError('BACKUP_NO_SELECTION', 'No hay un backup elegido para restaurar. Elegí el archivo nuevamente.');
+    }
+    try {
+      await backupRepository.replaceInstitutionData(user.institutionId, selection.data, (reference) =>
+        validateContent(selection.data, reference));
+    } catch (error) {
+      if (backupRepository.isLockTimeoutError(error)) {
+        throw new BackupError('BACKUP_BUSY', 'La base está en uso, intentá nuevamente en unos segundos.');
+      }
+      if (backupRepository.isPrimaryKeyError(error)) throw incompatible();
+      throw error;
+    }
+    if (pendingSelection === selection) pendingSelection = null;
+  });
+}
+
+module.exports = { BackupError, FORMATS, list, create, selectFile, restore };

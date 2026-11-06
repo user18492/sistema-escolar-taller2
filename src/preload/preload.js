@@ -556,5 +556,26 @@ contextBridge.exposeInMainWorld('api', {
     // restauración en curso; BACKUP_FILE_EXISTS, que ya hay un backup con ese nombre (dos en el mismo
     // segundo), y BACKUP_WRITE_FAILED, que no se pudo escribir el archivo en la carpeta.
     create: (format) => ipcRenderer.invoke('backups:create', format),
+    // Solo ADMIN. Primer paso del restore: abre el diálogo del sistema para elegir un backup (.zip o
+    // .tar.gz), en la carpeta de backups de la aplicación, y lo lee y lo valida sin cambiar ningún
+    // dato. La ruta la elige el proceso principal: la vista no la envía ni la recibe. Resuelve
+    // { ok: true, file: null } si se cancela; { ok: true, file } con el backup elegido
+    // ({ fileName, createdAt, userName }: el nombre del archivo, la fecha y la hora en ISO 8601 y el
+    // nombre y el apellido de quien lo realizó), que queda listo para restore, o
+    // { ok: false, error: { code, message } }: BACKUP_INVALID_FILE indica que el archivo no es un
+    // backup del sistema que se pueda leer (o no tiene ningún administrador activo);
+    // BACKUP_OTHER_INSTITUTION, que es de otra institución (el mensaje la nombra);
+    // BACKUP_INCOMPATIBLE, que es de otra versión del sistema o de otra base de datos, y
+    // BACKUP_IN_PROGRESS, que ya hay un backup o una restauración en curso. Cada elección, aunque se
+    // cancele o falle, descarta la anterior.
+    selectFile: () => ipcRenderer.invoke('backups:select-file'),
+    // Solo ADMIN. Reemplaza todos los datos de su institución (los mismos que guarda create) por los
+    // del backup elegido con selectFile, en una sola operación: si falla, no cambia nada. Resuelve
+    // { ok: true } con la sesión ya cerrada: el proceso principal abre el login, que avisa que se
+    // restauró el sistema. Si no, { ok: false, error: { code, message } }: BACKUP_NO_SELECTION indica
+    // que no hay un backup elegido (hay que elegirlo otra vez); BACKUP_BUSY, que la base está en uso
+    // y conviene reintentar en unos segundos; BACKUP_IN_PROGRESS, y los de selectFile (el backup se
+    // vuelve a validar al restaurarlo). El restore no se registra en el historial.
+    restore: () => ipcRenderer.invoke('backups:restore'),
   },
 });
