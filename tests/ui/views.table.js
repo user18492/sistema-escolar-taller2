@@ -31,7 +31,10 @@ module.exports = {
       sql: (ctx) => [`SELECT a.asignacion_docente_id FROM asignacion_docente a JOIN curso c USING (curso_id) WHERE c.institucion_id = $1 AND a.fecha_eliminacion IS NULL`, [ctx.institutionId]],
     },
   },
-  'admin/backups/index.html': { roles: ['ADMIN'] },
+  'admin/backups/index.html': {
+    roles: ['ADMIN'],
+    rows: { selector: 'tr[data-backup-id]', sql: (ctx) => [`SELECT respaldo_id FROM respaldo WHERE institucion_id = $1`, [ctx.institutionId]] },
+  },
 
   'secretary/dashboard/index.html': { roles: ['SECRETARIO'] },
   'secretary/reports/index.html': { roles: ['SECRETARIO'] },

@@ -129,14 +129,19 @@ group('db.schema', 'Esquema y seed', () => {
   });
 
   test('seed-content', 'Cada tabla del seed tiene filas y los catálogos están completos', {
-    history: [{ plan: 'plans/ciclo-lectivo/00-base-de-datos.md', date: '2026-10-26', change: 'El seed solo califica las evaluaciones con fecha de hoy o anterior: calificacion puede quedar vacía si todavía no hay ninguna' }],
+    history: [
+      { plan: 'plans/ciclo-lectivo/00-base-de-datos.md', date: '2026-10-26', change: 'El seed solo califica las evaluaciones con fecha de hoy o anterior: calificacion puede quedar vacía si todavía no hay ninguna' },
+      { plan: 'plans/backups/01-backup.md', date: '2026-11-06', change: 'respaldo (el historial de backups) queda vacía después del seed, que no la carga' },
+    ],
   }, async (t) => {
     const tables = (await t.sql(`SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY 1`)).map((row) => row.tablename);
     // El seed solo califica las evaluaciones ya tomadas (con fecha de hoy o anterior)
     const takenEvaluations = (await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM evaluacion WHERE fecha_evaluacion <= fn_fecha_actual()`)).count;
+    // El historial de backups empieza vacío: el seed no realiza ninguno
+    const emptyAfterSeed = ['respaldo'];
     for (const table of tables) {
       const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM ${table}`);
-      const mayBeEmpty = table === 'calificacion' && takenEvaluations === 0;
+      const mayBeEmpty = (table === 'calificacion' && takenEvaluations === 0) || emptyAfterSeed.includes(table);
       t.check(count > 0 || mayBeEmpty, `La tabla ${table} quedó vacía después del seed`);
     }
     const roles = (await t.sql(`SELECT nombre FROM usuario_rol ORDER BY 1`)).map((row) => row.nombre);
@@ -145,6 +150,39 @@ group('db.schema', 'Esquema y seed', () => {
     t.equal(levels, ['PRIMARIA', 'SECUNDARIA'], 'El catálogo de grados tiene los dos niveles educativos');
     const gradesWithoutSubjects = await t.sql(`SELECT g.grado_id FROM grado g WHERE NOT EXISTS (SELECT 1 FROM grado_materia gm WHERE gm.grado_id = g.grado_id)`);
     t.equal(gradesWithoutSubjects, [], 'Todo grado tiene materias en su plan de estudios');
+  });
+
+  // plans/backups/01-backup.md: el historial de backups, fuera del backup y sin clave foránea a
+  // usuario, porque un restore puede borrar a quien lo realizó
+  test('backup-history-table', 'respaldo tiene sus columnas, su clave primaria, su clave foránea a institucion y ninguna a usuario', async (t) => {
+    const columns = await t.sql(`
+      SELECT column_name::TEXT AS name, data_type::TEXT AS type, is_nullable::TEXT AS nullable,
+             character_maximum_length AS length, is_identity::TEXT AS identity, column_default IS NOT NULL AS has_default
+        FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'respaldo'
+       ORDER BY ordinal_position`);
+    t.equal(columns, [
+      { name: 'respaldo_id', type: 'integer', nullable: 'NO', length: null, identity: 'YES', has_default: false },
+      { name: 'institucion_id', type: 'integer', nullable: 'NO', length: null, identity: 'NO', has_default: false },
+      { name: 'usuario_id', type: 'integer', nullable: 'NO', length: null, identity: 'NO', has_default: false },
+      { name: 'usuario_nombre', type: 'character varying', nullable: 'NO', length: 100, identity: 'NO', has_default: false },
+      { name: 'usuario_apellido', type: 'character varying', nullable: 'NO', length: 100, identity: 'NO', has_default: false },
+      { name: 'fecha', type: 'timestamp with time zone', nullable: 'NO', length: null, identity: 'NO', has_default: true },
+    ], 'Columnas de respaldo');
+    const constraints = await t.sql(`
+      SELECT c.conname::TEXT AS name, c.contype::TEXT AS type,
+             (SELECT array_agg(a.attname::TEXT ORDER BY a.attnum) FROM pg_attribute a
+               WHERE a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)) AS columns,
+             c.confrelid::regclass::TEXT AS referenced
+        FROM pg_constraint c
+       WHERE c.conrelid = 'respaldo'::regclass AND c.contype IN ('p', 'f')
+       ORDER BY c.conname`);
+    t.equal(constraints, [
+      { name: 'fk_respaldo_institucion', type: 'f', columns: ['institucion_id'], referenced: 'institucion' },
+      { name: 'pk_respaldo', type: 'p', columns: ['respaldo_id'], referenced: '-' },
+    ], 'Clave primaria y clave foránea a institucion, sin una a usuario');
+    const index = await t.sqlOne(`SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_respaldo_institucion_id'`);
+    t.check(/\(institucion_id\)/.test(index?.indexdef ?? ''), 'Falta el índice idx_respaldo_institucion_id sobre institucion_id', index);
   });
 
   // plans/seed-ciclo-anterior/: el seed carga un lote del ciclo anterior con el reloj de la base

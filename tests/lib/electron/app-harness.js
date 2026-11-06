@@ -287,6 +287,7 @@ class AppHarness {
   resetUserData() {
     fs.rmSync(path.join(this.userData, 'remembered-account.json'), { force: true });
     fs.rmSync(path.join(this.userData, 'profile-images'), { recursive: true, force: true });
+    fs.rmSync(path.join(this.userData, 'backups'), { recursive: true, force: true });
   }
 
   async checkClipboard() {

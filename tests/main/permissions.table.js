@@ -83,5 +83,9 @@ module.exports = {
 
     'dashboard:get-admin-summary': { roles: ['ADMIN'], args: [] },
     'dashboard:get-secretary-summary': { roles: ['SECRETARIO'], args: [] },
+
+    'backups:list': { roles: ['ADMIN'], args: [] },
+    // Un formato inválido: el ADMIN recibe INVALID_INPUT y no se escribe nada
+    'backups:create': { roles: ['ADMIN'], args: ['rar'] },
   },
 };
