@@ -1,17 +1,15 @@
 {
   "version": 1,
-  "takenAt": "2026-11-06T18:11:15.085Z",
-  "commit": "ff8dc8bc562e9867df8e405d0fcaf3b0ed5c8537",
-  "branch": "main",
+  "takenAt": "2026-11-06T20:29:55.313Z",
+  "commit": "0fa670ea9b6f965282b7016b01aa02fc4bdae865",
+  "branch": "backups",
   "dirty": true,
   "changedFiles": [
-    "main.js",
-    "renderer/shared/components/unsaved-changes-guard.component.js",
-    "renderer/teacher/evaluation-scores/evaluation-scores.js",
-    "src/main/main-window.js",
-    "src/preload/preload.js",
-    "src/main/ipc/app.controller.js",
-    "src/main/quit-guard.js"
+    "renderer/shared/components/confirm-modal.component.js",
+    "renderer/shared/components/sidebar.js",
+    "renderer/shared/styles/confirm-modal.css",
+    "renderer/admin/backups/",
+    "resources/CircleStack.svg"
   ],
   "today": "2026-11-06",
   "year": 2026,
@@ -2189,8 +2187,8 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 121,
-      "ok": 121,
+      "calls": 122,
+      "ok": 122,
       "tests": 38
     },
     "auth:get-remembered-email": {
@@ -2459,8 +2457,8 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 160,
-      "ok": 160,
+      "calls": 161,
+      "ok": 161,
       "tests": 59
     },
     "window:minimize": {
