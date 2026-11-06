@@ -11,7 +11,9 @@ const apiPathOf = (channel) => channel.split(':').map(camel).join('.');
 const ACCESS_CODES = ['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_SUSPENDED'];
 
 group('main.handlers', 'Canales expuestos y sus handlers', { db: 'clone' }, () => {
-  test('exposed-have-handlers', 'Cada función de window.api llama a un canal con su handler registrado', async (t) => {
+  test('exposed-have-handlers', 'Cada función de window.api llama a un canal con su handler registrado', {
+    history: [{ plan: 'plans/profesor-calificaciones-sin-guardar/01-cerrar-la-aplicacion.md', date: '2026-11-06', change: 'Además de window.onMaximizedChange, deja afuera app.onQuitRequested: las dos escuchan un aviso del proceso principal y no tienen handler' }],
+  }, async (t) => {
     const exposed = exposedChannels();
     const apiPaths = await t.js(`(() => {
       const paths = [];
@@ -19,7 +21,9 @@ group('main.handlers', 'Canales expuestos y sus handlers', { db: 'clone' }, () =
       return paths;
     })()`);
     const registered = [...t.harness.mainWindow.webContents.__suiteHandlers.keys()];
-    const fromApi = apiPaths.filter((apiPath) => apiPath !== 'window.onMaximizedChange').map(t.channelOf);
+    // Las funciones que escuchan avisos del proceso principal (ipcRenderer.on) no llaman a un canal
+    const listeners = ['window.onMaximizedChange', 'app.onQuitRequested'];
+    const fromApi = apiPaths.filter((apiPath) => !listeners.includes(apiPath)).map(t.channelOf);
     t.equal([...fromApi].sort(), exposed, 'Las funciones de window.api no coinciden con los ipcRenderer.invoke del preload');
     for (const channel of exposed) t.check(registered.includes(channel), `El canal ${channel} no tiene handler en el proceso principal`);
     for (const channel of registered) t.check(exposed.includes(channel), `El handler ${channel} no está expuesto en el preload (código muerto o canal que la vista no puede llamar)`);

@@ -1,7 +1,8 @@
 // Capa startup: arranque de la aplicación con su main.js real, cada escenario en su propio proceso de
 // Electron con un tiempo máximo (lib/electron/startup-app.js). Base caída, base inexistente,
-// arranque normal (ventana, bandeja, ocultar y salir), cierre de los ciclos lectivos vencidos y
-// base que deja de responder con la aplicación abierta (bug conocido del login).
+// arranque normal (ventana, bandeja, ocultar y salir), cierre de los ciclos lectivos vencidos,
+// cierre de la aplicación con calificaciones sin guardar ("Salir" de la bandeja y cierre de sesión
+// de Windows) y base que deja de responder con la aplicación abierta (bug conocido del login).
 const fs = require('node:fs');
 const net = require('node:net');
 const path = require('node:path');
@@ -117,7 +118,53 @@ group('startup.app', 'Arranque de la aplicación (main.js)', () => {
     t.equal(await rowsOf(), expected, 'Solo la activa y vigente cambió, y solo su estado');
   });
 
-  test('login-db-hang', 'Si la base deja de responder con la aplicación abierta, el login responde con un error en un tiempo razonable', {
+  // Calificaciones de la evaluación de teacherScenario, también las dadas de baja
+  const scoreRows = (t, evaluationId) => t.sql(`
+    SELECT inscripcion_id, nota::TEXT AS nota, fecha_eliminacion IS NOT NULL AS baja FROM calificacion
+     WHERE evaluacion_id = $1 ORDER BY inscripcion_id`, [evaluationId]);
+
+  // Lanza el escenario 'unsaved' (lib/electron/startup-app.js) con un profesor, su asignación, un
+  // alumno inscripto y una evaluación de hoy, y comprueba lo común a los dos modos.
+  const runUnsavedScenario = async (t, mode) => {
+    const { teacher, assignment, enrollmentId, evaluationId } = await t.fixtures.teacherScenario();
+    const before = await scoreRows(t, evaluationId);
+    const result = await runScenario(t, {
+      name: 'unsaved', dir: `unsaved-${mode}`, mode, dbName: t.dbName,
+      email: teacher.email, password: teacher.password, assignmentId: assignment.id, enrollmentId, evaluationId,
+    });
+    t.require(!result.timedOut && result.outcome, 'La aplicación no terminó al confirmar "Salir sin guardar"', result);
+    const { steps, dialogs } = result.outcome;
+    t.equal(dialogs, [], 'Sin diálogos de error');
+    t.equal(steps.database, t.dbName, 'La aplicación quedó conectada a la base de prueba');
+    t.require(steps.loggedIn && steps.scoresView, 'El profesor no llegó a Calificaciones de su evaluación', steps);
+    t.check(steps.unsavedChange, 'La nota quedó como cambio sin guardar', steps);
+    t.check(steps.firstNotQuit, 'Con la nota sin guardar, la aplicación no se cerró', steps);
+    t.check(steps.firstVisible, 'La ventana quedó visible', steps);
+    t.check(steps.firstModalOpen, 'La vista mostró el modal "Calificaciones sin guardar"', steps);
+    t.check(steps.cancelClosedModal && steps.notQuitAfterCancel, '"Cancelar" cerró el modal y dejó la aplicación abierta', steps);
+    t.equal(steps.valueKept, '7', 'La nota sin guardar sigue en su campo');
+    t.check(steps.hiddenOnCloseAfterCancel, 'Después de cancelar, ✕ sigue ocultando la ventana sin cerrarla', steps);
+    t.check(steps.secondModalOpen && steps.secondVisible, 'El segundo pedido de cierre volvió a mostrar la ventana con el modal', steps);
+    t.check(result.outcome.quitAt && result.outcome.quitAt - steps.quitConfirmedAt < 5000, '"Salir sin guardar" cerró la aplicación', result.outcome);
+    t.equal(result.code, 0, 'Código de salida');
+    t.equal(await scoreRows(t, evaluationId), before, 'La nota sin guardar no se guardó');
+    checkEvents(t, result.outcome.events);
+    return steps;
+  };
+
+  test('quit-unsaved', 'Con una nota sin guardar en Calificaciones y la ventana oculta, "Salir" de la bandeja no cierra: muestra la ventana con el modal; "Cancelar" la deja abierta y "Salir sin guardar" la cierra', async (t) => {
+    const steps = await runUnsavedScenario(t, 'tray');
+    t.check(steps.firstRequest?.hidden && steps.secondRequest?.hidden, 'La ventana estaba oculta al pedir "Salir"', steps);
+  });
+
+  test('session-end-unsaved', 'El cierre de sesión de Windows (query-session-end) se cancela solo con una nota sin guardar en Calificaciones, y muestra el modal', async (t) => {
+    const steps = await runUnsavedScenario(t, 'session-end');
+    t.equal(steps.sessionEndPreventedWithoutChanges, false, 'Sin cambios sin guardar, no cancela el cierre de sesión');
+    t.equal(steps.firstRequest?.prevented, true, 'Con la nota sin guardar, cancela el cierre de sesión');
+    t.equal(steps.secondRequest?.prevented, true, 'Después de "Cancelar", lo vuelve a cancelar');
+  });
+
+  test('login-db-hang','Si la base deja de responder con la aplicación abierta, el login responde con un error en un tiempo razonable', {
     knownFailure: {
       reason: 'connection.js no configura query_timeout ni statement_timeout: con una conexión ya abierta en el pool, el login queda en "Ingresando…" indefinidamente (hallazgo previo, sin corregir).',
       until: '2026-12-31',

@@ -1,15 +1,17 @@
 {
   "version": 1,
-  "takenAt": "2026-11-06T15:23:00.608Z",
-  "commit": "2bfd27cd179c552ef414f16233b32b4ca842aaa8",
+  "takenAt": "2026-11-06T18:11:15.085Z",
+  "commit": "ff8dc8bc562e9867df8e405d0fcaf3b0ed5c8537",
   "branch": "main",
   "dirty": true,
   "changedFiles": [
-    "renderer/shared/components/confirm-modal.component.js",
-    "renderer/shared/components/sidebar.js",
+    "main.js",
+    "renderer/shared/components/unsaved-changes-guard.component.js",
     "renderer/teacher/evaluation-scores/evaluation-scores.js",
-    "renderer/teacher/evaluation-scores/index.html",
-    "renderer/shared/components/unsaved-changes-guard.component.js"
+    "src/main/main-window.js",
+    "src/preload/preload.js",
+    "src/main/ipc/app.controller.js",
+    "src/main/quit-guard.js"
   ],
   "today": "2026-11-06",
   "year": 2026,
@@ -1185,10 +1187,10 @@
     "main.handlers.exposed-have-handlers": {
       "layer": "main",
       "status": "pass",
-      "hash": "251aceb22ee8",
+      "hash": "8f98b3742b97",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.handlers.no-missing-handler-errors": {
@@ -1686,6 +1688,24 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "main.window.app-set-unsaved-changes": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "8b6c01d727b0",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.window.app-quit": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "be93cc9b3141",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "main.window.close": {
       "layer": "main",
       "status": "pass",
@@ -2112,6 +2132,24 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "startup.app.quit-unsaved": {
+      "layer": "startup",
+      "status": "pass",
+      "hash": "da74444c16ab",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "startup.app.session-end-unsaved": {
+      "layer": "startup",
+      "status": "pass",
+      "hash": "cdcc6103f583",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "startup.app.login-db-hang": {
       "layer": "startup",
       "status": "known-fail",
@@ -2135,6 +2173,16 @@
     }
   },
   "channels": {
+    "app:quit": {
+      "calls": 1,
+      "ok": 1,
+      "tests": 1
+    },
+    "app:set-unsaved-changes": {
+      "calls": 10,
+      "ok": 8,
+      "tests": 5
+    },
     "auth:forget-remembered-email": {
       "calls": 2,
       "ok": 2,

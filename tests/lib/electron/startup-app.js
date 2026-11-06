@@ -117,13 +117,15 @@ async function main() {
 
   // Desde la propia conexión de la aplicación: tiene que ser la base de prueba
   const appConnection = require(path.join(PATHS.root, 'src', 'main', 'database', 'connection.js'));
-  if (scenario.name === 'ok') {
+  if (scenario.name === 'ok' || scenario.name === 'unsaved') {
     const { rows } = await appConnection.query('SELECT current_database() AS name');
     outcome.steps.database = rows[0].name;
     if (rows[0].name !== scenario.dbName) {
       outcome.steps.fatal = `La aplicación quedó conectada a ${rows[0].name}`;
       return app.exit(4);
     }
+  }
+  if (scenario.name === 'ok') {
     // ✕ oculta la ventana en la bandeja; "Mostrar aplicación" la vuelve a mostrar; "Salir" cierra
     win.close();
     outcome.steps.hiddenOnClose = await waitUntil(() => !win.isDestroyed() && !win.isVisible(), 3000);
@@ -135,6 +137,8 @@ async function main() {
     quit?.click();
     return;
   }
+
+  if (scenario.name === 'unsaved') return runUnsaved(win);
 
   if (scenario.name === 'login-hang') {
     proxy.freeze();
@@ -151,6 +155,85 @@ async function main() {
     writeOutcome();
     app.exit(0);
   }
+}
+
+// Escenario 'unsaved' (plans/profesor-calificaciones-sin-guardar/01-cerrar-la-aplicacion.md): el
+// profesor de la prueba abre Calificaciones de su evaluación y cambia una nota sin guardarla. Con
+// scenario.mode 'tray', oculta la ventana y pide "Salir" en la bandeja; con 'session-end', emite a
+// mano el query-session-end de Windows sobre la ventana (con un preventDefault espía), antes y
+// después del cambio. En los dos, la aplicación no se cierra y muestra el modal; "Cancelar" la deja
+// abierta (y la ✕ la sigue ocultando) y, al volver a pedir el cierre, "Salir sin guardar" la cierra.
+async function runUnsaved(win) {
+  const { steps } = outcome;
+  const js = (code) => win.webContents.executeJavaScript(code, true);
+  const jsUntil = async (code, timeoutMs) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (!win.isDestroyed() && await js(code).catch(() => false)) return true;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return false;
+  };
+  const isModalOpen = `document.getElementById('leaveScoresOverlay')?.classList.contains('is-open') === true`;
+  const quit = outcome.trayTemplate?.find((item) => item.label && /salir/i.test(item.label));
+  const sessionEnd = () => {
+    const event = { prevented: false, reasons: ['logoff'], preventDefault() { this.prevented = true; } };
+    win.emit('query-session-end', event);
+    return event.prevented;
+  };
+
+  const login = await js(`window.api.auth.login(${JSON.stringify(scenario.email)}, ${JSON.stringify(scenario.password)}, false)`);
+  steps.loggedIn = login?.ok === true && Boolean(login.user);
+  if (!steps.loggedIn) return app.exit(6);
+  const query = new URLSearchParams({ assignmentId: String(scenario.assignmentId), evaluationId: String(scenario.evaluationId) });
+  await js(`window.location.href = '../../teacher/evaluation-scores/index.html?${query}'; true`);
+  const input = `document.querySelector('tr[data-enrollment-id="${scenario.enrollmentId}"] .numeric-stepper-input')`;
+  steps.scoresView = await jsUntil(`location.href.includes('teacher/evaluation-scores/') && ${input} && !${input}.disabled`, 15000);
+  if (!steps.scoresView) return app.exit(7);
+
+  if (scenario.mode === 'session-end') steps.sessionEndPreventedWithoutChanges = sessionEnd();
+
+  // Una nota sin guardar, como al escribirla y salir del campo
+  await js(`(() => {
+    const input = ${input};
+    input.dispatchEvent(new FocusEvent('focus'));
+    input.value = '7';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new FocusEvent('blur'));
+    return true;
+  })()`);
+  steps.unsavedChange = await jsUntil(`!document.getElementById('saveScoresBtn').disabled`, 3000);
+  // La vista le informa el cambio al proceso principal por IPC
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // Pide el cierre: "Salir" con la ventana oculta, o el cierre de sesión de Windows
+  const requestQuit = () => {
+    if (scenario.mode === 'session-end') return { prevented: sessionEnd() };
+    win.hide();
+    const hidden = !win.isVisible();
+    quit?.click();
+    return { hidden };
+  };
+
+  steps.firstRequest = requestQuit();
+  steps.firstModalOpen = await jsUntil(isModalOpen, 5000);
+  steps.firstNotQuit = !outcome.quitAt && !win.isDestroyed();
+  steps.firstVisible = !win.isDestroyed() && win.isVisible();
+
+  await js(`document.getElementById('cancelLeaveScoresBtn').click(); true`);
+  steps.cancelClosedModal = await jsUntil(`!(${isModalOpen})`, 3000);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  steps.notQuitAfterCancel = !outcome.quitAt && !win.isDestroyed();
+  steps.valueKept = await js(`${input}.value`);
+  win.close();
+  steps.hiddenOnCloseAfterCancel = await waitUntil(() => !win.isDestroyed() && !win.isVisible(), 3000);
+
+  steps.secondRequest = requestQuit();
+  steps.secondModalOpen = await jsUntil(isModalOpen, 5000);
+  steps.secondVisible = !win.isDestroyed() && win.isVisible();
+  steps.quitConfirmedAt = Date.now();
+  // Sin esperar: la aplicación se cierra y la ejecución puede no volver
+  js(`document.getElementById('confirmLeaveScoresBtn').click(); true`).catch(() => {});
 }
 
 main().catch((error) => {

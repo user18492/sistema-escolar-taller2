@@ -23,6 +23,9 @@ module.exports = {
     'window:minimize': { roles: 'public', args: [], matrix: false },
     'window:toggle-maximize': { roles: 'public', args: [], matrix: false },
     'window:close': { roles: 'public', args: [], matrix: false },
+    // app:quit cerraría la suite: el cierre se prueba en la capa startup
+    'app:set-unsaved-changes': { roles: 'public', args: [false] },
+    'app:quit': { roles: 'public', args: [], matrix: false },
 
     'profile:get': { roles: ROLES, args: [] },
     'profile:update': { roles: ROLES, args: [{}] },
