@@ -479,6 +479,20 @@ contextBridge.exposeInMainWorld('api', {
     // además, TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     save: (teacherAssignmentId, evaluationId, data) =>
       ipcRenderer.invoke('scores:save', teacherAssignmentId, evaluationId, data),
+    // Solo PROFESOR. Guarda de una vez los cambios en las calificaciones de esa evaluación de esa
+    // asignación (los mismos ids que en listByOwnEvaluation): todos o ninguno. `changes` es
+    // [{ enrollmentId, value }], no vacío y con cada inscripción (una de listByOwnEvaluation, activa)
+    // una sola vez: con value una nota (de 0 a 10 con hasta dos decimales) se carga o se corrige,
+    // como en save, y con value null se da de baja su calificación, como en delete; si ya no tenía
+    // una, no es un error. Resuelve { ok: true, scores } con las notas como quedaron guardadas
+    // ([{ enrollmentId, value }], una por cambio, null en las bajas) o
+    // { ok: false, error: { code, message, enrollmentId? } }, sin guardar ninguno: enrollmentId es
+    // la inscripción del cambio rechazado, en los errores de un cambio (INVALID_SCORE,
+    // ENROLLMENT_NOT_FOUND, ENROLLMENT_DELETED y ENROLLMENT_NOT_ACTIVE, como en save); los de la
+    // evaluación (SCHOOL_YEAR_CLOSED, EVALUATION_IN_FUTURE, TEACHER_ASSIGNMENT_NOT_FOUND y
+    // EVALUATION_NOT_FOUND), como en save, no lo llevan.
+    saveMany: (teacherAssignmentId, evaluationId, changes) =>
+      ipcRenderer.invoke('scores:save-many', teacherAssignmentId, evaluationId, changes),
     // Solo PROFESOR. Baja lógica de la calificación de un alumno en esa evaluación de esa asignación
     // (los mismos ids que en listByOwnEvaluation). `enrollmentId` es el id de la inscripción del
     // alumno (una de listByOwnEvaluation, activa y con nota). El alumno sigue en

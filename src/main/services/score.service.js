@@ -5,12 +5,15 @@ const schoolYearService = require('./school-year.service');
 const { toListedStudent } = require('./enrollment.service');
 
 // Error previsto, con un mensaje apto para la UI (como TeacherAssignmentError en
-// teacher-assignment.service.js).
+// teacher-assignment.service.js). En el guardado de varias calificaciones
+// (saveOwnEvaluationScores), `enrollmentId` es la inscripción del cambio rechazado, si el error es
+// de uno solo.
 class ScoreError extends Error {
-  constructor(code, message) {
+  constructor(code, message, enrollmentId) {
     super(message);
     this.name = 'ScoreError';
     this.code = code;
+    if (enrollmentId !== undefined) this.enrollmentId = enrollmentId;
   }
 }
 
@@ -29,6 +32,15 @@ function isScoreValue(value) {
     value >= MIN_SCORE_VALUE &&
     value <= MAX_SCORE_VALUE &&
     Number(value.toFixed(SCORE_VALUE_DECIMALS)) === value
+  );
+}
+
+// La nota no es válida (isScoreValue). `enrollmentId`, como en ScoreError.
+function invalidScoreError(enrollmentId) {
+  return new ScoreError(
+    'INVALID_SCORE',
+    `La calificación tiene que ser un número de ${MIN_SCORE_VALUE} a ${MAX_SCORE_VALUE}, con hasta dos decimales.`,
+    enrollmentId
   );
 }
 
@@ -75,11 +87,13 @@ async function assertEvaluationTaken(evaluation) {
 // ---------- Inscripción vigente ----------
 
 // La inscripción del alumno se dio de baja (baja lógica): sus calificaciones se conservan, pero ya
-// no se cargan, no se corrigen ni se dan de baja. `action` completa el mensaje.
-function enrollmentDeletedError(action) {
+// no se cargan, no se corrigen ni se dan de baja. `action` completa el mensaje y `enrollmentId` es
+// como en ScoreError.
+function enrollmentDeletedError(action, enrollmentId) {
   return new ScoreError(
     'ENROLLMENT_DELETED',
-    `La inscripción del alumno fue eliminada: su calificación no se puede ${action}.`
+    `La inscripción del alumno fue eliminada: su calificación no se puede ${action}.`,
+    enrollmentId
   );
 }
 
@@ -89,11 +103,57 @@ function enrollmentDeletedError(action) {
 // antes de escribir. PostgreSQL lo vuelve a comprobar al escribir (trg_calificacion_coherencia,
 // db/schema.sql), por si la baja llega en el medio, y ese rechazo se traduce al mismo error.
 // Solo se busca en el curso de la asignación: una inscripción que no existe o es de otro curso pasa
-// y la rechaza después PostgreSQL, como siempre. Lanza enrollmentDeletedError(action).
+// y la rechaza después PostgreSQL, como siempre. Lanza enrollmentDeletedError(action), con el
+// enrollmentId.
 async function assertEnrollmentNotDeleted(courseId, enrollmentId, action) {
   if (await enrollmentRepository.isDeletedInCourse(enrollmentId, courseId)) {
-    throw enrollmentDeletedError(action);
+    throw enrollmentDeletedError(action, enrollmentId);
   }
+}
+
+// ---------- Rechazos de PostgreSQL al escribir ----------
+
+// Lo que completa los mensajes de la inscripción según el cambio: cargar o corregir una nota, o dar
+// de baja la calificación (value null)
+const SAVE_ACTION = 'cargar ni modificar';
+const DELETE_ACTION = 'eliminar';
+
+// Traduce el rechazo de PostgreSQL a una escritura de calificaciones (create, update, markAsDeleted o
+// saveChanges de score.repository.js) en una evaluación de `teacherAssignment` al ScoreError que le
+// corresponde, o al EVALUATION_NOT_FOUND de getOwnAssignmentEvaluation si la evaluación se dio de
+// baja después de consultarla; un error no previsto se devuelve como está. `action` completa los
+// mensajes de la inscripción (SAVE_ACTION o DELETE_ACTION). El enrollmentId que saveChanges deja en
+// el error pasa al ScoreError en los errores de la inscripción, que son de un cambio.
+function translateWriteError(error, teacherAssignment, action) {
+  const { enrollmentId } = error;
+  if (scoreRepository.isClosedSchoolYearError(error)) {
+    return closedSchoolYearError(teacherAssignment.course.schoolYear);
+  }
+  // La evaluación se dio de baja o pasó a una fecha futura después de consultarla
+  if (scoreRepository.isEvaluationDeletedError(error)) {
+    return evaluationService.evaluationNotFoundError();
+  }
+  if (scoreRepository.isFutureEvaluationError(error)) {
+    return futureEvaluationError();
+  }
+  if (scoreRepository.isEnrollmentNotInCourseError(error)) {
+    return new ScoreError(
+      'ENROLLMENT_NOT_FOUND',
+      'El alumno no está inscripto en el curso de esta evaluación.',
+      enrollmentId
+    );
+  }
+  if (scoreRepository.isEnrollmentDeletedError(error)) {
+    return enrollmentDeletedError(action, enrollmentId);
+  }
+  if (scoreRepository.isEnrollmentNotActiveError(error)) {
+    return new ScoreError(
+      'ENROLLMENT_NOT_ACTIVE',
+      `La inscripción del alumno no está activa: su calificación no se puede ${action}.`,
+      enrollmentId
+    );
+  }
+  return error;
 }
 
 // ---------- Calificaciones de una evaluación del profesor ----------
@@ -142,25 +202,6 @@ async function listOwnEvaluationScores(currentUser, teacherAssignmentId, evaluat
 
 // ---------- Carga y corrección ----------
 
-// Guarda la nota de una inscripción en una evaluación: si ya tiene una calificación vigente, se
-// corrige esa fila (UPDATE); si no, se carga una (INSERT), aunque haya tenido otra que se dio de
-// baja, que queda como está. Si otra sesión la cargó entre las dos consultas, PostgreSQL rechaza el
-// alta por duplicada y entonces se corrige la fila que ya existe; si para entonces también la dio
-// de baja, se carga una nueva.
-async function createOrUpdateScore(evaluationId, enrollmentId, value) {
-  const updatedScore = await scoreRepository.update(evaluationId, enrollmentId, value);
-  if (updatedScore) return updatedScore;
-  try {
-    return await scoreRepository.create(evaluationId, enrollmentId, value);
-  } catch (error) {
-    if (!scoreRepository.isDuplicateError(error)) throw error;
-    return (
-      (await scoreRepository.update(evaluationId, enrollmentId, value)) ??
-      scoreRepository.create(evaluationId, enrollmentId, value)
-    );
-  }
-}
-
 // Guarda la nota de un alumno en una evaluación vigente de una asignación docente vigente a cargo
 // de `currentUser` (el profesor de la sesión) y devuelve { enrollmentId, value }, con la nota como
 // quedó guardada. `data` trae enrollmentId (el id de la inscripción del alumno, una de las de
@@ -191,43 +232,59 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
   );
   await assertSchoolYearNotClosed(teacherAssignment);
   await assertEvaluationTaken(evaluation);
-  if (!isScoreValue(value)) {
-    throw new ScoreError(
-      'INVALID_SCORE',
-      `La calificación tiene que ser un número de ${MIN_SCORE_VALUE} a ${MAX_SCORE_VALUE}, con hasta dos decimales.`
-    );
-  }
-  await assertEnrollmentNotDeleted(teacherAssignment.course.id, enrollmentId, 'cargar ni modificar');
+  if (!isScoreValue(value)) throw invalidScoreError();
+  await assertEnrollmentNotDeleted(teacherAssignment.course.id, enrollmentId, SAVE_ACTION);
 
-  let score;
+  let savedScores;
   try {
-    score = await createOrUpdateScore(evaluation.id, enrollmentId, value);
+    savedScores = await scoreRepository.saveChanges(evaluation.id, [{ enrollmentId, value }]);
   } catch (error) {
-    if (scoreRepository.isClosedSchoolYearError(error)) {
-      throw closedSchoolYearError(teacherAssignment.course.schoolYear);
-    }
-    // La evaluación se dio de baja o pasó a una fecha futura después de consultarla
-    if (scoreRepository.isEvaluationDeletedError(error)) {
-      throw evaluationService.evaluationNotFoundError();
-    }
-    if (scoreRepository.isFutureEvaluationError(error)) {
-      throw futureEvaluationError();
-    }
-    if (scoreRepository.isEnrollmentNotInCourseError(error)) {
-      throw new ScoreError('ENROLLMENT_NOT_FOUND', 'El alumno no está inscripto en el curso de esta evaluación.');
-    }
-    if (scoreRepository.isEnrollmentDeletedError(error)) {
-      throw enrollmentDeletedError('cargar ni modificar');
-    }
-    if (scoreRepository.isEnrollmentNotActiveError(error)) {
-      throw new ScoreError(
-        'ENROLLMENT_NOT_ACTIVE',
-        'La inscripción del alumno no está activa: su calificación no se puede cargar ni modificar.'
-      );
-    }
-    throw error;
+    throw translateWriteError(error, teacherAssignment, SAVE_ACTION);
   }
-  return { enrollmentId: score.enrollmentId, value: score.value };
+  return savedScores[0];
+}
+
+// ---------- Guardado de varias calificaciones ----------
+
+// Guarda de una vez los cambios que el profesor hizo en las calificaciones de una evaluación
+// vigente de una asignación docente vigente a cargo de `currentUser` (el profesor de la sesión):
+// `changes` es [{ enrollmentId, value }], uno por inscripción (una de las de
+// listOwnEvaluationScores). Con una nota, se carga o se corrige como en saveOwnEvaluationScore; con
+// value null, se da de baja la calificación vigente de la inscripción, como en
+// deleteOwnEvaluationScore, salvo que si no tiene ninguna (ya la dio de baja otra sesión) no es un
+// error: el alumno queda sin nota, que es lo que se pidió.
+// O se guardan todos los cambios o ninguno (una sola transacción, scoreRepository.saveChanges).
+// Devuelve [{ enrollmentId, value }], uno por cambio, en el orden de las inscripciones, con cada nota
+// como quedó guardada (null en las bajas).
+// Errores: los de getOwnAssignmentEvaluation (TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND),
+// SCHOOL_YEAR_CLOSED y EVALUATION_IN_FUTURE, en ese orden y antes que los de cada cambio, como en
+// saveOwnEvaluationScore (en una evaluación con fecha futura no hay calificaciones que dar de baja:
+// trg_evaluacion_futura_calificaciones_vigentes, db/schema.sql). Después, los de los cambios, con
+// el enrollmentId del rechazado: INVALID_SCORE (antes de escribir nada), ENROLLMENT_DELETED,
+// ENROLLMENT_NOT_FOUND y ENROLLMENT_NOT_ACTIVE, como en saveOwnEvaluationScore y, en las bajas, como
+// en deleteOwnEvaluationScore. PostgreSQL vuelve a comprobar al guardar lo de la evaluación y lo de
+// cada inscripción, como en saveOwnEvaluationScore.
+async function saveOwnEvaluationScores(currentUser, teacherAssignmentId, evaluationId, changes) {
+  const { teacherAssignment, evaluation } = await evaluationService.getOwnAssignmentEvaluation(
+    currentUser,
+    teacherAssignmentId,
+    evaluationId
+  );
+  await assertSchoolYearNotClosed(teacherAssignment);
+  await assertEvaluationTaken(evaluation);
+  const invalidChange = changes.find(({ value }) => value !== null && !isScoreValue(value));
+  if (invalidChange) throw invalidScoreError(invalidChange.enrollmentId);
+  const actionOf = (enrollmentId) =>
+    (changes.find((change) => change.enrollmentId === enrollmentId)?.value === null ? DELETE_ACTION : SAVE_ACTION);
+  for (const { enrollmentId } of changes) {
+    await assertEnrollmentNotDeleted(teacherAssignment.course.id, enrollmentId, actionOf(enrollmentId));
+  }
+
+  try {
+    return await scoreRepository.saveChanges(evaluation.id, changes);
+  } catch (error) {
+    throw translateWriteError(error, teacherAssignment, actionOf(error.enrollmentId));
+  }
 }
 
 // ---------- Baja ----------
@@ -259,25 +316,13 @@ async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evalua
     evaluationId
   );
   await assertSchoolYearNotClosed(teacherAssignment);
-  await assertEnrollmentNotDeleted(teacherAssignment.course.id, enrollmentId, 'eliminar');
+  await assertEnrollmentNotDeleted(teacherAssignment.course.id, enrollmentId, DELETE_ACTION);
 
   let deletedScore;
   try {
     deletedScore = await scoreRepository.markAsDeleted(evaluation.id, enrollmentId);
   } catch (error) {
-    if (scoreRepository.isClosedSchoolYearError(error)) {
-      throw closedSchoolYearError(teacherAssignment.course.schoolYear);
-    }
-    if (scoreRepository.isEnrollmentDeletedError(error)) {
-      throw enrollmentDeletedError('eliminar');
-    }
-    if (scoreRepository.isEnrollmentNotActiveError(error)) {
-      throw new ScoreError(
-        'ENROLLMENT_NOT_ACTIVE',
-        'La inscripción del alumno no está activa: su calificación no se puede eliminar.'
-      );
-    }
-    throw error;
+    throw translateWriteError(error, teacherAssignment, DELETE_ACTION);
   }
   if (!deletedScore) {
     throw new ScoreError('SCORE_NOT_FOUND', 'El alumno no tiene una calificación cargada en esta evaluación.');
@@ -285,4 +330,10 @@ async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evalua
   return { enrollmentId: deletedScore.enrollmentId, value: null };
 }
 
-module.exports = { listOwnEvaluationScores, saveOwnEvaluationScore, deleteOwnEvaluationScore, ScoreError };
+module.exports = {
+  listOwnEvaluationScores,
+  saveOwnEvaluationScore,
+  saveOwnEvaluationScores,
+  deleteOwnEvaluationScore,
+  ScoreError,
+};

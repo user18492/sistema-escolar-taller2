@@ -1,4 +1,4 @@
-const { query } = require('../database/connection');
+const { query, runInTransaction } = require('../database/connection');
 const { Score } = require('../models/score.model');
 
 // Calificaciones vigentes de una evaluación (sin las dadas de baja): una fila por cada inscripción
@@ -118,8 +118,10 @@ async function countVisibleByTeacherAssignment(teacherAssignmentId) {
 // evaluación se dio de baja (isEvaluationDeletedError), si su fecha todavía no llegó
 // (isFutureEvaluationError) o si es de un ciclo lectivo cerrado (isClosedSchoolYearError). Que la
 // evaluación se pueda calificar y que la nota sea válida lo comprueba el servicio.
-async function create(evaluationId, enrollmentId, value) {
-  const { rows } = await query(CREATE_SQL, [evaluationId, enrollmentId, value]);
+// `run` es la función con la que se ejecuta la consulta: `query` o, dentro de una transacción, la
+// de runInTransaction (saveChanges); vale también para update y markAsDeleted.
+async function create(evaluationId, enrollmentId, value, run = query) {
+  const { rows } = await run(CREATE_SQL, [evaluationId, enrollmentId, value]);
   return toScore(rows[0]);
 }
 
@@ -130,8 +132,8 @@ async function create(evaluationId, enrollmentId, value) {
 // la evaluación se dio de baja (isEvaluationDeletedError), si su fecha todavía no llegó
 // (isFutureEvaluationError) o si es de un ciclo lectivo cerrado (isClosedSchoolYearError). Lo demás
 // lo comprueba el servicio, como en create.
-async function update(evaluationId, enrollmentId, value) {
-  const { rows } = await query(UPDATE_SQL, [evaluationId, enrollmentId, value]);
+async function update(evaluationId, enrollmentId, value, run = query) {
+  const { rows } = await run(UPDATE_SQL, [evaluationId, enrollmentId, value]);
   return rows.length > 0 ? toScore(rows[0]) : null;
 }
 
@@ -142,9 +144,64 @@ async function update(evaluationId, enrollmentId, value) {
 // PostgreSQL rechaza la baja si la inscripción se dio de baja (isEnrollmentDeletedError) o dejó de
 // estar activa (isEnrollmentNotActiveError), y si la evaluación es de un ciclo lectivo cerrado
 // (isClosedSchoolYearError). Que la evaluación se pueda calificar lo comprueba el servicio.
-async function markAsDeleted(evaluationId, enrollmentId) {
-  const { rows } = await query(MARK_AS_DELETED_SQL, [evaluationId, enrollmentId]);
+async function markAsDeleted(evaluationId, enrollmentId, run = query) {
+  const { rows } = await run(MARK_AS_DELETED_SQL, [evaluationId, enrollmentId]);
   return rows.length > 0 ? toScore(rows[0]) : null;
+}
+
+// Guarda la nota `value` de la inscripción `enrollmentId` en la evaluación `evaluationId` dentro de
+// la transacción de `run`: si ya tiene una calificación vigente, se corrige esa fila (UPDATE); si no,
+// se carga una (INSERT), aunque haya tenido otra que se dio de baja, que queda como está. Si otra
+// sesión la cargó entre las dos consultas, PostgreSQL rechaza el alta por duplicada y entonces se
+// corrige la fila que ya existe; si para entonces también la dio de baja, se carga una nueva. El
+// alta va en un savepoint: el rechazo por duplicada no anula el resto de la transacción.
+async function createOrUpdate(run, evaluationId, enrollmentId, value) {
+  const updatedScore = await update(evaluationId, enrollmentId, value, run);
+  if (updatedScore) return updatedScore;
+  await run('SAVEPOINT calificacion_alta');
+  try {
+    const createdScore = await create(evaluationId, enrollmentId, value, run);
+    await run('RELEASE SAVEPOINT calificacion_alta');
+    return createdScore;
+  } catch (error) {
+    if (!isDuplicateError(error)) throw error;
+    await run('ROLLBACK TO SAVEPOINT calificacion_alta');
+    return (
+      (await update(evaluationId, enrollmentId, value, run)) ?? create(evaluationId, enrollmentId, value, run)
+    );
+  }
+}
+
+// Aplica en la evaluación `evaluationId`, en una sola transacción, los cambios `changes`
+// ([{ enrollmentId, value }], uno por inscripción): con una nota, la guarda (createOrUpdate); con
+// value null, da de baja la calificación vigente de la inscripción (markAsDeleted) y, si no tiene
+// ninguna (nunca la tuvo o ya se dio de baja), no hace nada. O se guardan todos o ninguno: si
+// PostgreSQL rechaza uno, se deshace la transacción y se relanza su error, con el enrollmentId del
+// cambio rechazado en `error.enrollmentId`; los rechazos son los de create, update y markAsDeleted.
+// Los cambios se aplican en el orden de las inscripciones, así dos guardados simultáneos toman los
+// bloqueos de los triggers en el mismo orden. Devuelve [{ enrollmentId, value }] en ese orden, con
+// cada nota como quedó guardada (null en las bajas). Que la evaluación se pueda calificar y que las
+// notas sean válidas lo comprueba el servicio.
+async function saveChanges(evaluationId, changes) {
+  const orderedChanges = [...changes].sort((a, b) => a.enrollmentId - b.enrollmentId);
+  return runInTransaction(async (run) => {
+    const savedScores = [];
+    for (const { enrollmentId, value } of orderedChanges) {
+      try {
+        if (value === null) {
+          await markAsDeleted(evaluationId, enrollmentId, run);
+          savedScores.push({ enrollmentId, value: null });
+        } else {
+          const score = await createOrUpdate(run, evaluationId, enrollmentId, value);
+          savedScores.push({ enrollmentId: score.enrollmentId, value: score.value });
+        }
+      } catch (error) {
+        error.enrollmentId = enrollmentId;
+        throw error;
+      }
+    }
+    return savedScores;
+  });
 }
 
 // true si `error` es la violación del índice único de calificacion: la inscripción ya tiene una
@@ -199,6 +256,7 @@ module.exports = {
   create,
   update,
   markAsDeleted,
+  saveChanges,
   isDuplicateError,
   isEnrollmentNotInCourseError,
   isEnrollmentDeletedError,

@@ -26,10 +26,40 @@ function isScoreData(value) {
   );
 }
 
-// Errores previstos de las tres operaciones: los de la asignación, los de la evaluación y los de la
+// Los cambios del guardado de varias calificaciones: un arreglo no vacío de { enrollmentId, value },
+// con value un número (la nota; el servicio valida su rango) o null (la baja de la calificación), y
+// una sola vez cada inscripción.
+function isScoreChange(value) {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    isId(value.enrollmentId) &&
+    (value.value === null || typeof value.value === 'number')
+  );
+}
+
+function isScoreChanges(value) {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(isScoreChange) &&
+    new Set(value.map((change) => change.enrollmentId)).size === value.length
+  );
+}
+
+// Errores previstos de las operaciones: los de la asignación, los de la evaluación y los de la
 // calificación.
 function isExpectedError(error) {
   return error instanceof TeacherAssignmentError || error instanceof EvaluationError || error instanceof ScoreError;
+}
+
+// Respuesta de un error previsto: su código y su mensaje y, si es de un cambio del guardado de
+// varias calificaciones, el enrollmentId de ese cambio.
+function expectedFailure(error) {
+  const response = failure(error.code, error.message);
+  if (error.enrollmentId !== undefined) response.error.enrollmentId = error.enrollmentId;
+  return response;
 }
 
 // `teacherAssignmentId` es el id de una asignación del profesor de la sesión y `evaluationId`, el
@@ -53,7 +83,7 @@ async function listOwnEvaluationScores(currentUser, teacherAssignmentId, evaluat
     return { ok: true, evaluation, scores };
   } catch (error) {
     if (isExpectedError(error)) {
-      return failure(error.code, error.message);
+      return expectedFailure(error);
     }
     console.error('Error al listar las calificaciones de la evaluación:', error);
     return failure('UNEXPECTED_ERROR', 'No se pudieron cargar las calificaciones. Intentá nuevamente.');
@@ -78,10 +108,37 @@ async function saveOwnEvaluationScore(currentUser, teacherAssignmentId, evaluati
     };
   } catch (error) {
     if (isExpectedError(error)) {
-      return failure(error.code, error.message);
+      return expectedFailure(error);
     }
     console.error('Error al guardar la calificación:', error);
     return failure('UNEXPECTED_ERROR', 'No se pudo guardar la calificación. Intentá nuevamente.');
+  }
+}
+
+// `changes` son los cambios de las calificaciones de la evaluación, que se guardan todos o ninguno:
+// la forma la valida isScoreChanges y el resto, el servicio.
+// Nunca rechaza, como listOwnEvaluationScores.
+async function saveOwnEvaluationScores(currentUser, teacherAssignmentId, evaluationId, changes) {
+  if (!isId(teacherAssignmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
+  }
+  if (!isId(evaluationId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la evaluación.');
+  }
+  if (!isScoreChanges(changes)) {
+    return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');
+  }
+  try {
+    return {
+      ok: true,
+      scores: await scoreService.saveOwnEvaluationScores(currentUser, teacherAssignmentId, evaluationId, changes),
+    };
+  } catch (error) {
+    if (isExpectedError(error)) {
+      return expectedFailure(error);
+    }
+    console.error('Error al guardar las calificaciones:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudieron guardar las calificaciones. Intentá nuevamente.');
   }
 }
 
@@ -105,7 +162,7 @@ async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evalua
     };
   } catch (error) {
     if (isExpectedError(error)) {
-      return failure(error.code, error.message);
+      return expectedFailure(error);
     }
     console.error('Error al eliminar la calificación:', error);
     return failure('UNEXPECTED_ERROR', 'No se pudo eliminar la calificación. Intentá nuevamente.');
@@ -117,6 +174,7 @@ async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evalua
 function registerScoreHandlers(browserWindow) {
   handleProtected(browserWindow, 'scores:list-by-own-evaluation', ['PROFESOR'], listOwnEvaluationScores);
   handleProtected(browserWindow, 'scores:save', ['PROFESOR'], saveOwnEvaluationScore);
+  handleProtected(browserWindow, 'scores:save-many', ['PROFESOR'], saveOwnEvaluationScores);
   handleProtected(browserWindow, 'scores:delete', ['PROFESOR'], deleteOwnEvaluationScore);
 }
 

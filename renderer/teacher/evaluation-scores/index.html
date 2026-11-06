@@ -18,7 +18,6 @@
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
-    <link rel="stylesheet" href="../../shared/styles/save-status.css" />
     <link rel="stylesheet" href="./evaluation-scores.css" />
     <script src="../../shared/components/titlebar.component.js"></script>
     <script src="../../shared/components/user-avatar.component.js"></script>
@@ -35,7 +34,6 @@
     <script src="../../shared/components/assignment-summary.component.js"></script>
     <script src="../../shared/components/row-actions.component.js"></script>
     <script src="../../shared/components/school-year.js"></script>
-    <script src="../../shared/components/save-status.component.js"></script>
     <script src="./evaluation-scores.js" defer></script>
   </head>
   <body>
@@ -68,10 +66,6 @@
                 <h1>Calificaciones</h1>
                 <p>Registra y consulta las calificaciones de la evaluación seleccionada</p>
               </div>
-
-              <!-- Estado del guardado de las calificaciones: evaluation-scores.js lo actualiza con
-                   cada nota que se carga o se corrige. Hasta el primer guardado no muestra nada. -->
-              <save-status></save-status>
             </div>
           </div>
 
@@ -84,6 +78,12 @@
                Asignaciones, y los de la evaluación con los de la elegida en Evaluaciones;
                hasta entonces, una raya. -->
           <assignment-summary course="—" level="—" subject="—" year="—" evaluation="—" evaluation-date="—"></assignment-summary>
+
+          <!-- Guarda de una vez los cambios hechos en las calificaciones, de todas las páginas, después
+               de confirmarlo en un modal. Deshabilitado mientras no hay cambios sin guardar. -->
+          <div class="scores-actions">
+            <button class="btn btn-primary" type="button" id="saveScoresBtn" disabled>Guardar calificaciones</button>
+          </div>
 
           <!-- Calificaciones de la evaluación, una fila por cada inscripción vigente, activa o
                finalizada, del curso de la asignación: evaluation-scores.js las carga del proceso
@@ -121,11 +121,10 @@
             <!-- Plantillas: evaluation-scores.js las completa con lo que devuelve el proceso
                  principal: una fila y una opción del filtro Alumno por cada inscripción vigente,
                  activa o finalizada, del curso. La calificación se carga y se corrige en la propia
-                 celda con el numeric stepper (escritura manual o botones − y +) y se guarda al
-                 salir del campo; el campo vacío indica que todavía no fue registrada. La de una
-                 inscripción finalizada queda deshabilitada, de solo lectura. "Eliminar calificación" abre su
-                 modal de confirmación y, al confirmar, la da de baja: la fila se conserva con el
-                 campo vacío. -->
+                 celda con el numeric stepper (escritura manual o botones − y +); el campo vacío
+                 indica que no tiene nota. La de una inscripción finalizada queda deshabilitada, de
+                 solo lectura. "Eliminar calificación" vacía el campo: la baja, como las cargas y
+                 correcciones, se guarda con "Guardar calificaciones", y la fila se conserva. -->
             <template id="scoreRowTemplate">
               <tr>
                 <td class="student-name col-student col-truncate"><span class="text-truncate"></span></td>
@@ -162,7 +161,8 @@
         </main>
       </div>
     </div>
-    <!-- Modal: Eliminar calificación -->
-    <confirm-modal entity="Score" heading="Eliminar calificación" description="¿Quieres eliminar esta calificación?"></confirm-modal>
+    <!-- Modal: Guardar calificaciones. evaluation-scores.js pone en la descripción cuántas se cargan
+         o corrigen y cuántas se eliminan. -->
+    <confirm-modal entity="Scores" action="save" heading="Guardar calificaciones" description="¿Quieres guardar los cambios en las calificaciones?"></confirm-modal>
   </body>
 </html>

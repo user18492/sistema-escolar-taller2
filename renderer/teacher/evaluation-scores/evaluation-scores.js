@@ -11,21 +11,28 @@
 // campo vacío si el alumno todavía no fue calificado. El filtro Alumno, con una opción por
 // inscripción, las filtra en memoria. La lista filtrada se pagina en memoria, 10 por página, con
 // <table-pagination>.
-// La calificación se carga y se corrige en la propia fila y se guarda al salir del campo
-// (window.api.scores.save). Una ya cargada no se quita vaciando el campo, y la de una inscripción
-// finalizada es de solo lectura. Cada guardado se refleja arriba, en <save-status>: "Guardando…"
-// mientras está en curso y después "Guardado" o, si falló, "No se pudo guardar".
+// La calificación se carga y se corrige en la propia fila, pero no se guarda enseguida: queda como
+// un cambio sin guardar, que se conserva al cambiar de página o de filtro. Una ya cargada no se
+// quita vaciando el campo, y la de una inscripción finalizada es de solo lectura.
 // Cada fila lleva la acción "Eliminar calificación", disponible si hay una calificación guardada
-// que se puede modificar: la da de baja (baja lógica, window.api.scores.delete) después de
-// confirmarlo en un modal (confirm-modal.component.js). La fila se conserva, porque el alumno sigue
-// inscripto en el curso: su campo queda vacío y admite otra nota.
-// Si al guardar o al eliminar una calificación el proceso principal responde que la inscripción
-// del alumno se dio de baja (la vista estaba abierta desde antes de la baja), un toast lo avisa y
-// la lista se vuelve a pedir, sin esa inscripción.
+// que se puede modificar: vacía el campo y la baja (baja lógica) queda como un cambio sin guardar
+// más. La fila se conserva, porque el alumno sigue inscripto en el curso, y el campo admite otra
+// nota; volver a escribir la guardada deshace la baja.
+// "Guardar calificaciones", habilitado mientras haya cambios sin guardar, abre un modal de
+// confirmación (confirm-modal.component.js) con cuántas calificaciones se cargan o corrigen y
+// cuántas se eliminan; al confirmar, el proceso principal guarda todos los cambios o ninguno
+// (window.api.scores.saveMany), y un toast avisa el resultado. Si falla, los cambios siguen sin
+// guardar, salvo el que el proceso principal rechazó por su inscripción, que se descarta.
+// hasUnsavedChanges dice si quedan cambios sin guardar: es el punto de entrada para avisar antes de
+// salir de la vista o de cerrar la aplicación.
+// Si al guardar el proceso principal responde que la inscripción de un alumno se dio de baja (la
+// vista estaba abierta desde antes de la baja), un toast lo avisa y la lista se vuelve a pedir, sin
+// esa inscripción y con el resto de los cambios sin guardar.
 // El ciclo lectivo actual llega con la lista, de la base (school-year.js): si la asignación es de un
-// ciclo cerrado, las calificaciones se ven en solo lectura, con el campo y Eliminar deshabilitados.
-// Si la vista estaba abierta desde antes del cambio de año, el proceso principal rechaza el guardado
-// o la baja, un toast lo avisa y la lista se vuelve a pedir, ya en solo lectura.
+// ciclo cerrado, las calificaciones se ven en solo lectura, con el campo, Eliminar y "Guardar
+// calificaciones" deshabilitados. Si la vista estaba abierta desde antes del cambio de año, el
+// proceso principal rechaza el guardado, un toast lo avisa y la lista se vuelve a pedir, ya en solo
+// lectura y sin los cambios.
 // También se ven en solo lectura si la evaluación tiene una fecha futura (posterior a hoy, con la
 // fecha de la base): se califica a partir de ese día. Si pasó a una fecha futura con la vista
 // abierta, el proceso principal rechaza el guardado, un toast lo avisa y la lista se vuelve a pedir,
@@ -34,6 +41,8 @@
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
   const scoresCard = document.querySelector('.scores-card');
+  const scoresActions = document.querySelector('.scores-actions');
+  const saveScoresBtn = document.getElementById('saveScoresBtn');
   const loadError = document.getElementById('assignmentLoadError');
 
   // ---------- Datos de la asignación seleccionada ----------
@@ -41,10 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // La asignación de la vista: null hasta que llega y si no se pudo cargar
   let assignment = null;
 
-  // Si la asignación no llega, tampoco hay calificaciones que mostrar.
+  // Si la asignación no llega, tampoco hay calificaciones que mostrar ni que guardar.
   const assignmentRequest = summary.loadAssignment(loadError).then((loadedAssignment) => {
     assignment = loadedAssignment;
-    if (!assignment) scoresCard.hidden = true;
+    if (!assignment) {
+      scoresActions.hidden = true;
+      scoresCard.hidden = true;
+    }
   });
 
   // ---------- Vuelta por el breadcrumb ----------
@@ -75,19 +87,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const studentHeader = table.querySelector('th[data-filter="student"]');
   // Paso de la evaluación en la ruta de navegación
   const evaluationStep = document.querySelector('.breadcrumb-item[data-field="evaluation"]');
-  // Estado del guardado, en el encabezado de la página (save-status.component.js)
-  const saveStatus = document.querySelector('save-status');
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar las calificaciones. Intentá nuevamente.';
 
   // En el orden en que llegan del proceso principal: por alumno. `value` es la nota guardada (null
-  // si todavía no tiene) y, mientras se guarda una nueva, `savingValue` es la que se envió.
+  // si todavía no tiene) y `draft`, si la calificación tiene un cambio sin guardar, la nota nueva
+  // (null si se eliminó la calificación); sin cambios, no tiene `draft` (ver "Cambios sin guardar").
   let scores = [];
   // La inscripción elegida en el filtro Alumno, por su id. Vacío (nada elegido) no filtra.
   let selectedEnrollmentIds = [];
-  // true mientras reloadScores le quita el foco al campo que se estaba editando: lo escrito no se
-  // guarda, pasa a la fila nueva
-  let isReleasingFocus = false;
   // Si la asignación es de un ciclo lectivo cerrado o la evaluación tiene una fecha futura, el
   // motivo con el que las notas y Eliminar quedan deshabilitados (el del ciclo cerrado, si son las
   // dos cosas); null si no, o hasta que llega con la lista
@@ -137,22 +145,57 @@ document.addEventListener('DOMContentLoaded', () => {
   const errorDescription = (error) =>
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
 
-  // Rechazos de un guardado o una baja con los que la lista quedó vieja y se vuelve a pedir: la
-  // inscripción se dio de baja, el ciclo lectivo se cerró con la vista abierta desde antes del
-  // cambio de año, o la evaluación pasó a una fecha futura
+  // Rechazos de un guardado con los que la lista quedó vieja y se vuelve a pedir: la inscripción se
+  // dio de baja, el ciclo lectivo se cerró con la vista abierta desde antes del cambio de año, o la
+  // evaluación pasó a una fecha futura
   const STALE_LIST_CODES = ['ENROLLMENT_DELETED', 'SCHOOL_YEAR_CLOSED', 'EVALUATION_IN_FUTURE'];
 
-  // Eliminar está disponible si hay una calificación guardada y se puede modificar (la inscripción
-  // está activa; en un ciclo cerrado o una evaluación con fecha futura, además, lo deshabilita el
-  // read-only-title de createRow). El atributo vale antes y después de que <row-actions> genere su
-  // botón.
-  const syncDeleteAction = (row, { value, isEnrollmentActive }) => {
-    row.querySelector('row-actions').toggleAttribute('disabled', value === null || !isEnrollmentActive);
+  // ---------- Cambios sin guardar ----------
+
+  // Los cambios quedan en cada calificación de `scores` (`draft`) y no en las filas, así que se
+  // conservan al cambiar de página o de filtro, hasta guardarlos o salir de la vista.
+  const hasDraft = (score) => Object.hasOwn(score, 'draft');
+
+  // La nota que muestra la fila: la del cambio sin guardar, si lo hay, o la guardada
+  const displayedValue = (score) => (hasDraft(score) ? score.draft : score.value);
+
+  // Los cambios sin guardar, como los recibe window.api.scores.saveMany: [{ enrollmentId, value }],
+  // con value null en las calificaciones eliminadas
+  const pendingChanges = () => scores.filter(hasDraft).map(({ enrollmentId, draft }) => ({ enrollmentId, value: draft }));
+
+  // true si hay cambios sin guardar. Habilita "Guardar calificaciones" y es lo que tiene que
+  // consultar el aviso de calificaciones sin guardar al salir de la vista o al cerrar la aplicación.
+  const hasUnsavedChanges = () => scores.some(hasDraft);
+
+  // "Guardar calificaciones" está disponible si hay cambios sin guardar; en solo lectura
+  // (readOnlyTitle), deshabilitado con el motivo como title.
+  const syncSaveButton = () => {
+    saveScoresBtn.disabled = readOnlyTitle !== null || !hasUnsavedChanges();
+    if (readOnlyTitle) saveScoresBtn.title = readOnlyTitle;
+    else saveScoresBtn.removeAttribute('title');
+  };
+
+  // La nota `value` (null: sin nota) pasa a ser la de la calificación: si es la guardada, deja de
+  // haber un cambio.
+  const setDraft = (score, value) => {
+    if (value === score.value) delete score.draft;
+    else score.draft = value;
+    syncSaveButton();
+  };
+
+  const findScore = (enrollmentId) => scores.find((score) => score.enrollmentId === enrollmentId);
+
+  // Eliminar está disponible si hay una calificación guardada, la fila todavía muestra una nota (no
+  // se eliminó ya) y se puede modificar (la inscripción está activa; en un ciclo cerrado o una
+  // evaluación con fecha futura, además, lo deshabilita el read-only-title de createRow). El
+  // atributo vale antes y después de que <row-actions> genere su botón.
+  const syncDeleteAction = (row, score) => {
+    const isAvailable = score.value !== null && displayedValue(score) !== null && score.isEnrollmentActive;
+    row.querySelector('row-actions').toggleAttribute('disabled', !isAvailable);
   };
 
   // Vuelve a generar la celda de esa calificación, si está a la vista, con lo que quedó en memoria.
-  // El resto de la fila se conserva: su botón Eliminar pudo recibir el foco o un clic mientras se
-  // guardaba.
+  // El resto de la fila se conserva.
   const refreshRow = (score) => {
     const row = tbody.querySelector(`tr[data-enrollment-id="${score.enrollmentId}"]`);
     if (!row) return;
@@ -160,46 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
     syncDeleteAction(row, score);
   };
 
-  // Guarda la nota del alumno: el proceso principal crea su calificación en la evaluación o, si ya
-  // tenía una, la modifica. Hasta que responde, el control de la fila no admite cambios (inert),
-  // así no se cruzan dos guardados de la misma calificación. El encabezado muestra "Guardando…"
-  // hasta la respuesta y después el resultado. Si no se pudo guardar, un toast avisa el motivo y el
-  // campo vuelve a mostrar la nota guardada; si fue porque la inscripción dejó de estar activa,
-  // queda además deshabilitado, y si fue porque se dio de baja, la lista se vuelve a pedir
-  // (reloadScores) y la fila deja de mostrarse; también si el ciclo lectivo se cerró o la
-  // evaluación pasó a una fecha futura, y la lista vuelve en solo lectura. reloadScores espera a
-  // este guardado, así que acá no se la espera.
-  const saveScore = async (score, value, stepper) => {
-    score.savingValue = value;
-    stepper.inert = true;
-    saveStatus.start();
-    let response;
-    try {
-      response = await window.api?.scores?.save(Number(assignmentId), Number(evaluationId), {
-        enrollmentId: score.enrollmentId,
-        value,
-      });
-    } catch (error) {
-      console.error('Error al guardar la calificación:', error);
-    }
-    delete score.savingValue;
-    saveStatus.finish(Boolean(response?.ok));
-    if (response?.ok) {
-      score.value = response.score.value;
-    } else {
-      if (response?.error?.code === 'ENROLLMENT_NOT_ACTIVE') score.isEnrollmentActive = false;
-      showToast({
-        type: 'error',
-        title: 'No se pudo guardar la calificación',
-        description: errorDescription(response?.error),
-      });
-    }
-    // La fila pudo generarse de nuevo mientras tanto (otra página u otro filtro)
-    refreshRow(score);
-    if (STALE_LIST_CODES.includes(response?.error?.code)) reloadScores();
-  };
-
-  // `score` es la calificación de la fila, de la que salen la nota guardada y si se puede editar
+  // `score` es la calificación de la fila, de la que salen la nota guardada, el cambio sin guardar y
+  // si se puede editar
   const initStepper = (stepper, score) => {
     const input = stepper.querySelector('.numeric-stepper-input');
     const [decrement, increment] = stepper.querySelectorAll('.numeric-stepper-btn');
@@ -207,6 +212,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const max = Number(input.getAttribute('aria-valuemax'));
     const clamp = (number) => Math.min(max, Math.max(min, number));
     let lastValid = input.value;
+    // La nota que mostraba el campo al recibir el foco: si se vacía y había una calificación
+    // guardada, es la que vuelve (ver el blur)
+    let valueOnFocus = displayedValue(score);
+
+    // Si el campo quedó vacío habiendo una nota guardada que la fila todavía mostraba, eso sería
+    // quitarla, y eso se hace con Eliminar
+    const isRemoval = (value) => value === null && score.value !== null && valueOnFocus !== null;
+
+    // Lo que muestra el campo pasa a ser, mientras se escribe, el cambio de la calificación:
+    // "Guardar calificaciones" y Eliminar se actualizan sin esperar a que se salga del campo. Un
+    // campo vacío que quitaría la nota guardada no cambia nada: lo resuelve el blur.
+    const applyInput = () => {
+      const typed = parseScore(input.value);
+      const value = typed === null ? null : clamp(typed);
+      if (isRemoval(value)) return;
+      setDraft(score, value);
+      const row = stepper.closest('tr');
+      if (row) syncDeleteAction(row, score);
+    };
 
     // − y + se deshabilitan en los límites y cuando la calificación no se puede editar;
     // aria-valuenow informa el valor a los lectores de pantalla.
@@ -228,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const next = clamp(Math.round((current + direction * SCORE_STEP) * 100) / 100);
       input.value = lastValid = formatScore(next);
       syncState();
+      applyInput();
     };
 
     // Lo escrito o pegado que no respeta el formato o supera el máximo se descarta y el
@@ -242,32 +267,36 @@ document.addEventListener('DOMContentLoaded', () => {
         input.setSelectionRange(caret, caret);
       }
       syncState();
+      applyInput();
     });
 
-    // Al salir del campo el valor queda en su forma final ("07," pasa a "7" y "7.5" a "7,5") y, si
-    // cambió, se guarda. Una calificación ya cargada no se quita vaciando el campo, sino con
-    // Eliminar, que pide confirmación: si el campo quedó vacío, vuelve la guardada y un toast lo
-    // explica, salvo que el foco haya pasado justamente al Eliminar de su fila. El guardado en
-    // curso queda en `pendingSave`, para la baja que se confirme mientras tanto. Si el foco lo quita
-    // reloadScores, no hace nada.
+    input.addEventListener('focus', () => {
+      valueOnFocus = displayedValue(score);
+    });
+
+    // Al salir del campo el valor queda en su forma final ("07," pasa a "7" y "7.5" a "7,5") como
+    // cambio de la calificación, que se guarda con "Guardar calificaciones". Una calificación ya
+    // cargada no se quita vaciando el campo, sino con Eliminar: si el campo quedó vacío, vuelve la
+    // nota que mostraba al recibir el foco y un toast lo explica, salvo que el foco haya pasado
+    // justamente al Eliminar de su fila.
     input.addEventListener('blur', (event) => {
-      if (isReleasingFocus) return;
       const typed = parseScore(input.value);
       const value = typed === null ? null : clamp(typed);
-      const isRemoval = value === null && score.value !== null;
-      input.value = lastValid = scoreText(isRemoval ? score.value : value);
+      const removal = isRemoval(value);
+      const finalValue = removal ? valueOnFocus : value;
+      input.value = lastValid = scoreText(finalValue);
       syncState();
-      if (isRemoval) {
-        const deleteButton = stepper.closest('tr')?.querySelector('[data-action="delete"]');
-        if (deleteButton && event.relatedTarget === deleteButton) return;
-        showToast({
-          type: 'error',
-          title: 'La calificación no se quitó',
-          description: 'Para quitarla, usá Eliminar calificación, en la columna Acciones.',
-        });
-      } else if (value !== score.value) {
-        score.pendingSave = saveScore(score, value, stepper);
-      }
+      setDraft(score, finalValue);
+      const row = stepper.closest('tr');
+      if (row) syncDeleteAction(row, score);
+      if (!removal) return;
+      const deleteButton = row?.querySelector('[data-action="delete"]');
+      if (deleteButton && event.relatedTarget === deleteButton) return;
+      showToast({
+        type: 'error',
+        title: 'La calificación no se quitó',
+        description: 'Para quitarla, usá Eliminar calificación, en la columna Acciones.',
+      });
     });
 
     // Las flechas del teclado equivalen a − y +, como en un campo numérico nativo, y Enter
@@ -300,13 +329,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Filas y filtro: Alumno ----------
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
-  // inscripcion_id en data-enrollment-id. Mientras se guarda una nota, la fila muestra la que se
-  // envió y su control no admite cambios; el de una inscripción que no está activa queda
-  // deshabilitado, con la nota que tenga, igual que todos si la asignación es de un ciclo cerrado o
-  // la evaluación tiene una fecha futura (readOnlyTitle), que también deshabilita Eliminar. El title
-  // del control dice por qué.
+  // inscripcion_id en data-enrollment-id. La fila muestra la nota del cambio sin guardar, si lo hay,
+  // o la guardada. El control de una inscripción que no está activa queda deshabilitado, con la
+  // nota que tenga, igual que todos si la asignación es de un ciclo cerrado o la evaluación tiene
+  // una fecha futura (readOnlyTitle), que también deshabilita Eliminar. El title del control dice
+  // por qué.
   function createRow(score) {
-    const { enrollmentId, student, value, savingValue, isEnrollmentActive } = score;
+    const { enrollmentId, student, isEnrollmentActive } = score;
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     const name = studentName(student);
     row.dataset.enrollmentId = String(enrollmentId);
@@ -319,11 +348,10 @@ document.addEventListener('DOMContentLoaded', () => {
     input.setAttribute('aria-label', `Calificación de ${name}`);
     decrement.setAttribute('aria-label', `Restar un punto a la calificación de ${name}`);
     increment.setAttribute('aria-label', `Sumar un punto a la calificación de ${name}`);
-    input.value = scoreText(savingValue ?? value);
+    input.value = scoreText(displayedValue(score));
     input.disabled = !isEnrollmentActive || readOnlyTitle !== null;
     if (readOnlyTitle) stepper.title = readOnlyTitle;
     else if (!isEnrollmentActive) stepper.title = 'La inscripción del alumno no está activa';
-    stepper.inert = savingValue !== undefined;
     initStepper(stepper, score);
     if (readOnlyTitle) row.querySelector('row-actions').setAttribute('read-only-title', readOnlyTitle);
     syncDeleteAction(row, score);
@@ -370,7 +398,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // calificaciones o el ciclo lectivo, la tabla muestra el error.
   // Sin un id en la URL, o con uno que no es un número, el proceso principal responde que no pudo
   // identificar la asignación o la evaluación.
-  async function loadScores() {
+  // `drafts` son los cambios sin guardar que se conservan (reloadScores): Map enrollmentId → nota
+  // (null: eliminada). Solo vuelven en las calificaciones que se pueden modificar.
+  async function loadScores(drafts = new Map()) {
     showMessage('Cargando calificaciones…');
     let response;
     let schoolYear = null;
@@ -400,50 +430,22 @@ document.addEventListener('DOMContentLoaded', () => {
     summary.showEvaluation(response.evaluation);
     evaluationStep.textContent = response.evaluation.title;
     scores = response.scores;
+    if (readOnlyTitle === null) {
+      scores
+        .filter(({ enrollmentId, isEnrollmentActive }) => isEnrollmentActive && drafts.has(enrollmentId))
+        .forEach((score) => setDraft(score, drafts.get(score.enrollmentId)));
+    }
+    syncSaveButton();
     fillFilterOptions();
     renderRows();
   }
 
   // Vuelve a pedir la lista, que quedó vieja: una inscripción se dio de baja con la vista abierta y
   // deja de mostrarse, o el ciclo lectivo se cerró o la evaluación pasó a una fecha futura y la
-  // lista vuelve en solo lectura. Las filas se quitan enseguida y la lista se pide cuando terminan
-  // los guardados en curso, así ya los trae. El campo o el botón Eliminar que tenía el foco lo
-  // recupera en la fila nueva de su inscripción, si está a la vista y habilitado; el campo, con lo
-  // que se estaba escribiendo, sin guardarlo: se guarda al salir de él, como siempre. Si la lista ya
-  // se estaba volviendo a pedir, espera ese pedido.
-  let reloading = null;
-  const reloadScores = () => {
-    reloading ??= (async () => {
-      const focused = tbody.contains(document.activeElement) ? document.activeElement : null;
-      const enrollmentId = focused?.closest('tr')?.dataset.enrollmentId;
-      const draft = focused?.matches('.numeric-stepper-input')
-        ? { value: focused.value, start: focused.selectionStart, end: focused.selectionEnd }
-        : null;
-      isReleasingFocus = true;
-      focused?.blur();
-      isReleasingFocus = false;
-      showMessage('Cargando calificaciones…');
-      await Promise.all(scores.map(({ pendingSave }) => pendingSave));
-      await loadScores();
-
-      const row = enrollmentId && tbody.querySelector(`tr[data-enrollment-id="${enrollmentId}"]`);
-      if (!row) return;
-      if (!draft) {
-        row.querySelector('[data-action="delete"]:not(:disabled)')?.focus();
-        return;
-      }
-      const input = row.querySelector('.numeric-stepper-input');
-      if (input.disabled) return;
-      // El evento input lo valida y actualiza − y +, como al escribirlo
-      input.value = draft.value;
-      input.dispatchEvent(new Event('input'));
-      input.focus();
-      input.setSelectionRange(draft.start, draft.end);
-    })().finally(() => {
-      reloading = null;
-    });
-    return reloading;
-  };
+  // lista vuelve en solo lectura. Los cambios sin guardar del resto de las calificaciones se
+  // conservan (en solo lectura, ninguno).
+  const reloadScores = () =>
+    loadScores(new Map(scores.filter(hasDraft).map(({ enrollmentId, draft }) => [enrollmentId, draft])));
 
   // El filtro de Alumno avisa sus cambios (column-filter.js). Si lo que filtra no cambió ("Limpiar
   // filtro" sin nada elegido), la tabla y la página quedan como están; eso incluye a los avisos
@@ -459,68 +461,99 @@ document.addEventListener('DOMContentLoaded', () => {
   // lista ya cargada, que es cuando deja de ser estático.
   pagination.addEventListener('page-change', () => renderRows());
 
-  // ---------- Modal: Eliminar calificación ----------
+  // ---------- Eliminar calificación ----------
 
-  // Fila de la última calificación que se pidió eliminar y su posición en la página, para devolver
-  // el foco a la que ocupe su lugar si deja de mostrarse
-  let deletedScoreRow = null;
-  let deletedRowIndex = 0;
+  // Eliminar no da de baja la calificación enseguida: vacía el campo y la baja queda como un cambio
+  // sin guardar, que se confirma junto con el resto en "Guardar calificaciones" (por eso no tiene un
+  // modal propio). Eliminar deja de estar disponible y el foco pasa al campo vacío de la fila, donde
+  // se puede volver a escribir la nota guardada para deshacer la baja, u otra para corregirla. Por
+  // delegación, para abarcar las filas que se generan con cada página.
+  tbody.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="delete"]');
+    if (!button || button.disabled) return;
+    const row = button.closest('tr');
+    const score = findScore(Number(row.dataset.enrollmentId));
+    setDraft(score, null);
+    refreshRow(score);
+    row.querySelector('.numeric-stepper-input').focus();
+  });
 
-  // Da de baja la calificación de la fila del botón: la inscripción sale de su data-enrollment-id
-  // (el inscripcion_id, fijado al crearla) y se envía con los ids de la URL. La fila no se quita ni
-  // se oculta: lo que cambia es su campo, que queda vacío, y Eliminar deja de estar disponible. Si
-  // la nota se estaba guardando (el clic en Eliminar sacó el foco del campo), la baja espera a que
-  // termine. Sin calificación que dar de baja (ya la eliminó otra sesión), el campo también queda
-  // vacío; si la inscripción dejó de estar activa, queda deshabilitado con su nota, y si se dio de
-  // baja, la lista se vuelve a pedir antes de avisar, sin su fila (también si el ciclo lectivo se
-  // cerró: vuelve en solo lectura).
+  // ---------- Guardar calificaciones ----------
+
+  // "1 calificación" / "3 calificaciones"
+  const countScores = (count) => `${count} ${count === 1 ? 'calificación' : 'calificaciones'}`;
+
+  // Descripción del modal: cuántas calificaciones se cargan o corrigen y cuántas se eliminan. Sin
+  // cambios (el botón no lo abre así), queda la del marcado.
+  const describeChanges = () => {
+    const changes = pendingChanges();
+    if (!changes.length) return '';
+    const deletedCount = changes.filter(({ value }) => value === null).length;
+    const savedCount = changes.length - deletedCount;
+    const actions = [];
+    if (savedCount) actions.push(`guardar ${countScores(savedCount)}`);
+    if (deletedCount) actions.push(`eliminar ${countScores(deletedCount)}`);
+    return `¿Quieres ${actions.join(' y ')}?`;
+  };
+
+  // Guarda todos los cambios sin guardar con los ids de la URL: el proceso principal los guarda
+  // todos o ninguno. Si los guardó, las notas pasan a ser las guardadas y la página se vuelve a
+  // generar con ellas. Si no, los cambios siguen sin guardar, salvo el de la calificación que el
+  // proceso principal rechazó por su inscripción (error.enrollmentId), que se descarta: no se va a
+  // poder guardar (si la inscripción dejó de estar activa, su fila queda además deshabilitada). Si
+  // la lista quedó vieja (STALE_LIST_CODES), se vuelve a pedir antes de avisar.
   // Avisa el resultado con un toast y no resuelve ningún mensaje, así el modal se cierra siempre.
-  const deleteScore = async (trigger) => {
-    deletedScoreRow = trigger.closest('tr');
-    const enrollmentId = Number(deletedScoreRow.dataset.enrollmentId);
-    const score = scores.find((item) => item.enrollmentId === enrollmentId);
-    await score.pendingSave;
+  const saveScores = async () => {
+    const changes = pendingChanges();
+    if (!changes.length) return;
     let response;
     try {
-      response = await window.api?.scores?.delete(Number(assignmentId), Number(evaluationId), enrollmentId);
+      response = await window.api?.scores?.saveMany(Number(assignmentId), Number(evaluationId), changes);
     } catch (error) {
-      console.error('Error al eliminar la calificación:', error);
+      console.error('Error al guardar las calificaciones:', error);
     }
-    const errorCode = response?.error?.code;
-    if (response?.ok || errorCode === 'SCORE_NOT_FOUND') score.value = null;
-    if (errorCode === 'ENROLLMENT_NOT_ACTIVE') score.isEnrollmentActive = false;
-    refreshRow(score);
     if (response?.ok) {
+      response.scores.forEach(({ enrollmentId, value }) => {
+        const score = findScore(enrollmentId);
+        if (!score) return;
+        score.value = value;
+        delete score.draft;
+      });
+      syncSaveButton();
+      renderRows();
       showToast({
         type: 'success',
-        title: 'Calificación eliminada',
-        description: `Se eliminó la calificación de ${studentName(score.student)}.`,
+        title: 'Calificaciones guardadas',
+        description: `Se guardaron los cambios en ${countScores(response.scores.length)}.`,
       });
       return;
     }
-    if (STALE_LIST_CODES.includes(errorCode)) {
-      deletedRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(deletedScoreRow));
-      await reloadScores();
+
+    const error = response?.error;
+    const rejectedScore = error?.enrollmentId === undefined ? null : findScore(error.enrollmentId);
+    if (rejectedScore) {
+      if (error.code === 'ENROLLMENT_NOT_ACTIVE') rejectedScore.isEnrollmentActive = false;
+      delete rejectedScore.draft;
+      syncSaveButton();
+      refreshRow(rejectedScore);
     }
-    showToast({
-      type: 'error',
-      title: 'No se pudo eliminar la calificación',
-      description: errorDescription(response?.error),
-    });
+    if (STALE_LIST_CODES.includes(error?.code)) await reloadScores();
+    let description = errorDescription(error);
+    if (rejectedScore) {
+      description = `${studentName(rejectedScore.student)}: ${description}`;
+      if (hasUnsavedChanges()) description += ' Los demás cambios siguen sin guardar.';
+    }
+    showToast({ type: 'error', title: 'No se pudieron guardar las calificaciones', description });
   };
 
-  // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
-  // cierra. Si Eliminar quedó deshabilitado, el foco pasa al campo de la calificación de su fila; si
-  // la fila dejó de mostrarse, al de la que quedó en su lugar (o la última de la página), si se
-  // puede editar.
-  setupConfirmModal(document.getElementById('deleteScoreOverlay'), {
-    onConfirm: deleteScore,
-    fallbackFocus: () => {
-      const row = deletedScoreRow?.isConnected
-        ? deletedScoreRow
-        : tbody.rows[Math.min(deletedRowIndex, tbody.rows.length - 1)];
-      return row?.querySelector('.numeric-stepper-input:not(:disabled)');
-    },
+  // Componente compartido confirm-modal.component.js: lo abre "Guardar calificaciones", espera la
+  // respuesta abierto y después se cierra. Si el botón quedó deshabilitado (no quedan cambios sin
+  // guardar), el foco pasa al primer campo de la página que se puede editar.
+  setupConfirmModal(document.getElementById('saveScoresOverlay'), {
+    triggerSelector: '#saveScoresBtn',
+    describe: describeChanges,
+    onConfirm: saveScores,
+    fallbackFocus: () => tbody.querySelector('.numeric-stepper-input:not(:disabled)'),
   });
 
   loadScores();

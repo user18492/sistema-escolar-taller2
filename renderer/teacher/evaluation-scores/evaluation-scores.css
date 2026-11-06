@@ -10,6 +10,21 @@
 
 /* La card de contexto (asignación | evaluación) la aporta assignment-summary.css. */
 
+/* ---------- Guardar calificaciones ---------- */
+
+/* Fila propia entre la tarjeta contextual y la de la tabla, como el alta en Evaluaciones; solo
+   aloja "Guardar calificaciones", alineado a la derecha. */
+.scores-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Ese display no debe anular el atributo hidden. */
+.scores-actions[hidden] {
+  display: none;
+}
+
 /* ---------- Card de calificaciones ---------- */
 
 .scores-card {

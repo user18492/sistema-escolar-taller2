@@ -1,8 +1,9 @@
 // Componente global: modal de confirmación de las acciones sobre una fila de la tabla: las
-// destructivas (Eliminar) y la restauración de un registro dado de baja (Restaurar).
+// destructivas (Eliminar) y la restauración de un registro dado de baja (Restaurar); también la de
+// un guardado de varios cambios ("Guardar calificaciones").
 // Uso: setupConfirmModal(overlay, opciones) con el .modal-overlay del modal, cuyo .confirm-actions
-// tiene el botón Cancelar (.btn-neutral) y el de confirmación (.btn-danger o, al restaurar,
-// .btn-primary); los estilos están en confirm-modal.css.
+// tiene el botón Cancelar (.btn-neutral) y el de confirmación (.btn-danger o, al restaurar o
+// guardar, .btn-primary); los estilos están en confirm-modal.css.
 // Lo abre cada botón de las filas de la tabla con el data-action de su acción ("delete" o
 // "restore"), también de las que la vista agrega después de llamar a setupConfirmModal: se
 // cierran los filtros de columna abiertos y el foco pasa a "Cancelar". Cancelar, Escape y
@@ -31,7 +32,9 @@
 // y confirmDelete{entity}Btn.
 //   - "action" (opcional): "restore" confirma una restauración en lugar de una eliminación, con
 //     el ícono de pregunta y el botón de confirmación en azul. Los ids llevan esa acción en lugar
-//     de "delete": restore{entity}Overlay, cancelRestore{entity}Btn…
+//     de "delete": restore{entity}Overlay, cancelRestore{entity}Btn… "save" confirma un guardado,
+//     con el mismo aspecto que "restore", "Sí, guardar" y "Guardando…" mientras espera; no está en
+//     las filas, así que lo abre el botón de triggerSelector (save{entity}Overlay…).
 // El script se carga sin defer en <head>, así el marcado existe antes de que la vista llame a
 // setupConfirmModal en DOMContentLoaded.
 
@@ -66,6 +69,13 @@
       confirmClass: 'btn-primary',
       confirmLabel: 'Sí, restaurar',
       pendingLabel: 'Restaurando…',
+    },
+    save: {
+      icon: QUESTION_ICON,
+      iconClass: 'confirm-icon confirm-icon-blue',
+      confirmClass: 'btn-primary',
+      confirmLabel: 'Sí, guardar',
+      pendingLabel: 'Guardando…',
     },
   };
 
