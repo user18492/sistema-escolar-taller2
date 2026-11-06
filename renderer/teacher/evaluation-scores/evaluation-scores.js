@@ -25,8 +25,10 @@
 // guardar, salvo el que el proceso principal rechazó por su inscripción, que se descarta.
 // Mientras tanto, las filas con un cambio sin guardar llevan un punto naranja junto a la calificación
 // y el botón dice cuántos cambios hay en total, de todas las páginas.
-// hasUnsavedChanges dice si quedan cambios sin guardar: es el punto de entrada para avisar antes de
-// salir de la vista o de cerrar la aplicación.
+// hasUnsavedChanges dice si quedan cambios sin guardar. Con cambios, salir de la vista por el menú
+// lateral, la ruta de navegación, "Configuración" o "Cerrar sesión" pide confirmación en un modal
+// (unsaved-changes-guard.component.js): "Cancelar" se queda con los cambios y "Salir sin guardar"
+// los descarta y sale. En solo lectura o si la carga falló no hay cambios, así que no pregunta.
 // Si al guardar el proceso principal responde que la inscripción de un alumno se dio de baja (la
 // vista estaba abierta desde antes de la baja), un toast lo avisa y la lista se vuelve a pedir, sin
 // esa inscripción y con el resto de los cambios sin guardar.
@@ -165,8 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // con value null en las calificaciones eliminadas
   const pendingChanges = () => scores.filter(hasDraft).map(({ enrollmentId, draft }) => ({ enrollmentId, value: draft }));
 
-  // true si hay cambios sin guardar. Habilita "Guardar calificaciones" y es lo que tiene que
-  // consultar el aviso de calificaciones sin guardar al salir de la vista o al cerrar la aplicación.
+  // true si hay cambios sin guardar. Habilita "Guardar calificaciones" y lo consulta el aviso de
+  // calificaciones sin guardar al salir de la vista (setupUnsavedChangesGuard, al final).
   const hasUnsavedChanges = () => scores.some(hasDraft);
 
   // "Guardar calificaciones" está disponible si hay cambios sin guardar; en solo lectura
@@ -568,6 +570,14 @@ document.addEventListener('DOMContentLoaded', () => {
     triggerSelector: '#saveScoresBtn',
     describe: describeChanges,
     onConfirm: saveScores,
+    fallbackFocus: () => tbody.querySelector('.numeric-stepper-input:not(:disabled)'),
+  });
+
+  // Componente compartido unsaved-changes-guard.component.js: con cambios sin guardar, salir de la
+  // vista pide confirmación. Al cancelar, el foco vuelve al control que lo abrió o, si ya no está,
+  // al primer campo de la página que se puede editar.
+  setupUnsavedChangesGuard(document.getElementById('leaveScoresOverlay'), {
+    hasUnsavedChanges,
     fallbackFocus: () => tbody.querySelector('.numeric-stepper-input:not(:disabled)'),
   });
 

@@ -7,7 +7,9 @@
 // principal. El avatar del perfil lo completa user-avatar.component.js, que se carga antes
 // que este script.
 // El menú del perfil abre la vista Configuración de perfil (active="settings" en esa vista)
-// y cierra la sesión.
+// y cierra la sesión. En las vistas con cambios sin guardar (unsaved-changes-guard.component.js),
+// "Cerrar sesión" pasa por window.requestLeave, que pide confirmación antes de cerrarla; los
+// enlaces del menú los intercepta ese componente. Sin él, la sesión se cierra enseguida.
 // El menú solo muestra las opciones del rol: qué vistas se pueden abrir lo decide el
 // proceso principal (navigation-guard.js), no este componente.
 // Sin shadow DOM a propósito: así los estilos de sidebar.css (selectores .sidebar, .nav-item, etc.) siguen aplicando tal cual.
@@ -270,8 +272,12 @@
         if (option.hasAttribute('aria-current')) event.preventDefault();
         setOpen(false);
         button.focus();
+        // Después de devolver el foco al botón del perfil: si la vista pide confirmación
+        // (window.requestLeave), el modal ya abre con el foco en "Cancelar" y vuelve a ese botón.
+        if (option.dataset.action === 'logout') {
+          (window.requestLeave ?? ((proceed) => proceed()))(() => this.logout(), button);
+        }
       }, { signal });
-      panel.querySelector('[data-action="logout"]').addEventListener('click', () => this.logout(), { signal });
       document.addEventListener('click', (event) => {
         if (!profile.contains(event.target)) setOpen(false);
       }, { signal });

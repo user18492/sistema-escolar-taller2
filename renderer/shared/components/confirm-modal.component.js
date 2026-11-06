@@ -34,7 +34,13 @@
 //     el ícono de pregunta y el botón de confirmación en azul. Los ids llevan esa acción en lugar
 //     de "delete": restore{entity}Overlay, cancelRestore{entity}Btn… "save" confirma un guardado,
 //     con el mismo aspecto que "restore", "Sí, guardar" y "Guardando…" mientras espera; no está en
-//     las filas, así que lo abre el botón de triggerSelector (save{entity}Overlay…).
+//     las filas, así que lo abre el botón de triggerSelector (save{entity}Overlay…). "leave"
+//     confirma salir de una vista con cambios sin guardar, con el aspecto de "delete", "Salir sin
+//     guardar" y "Saliendo…" mientras espera (leave{entity}Overlay…); lo abre
+//     unsaved-changes-guard.component.js con open().
+// setupConfirmModal devuelve { open(trigger) }, para abrirlo desde código y no con un clic en sus
+// botones; trigger es el control al que vuelve el foco al cerrarlo (si es null, el de
+// fallbackFocus).
 // El script se carga sin defer en <head>, así el marcado existe antes de que la vista llame a
 // setupConfirmModal en DOMContentLoaded.
 
@@ -76,6 +82,13 @@
       confirmClass: 'btn-primary',
       confirmLabel: 'Sí, guardar',
       pendingLabel: 'Guardando…',
+    },
+    leave: {
+      icon: WARNING_ICON,
+      iconClass: 'confirm-icon',
+      confirmClass: 'btn-danger',
+      confirmLabel: 'Salir sin guardar',
+      pendingLabel: 'Saliendo…',
     },
   };
 
@@ -202,5 +215,7 @@
           finish(value);
         });
     });
+
+    return { open: (button = null) => openModal(button) };
   };
 })();

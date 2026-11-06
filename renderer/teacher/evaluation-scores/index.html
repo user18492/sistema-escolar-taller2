@@ -27,6 +27,7 @@
     <script src="../../shared/components/field-validation.component.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/confirm-modal.component.js"></script>
+    <script src="../../shared/components/unsaved-changes-guard.component.js"></script>
     <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
     <script src="../../shared/components/search-bar.component.js"></script>
@@ -168,5 +169,8 @@
     <!-- Modal: Guardar calificaciones. evaluation-scores.js pone en la descripción cuántas se cargan
          o corrigen y cuántas se eliminan. -->
     <confirm-modal entity="Scores" action="save" heading="Guardar calificaciones" description="¿Quieres guardar los cambios en las calificaciones?"></confirm-modal>
+    <!-- Modal: salir de la vista con calificaciones sin guardar (menú lateral, ruta de navegación,
+         Configuración y Cerrar sesión). Lo abre unsaved-changes-guard.component.js. -->
+    <confirm-modal entity="Scores" action="leave" heading="Calificaciones sin guardar" description="Tienes calificaciones sin guardar. ¿Deseas salir sin guardar los cambios?"></confirm-modal>
   </body>
 </html>
