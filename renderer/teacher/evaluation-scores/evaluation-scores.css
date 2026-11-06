@@ -193,3 +193,26 @@ td.col-student {
 .numeric-stepper-input:disabled {
   color: var(--color-text-tertiary);
 }
+
+/* ---------- Cambio sin guardar ---------- */
+
+/* Punto naranja a la derecha del stepper, fuera del control, en las filas con un cambio sin
+   guardar. El naranja es más oscuro que --color-accent-orange (contraste de 3,6:1 sobre blanco,
+   el mínimo de un elemento gráfico). El punto mide 8 px, pero el padding (sin fondo, por
+   background-clip) agranda a 16 px la zona donde el mouse muestra su title. Lo separa del
+   stepper el espacio entre los dos en el marcado más ese padding: unos 8 px. */
+.unsaved-mark {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  padding: 4px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: #ea580c;
+  background-clip: content-box;
+}
+
+/* Ese display no debe anular el atributo hidden. */
+.unsaved-mark[hidden] {
+  display: none;
+}

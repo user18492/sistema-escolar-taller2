@@ -23,6 +23,8 @@
 // cuántas se eliminan; al confirmar, el proceso principal guarda todos los cambios o ninguno
 // (window.api.scores.saveMany), y un toast avisa el resultado. Si falla, los cambios siguen sin
 // guardar, salvo el que el proceso principal rechazó por su inscripción, que se descarta.
+// Mientras tanto, las filas con un cambio sin guardar llevan un punto naranja junto a la calificación
+// y el botón dice cuántos cambios hay en total, de todas las páginas.
 // hasUnsavedChanges dice si quedan cambios sin guardar: es el punto de entrada para avisar antes de
 // salir de la vista o de cerrar la aplicación.
 // Si al guardar el proceso principal responde que la inscripción de un alumno se dio de baja (la
@@ -168,9 +170,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const hasUnsavedChanges = () => scores.some(hasDraft);
 
   // "Guardar calificaciones" está disponible si hay cambios sin guardar; en solo lectura
-  // (readOnlyTitle), deshabilitado con el motivo como title.
+  // (readOnlyTitle), deshabilitado con el motivo como title. Con cambios, dice cuántos son entre
+  // paréntesis, de todas las páginas y aunque el filtro oculte sus filas: "Guardar calificaciones (3)".
   const syncSaveButton = () => {
-    saveScoresBtn.disabled = readOnlyTitle !== null || !hasUnsavedChanges();
+    const changeCount = scores.filter(hasDraft).length;
+    saveScoresBtn.textContent = changeCount ? `Guardar calificaciones (${changeCount})` : 'Guardar calificaciones';
+    saveScoresBtn.disabled = readOnlyTitle !== null || !changeCount;
     if (readOnlyTitle) saveScoresBtn.title = readOnlyTitle;
     else saveScoresBtn.removeAttribute('title');
   };
@@ -189,9 +194,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // se eliminó ya) y se puede modificar (la inscripción está activa; en un ciclo cerrado o una
   // evaluación con fecha futura, además, lo deshabilita el read-only-title de createRow). El
   // atributo vale antes y después de que <row-actions> genere su botón.
-  const syncDeleteAction = (row, score) => {
+  // La marca de cambio sin guardar (.unsaved-mark) se ve mientras la calificación tenga un cambio
+  // (alta, corrección o baja, sin distinguirlos), y su texto queda como descripción del campo para
+  // los lectores de pantalla. aria-describedby se quita sin el cambio porque también leería la
+  // marca oculta.
+  const syncRowState = (row, score) => {
     const isAvailable = score.value !== null && displayedValue(score) !== null && score.isEnrollmentActive;
     row.querySelector('row-actions').toggleAttribute('disabled', !isAvailable);
+    const mark = row.querySelector('.unsaved-mark');
+    const input = row.querySelector('.numeric-stepper-input');
+    mark.hidden = !hasDraft(score);
+    if (mark.hidden) input.removeAttribute('aria-describedby');
+    else input.setAttribute('aria-describedby', mark.id);
   };
 
   // Vuelve a generar la celda de esa calificación, si está a la vista, con lo que quedó en memoria.
@@ -200,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = tbody.querySelector(`tr[data-enrollment-id="${score.enrollmentId}"]`);
     if (!row) return;
     row.querySelector('.col-score').replaceWith(createRow(score).querySelector('.col-score'));
-    syncDeleteAction(row, score);
+    syncRowState(row, score);
   };
 
   // `score` es la calificación de la fila, de la que salen la nota guardada, el cambio sin guardar y
@@ -229,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isRemoval(value)) return;
       setDraft(score, value);
       const row = stepper.closest('tr');
-      if (row) syncDeleteAction(row, score);
+      if (row) syncRowState(row, score);
     };
 
     // − y + se deshabilitan en los límites y cuando la calificación no se puede editar;
@@ -288,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
       syncState();
       setDraft(score, finalValue);
       const row = stepper.closest('tr');
-      if (row) syncDeleteAction(row, score);
+      if (row) syncRowState(row, score);
       if (!removal) return;
       const deleteButton = row?.querySelector('[data-action="delete"]');
       if (deleteButton && event.relatedTarget === deleteButton) return;
@@ -346,6 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = stepper.querySelector('.numeric-stepper-input');
     const [decrement, increment] = stepper.querySelectorAll('.numeric-stepper-btn');
     input.setAttribute('aria-label', `Calificación de ${name}`);
+    row.querySelector('.unsaved-mark').id = `unsavedMark${enrollmentId}`;
     decrement.setAttribute('aria-label', `Restar un punto a la calificación de ${name}`);
     increment.setAttribute('aria-label', `Sumar un punto a la calificación de ${name}`);
     input.value = scoreText(displayedValue(score));
@@ -354,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (!isEnrollmentActive) stepper.title = 'La inscripción del alumno no está activa';
     initStepper(stepper, score);
     if (readOnlyTitle) row.querySelector('row-actions').setAttribute('read-only-title', readOnlyTitle);
-    syncDeleteAction(row, score);
+    syncRowState(row, score);
     return row;
   }
 
