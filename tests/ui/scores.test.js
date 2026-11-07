@@ -229,6 +229,32 @@ group('ui.scores-unsaved', 'Calificaciones: salir de la vista con cambios sin gu
     t.equal(await scoreRows(t), before, 'La nota sin guardar no se guardó');
   });
 
+  test('undo-change', 'Deshacer cambio, solo en la fila modificada, devuelve la nota guardada, deshabilita "Guardar calificaciones" y la ruta de navegación sale sin pedir confirmación', async (t) => {
+    const { ui } = t;
+    const input = await openScores(t);
+    const row = input.replace(' .numeric-stepper-input', '');
+    const undo = `${row} [data-action="undo"]`;
+    const isUndoVisible = () => ui.js(`document.querySelector('${undo}')?.offsetParent != null`);
+    const before = await scoreRows(t);
+    const saved = await ui.value(input);
+    t.check(!(await isUndoVisible()), 'Sin cambios, la fila no muestra Deshacer');
+    await changeScore(t, input);
+    t.check(await isUndoVisible(), 'Con la nota cambiada, la fila muestra Deshacer');
+
+    await ui.click(undo);
+    await ui.idle();
+    t.equal(await ui.value(input), saved, 'El campo vuelve a la nota guardada');
+    t.check(!(await isUndoVisible()), 'Deshacer se oculta');
+    t.check(await ui.js(`document.querySelector('${row} .unsaved-mark').hidden`), 'La marca de cambio sin guardar se oculta');
+    t.check(await ui.js(`document.getElementById('saveScoresBtn').disabled`), '"Guardar calificaciones" vuelve a quedar deshabilitado');
+
+    await ui.click(BREADCRUMB_EVALUATIONS);
+    t.require(await ui.waitForView(EVALUATIONS_VIEW), 'Con el cambio deshecho, la ruta de navegación no salió de Calificaciones sin confirmación', ui.view());
+    await ui.idle();
+    t.equal(await scoreRows(t), before, 'No se guardó nada');
+    await logoutViaUi(t);
+  });
+
   test('leave-without-changes', 'Sin cambios sin guardar, la ruta de navegación sale de Calificaciones sin pedir confirmación', async (t) => {
     const { ui } = t;
     await openScores(t);
