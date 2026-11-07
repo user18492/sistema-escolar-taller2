@@ -32,6 +32,10 @@ const NOTICE_MESSAGES = {
   'system-restored': 'Se restauró el sistema a un backup anterior. Iniciá sesión nuevamente.',
 };
 
+// Con el login abierto ya no hay sesión (se cerró, o el proceso principal la cerró): la copia del
+// usuario que usa el menú lateral (session-user-cache.component.js) es de otra sesión.
+sessionUserCache.clear();
+
 // Mismos mensajes que auth.service.js (y las mismas reglas, en isValidEmail de
 // field-validation.component.js), para avisar sin esperar al proceso principal, que vuelve a
 // validar los datos de todas formas.
@@ -169,6 +173,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // cierra la sesión, que no debe quedar abierta.
   const openHome = (user) => {
     if (Object.hasOwn(HOME_BY_ROLE, user?.role)) {
+      // El menú lateral de la vista inicial se arma completo con esta copia (session-user-cache.component.js)
+      sessionUserCache.write(user);
       window.location.assign(HOME_BY_ROLE[user.role]);
       return true;
     }

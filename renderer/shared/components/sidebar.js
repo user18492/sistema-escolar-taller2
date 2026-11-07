@@ -6,6 +6,11 @@
 // La institución y el perfil son los del usuario de la sesión, que informa el proceso
 // principal. El avatar del perfil lo completa user-avatar.component.js, que se carga antes
 // que este script.
+// Cada vista es un documento propio y el menú se vuelve a armar en cada navegación: para que
+// se pinte completo desde el primer cuadro (sin que las opciones salten cuando llega la
+// institución), se arma con la copia del usuario de la sesión de session-user-cache.component.js,
+// que también se carga antes que este script, y después se corrige con lo que informa el
+// proceso principal si cambió.
 // El menú del perfil abre la vista Configuración de perfil (active="settings" en esa vista)
 // y cierra la sesión. En las vistas con cambios sin guardar (unsaved-changes-guard.component.js),
 // "Cerrar sesión" pasa por window.requestLeave, que pide confirmación antes de cerrarla; los
@@ -201,7 +206,8 @@
     connectedCallback() {
       const active = this.getAttribute('active') || '';
       const requestedRole = this.getAttribute('nav-role') || 'admin';
-      // Con "session" el menú queda vacío hasta conocer el rol del usuario (loadSessionUser)
+      // Con "session" el menú queda vacío hasta conocer el rol del usuario (la copia de la
+      // sesión o loadSessionUser, en showUser)
       const isSessionNav = requestedRole === 'session';
       const navRole = Object.hasOwn(NAV_GROUPS_BY_ROLE, requestedRole) ? requestedRole : 'admin';
 
@@ -238,6 +244,9 @@
             </button>
           </div>
         </aside>`;
+      this.shownUserKey = null;
+      const cachedUser = window.sessionUserCache?.read();
+      if (cachedUser) this.showUser(cachedUser);
       this.loadSessionUser();
 
       // Volver a pulsar la vista activa no debe recargar la página: sin navegación no se
@@ -304,8 +313,8 @@
     }
 
     // Completa la institución y el perfil con el usuario de la sesión y, con
-    // nav-role="session", el menú de su rol. Sin sesión quedan vacíos: el proceso principal
-    // no deja abrir la vista y vuelve al login.
+    // nav-role="session", el menú de su rol, y guarda la copia para la vista siguiente. Sin
+    // sesión se borra la copia: el proceso principal no deja abrir la vista y vuelve al login.
     async loadSessionUser() {
       const auth = window.api?.auth;
       if (!auth) return;
@@ -317,18 +326,40 @@
         console.error('Error al obtener el usuario de la sesión:', error);
         return;
       }
-      if (!user || !this.isConnected) return;
+      if (!user) {
+        window.sessionUserCache?.clear();
+        return;
+      }
+      window.sessionUserCache?.write(user);
+      if (this.isConnected) this.showUser(user);
+    }
 
-      const names = [user.firstName, user.lastName].map((name) => name?.trim() ?? '').filter(Boolean);
-      this.querySelector('.sidebar-institution').textContent = user.institutionName ?? '';
+    // Muestra `user` en la institución, el perfil y, con nav-role="session", el menú de su rol.
+    // Si ya se muestran esos mismos datos (los de la copia de la sesión) no toca nada: así no se
+    // vuelve a crear la foto del avatar ni el menú, que ya están pintados.
+    showUser(user) {
+      const shownUser = {
+        firstName: user.firstName ?? null,
+        lastName: user.lastName ?? null,
+        role: user.role ?? null,
+        imageUrl: user.imageUrl ?? null,
+        institutionName: user.institutionName ?? null,
+      };
+      const key = JSON.stringify(shownUser);
+      if (key === this.shownUserKey) return;
+      this.shownUserKey = key;
+
+      const names = [shownUser.firstName, shownUser.lastName].map((name) => name?.trim() ?? '').filter(Boolean);
+      this.querySelector('.sidebar-institution').textContent = shownUser.institutionName ?? '';
       this.querySelector('.profile-name').textContent = names.join(' ');
-      this.querySelector('.profile-role').textContent = ROLE_LABELS[user.role] ?? '';
+      this.querySelector('.profile-role').textContent = ROLE_LABELS[shownUser.role] ?? '';
       // Iniciales y, si tiene, la foto: user-avatar.component.js
-      fillAvatar(this.querySelector('.profile-avatar'), user);
+      fillAvatar(this.querySelector('.profile-avatar'), shownUser);
 
-      const navRole = NAV_ROLE_BY_USER_ROLE[user.role];
-      if (this.getAttribute('nav-role') !== 'session' || !navRole) return;
-      this.querySelector('.sidebar').dataset.navRole = navRole;
+      const navRole = NAV_ROLE_BY_USER_ROLE[shownUser.role];
+      const sidebar = this.querySelector('.sidebar');
+      if (this.getAttribute('nav-role') !== 'session' || !navRole || sidebar.dataset.navRole === navRole) return;
+      sidebar.dataset.navRole = navRole;
       this.querySelector('.sidebar-nav').innerHTML = renderNav(navRole, this.getAttribute('active') || '');
     }
 
