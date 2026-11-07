@@ -81,6 +81,29 @@ group('main.permissions', 'Matriz de permisos: todos los canales por rol y sin s
     t.equal(changedTables(before, after), [], 'La matriz no debería cambiar ninguna tabla');
   });
 
+  test('backups-restore', 'backups:select-file y backups:restore rechazan sin sesión (UNAUTHENTICATED) y con SECRETARIO o PROFESOR (FORBIDDEN), sin abrir el diálogo ni cambiar la base', async (t) => {
+    t.allowRejection('*', '*', 'matriz de permisos: se comprueba cada código abajo');
+    const before = await tableHashes(t.db);
+    const dialogsBefore = t.harness.dialogs.length;
+    const channels = ['backups:select-file', 'backups:restore'];
+    await t.logout();
+    for (const channel of channels) {
+      const value = await t.call(apiPathOf(channel));
+      t.check(value?.ok === false && value.error?.code === 'UNAUTHENTICATED', `Sin sesión, ${channel} tenía que responder UNAUTHENTICATED`, value);
+    }
+    for (const role of ['SECRETARIO', 'PROFESOR']) {
+      await t.login(t.data[role]);
+      for (const channel of channels) {
+        const value = await t.call(apiPathOf(channel));
+        t.check(value?.ok === false && value.error?.code === 'FORBIDDEN', `${role} no tiene permiso para ${channel}: tenía que responder FORBIDDEN`, value);
+      }
+      t.check((await t.call('auth.getCurrentUser'))?.role === role, `${role}: la sesión sigue abierta`);
+      await t.logout();
+    }
+    t.equal(t.harness.dialogs.length, dialogsBefore, 'No se abrió ningún diálogo');
+    t.equal(changedTables(before, await tableHashes(t.db)), [], 'No cambió ninguna tabla');
+  });
+
   test('destructive-matrix', 'profile:delete rechaza sin sesión y con cada rol da de baja la cuenta de la sesión', async (t) => {
     t.allowRejection('*', '*', 'matriz de permisos');
     await t.logout();

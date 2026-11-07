@@ -515,15 +515,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Modal: Eliminar evaluación ----------
 
   // Descripción del modal para la evaluación de la fila del botón (la de la lista en memoria, por su
-  // data-evaluation-id): si tiene calificaciones cargadas, cuántas (de la lista cargada) y que
-  // también se dan de baja; sin ninguna, queda la del marcado.
+  // data-evaluation-id): si tiene calificaciones cargadas, como consecuencia, cuántas (de la lista
+  // cargada) y que también se dan de baja; sin ninguna, queda la del marcado.
   const describeDeletion = (trigger) => {
     const evaluationId = trigger.closest('tr')?.dataset.evaluationId;
     const scoreCount = evaluations.find(({ id }) => String(id) === evaluationId)?.scoreCount ?? 0;
-    if (scoreCount === 0) return '';
-    return scoreCount === 1
-      ? '¿Quieres eliminar esta evaluación? Tiene 1 calificación cargada, que también se dará de baja.'
-      : `¿Quieres eliminar esta evaluación? Tiene ${scoreCount} calificaciones cargadas, que también se darán de baja.`;
+    if (scoreCount === 0) return null;
+    return {
+      text: '¿Quieres eliminar esta evaluación?',
+      consequence: scoreCount === 1
+        ? 'Su calificación cargada también se dará de baja.'
+        : `Sus ${scoreCount} calificaciones cargadas también se darán de baja.`,
+    };
   };
 
   // El id sale del data-evaluation-id de la fila del botón (el evaluacion_id, fijado al crearla),

@@ -505,17 +505,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // "1 calificación" / "3 calificaciones"
   const countScores = (count) => `${count} ${count === 1 ? 'calificación' : 'calificaciones'}`;
 
-  // Descripción del modal: cuántas calificaciones se cargan o corrigen y cuántas se eliminan. Sin
-  // cambios (el botón no lo abre así), queda la del marcado.
+  // Descripción del modal: la pregunta y, como datos, cuántas calificaciones se cargan o corrigen y
+  // cuántas se eliminan (solo las que haya). Sin cambios (el botón no lo abre así), queda la del
+  // marcado.
   const describeChanges = () => {
     const changes = pendingChanges();
-    if (!changes.length) return '';
+    if (!changes.length) return null;
     const deletedCount = changes.filter(({ value }) => value === null).length;
     const savedCount = changes.length - deletedCount;
-    const actions = [];
-    if (savedCount) actions.push(`guardar ${countScores(savedCount)}`);
-    if (deletedCount) actions.push(`eliminar ${countScores(deletedCount)}`);
-    return `¿Quieres ${actions.join(' y ')}?`;
+    const details = [];
+    if (savedCount) details.push({ label: 'A guardar', value: countScores(savedCount) });
+    if (deletedCount) details.push({ label: 'A eliminar', value: countScores(deletedCount) });
+    return { text: '¿Quieres guardar los cambios en las calificaciones?', details };
   };
 
   // Guarda todos los cambios sin guardar con los ids de la URL: el proceso principal los guarda

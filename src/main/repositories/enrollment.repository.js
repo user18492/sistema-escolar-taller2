@@ -614,9 +614,10 @@ async function findActiveByStudent(studentId) {
 // Pasa a FINALIZADA las inscripciones vigentes y activas de los cursos de ciclos lectivos cerrados
 // (anteriores al actual), de todas las instituciones, sin cambiar nada más, y devuelve cuántas
 // finalizó. Las canceladas, las finalizadas y las dadas de baja no cambian. Es idempotente: una
-// segunda llamada ya no encuentra activas en los ciclos cerrados y devuelve 0.
-async function finalizeActiveInClosedSchoolYears() {
-  const { rows } = await query(FINALIZE_ACTIVE_IN_CLOSED_SCHOOL_YEARS_SQL);
+// segunda llamada ya no encuentra activas en los ciclos cerrados y devuelve 0. `runQuery` es `query`
+// o la función de una transacción (la del restore de un backup, backup.repository.js).
+async function finalizeActiveInClosedSchoolYears(runQuery = query) {
+  const { rows } = await runQuery(FINALIZE_ACTIVE_IN_CLOSED_SCHOOL_YEARS_SQL);
   return rows[0].p_inscripciones_finalizadas;
 }
 

@@ -14,6 +14,7 @@ const { registerEnrollmentHandlers } = require('./ipc/enrollment.controller');
 const { registerEvaluationHandlers } = require('./ipc/evaluation.controller');
 const { registerScoreHandlers } = require('./ipc/score.controller');
 const { registerDashboardHandlers } = require('./ipc/dashboard.controller');
+const { registerBackupHandlers } = require('./ipc/backup.controller');
 const { guardNavigation, showEntryView } = require('./navigation-guard');
 const { registerQuitGuard } = require('./quit-guard');
 
@@ -50,6 +51,7 @@ function createMainWindow() {
   registerEvaluationHandlers(mainWindow);
   registerScoreHandlers(mainWindow);
   registerDashboardHandlers(mainWindow);
+  registerBackupHandlers(mainWindow);
   guardNavigation(mainWindow);
   registerQuitGuard(mainWindow);
   showEntryView(mainWindow);

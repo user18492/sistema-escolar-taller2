@@ -19,6 +19,10 @@ const LOGIN_VIEW = 'auth/login/index.html';
 // o dada de baja (login.js).
 const SUSPENDED_NOTICE = 'account-suspended';
 
+// Valor de ?notice= con el que el login avisa que la sesión se cerró porque se restauró un backup
+// (login.js).
+const RESTORED_NOTICE = 'system-restored';
+
 // Código de Chromium de una carga interrumpida por otra navegación.
 const ERR_ABORTED = -3;
 
@@ -63,6 +67,12 @@ function showSuspendedLogin(browserWindow) {
   showEntryView(browserWindow, SUSPENDED_NOTICE);
 }
 
+// Después de que backup.controller.js cerró la sesión al restaurar un backup: el login avisa que hay
+// que volver a ingresar.
+function showRestoredLogin(browserWindow) {
+  showEntryView(browserWindow, RESTORED_NOTICE);
+}
+
 // Cada navegación de la ventana se comprueba con la sesión del proceso principal, no con el menú visible:
 // sin sesión solo se abre el login, y con sesión, además, las vistas del rol del usuario. Con la vista
 // ya abierta se consulta en la base que la cuenta siga activa: si fue suspendida o dada de baja, la
@@ -101,4 +111,4 @@ function guardNavigation(browserWindow) {
   });
 }
 
-module.exports = { guardNavigation, showEntryView, showSuspendedLogin };
+module.exports = { guardNavigation, showEntryView, showSuspendedLogin, showRestoredLogin };

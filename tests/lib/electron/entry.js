@@ -71,6 +71,13 @@ function decorateElectron(t, ctx, write) {
 
   t.ui = new Ui(harness, t);
   t.openedPaths = harness.openedPaths;
+  // El próximo diálogo para abrir un archivo (dialog.showOpenDialog, reemplazado por el arnés)
+  // responde como si se eligiera `filePath`; sin programar, responde como si se cancelara. Declara
+  // el diálogo como esperado.
+  t.chooseFile = (filePath) => {
+    harness.openDialogAnswers.push({ canceled: false, filePaths: [filePath] });
+    t.allow('dialog', /^showOpenDialog:/, 'diálogo para elegir un archivo, respondido por la prueba');
+  };
   t.injectFault = (spec) => pgHooks.injectFault(spec);
   t.appModule = appModule;
   t.detect = async (fn) => {
@@ -126,6 +133,7 @@ async function main() {
       harness.monitor.graceMs = args.layer === 'ui' ? 200 : 60;
       harness.openedPaths.length = 0;
       harness.openPathResult = '';
+      harness.openDialogAnswers.length = 0;
     },
     async afterTest(t) {
       pgHooks.clearFaults();

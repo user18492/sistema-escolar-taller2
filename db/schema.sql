@@ -1929,4 +1929,29 @@ CREATE TRIGGER trg_asignacion_docente_calificaciones_vigentes
     WHEN (NEW.curso_id <> OLD.curso_id)
     EXECUTE FUNCTION fn_asignacion_docente_calificaciones_vigentes();
 
+-- Respaldos: el historial de los backups de cada institución, uno por fila, con quién lo realizó y
+-- cuándo. No entra en el backup y el restore no la toca: el historial sigue completo después de
+-- restaurar.
+-- usuario_id no tiene clave foránea a propósito: un restore puede borrar a ese usuario (si no
+-- existía al realizarse el backup que se restaura), y la fila se conserva igual. Por eso el nombre y
+-- el apellido se copian al registrarla.
+-- No guarda la ruta, el tamaño ni el formato del archivo: se ven en la carpeta de backups, en el
+-- sistema de archivos de la PC que lo realizó
+CREATE TABLE respaldo (
+    respaldo_id       INT           GENERATED ALWAYS AS IDENTITY,
+    institucion_id    INT           NOT NULL,
+    usuario_id        INT           NOT NULL,
+    -- Quien lo realizó; sin clave foránea (ver arriba)
+    usuario_nombre    VARCHAR(100)  NOT NULL,
+    usuario_apellido  VARCHAR(100)  NOT NULL,
+    -- Copiados de usuario al registrarlo, con los mismos límites
+    fecha             TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    -- La de la instantánea de los datos que guarda el archivo
+
+    CONSTRAINT pk_respaldo PRIMARY KEY (respaldo_id),
+    CONSTRAINT fk_respaldo_institucion FOREIGN KEY (institucion_id) REFERENCES institucion(institucion_id)
+);
+
+CREATE INDEX idx_respaldo_institucion_id ON respaldo(institucion_id);
+
 COMMIT;

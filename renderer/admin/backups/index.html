@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Backup y restauración - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/confirm-modal.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
+    <link rel="stylesheet" href="../../shared/styles/data-table.css" />
+    <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="./backups.css" />
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/modal-resize.js"></script>
+    <script src="../../shared/components/modal-dropdown.js"></script>
+    <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/dropdown.component.js"></script>
+    <script src="../../shared/components/confirm-modal.component.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
+    <script src="./backups.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <app-sidebar active="backups"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Backup y restauración</h1>
+              <p>Respalda y restaura los datos de la institución</p>
+            </div>
+
+            <div class="page-header-actions">
+              <button class="btn btn-primary" type="button" id="openNewBackupModalBtn">Backup</button>
+              <button class="btn btn-secondary" type="button" id="openRestoreBtn">Restore</button>
+            </div>
+          </div>
+
+          <section class="card backups-card">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="col-user">Usuario</th>
+                    <th>Fecha/hora</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <table-pagination results="" label="Paginación de backups" pages="1"></table-pagination>
+
+            <!-- Plantilla: backups.js la completa con cada backup del historial -->
+            <template id="backupRowTemplate">
+              <tr>
+                <td class="col-user col-truncate"><span class="text-truncate"></span></td>
+                <td></td>
+              </tr>
+            </template>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Modal: Nuevo backup -->
+    <div class="modal-overlay" id="newBackupOverlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newBackupTitle" aria-describedby="newBackupDescription">
+        <div class="modal-header">
+          <h2 id="newBackupTitle">Nuevo backup</h2>
+          <p id="newBackupDescription">Se hará un respaldo completo de los datos de la institución. No incluye las fotos de perfil.</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-field">
+            <label id="newBackupFormatLabel">Formato de compresión</label>
+            <div class="field field-select dropdown" data-filter="new-backup-format">
+              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="newBackupFormatLabel newBackupFormatValue">
+                <span class="dropdown-label text-truncate" id="newBackupFormatValue">ZIP</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <ul class="dropdown-menu" role="listbox" aria-labelledby="newBackupFormatLabel" hidden>
+                <li class="dropdown-option selected" role="option" data-value="zip" aria-selected="true">ZIP</li>
+                <li class="dropdown-option" role="option" data-value="tar.gz" aria-selected="false">TAR.GZ</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelNewBackupBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="createBackupBtn">Realizar backup</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Restaurar backup (backups.js arma la descripción con el archivo elegido) -->
+    <confirm-modal action="overwrite" entity="Backup" heading="Restaurar backup"></confirm-modal>
+  </body>
+</html>

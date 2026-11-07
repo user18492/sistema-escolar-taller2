@@ -1,0 +1,70 @@
+/* Vista Backup y restauración del Administrador */
+
+/* ---------- Encabezado ---------- */
+
+/* Backup y Restore, juntos a la derecha del título y con la misma altura */
+.page-header-actions {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.page-header-actions .btn {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ---------- Content ---------- */
+
+.backups-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---------- Table ---------- */
+
+/* Usuario ocupa el espacio libre y trunca su texto (.col-truncate de base.css); Fecha/hora
+   conserva su ancho natural. min-width la mantiene legible en ventanas angostas. */
+.data-table .col-user {
+  width: 70%;
+}
+
+.data-table td.col-user {
+  min-width: 180px;
+}
+
+/* ---------- Modal: Nuevo backup ---------- */
+
+.modal-header {
+  padding: 28px 28px 4px;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 22px 28px 0;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px 28px 28px;
+}

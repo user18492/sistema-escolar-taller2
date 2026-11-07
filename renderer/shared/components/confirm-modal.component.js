@@ -1,6 +1,7 @@
 // Componente global: modal de confirmación de las acciones sobre una fila de la tabla: las
 // destructivas (Eliminar) y la restauración de un registro dado de baja (Restaurar); también la de
-// un guardado de varios cambios ("Guardar calificaciones").
+// un guardado de varios cambios ("Guardar calificaciones"), la de salir con cambios sin guardar y
+// la de reemplazar los datos existentes (restaurar un backup).
 // Uso: setupConfirmModal(overlay, opciones) con el .modal-overlay del modal, cuyo .confirm-actions
 // tiene el botón Cancelar (.btn-neutral) y el de confirmación (.btn-danger o, al restaurar o
 // guardar, .btn-primary); los estilos están en confirm-modal.css.
@@ -12,9 +13,14 @@
 // (clic en su texto). El overlay no lo cierra al hacer clic fuera.
 // Opciones:
 //   - beforeOpen(): se llama antes de abrirlo (la vista cierra ahí sus dropdowns y buscadores).
-//   - describe(trigger): se llama al abrirlo, con el botón de la fila. Si devuelve un texto no
-//     vacío, es la descripción del modal para esa fila (p. ej., una advertencia con sus datos); si
-//     no, queda la del marcado (atributo "description").
+//   - describe(trigger): se llama al abrirlo, con el botón de la fila. Si devuelve una
+//     descripción, es la del modal para esa fila (p. ej., una advertencia con sus datos); si
+//     devuelve un valor vacío, queda la del marcado. Una descripción es un texto (un solo
+//     párrafo) o un objeto { text, details, consequence }, cada parte opcional y en su propio
+//     bloque, en este orden: text, qué va a pasar (la pregunta); details, los datos concretos
+//     afectados, como lista de { label, value } (cada valor en una línea, recortado con "…" si no
+//     entra); consequence, lo que se pierde o cambia al confirmar. Así ninguna vista arma los
+//     saltos de línea en sus textos.
 //   - onConfirm(trigger): se llama al confirmar, con el botón de la fila. Si devuelve una promesa,
 //     el modal la espera abierto: "Sí, eliminar" pasa a "Eliminando…" ("Sí, restaurar", a
 //     "Restaurando…") y ni los botones ni Escape responden. Si el resultado es { message }, el
@@ -30,6 +36,9 @@
 // este usuario?"></confirm-modal> genera el .modal-overlay con los ids delete{entity}Overlay,
 // delete{entity}Title, delete{entity}Description, delete{entity}Message, cancelDelete{entity}Btn
 // y confirmDelete{entity}Btn.
+//   - "description" y "consequence" (opcional): la descripción del marcado, con el text y la
+//     consequence de describe en sus bloques (p. ej., "¿Quieres eliminar este alumno?" y lo que
+//     pasa con su inscripción activa).
 //   - "action" (opcional): "restore" confirma una restauración en lugar de una eliminación, con
 //     el ícono de pregunta y el botón de confirmación en azul. Los ids llevan esa acción en lugar
 //     de "delete": restore{entity}Overlay, cancelRestore{entity}Btn… "save" confirma un guardado,
@@ -37,7 +46,9 @@
 //     las filas, así que lo abre el botón de triggerSelector (save{entity}Overlay…). "leave"
 //     confirma salir de una vista con cambios sin guardar, con el aspecto de "delete", "Salir sin
 //     guardar" y "Saliendo…" mientras espera (leave{entity}Overlay…); lo abre
-//     unsaved-changes-guard.component.js con open().
+//     unsaved-changes-guard.component.js con open(). "overwrite" confirma reemplazar los datos
+//     existentes (restaurar un backup), con el aspecto de "delete", "Sí, restaurar" y
+//     "Restaurando…" mientras espera (overwrite{entity}Overlay…); lo abre la vista con open().
 // setupConfirmModal devuelve { open(trigger) }, para abrirlo desde código y no con un clic en sus
 // botones; trigger es el control al que vuelve el foco al cerrarlo (si es null, el de
 // fallbackFocus).
@@ -90,6 +101,42 @@
       confirmLabel: 'Salir sin guardar',
       pendingLabel: 'Saliendo…',
     },
+    overwrite: {
+      icon: WARNING_ICON,
+      iconClass: 'confirm-icon',
+      confirmClass: 'btn-danger',
+      confirmLabel: 'Sí, restaurar',
+      pendingLabel: 'Restaurando…',
+    },
+  };
+
+  // Escribe la descripción (un texto o { text, details, consequence }) en su contenedor, un bloque
+  // por parte: párrafos para text y consequence y una lista de datos para details. Los textos van
+  // con textContent, así los datos del backend no se interpretan como marcado.
+  const renderDescription = (container, description) => {
+    const { text, details = [], consequence } = typeof description === 'string' ? { text: description } : description;
+    const paragraph = (value) => {
+      const element = document.createElement('p');
+      element.textContent = value;
+      return element;
+    };
+    const blocks = [];
+    if (text) blocks.push(paragraph(text));
+    if (details.length) {
+      const list = document.createElement('dl');
+      list.className = 'confirm-details';
+      details.forEach(({ label, value }) => {
+        const term = document.createElement('dt');
+        term.textContent = label;
+        const data = document.createElement('dd');
+        data.className = 'text-truncate';
+        data.textContent = value;
+        list.append(term, data);
+      });
+      blocks.push(list);
+    }
+    if (consequence) blocks.push(paragraph(consequence));
+    container.replaceChildren(...blocks);
   };
 
   class ConfirmModal extends HTMLElement {
@@ -109,7 +156,7 @@
               ${icon}
             </span>
             <h2 id="${action}${entity}Title"></h2>
-            <p id="${action}${entity}Description"></p>
+            <div class="confirm-description" id="${action}${entity}Description"></div>
             <p class="confirm-message" id="${action}${entity}Message" role="alert" hidden></p>
           </div>
 
@@ -120,7 +167,13 @@
         </div>
       </div>`;
       this.querySelector('.confirm-content h2').textContent = this.getAttribute('heading');
-      this.querySelector('.confirm-content p').textContent = this.getAttribute('description');
+      // La del marcado: setupConfirmModal la vuelve a escribir en cada fila para la que describe
+      // no devuelve nada
+      this.markupDescription = {
+        text: this.getAttribute('description'),
+        consequence: this.getAttribute('consequence'),
+      };
+      renderDescription(this.querySelector('.confirm-description'), this.markupDescription);
     }
   }
 
@@ -133,9 +186,9 @@
     // Sin triggerSelector lo abren los botones de las filas de la tabla
     const openerSelector = triggerSelector ?? `.data-table tbody [data-action="${action}"]`;
     const dialog = overlay.querySelector('.modal-confirm');
-    const description = overlay.querySelector('.confirm-content p');
-    // La del marcado: vuelve en cada fila para la que describe no devuelve texto
-    const defaultDescription = description.textContent;
+    const description = overlay.querySelector('.confirm-description');
+    // La del marcado: vuelve en cada fila para la que describe no devuelve nada
+    const defaultDescription = overlay.closest('confirm-modal').markupDescription;
     const message = overlay.querySelector('.confirm-message');
     const cancelButton = overlay.querySelector('.confirm-actions .btn-neutral');
     const confirmButton = overlay.querySelector(`.confirm-actions .${confirmClass}`);
@@ -160,7 +213,7 @@
     const openModal = (button) => {
       trigger = button;
       beforeOpen?.();
-      description.textContent = describe?.(button) || defaultDescription;
+      renderDescription(description, describe?.(button) || defaultDescription);
       document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
       showMessage('');
       confirmButton.disabled = false;
