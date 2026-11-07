@@ -214,7 +214,7 @@
       this.innerHTML = `
         <aside class="sidebar" id="sidebar"${isSessionNav ? '' : ` data-nav-role="${navRole}"`}>
           <div class="sidebar-brand">
-            <div class="sidebar-logo"><img src="${logoUrl}" alt="Gestión educativa" draggable="false" /></div>
+            <div class="sidebar-logo"><img src="${logoUrl}" alt="Gestión educativa" /></div>
             <p class="sidebar-institution"></p>
           </div>
           <nav class="sidebar-nav" aria-label="Navegación principal">

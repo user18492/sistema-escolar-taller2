@@ -47,6 +47,13 @@
   user-select: text;
 }
 
+/* Enlaces e imágenes no se arrastran fuera de la ventana (drag-guard.component.js). Un arrastre
+   propio de la vista marca su elemento con draggable="true". */
+a:not([draggable="true"]),
+img:not([draggable="true"]) {
+  -webkit-user-drag: none;
+}
+
 html,
 body {
   height: 100%;

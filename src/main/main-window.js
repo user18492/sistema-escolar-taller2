@@ -33,6 +33,10 @@ function createMainWindow() {
       preload: PRELOAD_PATH,
       contextIsolation: true,
       nodeIntegration: false,
+      // Un archivo o un enlace soltado sobre la ventana no se abre en ella (es el valor por defecto
+      // de Electron; se fija para que no dependa de él). Con true, soltar el enlace de una vista
+      // propia la abriría sin pasar por un clic.
+      navigateOnDragDrop: false,
     },
   });
 

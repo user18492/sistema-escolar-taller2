@@ -83,6 +83,12 @@ function guardNavigation(browserWindow) {
   // Las vistas no abren otras ventanas: una ventana nueva no tendría estas comprobaciones.
   webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
+  // Las vistas no tienen marcos (iframe): ninguno puede navegar. will-navigate solo avisa de la
+  // ventana, así que un marco podría abrir cualquier URL sin pasar por las comprobaciones de abajo.
+  webContents.on('will-frame-navigate', (event) => {
+    if (!event.isMainFrame) event.preventDefault();
+  });
+
   // Enlaces y cambios de window.location: la navegación rechazada no se inicia y se mantiene la
   // vista actual, salvo que esta tampoco corresponda a la sesión.
   webContents.on('will-navigate', (event) => {
