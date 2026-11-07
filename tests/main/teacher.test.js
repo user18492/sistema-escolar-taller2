@@ -7,8 +7,12 @@
 // reloj de la base fijado, también para la aplicación (fixtures.onDate): los datos se crean el 01/01
 // del ciclo actual, con el 1.er trimestre abierto, y se prueban el 09/06, con ese trimestre ya
 // cerrado (cierra el 08/06) y el 2.º abierto. Así no dependen del día en que corre la suite.
+// Los promedios de Alumnos (plans/promedios/03-promedios-profesor.md) se comparan con una consulta
+// propia sobre las tablas: los de dos trimestres, en un curso propio del ciclo anterior cargado con
+// el reloj en cada fecha, y los del ciclo actual, con datos del 01/01 vistos ese día y el 09/06.
 const { group, test } = require('../lib/framework');
 const { sortedIds, sortedNumbers } = require('../lib/domain');
+const { replaceTodaySql } = require('../lib/clock');
 
 // Fechas del ciclo actual para lo del trimestre cerrado: el día en que se crean los datos, el día en
 // que se prueban y el último del 1.er trimestre
@@ -38,6 +42,68 @@ async function firstTermEvaluation(t) {
 // El día anterior a hoy, según la base
 async function yesterdayOf(t) {
   return (await t.sqlOne(`SELECT to_char(fn_fecha_actual() - 1, 'YYYY-MM-DD') AS day`)).day;
+}
+
+// Promedios esperados de las inscripciones que lista Alumnos en la asignación `assignmentId`, con
+// una consulta propia sobre las tablas (sin vw_promedio_trimestral ni fn_trimestre_cerrado): por
+// inscripción vigente, activa o finalizada, del curso, los tres trimestres y el anual como los
+// entrega scores.listAveragesByOwnAssignment. Un Map inscripcion_id → { terms, annual }.
+async function expectedAverages(t, assignmentId) {
+  const rows = await t.sql(`
+    WITH inscripciones AS (
+      SELECT i.inscripcion_id, i.fecha_inscripcion, ie.nombre AS estado, c.anio_ciclo_lectivo AS anio
+        FROM asignacion_docente a
+        JOIN curso c ON c.curso_id = a.curso_id
+        JOIN inscripcion i ON i.curso_id = a.curso_id
+        JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+       WHERE a.asignacion_docente_id = $1 AND i.fecha_eliminacion IS NULL AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
+    ), notas AS (
+      SELECT s.inscripcion_id,
+             CASE WHEN EXTRACT(MONTH FROM e.fecha_evaluacion) <= 5 THEN 1
+                  WHEN EXTRACT(MONTH FROM e.fecha_evaluacion) <= 8 THEN 2 ELSE 3 END AS trimestre,
+             COALESCE((SELECT ca.nota FROM calificacion ca
+                        WHERE ca.evaluacion_id = e.evaluacion_id AND ca.inscripcion_id = s.inscripcion_id
+                          AND ca.fecha_eliminacion IS NULL), 0) AS nota
+        FROM inscripciones s
+        JOIN evaluacion e ON e.asignacion_docente_id = $1
+       WHERE e.fecha_eliminacion IS NULL AND e.fecha_evaluacion BETWEEN s.fecha_inscripcion AND fn_fecha_actual()
+    ), trimestrales AS (
+      SELECT inscripcion_id, trimestre, AVG(nota) AS promedio FROM notas GROUP BY inscripcion_id, trimestre
+    )
+    SELECT s.inscripcion_id AS id, g.trimestre,
+           ROUND(tr.promedio, 2)::TEXT AS valor,
+           (s.anio < EXTRACT(YEAR FROM fn_fecha_actual())
+            OR fn_fecha_actual() > make_date(s.anio, CASE g.trimestre WHEN 1 THEN 5 WHEN 2 THEN 8 ELSE 12 END, 31) + 7) AS cerrado,
+           ROUND((SELECT AVG(x.promedio) FROM trimestrales x WHERE x.inscripcion_id = s.inscripcion_id), 2)::TEXT AS anual,
+           (s.anio < EXTRACT(YEAR FROM fn_fecha_actual()) OR s.estado = 'FINALIZADA') AS anual_final
+      FROM inscripciones s
+      CROSS JOIN generate_series(1, 3) AS g(trimestre)
+      LEFT JOIN trimestrales tr ON tr.inscripcion_id = s.inscripcion_id AND tr.trimestre = g.trimestre
+     ORDER BY s.inscripcion_id, g.trimestre`, [assignmentId]);
+  const toValue = (text) => (text === null ? null : Number(text));
+  const expected = new Map();
+  for (const row of rows) {
+    if (!expected.has(row.id)) {
+      const annual = toValue(row.anual);
+      expected.set(row.id, { terms: [], annual: { value: annual, isFinal: annual !== null && row.anual_final } });
+    }
+    const value = toValue(row.valor);
+    expected.get(row.id).terms.push({ term: row.trimestre, value, isFinal: value !== null && row.cerrado });
+  }
+  return expected;
+}
+
+// Pide los promedios de la asignación y comprueba que sean una fila por inscripción de Alumnos, en su
+// orden, con los valores y las marcas de expectedAverages. Devuelve un Map inscripcion_id → promedios
+async function checkAverages(t, assignmentId, label) {
+  const { enrollments } = await t.ok('enrollments.listByOwnAssignment', assignmentId);
+  const { averages } = await t.ok('scores.listAveragesByOwnAssignment', assignmentId);
+  t.equal(averages.map((row) => row.enrollmentId), enrollments.map((enrollment) => enrollment.id),
+    `${label}: una fila por inscripción de Alumnos, en su mismo orden`);
+  const expected = await expectedAverages(t, assignmentId);
+  t.equal(averages, enrollments.map(({ id }) => ({ enrollmentId: id, ...expected.get(id) })),
+    `${label}: valores y marcas como los de la consulta propia`);
+  return new Map(averages.map((row) => [row.enrollmentId, row]));
 }
 
 group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificaciones', {
@@ -440,5 +506,90 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
       // (invariante calificacion-desde-inscripcion)
       await setEnrollmentDate(yesterday);
     }
+  });
+
+  test('averages', 'Los promedios trimestrales y anuales de Alumnos cuentan 0 la evaluación sin nota, excluyen la anterior a la inscripción y la futura, y marcan Parcial o Final', async (t) => {
+    const { teacher, foreign, removed } = t.data;
+    const institutionId = teacher.institutionId;
+    const enrollStudent = async (courseId, date) => t.fixtures.enroll({
+      studentId: (await t.fixtures.createStudent({ institutionId })).id,
+      courseId,
+      date,
+    });
+    const valuesOf = (row) => ({ terms: row.terms.map((term) => term.value), annual: row.annual.value });
+
+    // Ciclo anterior, cerrado: datos de dos trimestres, cargados con el reloj en cada fecha. B se
+    // inscribe después de la 1.ª evaluación (no le cuenta) y A no tiene nota en la 4.ª (le cuenta 0)
+    const previous = await t.fixtures.inSchoolYear(t.year - 1, async () => {
+      const year = t.year - 1;
+      const course = await t.fixtures.createCourse({ institutionId });
+      const assignment = await t.fixtures.assign({ teacherId: teacher.id, courseId: course.id });
+      const setClock = (monthDay) => t.fixtures.db.query(replaceTodaySql(`${year}-${monthDay}`));
+      const evaluate = (monthDay, scores) => async () => {
+        const evaluationId = await t.fixtures.createEvaluation({ assignmentId: assignment.id, date: `${year}-${monthDay}` });
+        for (const [enrollmentId, value] of scores) await t.fixtures.score({ evaluationId, enrollmentId, value });
+      };
+      await setClock('03-01');
+      const a = await enrollStudent(course.id, `${year}-03-01`);
+      await evaluate('03-01', [[a, 6]])();
+      await setClock('04-01');
+      const b = await enrollStudent(course.id, `${year}-04-01`);
+      await evaluate('04-01', [[a, 7.75], [b, 8]])();
+      await setClock('07-15');
+      await evaluate('07-01', [[a, 9.01], [b, 5]])();
+      await evaluate('07-15', [[b, 6]])();
+      return { assignment, a, b };
+    });
+    await t.fixtures.setEnrollmentStatus(previous.a, 'FINALIZADA');
+    await t.fixtures.setEnrollmentStatus(previous.b, 'FINALIZADA');
+
+    await t.login(teacher);
+    await t.step('Ciclo cerrado', async () => {
+      const averages = await checkAverages(t, previous.assignment.id, 'Ciclo cerrado');
+      // A: 1.º (6 + 7,75) / 2 = 6,875; 2.º (9,01 + 0) / 2 = 4,505; anual 5,69, sin redondear antes
+      // (con los trimestrales redondeados daría 5,70). B: 1.º solo la del 04/01 (8); 2.º 5,50
+      t.equal(valuesOf(averages.get(previous.a)), { terms: [6.88, 4.51, null], annual: 5.69 }, 'Promedios de A');
+      t.equal(valuesOf(averages.get(previous.b)), { terms: [8, 5.5, null], annual: 6.75 }, 'Promedios de B');
+      const marks = averages.get(previous.a);
+      t.equal([...marks.terms.map((term) => term.isFinal), marks.annual.isFinal], [true, true, false, true],
+        'En un ciclo cerrado todo es Final, salvo el trimestre sin promedio');
+    });
+
+    // Ciclo actual: una evaluación del 01/01, con C calificado y D sin nota, y otra del 02/01, que
+    // el 01/01 todavía es futura; todo creado el 01/01
+    const { createdOn, closedTermToday } = termDates(t);
+    const current = await t.fixtures.onDate(createdOn, async () => {
+      const course = await t.fixtures.createCourse({ institutionId });
+      const assignment = await t.fixtures.assign({ teacherId: teacher.id, courseId: course.id });
+      const c = await enrollStudent(course.id);
+      const d = await enrollStudent(course.id);
+      const evaluationId = await t.fixtures.createEvaluation({ assignmentId: assignment.id });
+      await t.fixtures.score({ evaluationId, enrollmentId: c, value: 7 });
+      await t.fixtures.createEvaluation({ assignmentId: assignment.id, date: `${t.year}-01-02` });
+      return { assignment, c, d };
+    });
+    await t.step('Ciclo actual, 1.er trimestre abierto', async () => {
+      await t.fixtures.onDate(createdOn, async () => {
+        const averages = await checkAverages(t, current.assignment.id, 'El 01/01');
+        t.equal(valuesOf(averages.get(current.c)), { terms: [7, null, null], annual: 7 }, 'La evaluación futura no cuenta');
+        t.equal(valuesOf(averages.get(current.d)), { terms: [0, null, null], annual: 0 }, 'La evaluación sin nota cuenta 0');
+        const marks = averages.get(current.c);
+        t.equal([...marks.terms.map((term) => term.isFinal), marks.annual.isFinal], [false, false, false, false],
+          'Con el trimestre abierto, todo es Parcial');
+      });
+    });
+    await t.step('Ciclo actual, 1.er trimestre cerrado', async () => {
+      await t.fixtures.onDate(closedTermToday, async () => {
+        const averages = await checkAverages(t, current.assignment.id, 'El 09/06');
+        t.equal(valuesOf(averages.get(current.c)), { terms: [3.5, null, null], annual: 3.5 }, 'La del 02/01 ya cuenta, con 0');
+        const marks = averages.get(current.c);
+        t.equal([...marks.terms.map((term) => term.isFinal), marks.annual.isFinal], [true, false, false, false],
+          'El 1.er trimestre cerrado es Final; el anual sigue Parcial');
+      });
+    });
+
+    await t.rejects('TEACHER_ASSIGNMENT_NOT_FOUND', 'scores.listAveragesByOwnAssignment', foreign.id);
+    await t.rejects('TEACHER_ASSIGNMENT_NOT_FOUND', 'scores.listAveragesByOwnAssignment', removed.id);
+    await t.logout();
   });
 });

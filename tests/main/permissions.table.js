@@ -80,6 +80,7 @@ module.exports = {
     'scores:save': { roles: ['PROFESOR'], args: [NO_ID, NO_ID, {}] },
     'scores:save-many': { roles: ['PROFESOR'], args: [NO_ID, NO_ID, []] },
     'scores:delete': { roles: ['PROFESOR'], args: [NO_ID, NO_ID, NO_ID] },
+    'scores:list-averages-by-own-assignment': { roles: ['PROFESOR'], args: [NO_ID] },
 
     'dashboard:get-admin-summary': { roles: ['ADMIN'], args: [] },
     'dashboard:get-secretary-summary': { roles: ['SECRETARIO'], args: [] },
