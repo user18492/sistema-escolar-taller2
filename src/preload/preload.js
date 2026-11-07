@@ -533,6 +533,20 @@ contextBridge.exposeInMainWorld('api', {
     // TERM_CLOSED, como en save, y además, TEACHER_ASSIGNMENT_NOT_FOUND y EVALUATION_NOT_FOUND, como en listByOwnEvaluation.
     delete: (teacherAssignmentId, evaluationId, enrollmentId) =>
       ipcRenderer.invoke('scores:delete', teacherAssignmentId, evaluationId, enrollmentId),
+    // Solo PROFESOR. Resuelve { ok: true, averages } con los promedios, en la materia de la
+    // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo, de las
+    // mismas inscripciones que enrollments.listByOwnAssignment y en su mismo orden
+    // ({ enrollmentId, terms, annual }: enrollmentId el id de la inscripción; terms los tres
+    // trimestres en orden, { term, value, isFinal } con term 1, 2 o 3, y annual el anual,
+    // { value, isFinal }). `value` es el promedio, un número de 0 a 10 redondeado a dos decimales,
+    // o null si no hay evaluaciones tomadas (desde la inscripción y hasta hoy, con la fecha de la
+    // base; una evaluación sin nota cuenta 0); el anual es el promedio de los trimestres con valor.
+    // `isFinal` indica que es definitivo: en un trimestre, que está cerrado (pasó su plazo de carga
+    // o su ciclo lectivo cerró); en el anual, que el ciclo lectivo está cerrado o la inscripción
+    // está finalizada; sin valor es false. O { ok: false, error: { code, message } }:
+    // TEACHER_ASSIGNMENT_NOT_FOUND, como en enrollments.listByOwnAssignment.
+    listAveragesByOwnAssignment: (teacherAssignmentId) =>
+      ipcRenderer.invoke('scores:list-averages-by-own-assignment', teacherAssignmentId),
   },
   dashboard: {
     // Solo ADMIN. Resuelve { ok: true, summary } con los indicadores de la vista Inicio para su

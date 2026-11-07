@@ -1,0 +1,13 @@
+/* Estilos reutilizables: promedio de las tablas (<term-average>), con la marca Parcial o Final
+   debajo del número. El texto de la marca lo da .option-detail (dropdown.css). */
+
+term-average {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.term-average-mark {
+  line-height: 16px;
+}

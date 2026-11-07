@@ -52,3 +52,9 @@
 .data-table td.col-student {
   min-width: 160px;
 }
+
+/* Promedios (<term-average>): el encabezado pasa a dos líneas ("1.er" / "trimestre"), así la
+   columna toma el ancho del número y no el del título. */
+.data-table th.col-average {
+  white-space: normal;
+}

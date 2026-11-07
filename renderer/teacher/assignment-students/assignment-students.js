@@ -9,6 +9,10 @@
 // (window.api.enrollments.listByOwnAssignment) con el mismo id, y el filtro Alumno, con una opción
 // por inscripción, las filtra en memoria. La lista filtrada se pagina en memoria, 10 por página,
 // con <table-pagination>.
+// Cada fila suma los promedios del alumno en la materia de la asignación (los tres trimestres y el
+// anual, con <term-average>), que se piden a la par de la lista
+// (window.api.scores.listAveragesByOwnAssignment) y se cruzan por el id de la inscripción. Si no
+// llegan, la lista se muestra igual, con una raya en cada promedio, y un toast avisa el error.
 
 document.addEventListener('DOMContentLoaded', () => {
   const summary = document.querySelector('assignment-summary');
@@ -41,9 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const studentHeader = table.querySelector('th[data-filter="student"]');
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar los alumnos. Intentá nuevamente.';
+  const GENERIC_AVERAGES_ERROR = 'No se pudieron cargar los promedios. Intentá nuevamente.';
 
   // En el orden en que llegan del proceso principal: por alumno
   let enrollments = [];
+  // Promedios de cada inscripción, por su id ({ terms, annual }); null si no se pudieron cargar
+  let averagesByEnrollmentId = null;
   // La inscripción elegida en el filtro Alumno, por su id. Vacío (nada elegido) no filtra.
   let selectedEnrollmentIds = [];
 
@@ -72,7 +79,26 @@ document.addEventListener('DOMContentLoaded', () => {
     row.cells[1].querySelector('.text-truncate').textContent = studentName(student);
     row.cells[2].textContent = formatDni(student.dni);
     row.cells[3].textContent = toDisplayDate(enrollmentDate);
+    fillAverages(row, averagesByEnrollmentId?.get(id));
     return row;
+  };
+
+  // Los tres trimestres y el anual, en las cuatro últimas celdas. Sin los promedios (no se pudieron
+  // cargar), cada celda queda con una raya sola: el title de <term-average> sin valor diría que no
+  // hay evaluaciones tomadas, y eso no se sabe.
+  const fillAverages = (row, averages) => {
+    const averageCells = Array.from(row.cells).slice(-4);
+    if (!averages) {
+      averageCells.forEach((cell) => {
+        cell.textContent = '—';
+      });
+      return;
+    }
+    [...averages.terms, averages.annual].forEach(({ value, isFinal }, index) => {
+      const average = averageCells[index].querySelector('term-average');
+      if (value !== null) average.setAttribute('value', String(value));
+      average.toggleAttribute('is-final', isFinal);
+    });
   };
 
   // El alumno y, como referencia, su número de inscripción: el buscador del panel encuentra la
@@ -104,20 +130,41 @@ document.addEventListener('DOMContentLoaded', () => {
     else showMessage('No hay alumnos inscriptos en este curso.');
   };
 
-  // Pide la lista con el id de la URL, a la par de la tarjeta, y al llegar arma las opciones de
-  // Alumno y muestra las inscripciones. Sin id en la URL, o con uno que no es un número, el proceso
-  // principal responde que no pudo identificar la asignación.
+  // Respuesta del proceso principal a `request`, o undefined si la llamada falla (`label` va en el
+  // detalle de la consola)
+  const invoke = async (request, label) => {
+    try {
+      return await request();
+    } catch (error) {
+      console.error(`Error al cargar ${label}:`, error);
+      return undefined;
+    }
+  };
+
+  // Pide la lista y los promedios con el id de la URL, a la par de la tarjeta y entre sí, y al
+  // llegar arma las opciones de Alumno y muestra las inscripciones. Sin id en la URL, o con uno que
+  // no es un número, el proceso principal responde que no pudo identificar la asignación. Si la
+  // lista falla, su mensaje reemplaza a la tabla (el de los promedios sería el mismo error); si
+  // fallan solo los promedios, la lista se muestra igual y un toast lo avisa.
   async function loadEnrollments() {
     showMessage('Cargando alumnos…');
-    let response;
-    try {
-      response = await window.api?.enrollments?.listByOwnAssignment(Number(assignmentId));
-    } catch (error) {
-      console.error('Error al cargar los alumnos:', error);
-    }
+    const id = Number(assignmentId);
+    const [response, averagesResponse] = await Promise.all([
+      invoke(() => window.api?.enrollments?.listByOwnAssignment(id), 'los alumnos'),
+      invoke(() => window.api?.scores?.listAveragesByOwnAssignment(id), 'los promedios'),
+    ]);
     if (!response?.ok) {
       showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
       return;
+    }
+    if (averagesResponse?.ok) {
+      averagesByEnrollmentId = new Map(averagesResponse.averages.map((averages) => [averages.enrollmentId, averages]));
+    } else {
+      showToast({
+        type: 'error',
+        title: 'No se pudieron cargar los promedios',
+        description: averagesResponse?.error?.message || GENERIC_AVERAGES_ERROR,
+      });
     }
     enrollments = response.enrollments;
     fillFilterOptions();

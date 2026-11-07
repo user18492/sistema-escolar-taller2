@@ -2,6 +2,7 @@ const scoreRepository = require('../repositories/score.repository');
 const enrollmentRepository = require('../repositories/enrollment.repository');
 const evaluationService = require('./evaluation.service');
 const schoolYearService = require('./school-year.service');
+const teacherAssignmentService = require('./teacher-assignment.service');
 const { toListedStudent } = require('./enrollment.service');
 
 // Error previsto, con un mensaje apto para la UI (como TeacherAssignmentError en
@@ -367,7 +368,50 @@ async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evalua
   return { enrollmentId: deletedScore.enrollmentId, value: null };
 }
 
+// ---------- Promedios ----------
+
+// Lista explícita de campos: lo que muestran las vistas de un promedio, a partir de una fila de
+// scoreRepository.findAverages. `terms` son los tres trimestres en orden ({ term, value, isFinal },
+// con term 1, 2 o 3) y `annual`, el anual ({ value, isFinal }). `value` es el promedio, un número
+// con hasta dos decimales, o null si no hay evaluaciones tomadas. `isFinal` indica si es definitivo:
+// en un trimestre, que está cerrado; en el anual, que el ciclo lectivo está cerrado o la inscripción
+// está finalizada. Sin valor, isFinal es false: no hay nada que marcar.
+function toListedAverages({ termAverages, closedTerms, annualAverage, isAnnualFinal }) {
+  return {
+    terms: termAverages.map((value, index) => ({
+      term: index + 1,
+      value,
+      isFinal: value !== null && closedTerms[index],
+    })),
+    annual: { value: annualAverage, isFinal: annualAverage !== null && isAnnualFinal },
+  };
+}
+
+// Promedios, en la materia de una asignación docente vigente a cargo de `currentUser` (el profesor
+// de la sesión), de las mismas inscripciones que lista enrollmentService.listOwnAssignmentEnrollments
+// (las vigentes, activas y finalizadas del curso de la asignación), en su mismo orden:
+// [{ enrollmentId, terms, annual }], con terms y annual como en toListedAverages. El id de la
+// asignación llega del renderer, así que antes se comprueba que sea suya (getOwnTeacherAssignment).
+// Lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la
+// asignación no existe, fue dada de baja o es de otro profesor.
+async function listOwnAssignmentAverages(currentUser, teacherAssignmentId) {
+  const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
+  const enrollments = await enrollmentRepository.findActiveOrFinishedByCourse(teacherAssignment.course.id);
+  const averages = await scoreRepository.findAverages(
+    enrollments.map(({ id }) => id),
+    teacherAssignment.id
+  );
+  const averagesByEnrollmentId = new Map(averages.map((row) => [row.enrollmentId, row]));
+  // Toda inscripción del curso tiene fila (la asignación es vigente y de su curso); si alguna
+  // cambió entre las dos consultas y no la tiene, no se lista
+  return enrollments
+    .filter(({ id }) => averagesByEnrollmentId.has(id))
+    .map(({ id }) => ({ enrollmentId: id, ...toListedAverages(averagesByEnrollmentId.get(id)) }));
+}
+
 module.exports = {
+  toListedAverages,
+  listOwnAssignmentAverages,
   listOwnEvaluationScores,
   saveOwnEvaluationScore,
   saveOwnEvaluationScores,

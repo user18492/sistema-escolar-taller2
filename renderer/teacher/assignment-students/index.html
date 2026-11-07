@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/term-average.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
     <link rel="stylesheet" href="./assignment-students.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -28,6 +30,8 @@
     <script src="../../shared/components/search-bar.component.js"></script>
     <script src="../../shared/components/table-pagination.component.js"></script>
     <script src="../../shared/components/assignment-summary.component.js"></script>
+    <script src="../../shared/components/term-average.component.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
     <script src="./assignment-students.js" defer></script>
   </head>
   <body>
@@ -85,6 +89,10 @@
                     </th>
                     <th>DNI</th>
                     <th>Fecha inscripción</th>
+                    <th class="col-average">1.er trimestre</th>
+                    <th class="col-average">2.º trimestre</th>
+                    <th class="col-average">3.er trimestre</th>
+                    <th class="col-average">Anual</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -94,13 +102,19 @@
             <table-pagination results="" label="Paginación de alumnos" pages="1"></table-pagination>
 
             <!-- Plantillas: assignment-students.js las completa con lo que devuelve el proceso
-                 principal: una fila y una opción del filtro Alumno por cada inscripción del curso -->
+                 principal: una fila y una opción del filtro Alumno por cada inscripción del curso.
+                 Los promedios (los tres trimestres y el anual) muestran una raya hasta que llegan,
+                 y también si no se pudieron cargar -->
             <template id="enrollmentRowTemplate">
               <tr>
                 <td class="enrollment-number"></td>
                 <td class="col-student col-truncate"><span class="text-truncate"></span></td>
                 <td></td>
                 <td></td>
+                <td class="col-average"><term-average></term-average></td>
+                <td class="col-average"><term-average></term-average></td>
+                <td class="col-average"><term-average></term-average></td>
+                <td class="col-average"><term-average></term-average></td>
               </tr>
             </template>
             <template id="studentOptionTemplate">

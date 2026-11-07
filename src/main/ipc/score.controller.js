@@ -169,9 +169,36 @@ async function deleteOwnEvaluationScore(currentUser, teacherAssignmentId, evalua
   }
 }
 
+// `teacherAssignmentId` es el id de una asignación del profesor de la sesión: que esté a su cargo
+// lo comprueba el servicio.
+// Nunca rechaza, como listOwnEvaluationScores.
+async function listOwnAssignmentAverages(currentUser, teacherAssignmentId) {
+  if (!isId(teacherAssignmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la asignación.');
+  }
+  try {
+    return {
+      ok: true,
+      averages: await scoreService.listOwnAssignmentAverages(currentUser, teacherAssignmentId),
+    };
+  } catch (error) {
+    if (isExpectedError(error)) {
+      return expectedFailure(error);
+    }
+    console.error('Error al listar los promedios del curso de la asignación:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudieron cargar los promedios. Intentá nuevamente.');
+  }
+}
+
 // Sin sesión, con otro rol o con la cuenta suspendida, handleProtected responde UNAUTHENTICATED,
 // FORBIDDEN o ACCOUNT_SUSPENDED sin llamar a la acción.
 function registerScoreHandlers(browserWindow) {
+  handleProtected(
+    browserWindow,
+    'scores:list-averages-by-own-assignment',
+    ['PROFESOR'],
+    listOwnAssignmentAverages
+  );
   handleProtected(browserWindow, 'scores:list-by-own-evaluation', ['PROFESOR'], listOwnEvaluationScores);
   handleProtected(browserWindow, 'scores:save', ['PROFESOR'], saveOwnEvaluationScore);
   handleProtected(browserWindow, 'scores:save-many', ['PROFESOR'], saveOwnEvaluationScores);
