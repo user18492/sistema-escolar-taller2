@@ -1,21 +1,13 @@
 {
   "version": 1,
-  "takenAt": "2026-11-06T21:32:52.476Z",
-  "commit": "46205a3e6d4a4d71d2bc420407630dd08dba7ac5",
-  "branch": "backups",
+  "takenAt": "2026-11-07T21:56:16.515Z",
+  "commit": "48b36e839738f0a86a17e6407ce9fae30d461764",
+  "branch": "main",
   "dirty": true,
   "changedFiles": [
-    "renderer/admin/backups/backups.js",
-    "renderer/auth/login/login.js",
-    "src/main/ipc/backup.controller.js",
-    "src/main/navigation-guard.js",
-    "src/main/repositories/backup-file.repository.js",
-    "src/main/repositories/backup.repository.js",
-    "src/main/repositories/enrollment.repository.js",
-    "src/main/services/backup.service.js",
-    "src/preload/preload.js"
+    "db/seed.sql"
   ],
-  "today": "2026-11-06",
+  "today": "2026-11-07",
   "year": 2026,
   "environment": {
     "node": "24.19.0",
@@ -1027,46 +1019,46 @@
     "main.admin.backups.invalid-format": {
       "layer": "main",
       "status": "pass",
-      "hash": "e3791223149e",
+      "hash": "6fc27fdf5380",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.backups.create-zip": {
       "layer": "main",
       "status": "pass",
-      "hash": "cadb52a92c61",
+      "hash": "1843a129a8e6",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.backups.create-tar-gz": {
       "layer": "main",
       "status": "pass",
-      "hash": "cadb52a92c61",
+      "hash": "1843a129a8e6",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.backups.file-exists": {
       "layer": "main",
       "status": "pass",
-      "hash": "f77564578218",
+      "hash": "aa1266067923",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.backups.one-at-a-time": {
       "layer": "main",
       "status": "pass",
-      "hash": "99d5b8cce3a6",
+      "hash": "ddceaaf7bc6e",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.backups.invariants": {
@@ -1081,46 +1073,46 @@
     "main.admin.restore.restore-roundtrip": {
       "layer": "main",
       "status": "pass",
-      "hash": "5339b1a41486",
+      "hash": "54323a8f6007",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.restore.restore-closed-school-year": {
       "layer": "main",
       "status": "pass",
-      "hash": "d4f5d2da0734",
+      "hash": "41d6222b7b4a",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.restore.restore-errors": {
       "layer": "main",
       "status": "pass",
-      "hash": "c55a80946cc2",
+      "hash": "b158f5aec23e",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.restore.restore-rolled-back": {
       "layer": "main",
       "status": "pass",
-      "hash": "d0d19c70a166",
+      "hash": "80573e41802d",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.restore.one-at-a-time": {
       "layer": "main",
       "status": "pass",
-      "hash": "d8b266f4caa9",
+      "hash": "0d898fb505c8",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.restore.invariants": {
@@ -1888,6 +1880,42 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "ui.drag-drop.drag-out": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "ef4cab7e1a86",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.drag-drop.drop-into-window": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "dbcaa90367df",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.drag-drop.main-process-guard": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "6532d67ea6ee",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.drag-drop.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "ui.enrollments.edit-statuses": {
       "layer": "ui",
       "status": "pass",
@@ -2134,6 +2162,15 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "ui.scores-unsaved.undo-change": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "8a9e9b19b688",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "ui.scores-unsaved.leave-without-changes": {
       "layer": "ui",
       "status": "pass",
@@ -2316,9 +2353,9 @@
       "tests": 1
     },
     "app:set-unsaved-changes": {
-      "calls": 10,
-      "ok": 8,
-      "tests": 5
+      "calls": 12,
+      "ok": 10,
+      "tests": 6
     },
     "auth:forget-remembered-email": {
       "calls": 2,
@@ -2326,24 +2363,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 128,
-      "ok": 128,
-      "tests": 42
+      "calls": 148,
+      "ok": 148,
+      "tests": 46
     },
     "auth:get-remembered-email": {
-      "calls": 93,
-      "ok": 93,
-      "tests": 57
+      "calls": 99,
+      "ok": 99,
+      "tests": 62
     },
     "auth:login": {
-      "calls": 140,
-      "ok": 132,
-      "tests": 110
+      "calls": 144,
+      "ok": 136,
+      "tests": 114
     },
     "auth:logout": {
-      "calls": 179,
-      "ok": 179,
-      "tests": 128
+      "calls": 182,
+      "ok": 182,
+      "tests": 130
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2356,9 +2393,9 @@
       "tests": 10
     },
     "backups:list": {
-      "calls": 8,
-      "ok": 7,
-      "tests": 6
+      "calls": 10,
+      "ok": 9,
+      "tests": 8
     },
     "backups:restore": {
       "calls": 17,
@@ -2366,7 +2403,7 @@
       "tests": 5
     },
     "backups:select-file": {
-      "calls": 29,
+      "calls": 30,
       "ok": 17,
       "tests": 5
     },
@@ -2381,9 +2418,9 @@
       "tests": 5
     },
     "courses:list": {
-      "calls": 7,
-      "ok": 7,
-      "tests": 7
+      "calls": 8,
+      "ok": 8,
+      "tests": 8
     },
     "courses:update": {
       "calls": 5,
@@ -2391,9 +2428,9 @@
       "tests": 4
     },
     "dashboard:get-admin-summary": {
-      "calls": 10,
-      "ok": 10,
-      "tests": 10
+      "calls": 15,
+      "ok": 15,
+      "tests": 13
     },
     "dashboard:get-secretary-summary": {
       "calls": 12,
@@ -2461,9 +2498,9 @@
       "tests": 4
     },
     "evaluations:list-by-own-assignment": {
-      "calls": 11,
-      "ok": 11,
-      "tests": 10
+      "calls": 12,
+      "ok": 12,
+      "tests": 11
     },
     "evaluations:update": {
       "calls": 4,
@@ -2471,9 +2508,9 @@
       "tests": 3
     },
     "grades:list": {
-      "calls": 9,
-      "ok": 7,
-      "tests": 9
+      "calls": 10,
+      "ok": 8,
+      "tests": 10
     },
     "profile:delete": {
       "calls": 4,
@@ -2481,9 +2518,9 @@
       "tests": 3
     },
     "profile:get": {
-      "calls": 7,
-      "ok": 7,
-      "tests": 5
+      "calls": 8,
+      "ok": 8,
+      "tests": 6
     },
     "profile:update": {
       "calls": 4,
@@ -2491,9 +2528,9 @@
       "tests": 2
     },
     "school-years:get-current": {
-      "calls": 38,
-      "ok": 38,
-      "tests": 22
+      "calls": 42,
+      "ok": 42,
+      "tests": 24
     },
     "scores:delete": {
       "calls": 4,
@@ -2501,9 +2538,9 @@
       "tests": 3
     },
     "scores:list-by-own-evaluation": {
-      "calls": 15,
-      "ok": 13,
-      "tests": 9
+      "calls": 16,
+      "ok": 14,
+      "tests": 10
     },
     "scores:save": {
       "calls": 11,
@@ -2551,19 +2588,19 @@
       "tests": 3
     },
     "teacher-assignments:get-own": {
-      "calls": 27,
-      "ok": 24,
-      "tests": 11
+      "calls": 29,
+      "ok": 26,
+      "tests": 12
     },
     "teacher-assignments:list": {
-      "calls": 6,
-      "ok": 6,
-      "tests": 6
+      "calls": 7,
+      "ok": 7,
+      "tests": 7
     },
     "teacher-assignments:list-assignable-courses": {
-      "calls": 6,
-      "ok": 6,
-      "tests": 6
+      "calls": 7,
+      "ok": 7,
+      "tests": 7
     },
     "teacher-assignments:list-assignable-subjects": {
       "calls": 10,
@@ -2571,14 +2608,14 @@
       "tests": 9
     },
     "teacher-assignments:list-assignable-teachers": {
-      "calls": 6,
-      "ok": 6,
-      "tests": 6
+      "calls": 7,
+      "ok": 7,
+      "tests": 7
     },
     "teacher-assignments:list-own": {
-      "calls": 15,
-      "ok": 14,
-      "tests": 14
+      "calls": 16,
+      "ok": 15,
+      "tests": 15
     },
     "teacher-assignments:update": {
       "calls": 10,
@@ -2596,9 +2633,9 @@
       "tests": 4
     },
     "users:list": {
-      "calls": 3,
-      "ok": 3,
-      "tests": 3
+      "calls": 5,
+      "ok": 5,
+      "tests": 5
     },
     "users:restore": {
       "calls": 2,
@@ -2616,9 +2653,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 173,
-      "ok": 173,
-      "tests": 65
+      "calls": 194,
+      "ok": 194,
+      "tests": 70
     },
     "window:minimize": {
       "calls": 1,
