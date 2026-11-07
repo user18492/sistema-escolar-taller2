@@ -179,6 +179,11 @@ group('main.secretary.enrollments', 'Secretario: inscripciones', {
   cerrado se crean con `fixtures.inSchoolYear(año, () => …)`, que los carga como en ese año y
   confirma. Los de un ciclo futuro no deben quedar: se crean con `fixtures.asOfSchoolYear` dentro de
   una transacción que la prueba deshace (`db/school-year.test.js`).
+- **Trimestres**: en un trimestre cerrado (`fn_trimestre_cerrado`, 7 días después de su fin) no se
+  crea, edita ni califica nada, y cuáles están cerrados depende del día (con `inSchoolYear`, el 15/06,
+  el 1.º ya cerró). Lo que depende del trimestre se prueba en una transacción que se deshace, con el
+  reloj reemplazado (`replaceTodaySql`) por días del ciclo actual: los datos se crean con el
+  trimestre abierto y después se adelanta el reloj (`db/averages.test.js`).
 
 ### Reglas para los planes
 

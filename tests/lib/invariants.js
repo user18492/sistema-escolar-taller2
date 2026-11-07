@@ -138,6 +138,15 @@ module.exports = [
            WHERE c.fecha_eliminacion IS NULL AND e.fecha_evaluacion > fn_fecha_actual()`,
   },
   {
+    id: 'calificacion-desde-inscripcion',
+    description: 'Una calificación vigente es de una evaluación con fecha igual o posterior a la fecha de inscripción',
+    // No se califica una evaluación anterior a la inscripción, y una calificada no pasa a una fecha
+    // anterior a la de un calificado (plans/promedios/01-base-de-datos.md)
+    sql: `SELECT c.calificacion_id FROM calificacion c JOIN evaluacion e USING (evaluacion_id)
+           JOIN inscripcion i ON i.inscripcion_id = c.inscripcion_id
+           WHERE c.fecha_eliminacion IS NULL AND e.fecha_evaluacion < i.fecha_inscripcion`,
+  },
+  {
     id: 'evaluacion-baja-sin-calificaciones',
     description: 'Una evaluación dada de baja no tiene calificaciones vigentes',
     // La baja da de baja sus calificaciones en la misma operación, y después no se pueden cargar
