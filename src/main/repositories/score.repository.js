@@ -16,7 +16,8 @@ const FIND_BY_EVALUATION_SQL = `
 
 // Cantidad de calificaciones vigentes de cada evaluación vigente de una asignación docente, solo de
 // las inscripciones que muestra Calificaciones: vigentes y activas o finalizadas (valores de
-// inscripcion_estado.nombre), con el mismo criterio que FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL
+// inscripcion_estado.nombre), con una fecha de inscripción que no es posterior a la de la
+// evaluación, con el mismo criterio que FIND_ACTIVE_OR_FINISHED_BY_COURSE_ENROLLED_BY_SQL
 // (enrollment.repository.js). No hace falta el curso: la inscripción es del de la asignación
 // (trg_calificacion_coherencia, db/schema.sql). Una evaluación sin ninguna no tiene fila.
 const COUNT_VISIBLE_BY_TEACHER_ASSIGNMENT_SQL = `
@@ -31,6 +32,7 @@ const COUNT_VISIBLE_BY_TEACHER_ASSIGNMENT_SQL = `
      AND ca.fecha_eliminacion IS NULL
      AND i.fecha_eliminacion IS NULL
      AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
+     AND i.fecha_inscripcion <= e.fecha_evaluacion
    GROUP BY ca.evaluacion_id
 `;
 
@@ -70,7 +72,10 @@ const MARK_AS_DELETED_SQL = `
 // inscripción (SAME_COURSE, NOT_DELETED_ENROLLMENT y ACTIVE_ENROLLMENT) las informa
 // trg_calificacion_coherencia al cargar una nota, al corregirla y al darla de baja, y las de la
 // evaluación (DELETED_EVALUATION y FUTURE_EVALUATION), solo al cargarla o corregirla. La del ciclo
-// lectivo cerrado la informa trg_calificacion_ciclo_lectivo, en los tres casos. La baja en cascada
+// lectivo cerrado la informa trg_calificacion_ciclo_lectivo, en los tres casos, y la del trimestre
+// cerrado, trg_calificacion_trimestre_cerrado, también en los tres. La de la evaluación anterior a la
+// inscripción (BEFORE_ENROLLMENT) la informa trg_calificacion_coherencia, solo al cargar una nota o
+// corregirla. La baja en cascada
 // de una evaluación (trg_evaluacion_baja_calificaciones) no pasa por acá: no mira si la inscripción
 // está activa ni vigente, y su rechazo por una inscripción finalizada lo traduce
 // evaluation.repository.js.
@@ -82,6 +87,8 @@ const NOT_DELETED_ENROLLMENT_CONSTRAINT = 'ck_calificacion_inscripcion_vigente';
 const ACTIVE_ENROLLMENT_CONSTRAINT = 'ck_calificacion_inscripcion_activa';
 const DELETED_EVALUATION_CONSTRAINT = 'ck_calificacion_evaluacion_vigente';
 const FUTURE_EVALUATION_CONSTRAINT = 'ck_calificacion_evaluacion_futura';
+const CLOSED_TERM_CONSTRAINT = 'ck_calificacion_trimestre_cerrado';
+const BEFORE_ENROLLMENT_CONSTRAINT = 'ck_calificacion_evaluacion_anterior_inscripcion';
 
 // pg devuelve NUMERIC como texto ('7.25'): la nota se entrega como número.
 function toScore(row) {
@@ -102,7 +109,8 @@ async function findByEvaluation(evaluationId) {
 
 // Cuántas calificaciones vigentes tiene cada evaluación vigente de la asignación docente
 // `teacherAssignmentId` (un asignacion_docente_id), contando solo las de inscripciones vigentes,
-// activas o finalizadas: las que el profesor ve en Calificaciones. Devuelve un Map evaluacion_id →
+// activas o finalizadas, inscriptas a más tardar el día de la evaluación: las que el profesor ve en
+// Calificaciones. Devuelve un Map evaluacion_id →
 // cantidad, sin las evaluaciones que no tienen ninguna. Que la asignación se pueda consultar lo
 // comprueba el servicio.
 async function countVisibleByTeacherAssignment(teacherAssignmentId) {
@@ -114,9 +122,11 @@ async function countVisibleByTeacherAssignment(teacherAssignmentId) {
 // `evaluationId` y devuelve la calificación creada. PostgreSQL rechaza el alta si la inscripción ya
 // tiene una calificación vigente en esa evaluación (isDuplicateError; una dada de baja no cuenta),
 // si no es del curso de la evaluación (isEnrollmentNotInCourseError), si está dada de baja
-// (isEnrollmentDeletedError) o si no está activa (isEnrollmentNotActiveError), y también si la
-// evaluación se dio de baja (isEvaluationDeletedError), si su fecha todavía no llegó
-// (isFutureEvaluationError) o si es de un ciclo lectivo cerrado (isClosedSchoolYearError). Que la
+// (isEnrollmentDeletedError), si no está activa (isEnrollmentNotActiveError) o si se inscribió
+// después de la fecha de la evaluación (isBeforeEnrollmentError), y también si la evaluación se dio
+// de baja (isEvaluationDeletedError), si su fecha todavía no llegó (isFutureEvaluationError), si es
+// de un ciclo lectivo cerrado (isClosedSchoolYearError) o de un trimestre cerrado
+// (isClosedTermError). Que la
 // evaluación se pueda calificar y que la nota sea válida lo comprueba el servicio.
 // `run` es la función con la que se ejecuta la consulta: `query` o, dentro de una transacción, la
 // de runInTransaction (saveChanges); vale también para update y markAsDeleted.
@@ -128,10 +138,11 @@ async function create(evaluationId, enrollmentId, value, run = query) {
 // Cambia por `value` la nota de la calificación vigente que la inscripción `enrollmentId` tiene en
 // la evaluación `evaluationId` y la devuelve como quedó; null si no tiene ninguna (todavía no fue
 // calificada o su calificación se dio de baja). PostgreSQL rechaza el cambio si la inscripción se
-// dio de baja (isEnrollmentDeletedError) o dejó de estar activa (isEnrollmentNotActiveError), y si
-// la evaluación se dio de baja (isEvaluationDeletedError), si su fecha todavía no llegó
-// (isFutureEvaluationError) o si es de un ciclo lectivo cerrado (isClosedSchoolYearError). Lo demás
-// lo comprueba el servicio, como en create.
+// dio de baja (isEnrollmentDeletedError), dejó de estar activa (isEnrollmentNotActiveError) o se
+// inscribió después de la fecha de la evaluación (isBeforeEnrollmentError), y si la evaluación se
+// dio de baja (isEvaluationDeletedError), si su fecha todavía no llegó (isFutureEvaluationError) o
+// si es de un ciclo lectivo cerrado (isClosedSchoolYearError) o de un trimestre cerrado
+// (isClosedTermError). Lo demás lo comprueba el servicio, como en create.
 async function update(evaluationId, enrollmentId, value, run = query) {
   const { rows } = await run(UPDATE_SQL, [evaluationId, enrollmentId, value]);
   return rows.length > 0 ? toScore(rows[0]) : null;
@@ -143,7 +154,8 @@ async function update(evaluationId, enrollmentId, value, run = query) {
 // tenía; null si la inscripción no tiene ninguna vigente (nunca la tuvo o ya se dio de baja).
 // PostgreSQL rechaza la baja si la inscripción se dio de baja (isEnrollmentDeletedError) o dejó de
 // estar activa (isEnrollmentNotActiveError), y si la evaluación es de un ciclo lectivo cerrado
-// (isClosedSchoolYearError). Que la evaluación se pueda calificar lo comprueba el servicio.
+// (isClosedSchoolYearError) o de un trimestre cerrado (isClosedTermError). Que la evaluación se pueda
+// calificar lo comprueba el servicio.
 async function markAsDeleted(evaluationId, enrollmentId, run = query) {
   const { rows } = await run(MARK_AS_DELETED_SQL, [evaluationId, enrollmentId]);
   return rows.length > 0 ? toScore(rows[0]) : null;
@@ -250,6 +262,18 @@ function isFutureEvaluationError(error) {
   return error?.code === '23514' && error.constraint === FUTURE_EVALUATION_CONSTRAINT;
 }
 
+// true si `error` indica que la evaluación es de un trimestre cerrado: sus calificaciones quedan
+// como estaban al cerrarse, sin cargarse, corregirse ni darse de baja.
+function isClosedTermError(error) {
+  return error?.code === '23514' && error.constraint === CLOSED_TERM_CONSTRAINT;
+}
+
+// true si `error` indica que la fecha de la evaluación es anterior a la fecha de inscripción: esa
+// evaluación se tomó antes de que el alumno se inscribiera y no se le califica.
+function isBeforeEnrollmentError(error) {
+  return error?.code === '23514' && error.constraint === BEFORE_ENROLLMENT_CONSTRAINT;
+}
+
 module.exports = {
   findByEvaluation,
   countVisibleByTeacherAssignment,
@@ -264,4 +288,6 @@ module.exports = {
   isClosedSchoolYearError,
   isEvaluationDeletedError,
   isFutureEvaluationError,
+  isClosedTermError,
+  isBeforeEnrollmentError,
 };

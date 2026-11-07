@@ -105,9 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let scores = [];
   // La inscripción elegida en el filtro Alumno, por su id. Vacío (nada elegido) no filtra.
   let selectedEnrollmentIds = [];
-  // Si la asignación es de un ciclo lectivo cerrado o la evaluación tiene una fecha futura, el
-  // motivo con el que las notas y Eliminar quedan deshabilitados (el del ciclo cerrado, si son las
-  // dos cosas); null si no, o hasta que llega con la lista
+  // Si la asignación es de un ciclo lectivo cerrado, la evaluación es de un trimestre cerrado o tiene
+  // una fecha futura, el motivo con el que las notas y Eliminar quedan deshabilitados (el primero que
+  // corresponda, en ese orden); null si no, o hasta que llega con la lista
   let readOnlyTitle = null;
 
   // Cargando, error o sin resultados, en una única fila de todo el ancho
@@ -155,9 +155,9 @@ document.addEventListener('DOMContentLoaded', () => {
     (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
 
   // Rechazos de un guardado con los que la lista quedó vieja y se vuelve a pedir: la inscripción se
-  // dio de baja, el ciclo lectivo se cerró con la vista abierta desde antes del cambio de año, o la
-  // evaluación pasó a una fecha futura
-  const STALE_LIST_CODES = ['ENROLLMENT_DELETED', 'SCHOOL_YEAR_CLOSED', 'EVALUATION_IN_FUTURE'];
+  // dio de baja, el ciclo lectivo se cerró con la vista abierta desde antes del cambio de año, el
+  // trimestre de la evaluación se cerró con la vista abierta, o la evaluación pasó a una fecha futura
+  const STALE_LIST_CODES = ['ENROLLMENT_DELETED', 'SCHOOL_YEAR_CLOSED', 'TERM_CLOSED', 'EVALUATION_IN_FUTURE'];
 
   // ---------- Cambios sin guardar ----------
 
@@ -357,8 +357,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
   // inscripcion_id en data-enrollment-id. La fila muestra la nota del cambio sin guardar, si lo hay,
   // o la guardada. El control de una inscripción que no está activa queda deshabilitado, con la
-  // nota que tenga, igual que todos si la asignación es de un ciclo cerrado o la evaluación tiene
-  // una fecha futura (readOnlyTitle), que también deshabilita Eliminar. El title del control dice
+  // nota que tenga, igual que todos si la asignación es de un ciclo cerrado o la evaluación es de un
+  // trimestre cerrado o tiene una fecha futura (readOnlyTitle), que también deshabilita Eliminar. El title del control dice
   // por qué.
   function createRow(score) {
     const { enrollmentId, student, isEnrollmentActive } = score;
@@ -420,7 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Pide la evaluación y sus calificaciones con los ids de la URL, a la par de la tarjeta, junto con
   // el ciclo lectivo actual. Al llegar, y con la asignación de la tarjeta, que dice si su ciclo está
-  // cerrado, y la fecha de hoy, que dice si la evaluación es futura, completa los datos de la
+  // cerrado, isTermClosed de la evaluación, que dice si su trimestre lo está, y la fecha de hoy, que
+  // dice si la evaluación es futura, completa los datos de la
   // evaluación, arma las opciones de Alumno y muestra las calificaciones. Si no llegan las
   // calificaciones o el ciclo lectivo, la tabla muestra el error.
   // Sin un id en la URL, o con uno que no es un número, el proceso principal responde que no pudo
@@ -446,9 +447,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Sin la asignación (no se pudo cargar), la tarjeta y la tabla ya se ocultaron
     const isClosed = Boolean(assignment) && assignment.course.schoolYear < schoolYear.year;
-    const { evaluationDate } = response.evaluation;
+    const { evaluationDate, isTermClosed } = response.evaluation;
     if (isClosed) {
       readOnlyTitle = closedSchoolYearTitle(assignment.course.schoolYear);
+    } else if (isTermClosed) {
+      readOnlyTitle = 'El trimestre de esta evaluación está cerrado: sus calificaciones son de solo lectura.';
     } else if (evaluationDate > schoolYear.today) {
       readOnlyTitle = `La evaluación es del ${toDisplayDate(evaluationDate)}: se puede calificar a partir de ese día.`;
     } else {
@@ -468,8 +471,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Vuelve a pedir la lista, que quedó vieja: una inscripción se dio de baja con la vista abierta y
-  // deja de mostrarse, o el ciclo lectivo se cerró o la evaluación pasó a una fecha futura y la
-  // lista vuelve en solo lectura. Los cambios sin guardar del resto de las calificaciones se
+  // deja de mostrarse, o el ciclo lectivo o el trimestre de la evaluación se cerraron o la
+  // evaluación pasó a una fecha futura y la lista vuelve en solo lectura. Los cambios sin guardar del resto de las calificaciones se
   // conservan (en solo lectura, ninguno).
   const reloadScores = () =>
     loadScores(new Map(scores.filter(hasDraft).map(({ enrollmentId, draft }) => [enrollmentId, draft])));

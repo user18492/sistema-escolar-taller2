@@ -52,11 +52,20 @@ function invalidFieldsError(fieldErrors) {
   return new EvaluationError('INVALID_INPUT', 'Revisá los datos marcados.', fieldErrors);
 }
 
+// Ninguna evaluación se crea en un trimestre cerrado ni pasa a una fecha de uno: sería de solo
+// lectura desde el principio (trg_evaluacion_trimestre_cerrado, db/schema.sql).
+const CLOSED_TERM_DATE_MESSAGE = 'El trimestre de esa fecha ya está cerrado.';
+
+// Una evaluación calificada no pasa a una fecha anterior a la inscripción de un alumno calificado
+// en ella (trg_evaluacion_fecha_inscripcion_calificaciones_vigentes, db/schema.sql).
+const BEFORE_ENROLLMENT_DATE_MESSAGE = 'Hay alumnos calificados que se inscribieron después de esa fecha.';
+
 // Normaliza los datos del formulario de evaluación (el controlador ya verificó que sean strings) y
 // devuelve solo los campos que se guardan. Lanza un EvaluationError INVALID_INPUT con los
 // fieldErrors de los campos que no son válidos: el título vacío o sin letras ni números, y la fecha
-// que no existe en el calendario o que no es de `schoolYear`, el ciclo lectivo de la asignación.
-function parseEvaluationData(data, schoolYear) {
+// que no existe en el calendario, que no es de `schoolYear`, el ciclo lectivo de la asignación, o
+// que es de un trimestre cerrado, con la fecha de la base (schoolYearService.isTermClosed).
+async function parseEvaluationData(data, schoolYear) {
   const values = {
     title: normalizeTitle(data.title),
     evaluationDate: data.evaluationDate.trim(),
@@ -67,6 +76,9 @@ function parseEvaluationData(data, schoolYear) {
   if (titleMessage) fieldErrors.title = titleMessage;
   const dateMessage = checkEvaluationDate(values.evaluationDate, schoolYear);
   if (dateMessage) fieldErrors.evaluationDate = dateMessage;
+  else if (await schoolYearService.isTermClosed(values.evaluationDate)) {
+    fieldErrors.evaluationDate = CLOSED_TERM_DATE_MESSAGE;
+  }
   if (Object.keys(fieldErrors).length > 0) {
     throw invalidFieldsError(fieldErrors);
   }
@@ -77,12 +89,14 @@ function parseEvaluationData(data, schoolYear) {
 
 // Lista explícita de campos, como toListedCourse (course.service.js): lo que muestran la tabla de
 // Evaluaciones del Profesor y su filtro, y el id para identificar la fila. `evaluationDate` es el
-// día de la evaluación ('AAAA-MM-DD').
-function toListedEvaluation({ id, title, evaluationDate }) {
+// día de la evaluación ('AAAA-MM-DD') e `isTermClosed`, si su trimestre está cerrado, con la fecha
+// de la base al consultarla: la evaluación y sus calificaciones son de solo lectura.
+function toListedEvaluation({ id, title, evaluationDate, isTermClosed }) {
   return {
     id,
     title,
     evaluationDate: toIsoDate(evaluationDate),
+    isTermClosed,
   };
 }
 
@@ -145,15 +159,35 @@ async function assertSchoolYearNotClosed(teacherAssignment) {
   }
 }
 
+// Una evaluación de un trimestre cerrado es de solo lectura: no se edita (tampoco el título) ni se
+// da de baja, y sus calificaciones quedan como estaban al cerrarse.
+function closedTermError() {
+  return new EvaluationError('TERM_CLOSED', schoolYearService.closedTermMessage());
+}
+
+// Lanza el EvaluationError TERM_CLOSED si la evaluación vigente con ese id de `teacherAssignment`
+// (la de getOwnTeacherAssignment) es de un trimestre cerrado. Se comprueba después del ciclo
+// lectivo y antes de validar el formulario, para que gane a sus errores. Si la evaluación no existe,
+// fue dada de baja o es de otra asignación, no lanza nada: EVALUATION_NOT_FOUND sale después, como
+// siempre. Si el trimestre se cierra en el medio, la base rechaza la escritura y ese rechazo se
+// traduce al mismo error.
+async function assertTermNotClosed(teacherAssignment, evaluationId) {
+  const evaluation = await evaluationRepository.findActiveByIdAndTeacherAssignment(evaluationId, teacherAssignment.id);
+  if (evaluation?.isTermClosed) throw closedTermError();
+}
+
 // Llama a `save` (el INSERT o el UPDATE) y devuelve su resultado. Si PostgreSQL lo rechaza por un
 // motivo previsto, no se guarda nada y lanza un EvaluationError: DUPLICATE_VALUE, con el mensaje
 // `duplicate.message` y `duplicate.title` en fieldErrors.title, si la asignación ya tiene otra
 // evaluación vigente con ese título, SCHOOL_YEAR_CLOSED si `schoolYear`, el ciclo lectivo del curso
 // de la asignación, se cerró después de comprobarlo, e INVALID_INPUT con fieldErrors.evaluationDate
 // si la fecha no es de ese ciclo lectivo o si, en la edición, la evaluación tiene calificaciones
-// vigentes y la fecha nueva es futura. Si la asignación se dio de baja después de comprobarla, lanza
-// el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de ownTeacherAssignmentNotFoundError.
-async function saveEvaluation(save, duplicate, schoolYear) {
+// vigentes y la fecha nueva es futura o anterior a la inscripción de un alumno calificado. Si la
+// fecha (la que tenía o la nueva) es de un trimestre cerrado, lanza el error que devuelve
+// `closedTermErrorOf`, que puede ser asíncrona: la base no dice cuál de las dos fechas fue. Si la
+// asignación se dio de baja después de comprobarla, lanza el TeacherAssignmentError
+// TEACHER_ASSIGNMENT_NOT_FOUND de ownTeacherAssignmentNotFoundError.
+async function saveEvaluation(save, duplicate, schoolYear, closedTermErrorOf) {
   try {
     return await save();
   } catch (error) {
@@ -181,6 +215,17 @@ async function saveEvaluation(save, duplicate, schoolYear) {
         evaluationDate: 'La evaluación ya tiene calificaciones: no se puede pasar a una fecha futura.',
       });
     }
+    // El trimestre se cerró después de comprobarlo: el día cambió en el medio
+    // (trg_evaluacion_trimestre_cerrado, db/schema.sql)
+    if (evaluationRepository.isClosedTermError(error)) {
+      throw await closedTermErrorOf();
+    }
+    // Lo decide solo la base, que compara con la inscripción de cada calificado
+    // (trg_evaluacion_fecha_inscripcion_calificaciones_vigentes, db/schema.sql); el alta nunca lo
+    // dispara.
+    if (evaluationRepository.isBeforeEnrollmentWithScoresError(error)) {
+      throw invalidFieldsError({ evaluationDate: BEFORE_ENROLLMENT_DATE_MESSAGE });
+    }
     throw error;
   }
 }
@@ -202,19 +247,21 @@ async function saveEvaluation(save, duplicate, schoolYear) {
 // si la asignación no existe, fue dada de baja o es de otro profesor, también si otra sesión la da
 // de baja mientras tanto (la base no crea una evaluación en una asignación dada de baja), y un
 // EvaluationError SCHOOL_YEAR_CLOSED si su curso es de un ciclo lectivo cerrado, que gana a los
-// errores del formulario.
+// errores del formulario. Una fecha de un trimestre cerrado es un error del formulario
+// (fieldErrors.evaluationDate), también si el trimestre se cierra mientras tanto.
 async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, data) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   await assertSchoolYearNotClosed(teacherAssignment);
   const { schoolYear } = teacherAssignment.course;
-  const values = parseEvaluationData(data, schoolYear);
+  const values = await parseEvaluationData(data, schoolYear);
   const evaluation = await saveEvaluation(
     () => evaluationRepository.create(teacherAssignment.id, values),
     {
       message: 'Ya existe una evaluación con ese título en esta asignación.',
       title: 'Ya existe una evaluación con este título.',
     },
-    schoolYear
+    schoolYear,
+    () => invalidFieldsError({ evaluationDate: CLOSED_TERM_DATE_MESSAGE })
   );
   return toListedEvaluation(evaluation);
 }
@@ -232,8 +279,11 @@ async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, d
 // fieldErrors de parseEvaluationData; si la asignación ya tiene otra evaluación vigente con ese
 // título, un EvaluationError DUPLICATE_VALUE con fieldErrors.title: guardarla sin cambios no es un
 // duplicado y una dada de baja no cuenta. Una evaluación con calificaciones vigentes no pasa a una
-// fecha futura: lo rechaza PostgreSQL, con su fecha, y se lanza un EvaluationError INVALID_INPUT
-// con fieldErrors.evaluationDate (saveEvaluation).
+// fecha futura ni a una anterior a la inscripción de un alumno calificado en ella: lo rechaza
+// PostgreSQL, con su fecha, y se lanza un EvaluationError INVALID_INPUT con
+// fieldErrors.evaluationDate (saveEvaluation). Una evaluación de un trimestre cerrado no se edita:
+// se lanza un EvaluationError TERM_CLOSED, después de SCHOOL_YEAR_CLOSED y antes de los errores del
+// formulario; una fecha nueva de un trimestre cerrado es un error del formulario, como en el alta.
 // También lanza el TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment
 // si la asignación no existe, fue dada de baja o es de otro profesor, también si otra sesión la da
 // de baja mientras tanto (la base no edita una evaluación de una asignación dada de baja), un
@@ -243,15 +293,24 @@ async function createOwnAssignmentEvaluation(currentUser, teacherAssignmentId, d
 async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId, data) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   await assertSchoolYearNotClosed(teacherAssignment);
+  await assertTermNotClosed(teacherAssignment, evaluationId);
   const { schoolYear } = teacherAssignment.course;
-  const values = parseEvaluationData(data, schoolYear);
+  const values = await parseEvaluationData(data, schoolYear);
   const evaluation = await saveEvaluation(
     () => evaluationRepository.update(evaluationId, teacherAssignment.id, values),
     {
       message: 'Ya existe otra evaluación con ese título en esta asignación.',
       title: 'Ya existe otra evaluación con este título.',
     },
-    schoolYear
+    schoolYear,
+    // Si la que se cerró es la de la fecha que tenía, la evaluación quedó en solo lectura; si no,
+    // es la fecha nueva, como en el alta
+    async () => {
+      const current = await evaluationRepository.findActiveByIdAndTeacherAssignment(evaluationId, teacherAssignment.id);
+      return current?.isTermClosed
+        ? closedTermError()
+        : invalidFieldsError({ evaluationDate: CLOSED_TERM_DATE_MESSAGE });
+    }
   );
   if (!evaluation) throw evaluationNotFoundError();
   return toListedEvaluation(evaluation);
@@ -270,7 +329,8 @@ async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, e
 // TeacherAssignmentError TEACHER_ASSIGNMENT_NOT_FOUND de getOwnTeacherAssignment si la asignación
 // no existe, fue dada de baja o es de otro profesor, un EvaluationError SCHOOL_YEAR_CLOSED si su
 // curso es de un ciclo lectivo cerrado, que gana a los errores siguientes, un EvaluationError
-// EVALUATION_HAS_COMPLETED_SCORES si la evaluación tiene calificaciones vigentes de inscripciones
+// TERM_CLOSED si la evaluación es de un trimestre cerrado (también si se cierra mientras tanto), un
+// EvaluationError EVALUATION_HAS_COMPLETED_SCORES si la evaluación tiene calificaciones vigentes de inscripciones
 // finalizadas y un EvaluationError EVALUATION_NOT_FOUND si la evaluación no existe, ya estaba dada
 // de baja o es de otra asignación, sin distinguir los casos. Una inscripción finalizada solo existe
 // en un ciclo lectivo cerrado, donde gana SCHOOL_YEAR_CLOSED: EVALUATION_HAS_COMPLETED_SCORES queda
@@ -278,12 +338,17 @@ async function updateOwnAssignmentEvaluation(currentUser, teacherAssignmentId, e
 async function deleteOwnAssignmentEvaluation(currentUser, teacherAssignmentId, evaluationId) {
   const teacherAssignment = await teacherAssignmentService.getOwnTeacherAssignment(currentUser, teacherAssignmentId);
   await assertSchoolYearNotClosed(teacherAssignment);
+  await assertTermNotClosed(teacherAssignment, evaluationId);
   let deletedEvaluation;
   try {
     deletedEvaluation = await evaluationRepository.markAsDeleted(evaluationId, teacherAssignment.id);
   } catch (error) {
     if (evaluationRepository.isClosedSchoolYearError(error)) {
       throw closedSchoolYearError(teacherAssignment.course.schoolYear);
+    }
+    // El trimestre se cerró después de comprobarlo (trg_evaluacion_trimestre_cerrado, db/schema.sql)
+    if (evaluationRepository.isClosedTermError(error)) {
+      throw closedTermError();
     }
     // Las calificaciones de inscripciones finalizadas son histórico y tienen que seguir visibles en
     // la evaluación: la base rechaza la baja en cascada (trg_calificacion_coherencia,

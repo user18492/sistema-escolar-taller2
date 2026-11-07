@@ -14,7 +14,8 @@ const { SHIFT_BY_COLUMN_VALUE, COLUMN_VALUE_BY_SHIFT } = require('./course.repos
 // El orden es total: el alumno (por apellido y nombre; alumno_id mantiene juntas las de dos alumnos
 // que se llaman igual) y, si un alumno tiene más de una inscripción en el curso, la más antigua
 // primero (inscripcion_id), así dos consultas sobre los mismos datos dan siempre el mismo orden.
-const FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL = `
+// `extraCondition` agrega una condición al WHERE (FIND_ACTIVE_OR_FINISHED_BY_COURSE_ENROLLED_BY_SQL).
+const activeOrFinishedByCourseSql = (extraCondition = '') => `
   SELECT i.inscripcion_id,
          i.curso_id,
          i.fecha_inscripcion,
@@ -29,8 +30,16 @@ const FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL = `
    WHERE i.curso_id = $1
      AND i.fecha_eliminacion IS NULL
      AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
+     ${extraCondition}
    ORDER BY al.apellido, al.nombre, al.alumno_id, i.inscripcion_id
 `;
+const FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL = activeOrFinishedByCourseSql();
+
+// Las mismas inscripciones que FIND_ACTIVE_OR_FINISHED_BY_COURSE_SQL, en el mismo orden, salvo las
+// inscriptas después de la fecha $2: las que se califican en una evaluación de ese día (no se
+// califica una evaluación anterior a la inscripción, ck_calificacion_evaluacion_anterior_inscripcion,
+// db/schema.sql).
+const FIND_ACTIVE_OR_FINISHED_BY_COURSE_ENROLLED_BY_SQL = activeOrFinishedByCourseSql('AND i.fecha_inscripcion <= $2');
 
 // Si la inscripción $1 es del curso $2 y está dada de baja (baja lógica), en cualquier estado. Una
 // que no existe o que es de otro curso da false, igual que una vigente.
@@ -536,6 +545,13 @@ async function findActiveOrFinishedByCourse(courseId) {
   return rows.map(toEnrollment);
 }
 
+// Las de findActiveOrFinishedByCourse, en el mismo orden, sin las inscriptas después del día
+// `isoDate` ('AAAA-MM-DD'), p. ej., el de una evaluación: las que se califican en ella.
+async function findActiveOrFinishedByCourseEnrolledBy(courseId, isoDate) {
+  const { rows } = await query(FIND_ACTIVE_OR_FINISHED_BY_COURSE_ENROLLED_BY_SQL, [courseId, isoDate]);
+  return rows.map(toEnrollment);
+}
+
 // true si la inscripción `enrollmentId` (un inscripcion_id) es del curso `courseId` (un curso_id) y
 // está dada de baja; false si está vigente, si no existe o si es de otro curso.
 async function isDeletedInCourse(enrollmentId, courseId) {
@@ -658,6 +674,7 @@ function isEnrollmentWithScoresError(error) {
 
 module.exports = {
   findActiveOrFinishedByCourse,
+  findActiveOrFinishedByCourseEnrolledBy,
   isDeletedInCourse,
   countActiveInCurrentSchoolYear,
   countNotDeletedByInstitution,

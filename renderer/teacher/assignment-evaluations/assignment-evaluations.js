@@ -70,6 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Si la asignación es de un ciclo lectivo cerrado, el motivo con el que Nueva evaluación, Editar y
   // Eliminar quedan deshabilitados; null si no, o hasta que llega con la lista
   let readOnlyTitle = null;
+  // El motivo con el que Editar y Eliminar quedan deshabilitados en una evaluación de un trimestre
+  // cerrado (isTermClosed, de la base), si el ciclo lectivo no lo está
+  const CLOSED_TERM_TITLE = 'El trimestre de esta evaluación está cerrado: es de solo lectura.';
   // La evaluación elegida en el filtro Título, por su id. Vacío (nada elegido) no filtra.
   let selectedEvaluationIds = [];
 
@@ -87,9 +90,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const toDisplayDate = (isoDate) => isoDate.split('-').reverse().join('/');
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
-  // evaluacion_id en data-evaluation-id. En una asignación de un ciclo cerrado lleva Editar y
-  // Eliminar deshabilitados, con el motivo como title.
-  const createRow = ({ id, title, evaluationDate }) => {
+  // evaluacion_id en data-evaluation-id. En una asignación de un ciclo cerrado, o si la evaluación
+  // es de un trimestre cerrado, lleva Editar y Eliminar deshabilitados, con el motivo como title (el
+  // del ciclo, si son las dos cosas).
+  const createRow = ({ id, title, evaluationDate, isTermClosed }) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.evaluationId = String(id);
     row.cells[0].querySelector('.text-truncate').textContent = title;
@@ -101,7 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoresParams = new URLSearchParams(assignmentParams);
     scoresParams.set('evaluationId', String(id));
     rowActions.setAttribute('manage-href', `${rowActions.getAttribute('manage-href')}?${scoresParams.toString()}`);
-    if (readOnlyTitle) rowActions.setAttribute('read-only-title', readOnlyTitle);
+    const rowReadOnlyTitle = readOnlyTitle ?? (isTermClosed ? CLOSED_TERM_TITLE : null);
+    if (rowReadOnlyTitle) rowActions.setAttribute('read-only-title', rowReadOnlyTitle);
     return row;
   };
 
@@ -443,11 +448,11 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Error al guardar la evaluación:', error);
     }
-    // La evaluación que se editaba ya no está vigente o, con la vista abierta desde antes del cambio
-    // de año, el ciclo lectivo de la asignación se cerró: la lista se vuelve a pedir antes de liberar
-    // el modal, que se cierra más abajo
+    // La evaluación que se editaba ya no está vigente o su trimestre se cerró o, con la vista abierta
+    // desde antes del cambio de año, el ciclo lectivo de la asignación se cerró: la lista se vuelve
+    // a pedir antes de liberar el modal, que se cierra más abajo
     const errorCode = response?.error?.code;
-    const isStale = (Boolean(editingEvaluation) && NO_LONGER_ACTIVE_CODES.includes(errorCode))
+    const isStale = (Boolean(editingEvaluation) && [...NO_LONGER_ACTIVE_CODES, 'TERM_CLOSED'].includes(errorCode))
       || errorCode === 'SCHOOL_YEAR_CLOSED';
     if (isStale) await loadEvaluations();
     setSaving(false);
@@ -558,8 +563,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     // También si el ciclo lectivo de la asignación se cerró con la vista abierta desde antes del
-    // cambio de año: la lista vuelve en solo lectura
-    if (isGone || response?.error?.code === 'SCHOOL_YEAR_CLOSED') await loadEvaluations();
+    // cambio de año, o el trimestre de la evaluación con la vista abierta desde antes de su cierre:
+    // la lista vuelve en solo lectura
+    if (isGone || ['SCHOOL_YEAR_CLOSED', 'TERM_CLOSED'].includes(response?.error?.code)) await loadEvaluations();
     showToast({ type: 'error', title: 'No se pudo eliminar la evaluación', description: errorDescription(response?.error) });
   };
 

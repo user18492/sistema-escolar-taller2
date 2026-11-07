@@ -24,6 +24,23 @@ function closedSchoolYearMessage(schoolYear) {
   return `El ciclo lectivo ${schoolYear} está cerrado: sus datos son de solo lectura.`;
 }
 
+// Un trimestre del ciclo lectivo (1 hasta el 31/05, 2 hasta el 31/08 y 3 hasta el 31/12) se cierra
+// 7 días después de su último día, o con su ciclo lectivo: desde entonces, sus evaluaciones y sus
+// calificaciones son de solo lectura. Los cortes y el plazo los define la base (fn_trimestre y
+// fn_trimestre_cerrado, db/schema.sql), nunca el proceso.
+
+// true si el trimestre de la fecha `isoDate` ('AAAA-MM-DD', una fecha válida), p. ej., la de una
+// evaluación, está cerrado, con la fecha de la base. Es la misma regla con la que la base rechaza
+// después cualquier escritura en ese trimestre.
+async function isTermClosed(isoDate) {
+  return schoolYearRepository.isTermClosed(isoDate);
+}
+
+// Mensaje del error TERM_CLOSED, el mismo en todas las operaciones que lo lanzan.
+function closedTermMessage() {
+  return 'El trimestre de esta evaluación está cerrado: sus datos son de solo lectura.';
+}
+
 // Cierre de los ciclos lectivos anteriores al actual: sus inscripciones vigentes y activas pasan a
 // finalizadas, sin cambiar nada más (las canceladas, las finalizadas y las dadas de baja quedan como
 // están). Lo llama main.js al iniciar la aplicación; es idempotente: una segunda llamada ya no
@@ -32,4 +49,11 @@ async function closePastSchoolYears() {
   return enrollmentRepository.finalizeActiveInClosedSchoolYears();
 }
 
-module.exports = { getCurrentSchoolYear, isClosedSchoolYear, closedSchoolYearMessage, closePastSchoolYears };
+module.exports = {
+  getCurrentSchoolYear,
+  isClosedSchoolYear,
+  closedSchoolYearMessage,
+  isTermClosed,
+  closedTermMessage,
+  closePastSchoolYears,
+};
