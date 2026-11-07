@@ -36,17 +36,21 @@ const CATALOGS = [
   ['grado_materia', 'grado_materia_id'], ['alumno_estado', 'alumno_estado_id'], ['inscripcion_estado', 'inscripcion_estado_id'],
 ];
 
-const backupsDir = (t) => path.join(t.harness.userData, 'backups');
-const listBackupFiles = (t) => (fs.existsSync(backupsDir(t)) ? fs.readdirSync(backupsDir(t)).sort() : []);
+// La carpeta de backups (userData/backups) o, con `institutionId`, la subcarpeta de esa institución.
+const backupsRoot = (t) => path.join(t.harness.userData, 'backups');
+const backupsDir = (t, institutionId) => path.join(backupsRoot(t), String(institutionId));
+const listBackupFiles = (t, institutionId) => {
+  const directory = backupsDir(t, institutionId);
+  return fs.existsSync(directory) ? fs.readdirSync(directory).sort() : [];
+};
 
-// El nombre que plans/backups/01-backup.md fija para un backup de `institution` en la fecha `iso`,
-// con la hora local de este proceso (el mismo que el principal de la aplicación).
-function expectedFileName(institution, iso, format) {
-  const slug = institution.nombre.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-').slice(0, 40).replace(/^-+|-+$/g, '');
+// El nombre de un backup de la institución `institutionId` realizado por el usuario `userId` en la
+// fecha `iso` (<institucion_id>_<usuario_id>_<fecha>_<hora>), con la hora local de este proceso (el
+// mismo que el principal de la aplicación).
+function expectedFileName(institutionId, userId, iso, format) {
   const d = new Date(iso);
   const p = (n) => String(n).padStart(2, '0');
-  return `${slug}_${institution.cuit}_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}${EXTENSIONS[format]}`;
+  return `${institutionId}_${userId}_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}${EXTENSIONS[format]}`;
 }
 
 // Descomprime el backup y devuelve los nombres de sus entradas y el contenido de backup.json.
@@ -97,18 +101,22 @@ group('main.admin.backups', 'Administrador: backups', {
     };
   },
 }, () => {
-  test('invalid-format', 'Un formato que no es zip ni tar.gz se rechaza con INVALID_INPUT, sin escribir nada', async (t) => {
+  test('invalid-format', 'Un formato que no es zip ni tar.gz se rechaza con INVALID_INPUT, sin escribir nada', {
+    history: [{ plan: 'plans/backups/03-carpeta-por-institucion.md', date: '2026-11-07', change: 'La carpeta de backups es la subcarpeta de la institución' }],
+  }, async (t) => {
     await t.login('admin');
-    const filesBefore = listBackupFiles(t);
+    const filesBefore = listBackupFiles(t, t.data.institutionId);
     const countBefore = await respaldoCount(t);
     for (const format of ['rar', 'ZIP', '', null, 7]) await t.rejects('INVALID_INPUT', 'backups.create', format);
-    t.equal(listBackupFiles(t), filesBefore, 'La carpeta de backups no cambió');
+    t.equal(listBackupFiles(t, t.data.institutionId), filesBefore, 'La carpeta de backups no cambió');
     t.equal(await respaldoCount(t), countBefore, 'El historial no cambió');
     await t.logout();
   });
 
   for (const format of ['zip', 'tar.gz']) {
-    test(`create-${format.replace('.', '-')}`, `El backup ${format.toUpperCase()} guarda todas las filas de la institución, sus columnas y los catálogos, y queda en el historial`, async (t) => {
+    test(`create-${format.replace('.', '-')}`, `El backup ${format.toUpperCase()} guarda todas las filas de la institución, sus columnas y los catálogos, y queda en el historial`, {
+      history: [{ plan: 'plans/backups/03-carpeta-por-institucion.md', date: '2026-11-07', change: 'El archivo queda en la subcarpeta de la institución y el nombre es <institucion_id>_<usuario_id>_<fecha>_<hora>, sin el CUIT' }],
+    }, async (t) => {
       await t.login('admin');
       const countBefore = await respaldoCount(t);
       const { backup } = await t.ok('backups.create', format);
@@ -116,9 +124,10 @@ group('main.admin.backups', 'Administrador: backups', {
 
       // El archivo
       const institution = await t.sqlOne(`SELECT institucion_id, cuit, nombre FROM institucion WHERE institucion_id = $1`, [t.data.institutionId]);
-      const file = path.join(backupsDir(t), backup.fileName);
-      t.require(fs.existsSync(file), `No existe el archivo ${backup.fileName} en userData/backups`);
-      t.check(!listBackupFiles(t).some((name) => name.endsWith('.tmp')), 'Quedó un archivo .tmp en la carpeta', listBackupFiles(t));
+      const file = path.join(backupsDir(t, t.data.institutionId), backup.fileName);
+      t.require(fs.existsSync(file), `No existe el archivo ${backup.fileName} en userData/backups/${t.data.institutionId}`);
+      t.check(!listBackupFiles(t, t.data.institutionId).some((name) => name.endsWith('.tmp')), 'Quedó un archivo .tmp en la carpeta', listBackupFiles(t, t.data.institutionId));
+      t.check(!fs.existsSync(path.join(backupsRoot(t), backup.fileName)), 'El archivo quedó suelto en userData/backups, fuera de la subcarpeta de la institución');
       const { entries, content } = await readArchive(t, file, format);
       t.equal(entries, ['backup.json'], 'El archivo tiene una sola entrada, backup.json');
       t.require(content, 'backup.json no se pudo leer');
@@ -128,7 +137,8 @@ group('main.admin.backups', 'Administrador: backups', {
       t.equal(content.institution, { id: institution.institucion_id, cuit: institution.cuit, name: institution.nombre }, 'La institución del backup es la de la sesión');
       const admin = await t.sqlOne(`SELECT nombre, apellido FROM usuario WHERE usuario_id = $1`, [t.data.adminId]);
       t.equal(content.createdBy, { id: t.data.adminId, firstName: admin.nombre, lastName: admin.apellido }, 'createdBy es el administrador de la sesión');
-      t.equal(backup.fileName, expectedFileName(institution, content.createdAt, format), 'El nombre del archivo sigue <slug>_<cuit>_<fecha>_<hora> con la hora local de createdAt');
+      t.equal(backup.fileName, expectedFileName(t.data.institutionId, t.data.adminId, content.createdAt, format), 'El nombre del archivo sigue <institucion_id>_<usuario_id>_<fecha>_<hora> con la hora local de createdAt');
+      t.check(!backup.fileName.includes(institution.cuit), 'El nombre del archivo no incluye el CUIT de la institución', backup.fileName);
 
       // Filas de las 7 tablas: las de la institución, con todas sus columnas, también las dadas de baja
       t.equal(Object.keys(content.tables).sort(), TABLES.map(([name]) => name).sort(), 'Tablas del backup');
@@ -176,35 +186,39 @@ group('main.admin.backups', 'Administrador: backups', {
     });
   }
 
-  test('file-exists', 'Si ya existe un archivo con el nombre del backup (dos en el mismo segundo), responde BACKUP_FILE_EXISTS sin reemplazarlo ni registrar nada', async (t) => {
+  test('file-exists', 'Si ya existe un archivo con el nombre del backup (dos en el mismo segundo), responde BACKUP_FILE_EXISTS sin reemplazarlo ni registrar nada', {
+    history: [{ plan: 'plans/backups/03-carpeta-por-institucion.md', date: '2026-11-07', change: 'Los nombres ocupados siguen el formato nuevo, en la subcarpeta de la institución' }],
+  }, async (t) => {
     await t.login('admin');
-    const institution = await t.sqlOne(`SELECT cuit, nombre FROM institucion WHERE institucion_id = $1`, [t.data.institutionId]);
     const { now } = await t.sqlOne(`SELECT to_json(NOW()) #>> '{}' AS now`);
+    const directory = backupsDir(t, t.data.institutionId);
     // Los nombres de los próximos segundos ya están ocupados
-    fs.mkdirSync(backupsDir(t), { recursive: true });
+    fs.mkdirSync(directory, { recursive: true });
     const taken = [];
     for (let second = -2; second <= 15; second += 1) {
-      const name = expectedFileName(institution, new Date(new Date(now).getTime() + second * 1000).toISOString(), 'zip');
-      if (fs.existsSync(path.join(backupsDir(t), name))) continue;
-      fs.writeFileSync(path.join(backupsDir(t), name), 'ocupado');
+      const name = expectedFileName(t.data.institutionId, t.data.adminId, new Date(new Date(now).getTime() + second * 1000).toISOString(), 'zip');
+      if (fs.existsSync(path.join(directory, name))) continue;
+      fs.writeFileSync(path.join(directory, name), 'ocupado');
       taken.push(name);
     }
     const countBefore = await respaldoCount(t);
     try {
       await t.rejects('BACKUP_FILE_EXISTS', 'backups.create', 'zip');
       t.equal(await respaldoCount(t), countBefore, 'No se registró ningún backup');
-      t.check(taken.every((name) => fs.readFileSync(path.join(backupsDir(t), name), 'utf8') === 'ocupado'), 'El archivo existente no se reemplazó');
-      t.check(!listBackupFiles(t).some((name) => name.endsWith('.tmp')), 'Quedó un archivo .tmp en la carpeta', listBackupFiles(t));
+      t.check(taken.every((name) => fs.readFileSync(path.join(directory, name), 'utf8') === 'ocupado'), 'El archivo existente no se reemplazó');
+      t.check(!listBackupFiles(t, t.data.institutionId).some((name) => name.endsWith('.tmp')), 'Quedó un archivo .tmp en la carpeta', listBackupFiles(t, t.data.institutionId));
     } finally {
-      for (const name of taken) fs.rmSync(path.join(backupsDir(t), name), { force: true });
+      for (const name of taken) fs.rmSync(path.join(directory, name), { force: true });
     }
     await t.logout();
   });
 
-  test('one-at-a-time', 'Mientras corre un backup, otro se rechaza con BACKUP_IN_PROGRESS', async (t) => {
+  test('one-at-a-time', 'Mientras corre un backup, otro se rechaza con BACKUP_IN_PROGRESS', {
+    history: [{ plan: 'plans/backups/03-carpeta-por-institucion.md', date: '2026-11-07', change: 'Los archivos se buscan en la subcarpeta de la institución' }],
+  }, async (t) => {
     await t.login('admin');
     // Sin los archivos de las pruebas anteriores, que pueden ser del mismo segundo
-    fs.rmSync(backupsDir(t), { recursive: true, force: true });
+    fs.rmSync(backupsRoot(t), { recursive: true, force: true });
     const countBefore = await respaldoCount(t);
     // El primero se demora al empezar a leer los datos, ya dentro de la operación; mientras tanto
     // llega el segundo
@@ -217,7 +231,7 @@ group('main.admin.backups', 'Administrador: backups', {
     const firstResult = await first;
     t.check(firstResult?.ok === true, 'El primer backup se realizó', firstResult);
     t.equal(await respaldoCount(t), countBefore + 1, 'Solo se registró el que se realizó');
-    t.equal(listBackupFiles(t), firstResult?.ok ? [firstResult.backup.fileName] : [], 'Solo quedó el archivo del que se realizó');
+    t.equal(listBackupFiles(t, t.data.institutionId), firstResult?.ok ? [firstResult.backup.fileName] : [], 'Solo quedó el archivo del que se realizó');
     await t.logout();
   });
 });
@@ -290,6 +304,10 @@ async function restoreAndWaitLogin(t) {
 
 const deepCopy = (value) => JSON.parse(JSON.stringify(value));
 
+// Borra los backups de la institución que dejaron las pruebas anteriores: uno del mismo segundo
+// haría fallar el siguiente con BACKUP_FILE_EXISTS.
+const clearBackups = (t, institutionId) => fs.rmSync(backupsDir(t, institutionId), { recursive: true, force: true });
+
 group('main.admin.restore', 'Administrador: restore de un backup', {
   async setup({ fixtures }) {
     const institutionId = await fixtures.institutionId(SM);
@@ -313,11 +331,14 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
     return { institutionId, otherInstitutionId, emptyCourse, secretary, student, otherAdmin, foreignAdmin };
   },
 }, () => {
-  test('restore-roundtrip', 'Backup, cambios y restore: las 7 tablas de la institución quedan como en el backup (con sus ids), la otra institución y el historial no cambian, la sesión se cierra y las altas siguientes no chocan', async (t) => {
+  test('restore-roundtrip', 'Backup, cambios y restore: las 7 tablas de la institución quedan como en el backup (con sus ids), la otra institución y el historial no cambian, la sesión se cierra y las altas siguientes no chocan', {
+    history: [{ plan: 'plans/backups/03-carpeta-por-institucion.md', date: '2026-11-07', change: 'El diálogo abre en la subcarpeta de la institución' }],
+  }, async (t) => {
+    clearBackups(t, t.data.institutionId);
     await t.login('admin');
     const { backup } = await t.ok('backups.create', 'zip');
     t.require(backup?.fileName, 'No se realizó el backup', backup);
-    const file = path.join(backupsDir(t), backup.fileName);
+    const file = path.join(backupsDir(t, t.data.institutionId), backup.fileName);
     const { content } = await readArchive(t, file, 'zip');
     const atBackup = await institutionRows(t, t.data.institutionId);
 
@@ -340,7 +361,7 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
       'selectFile devuelve el nombre del archivo, la fecha del backup y quién lo realizó');
     const dialog = t.harness.dialogs[dialogsBefore];
     t.equal(dialog?.kind, 'showOpenDialog', 'Se abrió el diálogo para elegir el archivo');
-    t.equal(dialog?.options?.defaultPath, backupsDir(t), 'El diálogo abre en la carpeta de backups');
+    t.equal(dialog?.options?.defaultPath, backupsDir(t, t.data.institutionId), 'El diálogo abre en la carpeta de backups de la institución');
     t.equal(dialog?.options?.properties, ['openFile'], 'El diálogo elige un solo archivo');
     t.equal(dialog?.options?.filters, [{ name: 'Backups', extensions: ['zip', 'gz'] }], 'El diálogo filtra los backups');
     t.equal(await institutionRows(t, t.data.institutionId), changed, 'Elegir el archivo no cambia los datos');
@@ -376,7 +397,9 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
     await t.logout();
   });
 
-  test('restore-closed-school-year', 'Un backup TAR.GZ hecho en un ciclo y restaurado en el siguiente se carga, y sus inscripciones activas de ese ciclo quedan FINALIZADA', async (t) => {
+  test('restore-closed-school-year', 'Un backup TAR.GZ hecho en un ciclo y restaurado en el siguiente se carga, y sus inscripciones activas de ese ciclo quedan FINALIZADA', {
+    history: [{ plan: 'plans/backups/03-carpeta-por-institucion.md', date: '2026-11-07', change: 'El archivo se lee de la subcarpeta de la institución' }],
+  }, async (t) => {
     const previousYear = t.year - 1;
     const closed = await t.fixtures.inSchoolYear(previousYear, async () => {
       const course = await t.fixtures.createCourse();
@@ -395,7 +418,7 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
       await t.db.query(definition);
     }
     t.require(backup?.fileName, 'No se realizó el backup', backup);
-    const file = path.join(backupsDir(t), backup.fileName);
+    const file = path.join(backupsDir(t, t.data.institutionId), backup.fileName);
     const { content } = await readArchive(t, file, 'tar.gz');
     const activeId = (await t.sqlOne(`SELECT inscripcion_estado_id AS id FROM inscripcion_estado WHERE nombre = 'ACTIVA'`)).id;
     const finishedId = (await t.sqlOne(`SELECT inscripcion_estado_id AS id FROM inscripcion_estado WHERE nombre = 'FINALIZADA'`)).id;
@@ -426,7 +449,11 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
     t.equal((await triggersState(t)).notEnabled, [], 'Los triggers quedaron habilitados');
   });
 
-  test('restore-errors', 'Archivo dañado, de otra institución, de otro esquema o sin administrador activo, y restore sin backup elegido: cada uno con su código y sin cambiar la base', async (t) => {
+  test('restore-errors', 'Archivo dañado, de otra institución, de otro esquema o sin administrador activo, y restore sin backup elegido: cada uno con su código y sin cambiar la base', {
+    history: [{ plan: 'plans/backups/03-carpeta-por-institucion.md', date: '2026-11-07', change: 'El backup ajeno queda en la subcarpeta de su institución y se rechaza con "El backup pertenece a otra institución.", sin su nombre ni su CUIT' }],
+  }, async (t) => {
+    clearBackups(t, t.data.institutionId);
+    clearBackups(t, t.data.otherInstitutionId);
     // Un backup de la otra institución, realizado por su administrador
     await t.login(t.data.foreignAdmin);
     const { backup: foreign } = await t.ok('backups.create', 'zip');
@@ -434,7 +461,12 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
     await t.login('admin');
     const { backup } = await t.ok('backups.create', 'zip');
     t.require(foreign?.fileName && backup?.fileName, 'No se realizaron los backups', { foreign, backup });
-    const valid = path.join(backupsDir(t), backup.fileName);
+    // Cada uno en la subcarpeta de su institución, con el id de la institución y del usuario en el nombre
+    const foreignFile = path.join(backupsDir(t, t.data.otherInstitutionId), foreign.fileName);
+    t.check(fs.existsSync(foreignFile), 'El backup de la otra institución no está en su subcarpeta', foreign.fileName);
+    t.check(foreign.fileName.startsWith(`${t.data.otherInstitutionId}_${t.data.foreignAdmin.id}_`), 'El nombre empieza con los ids de la otra institución y de su administrador', foreign.fileName);
+    t.check(!listBackupFiles(t, t.data.institutionId).includes(foreign.fileName), 'El backup de la otra institución quedó en la carpeta de esta');
+    const valid = path.join(backupsDir(t, t.data.institutionId), backup.fileName);
     const { content } = await readArchive(t, valid, 'zip');
 
     const before = await tableHashes(t.db);
@@ -457,7 +489,7 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
       ['otra versión del formato', writeZip(t, 'version.zip', { 'backup.json': { ...deepCopy(content), formatVersion: 2 } }), 'BACKUP_INVALID_FILE'],
       ['una tabla de menos', writeZip(t, 'sin-tabla.zip', { 'backup.json': missingTable }), 'BACKUP_INVALID_FILE'],
       ['sin administradores activos', writeZip(t, 'sin-admin.zip', { 'backup.json': withoutAdmins }), 'BACKUP_INVALID_FILE'],
-      ['de la otra institución', path.join(backupsDir(t), foreign.fileName), 'BACKUP_OTHER_INSTITUTION'],
+      ['de la otra institución', foreignFile, 'BACKUP_OTHER_INSTITUTION'],
       ['las columnas en otro orden', writeZip(t, 'columnas.zip', { 'backup.json': reorderedColumns }), 'BACKUP_INCOMPATIBLE'],
       ['un catálogo distinto', writeZip(t, 'catalogo.zip', { 'backup.json': changedCatalog }), 'BACKUP_INCOMPATIBLE'],
     ];
@@ -469,6 +501,16 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
       t.check(value?.ok === false && value.error?.code === code, `${label}: selectFile tenía que responder ${code}`, value);
       await t.rejects('BACKUP_NO_SELECTION', 'backups.restore');
     }
+
+    // El rechazo del backup ajeno no nombra a la otra institución ni da su CUIT
+    const foreignInstitution = await t.sqlOne(`SELECT cuit, nombre FROM institucion WHERE institucion_id = $1`, [t.data.otherInstitutionId]);
+    t.allowRejection('backups:select-file', 'BACKUP_OTHER_INSTITUTION', 'mensaje del backup ajeno');
+    const foreignValue = await selectFile(t, foreignFile);
+    t.equal(foreignValue?.error, { code: 'BACKUP_OTHER_INSTITUTION', message: 'El backup pertenece a otra institución.' },
+      'El backup de la otra institución se rechaza con el mensaje genérico');
+    const foreignMessage = foreignValue?.error?.message ?? '';
+    t.check(!foreignMessage.includes(foreignInstitution.nombre) && !foreignMessage.includes(foreignInstitution.cuit),
+      'El mensaje no incluye el nombre ni el CUIT de la otra institución', foreignMessage);
 
     // Cancelar el diálogo: sin archivo, y descarta la elección anterior
     t.check((await selectFile(t, valid))?.ok === true, 'El backup válido no se aceptó');
@@ -488,10 +530,13 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
     t.equal((await triggersState(t)).notEnabled, [], 'Los triggers siguen habilitados');
   });
 
-  test('restore-rolled-back', 'Si la carga falla a mitad (un id del backup ya es de la otra institución), responde BACKUP_INCOMPATIBLE, no cambia nada, los triggers quedan habilitados y la sesión sigue abierta', async (t) => {
+  test('restore-rolled-back', 'Si la carga falla a mitad (un id del backup ya es de la otra institución), responde BACKUP_INCOMPATIBLE, no cambia nada, los triggers quedan habilitados y la sesión sigue abierta', {
+    history: [{ plan: 'plans/backups/03-carpeta-por-institucion.md', date: '2026-11-07', change: 'El archivo se lee de la subcarpeta de la institución' }],
+  }, async (t) => {
+    clearBackups(t, t.data.institutionId);
     await t.login('admin');
     const { backup } = await t.ok('backups.create', 'zip');
-    const { content } = await readArchive(t, path.join(backupsDir(t), backup.fileName), 'zip');
+    const { content } = await readArchive(t, path.join(backupsDir(t, t.data.institutionId), backup.fileName), 'zip');
     // Un usuario sin referencias en el backup pasa a tener el id de uno de la otra institución
     const foreignUser = await t.sqlOne(`SELECT usuario_id FROM usuario WHERE institucion_id = $1 ORDER BY usuario_id LIMIT 1`, [t.data.otherInstitutionId]);
     const tampered = deepCopy(content);
@@ -509,10 +554,12 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
     await t.logout();
   });
 
-  test('one-at-a-time', 'Mientras corre un backup, elegir un archivo o restaurar se rechaza con BACKUP_IN_PROGRESS, sin abrir el diálogo', async (t) => {
+  test('one-at-a-time', 'Mientras corre un backup, elegir un archivo o restaurar se rechaza con BACKUP_IN_PROGRESS, sin abrir el diálogo', {
+    history: [{ plan: 'plans/backups/03-carpeta-por-institucion.md', date: '2026-11-07', change: 'Los archivos se buscan en la subcarpeta de la institución' }],
+  }, async (t) => {
     await t.login('admin');
     // Sin los archivos de las pruebas anteriores, que pueden ser del mismo segundo
-    fs.rmSync(backupsDir(t), { recursive: true, force: true });
+    fs.rmSync(backupsRoot(t), { recursive: true, force: true });
     const fault = t.injectFault({ match: /SET TRANSACTION ISOLATION LEVEL REPEATABLE READ/i, action: 'delay', ms: 800 });
     const first = t.call('backups.create', 'zip');
     const deadline = Date.now() + 5000;
