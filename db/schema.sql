@@ -11,6 +11,8 @@
 --     ck_<tabla>_<regla> como el de la restricción incumplida.
 --   - Los procedimientos almacenados se llaman sp_<tabla>_<acción>. Sus errores previstos usan los
 --     códigos de condición de PostgreSQL que correspondan, y cada uno documenta los suyos.
+--   - Las vistas se llaman vw_<nombre>: calculan al consultarlas lo que no se guarda (por ejemplo,
+--     los promedios).
 --   - La fecha actual sale siempre de fn_fecha_actual() (más abajo), nunca de CURRENT_DATE: es la
 --     única fuente de la fecha y del ciclo lectivo actuales.
 
@@ -44,6 +46,37 @@ LANGUAGE sql STABLE STRICT AS $$
                WHEN p_anio > fn_anio_ciclo_lectivo_actual() THEN 'FUTURO'
                ELSE 'ACTUAL'
            END
+$$;
+
+-- Trimestre de una fecha: 1 hasta el 31/05, 2 del 01/06 al 31/08 y 3 del 01/09 al 31/12. Los cortes
+-- son fijos, porque el ciclo lectivo es el año calendario: si algún día hacen falta fechas
+-- configurables, cambia esta función y no las consultas que la usan. Es STRICT: con una fecha NULL
+-- devuelve NULL
+CREATE FUNCTION fn_trimestre(p_fecha DATE) RETURNS INT
+LANGUAGE sql IMMUTABLE STRICT AS $$
+    SELECT CASE
+               WHEN EXTRACT(MONTH FROM p_fecha) <= 5 THEN 1
+               WHEN EXTRACT(MONTH FROM p_fecha) <= 8 THEN 2
+               ELSE 3
+           END
+$$;
+
+-- Si el trimestre p_trimestre del ciclo lectivo p_anio está cerrado: su ciclo está cerrado
+-- (fn_ciclo_lectivo_estado), o la fecha actual es posterior al último día del trimestre más el plazo
+-- de carga de 7 días, fijo acá. Así, el 1.º se cierra el 08/06, el 2.º el 08/09 y el 3.º con el
+-- ciclo (el 01/01 siguiente, antes de que venza su plazo). En un trimestre cerrado no se crea, edita
+-- ni da de baja ninguna evaluación, y no se carga, corrige ni da de baja ninguna calificación
+-- (trg_evaluacion_trimestre_cerrado y trg_calificacion_trimestre_cerrado, más abajo). Es STRICT,
+-- como fn_ciclo_lectivo_estado; con un trimestre que no es 1, 2 ni 3 devuelve NULL, salvo en un
+-- ciclo cerrado
+CREATE FUNCTION fn_trimestre_cerrado(p_anio INT, p_trimestre INT) RETURNS BOOLEAN
+LANGUAGE sql STABLE STRICT AS $$
+    SELECT fn_ciclo_lectivo_estado(p_anio) = 'CERRADO'
+           OR fn_fecha_actual() > CASE p_trimestre
+                                      WHEN 1 THEN make_date(p_anio, 5, 31)
+                                      WHEN 2 THEN make_date(p_anio, 8, 31)
+                                      WHEN 3 THEN make_date(p_anio, 12, 31)
+                                  END + 7
 $$;
 
 -- Instituciones
@@ -693,7 +726,8 @@ CREATE INDEX idx_alumno_alumno_estado_id ON alumno(alumno_estado_id);
 -- La base hace cumplir la primera regla: trg_calificacion_coherencia (más abajo) solo acepta
 -- cargar, corregir o dar de baja calificaciones de inscripciones activas, y además vigentes (sin
 -- baja lógica), salvo en la baja en cascada de una evaluación (trg_evaluacion_baja_calificaciones,
--- más abajo). La segunda la aplican las consultas que calculan promedios
+-- más abajo). La segunda la aplica la vista de promedios, vw_promedio_trimestral (más abajo), que
+-- solo calcula los de las inscripciones activas o finalizadas, y vigentes
 CREATE TABLE inscripcion_estado (
     inscripcion_estado_id  INT          GENERATED ALWAYS AS IDENTITY,
     nombre                 VARCHAR(50)  NOT NULL,
@@ -1326,7 +1360,9 @@ CREATE TABLE evaluacion (
     titulo                 VARCHAR(100)  NOT NULL,
     fecha_evaluacion       DATE          NOT NULL,
     -- Su año es el ciclo lectivo del curso de la asignación. Con calificaciones vigentes no pasa a
-    -- una fecha futura: se califica a partir de la fecha de la evaluación
+    -- una fecha futura: se califica a partir de la fecha de la evaluación, ni a una anterior a la
+    -- fecha de inscripción de un calificado. Su trimestre (fn_trimestre) es el de los promedios, y
+    -- en uno cerrado la evaluación es de solo lectura (trg_evaluacion_trimestre_cerrado)
     fecha_eliminacion      TIMESTAMPTZ,
     -- NULL = vigente; con fecha = dada de baja (baja lógica): la fila se conserva, pero deja de
     -- contar para las reglas de esta tabla. La baja da de baja también sus calificaciones vigentes
@@ -1493,6 +1529,41 @@ CREATE TRIGGER trg_evaluacion_fecha_ciclo_lectivo
     WHEN (NEW.fecha_eliminacion IS NULL)
     EXECUTE FUNCTION fn_evaluacion_fecha_ciclo_lectivo();
 
+-- Una evaluación de un trimestre cerrado (fn_trimestre_cerrado, con el trimestre de su fecha) es de
+-- solo lectura: no se crea con una fecha de un trimestre cerrado; si su fecha es de uno cerrado, no
+-- se edita (tampoco el título ni la asignación) ni se da de baja, y ninguna pasa a una fecha de un
+-- trimestre cerrado. Así, sus calificaciones quedan como estaban al cerrarse el trimestre
+-- (trg_calificacion_trimestre_cerrado, más abajo).
+-- Dispara último entre los BEFORE de evaluacion (orden alfabético): en un ciclo lectivo cerrado gana
+-- trg_evaluacion_ciclo_lectivo, en una evaluación dada de baja gana ck_evaluacion_vigente
+-- (trg_evaluacion_coherencia) y, en una fecha de otro año, ck_evaluacion_fecha_ciclo_lectivo. Si una
+-- evaluación calificada pasa a una fecha futura o a una anterior a la inscripción de un calificado,
+-- también ganan esos rechazos. Sin bloqueos: solo mira la propia fila y la fecha actual
+CREATE FUNCTION fn_evaluacion_trimestre_cerrado() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP = 'UPDATE'
+       AND fn_trimestre_cerrado(EXTRACT(YEAR FROM OLD.fecha_evaluacion)::INT, fn_trimestre(OLD.fecha_evaluacion)) THEN
+        RAISE EXCEPTION 'La evaluación % es del %, de un trimestre cerrado', OLD.evaluacion_id, OLD.fecha_evaluacion
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_evaluacion_trimestre_cerrado';
+    END IF;
+
+    IF fn_trimestre_cerrado(EXTRACT(YEAR FROM NEW.fecha_evaluacion)::INT, fn_trimestre(NEW.fecha_evaluacion)) THEN
+        RAISE EXCEPTION 'La fecha % de la evaluación % es de un trimestre cerrado', NEW.fecha_evaluacion, NEW.evaluacion_id
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_evaluacion_trimestre_cerrado';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_evaluacion_trimestre_cerrado
+    BEFORE INSERT OR UPDATE ON evaluacion
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_evaluacion_trimestre_cerrado();
+
 -- Una asignación con evaluaciones vigentes conserva su curso y su materia, y no se da de baja: se
 -- tomaron en esa materia de ese curso y sus fechas son de su ciclo lectivo. El profesor sí se
 -- cambia: el nuevo hereda las evaluaciones y sus calificaciones.
@@ -1555,12 +1626,15 @@ CREATE TRIGGER trg_curso_evaluaciones_vigentes
 
 -- Calificaciones: la nota de un alumno en una evaluación. El alumno se referencia por su
 -- inscripción en el curso de la evaluación, no directamente.
--- Quien todavía no fue calificado no tiene fila. La que existe no se borra: se corrige su nota o,
--- si se cargó por error, se da de baja (baja lógica). La baja también llega con la de su
--- evaluación (trg_evaluacion_baja_calificaciones, más abajo). La dada de baja ya no se modifica ni
--- se restaura.
--- Solo se califica en una evaluación vigente cuya fecha ya llegó: no en una dada de baja ni en una
--- con fecha futura
+-- Quien todavía no fue calificado no tiene fila, y para el promedio cuenta 0
+-- (vw_promedio_trimestral, más abajo). La que existe no se borra: se corrige su nota o, si se cargó
+-- por error, se da de baja (baja lógica). La baja también llega con la de su evaluación
+-- (trg_evaluacion_baja_calificaciones, más abajo). La dada de baja ya no se modifica ni se restaura.
+-- Solo se califica en una evaluación vigente cuya fecha ya llegó y no es anterior a la fecha de
+-- inscripción: no en una dada de baja, ni en una con fecha futura, ni en una que se tomó antes de
+-- que el alumno se inscribiera (trg_calificacion_coherencia). En una evaluación de un trimestre
+-- cerrado no se carga, no se corrige ni se da de baja ninguna calificación
+-- (trg_calificacion_trimestre_cerrado): quien no tiene nota queda con 0
 CREATE TABLE calificacion (
     calificacion_id    INT           GENERATED ALWAYS AS IDENTITY,
     evaluacion_id      INT           NOT NULL,
@@ -1643,10 +1717,12 @@ CREATE TRIGGER trg_calificacion_ciclo_lectivo
 
 -- Coherencia de una calificación con las filas que referencia.
 -- Al cargarla y cada vez que se corrige, es decir, siempre que la fila queda vigente: la evaluación
--- está vigente (sin baja lógica) y su fecha ya llegó (es de hoy o anterior, con fn_fecha_actual()),
--- y la inscripción es del curso de la asignación de la evaluación, está vigente (sin baja lógica) y
--- está activa. La baja lógica de la inscripción no cambia su estado, así que se valida aparte: una
--- activa dada de baja sigue siendo ACTIVA.
+-- está vigente (sin baja lógica), su fecha ya llegó (es de hoy o anterior, con fn_fecha_actual()) y
+-- no es anterior a la fecha de inscripción (el alumno no estaba inscripto cuando se tomó, y para su
+-- promedio no cuenta: vw_promedio_trimestral, más abajo), y la inscripción es del curso de la
+-- asignación de la evaluación, está vigente (sin baja lógica) y está activa. La baja lógica de la
+-- inscripción no cambia su estado, así que se valida aparte: una activa dada de baja sigue siendo
+-- ACTIVA.
 -- Al darla de baja, solo lo de la inscripción: las de una inscripción que dejó de estar activa
 -- (finalizada o cancelada) o que se dio de baja se conservan como están, y ya no se pueden corregir
 -- ni dar de baja. Por eso el trigger valida también la baja de la calificación, y no lleva el
@@ -1662,13 +1738,16 @@ CREATE TRIGGER trg_calificacion_ciclo_lectivo
 -- segunda barrera.
 -- Una calificación dada de baja ya no se modifica: ni su nota ni su fecha de baja, y tampoco se
 -- restaura.
+-- El trimestre cerrado no se controla acá, sino en trg_calificacion_trimestre_cerrado (más abajo),
+-- que dispara después.
 -- FOR SHARE retiene las filas de la evaluación, de su asignación y de la inscripción hasta el fin
 -- de la transacción: un cambio simultáneo de asignación o de curso espera y, al seguir, su trigger
 -- (más abajo) ya ve cómo quedó esta calificación; también el paso de la evaluación a una fecha
--- futura (trg_evaluacion_futura_calificaciones_vigentes, más abajo). Uno de estado de la
--- inscripción, o una baja de la evaluación, también espera, y sigue con la calificación ya
--- guardada: la cascada de la baja ya la ve. Una baja lógica simultánea de la inscripción también
--- espera y, al seguir, si la calificación quedó vigente, la ve y se rechaza
+-- futura (trg_evaluacion_futura_calificaciones_vigentes, más abajo) o a una anterior a la fecha de
+-- inscripción (trg_evaluacion_fecha_inscripcion_calificaciones_vigentes, más abajo). Uno de
+-- estado de la inscripción, o una baja de la evaluación, también espera, y sigue con la
+-- calificación ya guardada: la cascada de la baja ya la ve. Una baja lógica simultánea de la
+-- inscripción también espera y, al seguir, si la calificación quedó vigente, la ve y se rechaza
 -- (ck_inscripcion_calificaciones_vigentes, trg_inscripcion_coherencia). Al revés, si la evaluación o
 -- la inscripción cambió primero (de fecha, de estado o por una baja), la calificación espera a que
 -- termine y se valida con la fila como quedó. En la baja en cascada, la inscripción también queda
@@ -1683,6 +1762,7 @@ DECLARE
     v_evaluacion_curso_id            INT;
     v_inscripcion_curso_id           INT;
     v_inscripcion_estado_id          INT;
+    v_inscripcion_fecha              DATE;
     v_inscripcion_fecha_eliminacion  TIMESTAMPTZ;
     v_estado                         VARCHAR(50);
 BEGIN
@@ -1710,8 +1790,8 @@ BEGIN
      WHERE a.asignacion_docente_id = v_asignacion_docente_id
        FOR SHARE;
 
-    SELECT i.curso_id, i.inscripcion_estado_id, i.fecha_eliminacion
-      INTO v_inscripcion_curso_id, v_inscripcion_estado_id, v_inscripcion_fecha_eliminacion
+    SELECT i.curso_id, i.inscripcion_estado_id, i.fecha_inscripcion, i.fecha_eliminacion
+      INTO v_inscripcion_curso_id, v_inscripcion_estado_id, v_inscripcion_fecha, v_inscripcion_fecha_eliminacion
       FROM inscripcion i
      WHERE i.inscripcion_id = NEW.inscripcion_id
        FOR SHARE;
@@ -1735,6 +1815,13 @@ BEGIN
                             NEW.evaluacion_id, v_evaluacion_fecha
                 USING ERRCODE = 'check_violation',
                       CONSTRAINT = 'ck_calificacion_evaluacion_futura';
+        END IF;
+
+        IF v_evaluacion_fecha < v_inscripcion_fecha THEN
+            RAISE EXCEPTION 'La evaluación % es del %, anterior a la fecha de inscripción % de la inscripción %',
+                            NEW.evaluacion_id, v_evaluacion_fecha, v_inscripcion_fecha, NEW.inscripcion_id
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_calificacion_evaluacion_anterior_inscripcion';
         END IF;
     END IF;
 
@@ -1779,6 +1866,56 @@ CREATE TRIGGER trg_calificacion_coherencia
     BEFORE INSERT OR UPDATE ON calificacion
     FOR EACH ROW
     EXECUTE FUNCTION fn_calificacion_coherencia();
+
+-- En una evaluación de un trimestre cerrado (fn_trimestre_cerrado) no se carga, no se corrige ni se
+-- da de baja ninguna calificación, sin excepciones: quien no tiene nota al cerrarse el trimestre
+-- queda con 0 en esa evaluación (vw_promedio_trimestral, más abajo). El trimestre es el de la fecha
+-- de la evaluación, y su año, el ciclo lectivo del curso (trg_evaluacion_fecha_ciclo_lectivo). En un
+-- cambio de evaluación se controla primero la que tenía y después la nueva. Por eso no lleva WHEN.
+-- Dispara después de trg_calificacion_ciclo_lectivo y de trg_calificacion_coherencia (orden
+-- alfabético): en un ciclo lectivo cerrado gana ese rechazo, y en una calificación dada de baja, el
+-- de ck_calificacion_vigente.
+-- La baja en cascada de una evaluación de un trimestre cerrado (trg_evaluacion_baja_calificaciones)
+-- nunca llega hasta acá, porque trg_evaluacion_trimestre_cerrado rechaza antes la baja de la
+-- evaluación: este rechazo queda como segunda barrera.
+-- Sin bloqueos propios: trg_calificacion_coherencia ya retiene con FOR SHARE la evaluación nueva, y
+-- la fecha de la anterior tampoco puede cambiar de un modo que cambie el resultado, porque una
+-- evaluación de un trimestre cerrado no cambia de fecha y ninguna pasa a uno cerrado
+-- (trg_evaluacion_trimestre_cerrado). Si la evaluación no existe, su fecha queda en NULL y no falla:
+-- la rechaza después su clave foránea
+CREATE FUNCTION fn_calificacion_trimestre_cerrado() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_evaluaciones   INT[] := ARRAY[NEW.evaluacion_id];
+    v_evaluacion_id  INT;
+    v_fecha          DATE;
+BEGIN
+    IF TG_OP = 'UPDATE' AND OLD.evaluacion_id <> NEW.evaluacion_id THEN
+        v_evaluaciones := OLD.evaluacion_id || v_evaluaciones;
+    END IF;
+
+    FOREACH v_evaluacion_id IN ARRAY v_evaluaciones LOOP
+        SELECT e.fecha_evaluacion
+          INTO v_fecha
+          FROM evaluacion e
+         WHERE e.evaluacion_id = v_evaluacion_id;
+
+        IF fn_trimestre_cerrado(EXTRACT(YEAR FROM v_fecha)::INT, fn_trimestre(v_fecha)) THEN
+            RAISE EXCEPTION 'La evaluación % de la calificación % es del %, de un trimestre cerrado',
+                            v_evaluacion_id, NEW.calificacion_id, v_fecha
+                USING ERRCODE = 'check_violation',
+                      CONSTRAINT = 'ck_calificacion_trimestre_cerrado';
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_calificacion_trimestre_cerrado
+    BEFORE INSERT OR UPDATE ON calificacion
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_calificacion_trimestre_cerrado();
 
 -- Una inscripción con calificaciones vigentes conserva su curso: son de evaluaciones de ese curso.
 -- Las dadas de baja no cuentan: quitada una nota cargada por error, la inscripción puede cambiar
@@ -1865,6 +2002,41 @@ CREATE TRIGGER trg_evaluacion_futura_calificaciones_vigentes
     WHEN (NEW.fecha_evaluacion <> OLD.fecha_evaluacion)
     EXECUTE FUNCTION fn_evaluacion_futura_calificaciones_vigentes();
 
+-- Una evaluación con calificaciones vigentes no pasa a una fecha anterior a la fecha de inscripción
+-- de alguna de las inscripciones calificadas: no se califica una evaluación anterior a la
+-- inscripción (trg_calificacion_coherencia). Las dadas de baja no cuentan. Solo dispara cuando la
+-- fecha se adelanta: si se atrasa, sigue sin ser anterior a ninguna inscripción calificada.
+-- Sin bloqueos propios, como fn_evaluacion_futura_calificaciones_vigentes: la carga o la corrección
+-- de una calificación retiene la fila de la evaluación con FOR SHARE (fn_calificacion_coherencia),
+-- así que el cambio de fecha espera a que termine y, al seguir, ya ve esa calificación; al revés, la
+-- calificación espera al cambio de fecha y se valida con la fecha nueva
+-- (ck_calificacion_evaluacion_anterior_inscripcion). No retiene las inscripciones: un cambio de su
+-- fecha_inscripcion no tiene ninguna barrera (ver vw_promedio_trimestral, más abajo)
+CREATE FUNCTION fn_evaluacion_fecha_inscripcion_calificaciones_vigentes() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF EXISTS (SELECT 1
+                 FROM calificacion c
+                 JOIN inscripcion i ON i.inscripcion_id = c.inscripcion_id
+                WHERE c.evaluacion_id = OLD.evaluacion_id
+                  AND c.fecha_eliminacion IS NULL
+                  AND i.fecha_inscripcion > NEW.fecha_evaluacion) THEN
+        RAISE EXCEPTION 'La evaluación % tiene calificaciones vigentes de inscripciones posteriores a la fecha %',
+                        OLD.evaluacion_id, NEW.fecha_evaluacion
+            USING ERRCODE = 'check_violation',
+                  CONSTRAINT = 'ck_evaluacion_fecha_anterior_inscripcion';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_evaluacion_fecha_inscripcion_calificaciones_vigentes
+    BEFORE UPDATE ON evaluacion
+    FOR EACH ROW
+    WHEN (NEW.fecha_evaluacion < OLD.fecha_evaluacion)
+    EXECUTE FUNCTION fn_evaluacion_fecha_inscripcion_calificaciones_vigentes();
+
 -- La baja de una evaluación da de baja, en la misma operación, todas sus calificaciones vigentes,
 -- con la misma fecha de baja: también las de inscripciones canceladas o dadas de baja, que el
 -- profesor no ve. Las ya dadas de baja conservan su fecha.
@@ -1928,6 +2100,47 @@ CREATE TRIGGER trg_asignacion_docente_calificaciones_vigentes
     FOR EACH ROW
     WHEN (NEW.curso_id <> OLD.curso_id)
     EXECUTE FUNCTION fn_asignacion_docente_calificaciones_vigentes();
+
+-- Promedio trimestral de cada alumno en cada materia: una fila por inscripción, asignación docente
+-- (una materia de su curso) y trimestre (fn_trimestre). No se guarda: se calcula al consultarla.
+-- Para cada inscripción vigente (sin baja lógica) ACTIVA o FINALIZADA, cada asignación vigente de su
+-- curso y cada trimestre t, E(t) son las evaluaciones vigentes de esa asignación con fecha en t, de
+-- hoy o anterior (fn_fecha_actual()) y no anterior a la fecha de inscripción. Entonces:
+--   - promedio = suma de las notas vigentes del alumno en E(t) / cantidad de evaluaciones de E(t).
+--     Una evaluación sin nota, o con la nota dada de baja, cuenta 0. Se calcula con NUMERIC y sin
+--     redondear: ROUND(…, 2) va solo en el SELECT final que entrega los valores para mostrar;
+--   - evaluaciones = cantidad de evaluaciones de E(t).
+-- Un trimestre con E(t) vacío no tiene fila (su promedio es NULL). Las inscripciones CANCELADAS y
+-- las dadas de baja no tienen filas: no tienen promedio. El promedio anual es el de los trimestrales
+-- que existen, y lo calcula quien consulta, a partir de los valores sin redondear de esta vista.
+-- Limitaciones conocidas:
+--   - una inscripción que pasó de CANCELADA a ACTIVA dentro del ciclo no guarda cuándo estuvo
+--     cancelada, así que las evaluaciones de ese período le cuentan 0, y si su trimestre ya se cerró,
+--     no se le puede cargar nota. Resolverlo exige un historial de estados;
+--   - un UPDATE directo de fecha_inscripcion, que no tiene ninguna barrera (la fija el alta y ninguna
+--     pantalla la cambia), cambia qué evaluaciones cuentan, también en trimestres cerrados
+CREATE VIEW vw_promedio_trimestral AS
+SELECT i.inscripcion_id,
+       a.asignacion_docente_id,
+       fn_trimestre(e.fecha_evaluacion) AS trimestre,
+       SUM(COALESCE(c.nota, 0)) / COUNT(*) AS promedio,
+       COUNT(*)::INT AS evaluaciones
+  FROM inscripcion i
+  JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+  JOIN asignacion_docente a ON a.curso_id = i.curso_id
+  JOIN evaluacion e ON e.asignacion_docente_id = a.asignacion_docente_id
+  -- A lo sumo una calificación vigente por evaluación e inscripción
+  -- (uq_calificacion_evaluacion_inscripcion): COUNT(*) cuenta evaluaciones
+  LEFT JOIN calificacion c ON c.evaluacion_id = e.evaluacion_id
+                          AND c.inscripcion_id = i.inscripcion_id
+                          AND c.fecha_eliminacion IS NULL
+ WHERE i.fecha_eliminacion IS NULL
+   AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
+   AND a.fecha_eliminacion IS NULL
+   AND e.fecha_eliminacion IS NULL
+   AND e.fecha_evaluacion <= fn_fecha_actual()
+   AND e.fecha_evaluacion >= i.fecha_inscripcion
+ GROUP BY i.inscripcion_id, a.asignacion_docente_id, fn_trimestre(e.fecha_evaluacion);
 
 -- Respaldos: el historial de los backups de cada institución, uno por fila, con quién lo realizó y
 -- cuándo. No entra en el backup y el restore no la toca: el historial sigue completo después de
