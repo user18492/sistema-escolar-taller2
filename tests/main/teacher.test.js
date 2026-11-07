@@ -3,8 +3,42 @@
 // actual y, para la inscripción finalizada, que solo existe en un ciclo cerrado
 // (plans/secretario-inscripciones/00-estado-y-fecha.md), sobre otro curso propio del ciclo anterior;
 // cada resultado se comprueba con una consulta independiente.
+// Lo de un trimestre cerrado (plans/promedios/02-restricciones-backend-y-vistas.md) se prueba con el
+// reloj de la base fijado, también para la aplicación (fixtures.onDate): los datos se crean el 01/01
+// del ciclo actual, con el 1.er trimestre abierto, y se prueban el 09/06, con ese trimestre ya
+// cerrado (cierra el 08/06) y el 2.º abierto. Así no dependen del día en que corre la suite.
 const { group, test } = require('../lib/framework');
 const { sortedIds, sortedNumbers } = require('../lib/domain');
+
+// Fechas del ciclo actual para lo del trimestre cerrado: el día en que se crean los datos, el día en
+// que se prueban y el último del 1.er trimestre
+const termDates = (t) => ({
+  createdOn: `${t.year}-01-01`,
+  closedTermToday: `${t.year}-06-09`,
+  firstTermLastDay: `${t.year}-05-31`,
+});
+
+// Una evaluación del 01/01 en la asignación del setup, con una inscripción calificada y otra sin
+// nota, del mismo día, creadas con el reloj en ese día: { evaluationId, scoredId, unscoredId }
+async function firstTermEvaluation(t) {
+  const { course, assignment } = t.data;
+  return t.fixtures.onDate(termDates(t).createdOn, async () => {
+    const enrollStudent = async () => t.fixtures.enroll({
+      studentId: (await t.fixtures.createStudent({ institutionId: course.institutionId })).id,
+      courseId: course.id,
+    });
+    const scoredId = await enrollStudent();
+    const unscoredId = await enrollStudent();
+    const evaluationId = await t.fixtures.createEvaluation({ assignmentId: assignment.id });
+    await t.fixtures.score({ evaluationId, enrollmentId: scoredId, value: 6 });
+    return { evaluationId, scoredId, unscoredId };
+  });
+}
+
+// El día anterior a hoy, según la base
+async function yesterdayOf(t) {
+  return (await t.sqlOne(`SELECT to_char(fn_fecha_actual() - 1, 'YYYY-MM-DD') AS day`)).day;
+}
 
 group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificaciones', {
   async setup({ fixtures }) {
@@ -267,5 +301,144 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     t.equal(closedEvaluations.find((candidate) => candidate.id === closed.evaluationId)?.scoreCount, 1,
       'La evaluación del ciclo cerrado cuenta la nota de la finalizada');
     await t.logout();
+  });
+
+  test('term-closed-evaluation', 'Una evaluación de un trimestre cerrado no se edita ni se da de baja (TERM_CLOSED), y ninguna se crea ni pasa a una fecha de uno cerrado', async (t) => {
+    const { assignment } = t.data;
+    const { createdOn, closedTermToday, firstTermLastDay } = termDates(t);
+    const closed = await firstTermEvaluation(t);
+    const state = () => t.sqlOne(`
+      SELECT e.titulo, to_char(e.fecha_evaluacion, 'YYYY-MM-DD') AS fecha, e.fecha_eliminacion IS NULL AS vigente,
+             (SELECT COUNT(*)::INT FROM calificacion c WHERE c.evaluacion_id = e.evaluacion_id AND c.fecha_eliminacion IS NULL) AS vigentes
+        FROM evaluacion e WHERE e.evaluacion_id = $1`, [closed.evaluationId]);
+    const before = await state();
+    t.require(before?.vigente && before.vigentes === 1, 'La evaluación del 01/01 tiene que estar vigente y con su nota', before);
+    await t.login(t.data.teacher);
+    await t.fixtures.onDate(closedTermToday, async () => {
+      const { evaluations } = await t.ok('evaluations.listByOwnAssignment', assignment.id);
+      // El 09/06 solo está cerrado el 1.er trimestre: las evaluaciones anteriores al 01/06
+      const closedIds = (list) => sortedIds(list.filter((evaluation) => evaluation.isTermClosed));
+      t.equal(closedIds(evaluations), sortedIds(evaluations.filter((evaluation) => evaluation.evaluationDate < `${t.year}-06-01`)),
+        'isTermClosed marca solo las evaluaciones del 1.er trimestre');
+      t.check(closedIds(evaluations).includes(closed.evaluationId), 'La evaluación del 01/01 es de un trimestre cerrado', evaluations);
+
+      await t.rejects('TERM_CLOSED', 'evaluations.update', assignment.id, closed.evaluationId, { title: 'Renombrada', evaluationDate: createdOn });
+      // Gana a los errores del formulario
+      await t.rejects('TERM_CLOSED', 'evaluations.update', assignment.id, closed.evaluationId, { title: '', evaluationDate: closedTermToday });
+      await t.rejects('TERM_CLOSED', 'evaluations.delete', assignment.id, closed.evaluationId);
+      t.equal(await state(), before, 'La evaluación del trimestre cerrado y su nota no cambiaron');
+
+      const created = await t.rejects('INVALID_INPUT', 'evaluations.create', assignment.id, { title: 'Del trimestre cerrado', evaluationDate: firstTermLastDay });
+      t.check(created?.error?.fieldErrors?.evaluationDate, 'El alta con una fecha de un trimestre cerrado marca la fecha', created);
+      const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM evaluacion WHERE asignacion_docente_id = $1 AND titulo = 'Del trimestre cerrado'`, [assignment.id]);
+      t.equal(count, 0, 'No se creó la evaluación del trimestre cerrado');
+
+      const { evaluation: open } = await t.ok('evaluations.create', assignment.id, { title: 'Del trimestre abierto', evaluationDate: closedTermToday });
+      t.equal(open?.isTermClosed, false, 'La evaluación creada en el 2.º trimestre no es de un trimestre cerrado');
+      const moved = await t.rejects('INVALID_INPUT', 'evaluations.update', assignment.id, open.id, { title: 'Del trimestre abierto', evaluationDate: firstTermLastDay });
+      t.check(moved?.error?.fieldErrors?.evaluationDate, 'Pasar una evaluación a una fecha de un trimestre cerrado marca la fecha', moved);
+      const { fecha } = await t.sqlOne(`SELECT to_char(fecha_evaluacion, 'YYYY-MM-DD') AS fecha FROM evaluacion WHERE evaluacion_id = $1`, [open.id]);
+      t.equal(fecha, closedTermToday, 'La fecha de la evaluación abierta no cambió');
+    });
+    await t.logout();
+  });
+
+  test('term-closed-scores', 'En una evaluación de un trimestre cerrado no se carga, corrige ni da de baja ninguna nota (TERM_CLOSED)', async (t) => {
+    const { assignment } = t.data;
+    const closed = await firstTermEvaluation(t);
+    const scoresOf = () => t.sql(`
+      SELECT inscripcion_id AS id, nota::TEXT AS nota, fecha_eliminacion IS NOT NULL AS baja
+        FROM calificacion WHERE evaluacion_id = $1 ORDER BY calificacion_id`, [closed.evaluationId]);
+    const before = await scoresOf();
+    t.equal(before, [{ id: closed.scoredId, nota: '6.00', baja: false }], 'La evaluación del 01/01 empieza con su nota');
+    await t.login(t.data.teacher);
+    await t.fixtures.onDate(termDates(t).closedTermToday, async () => {
+      const listed = await t.ok('scores.listByOwnEvaluation', assignment.id, closed.evaluationId);
+      t.equal(listed?.evaluation?.isTermClosed, true, 'Calificaciones trae la evaluación como de un trimestre cerrado');
+      const { evaluationId, scoredId, unscoredId } = closed;
+      await t.rejects('TERM_CLOSED', 'scores.save', assignment.id, evaluationId, { enrollmentId: unscoredId, value: 8 });
+      await t.rejects('TERM_CLOSED', 'scores.save', assignment.id, evaluationId, { enrollmentId: scoredId, value: 9 });
+      // Gana a INVALID_SCORE
+      await t.rejects('TERM_CLOSED', 'scores.save', assignment.id, evaluationId, { enrollmentId: scoredId, value: 10.5 });
+      const many = await t.rejects('TERM_CLOSED', 'scores.saveMany', assignment.id, evaluationId, [
+        { enrollmentId: unscoredId, value: 8 },
+        { enrollmentId: scoredId, value: null },
+      ]);
+      t.equal(many?.error?.enrollmentId, undefined, 'TERM_CLOSED es de la evaluación: no identifica un cambio');
+      await t.rejects('TERM_CLOSED', 'scores.delete', assignment.id, evaluationId, scoredId);
+    });
+    t.equal(await scoresOf(), before, 'Las calificaciones de la evaluación no cambiaron');
+    await t.logout();
+  });
+
+  test('evaluation-date-before-enrollment', 'Una evaluación calificada no pasa a una fecha anterior a la inscripción de un alumno calificado en ella', async (t) => {
+    if (t.today === `${t.year}-01-01`) return t.warn('Hoy es el primer día del ciclo: no hay una fecha anterior a la inscripción que probar');
+    const { assignment, course } = t.data;
+    const yesterday = await yesterdayOf(t);
+    const student = await t.fixtures.createStudent({ institutionId: course.institutionId });
+    const enrollmentId = await t.fixtures.enroll({ studentId: student.id, courseId: course.id });
+    await t.login(t.data.teacher);
+    const title = 'Calificada el día de la inscripción';
+    const { evaluation } = await t.ok('evaluations.create', assignment.id, { title, evaluationDate: t.today });
+    await t.ok('scores.save', assignment.id, evaluation.id, { enrollmentId, value: 7 });
+    const moved = await t.rejects('INVALID_INPUT', 'evaluations.update', assignment.id, evaluation.id, { title, evaluationDate: yesterday });
+    t.check(moved?.error?.fieldErrors?.evaluationDate, 'El rechazo marca la fecha', moved);
+    const { fecha } = await t.sqlOne(`SELECT to_char(fecha_evaluacion, 'YYYY-MM-DD') AS fecha FROM evaluacion WHERE evaluacion_id = $1`, [evaluation.id]);
+    t.equal(fecha, t.today, 'La fecha de la evaluación no cambió');
+    await t.logout();
+  });
+
+  test('scores-late-enrollment', 'Calificaciones no lista ni deja calificar una inscripción posterior a la evaluación, y scoreCount no cuenta su nota', async (t) => {
+    if (t.today === `${t.year}-01-01`) return t.warn('Hoy es el primer día del ciclo: no hay una evaluación anterior a la inscripción que probar');
+    const { assignment, course } = t.data;
+    const yesterday = await yesterdayOf(t);
+    const enrollOn = async (date) => t.fixtures.enroll({
+      studentId: (await t.fixtures.createStudent({ institutionId: course.institutionId })).id,
+      courseId: course.id,
+      date,
+    });
+    const evaluationId = await t.fixtures.createEvaluation({ assignmentId: assignment.id, date: yesterday });
+    const early = await enrollOn(yesterday);
+    const late = await enrollOn(t.today);
+    // Calificada el día de la evaluación y después con la fecha de inscripción pasada a hoy: la base
+    // no lo impide (limitación conocida de plans/promedios/README.md)
+    const moved = await enrollOn(yesterday);
+    await t.fixtures.score({ evaluationId, enrollmentId: early, value: 8 });
+    await t.fixtures.score({ evaluationId, enrollmentId: moved, value: 5 });
+    const setEnrollmentDate = (date) => t.db.query(`UPDATE inscripcion SET fecha_inscripcion = $2 WHERE inscripcion_id = $1`, [moved, date]);
+    await setEnrollmentDate(t.today);
+    try {
+      await t.login(t.data.teacher);
+      const { scores } = await t.ok('scores.listByOwnEvaluation', assignment.id, evaluationId);
+      const expected = await t.sql(`
+        SELECT i.inscripcion_id AS id FROM inscripcion i JOIN inscripcion_estado ie USING (inscripcion_estado_id)
+         WHERE i.curso_id = $1 AND i.fecha_eliminacion IS NULL AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
+           AND i.fecha_inscripcion <= (SELECT fecha_evaluacion FROM evaluacion WHERE evaluacion_id = $2)`, [course.id, evaluationId]);
+      const listedIds = scores.map((score) => score.enrollmentId).sort((a, b) => a - b);
+      t.equal(listedIds, sortedNumbers(expected), 'Una fila por inscripción activa o finalizada inscripta a más tardar el día de la evaluación');
+      t.check(listedIds.includes(early) && !listedIds.includes(late) && !listedIds.includes(moved),
+        'Lista la inscripción anterior a la evaluación y ninguna de las posteriores', { listedIds, early, late, moved });
+
+      const { evaluations } = await t.ok('evaluations.listByOwnAssignment', assignment.id);
+      t.equal(evaluations.find((evaluation) => evaluation.id === evaluationId)?.scoreCount, 1,
+        'scoreCount cuenta solo la nota de la inscripción anterior a la evaluación');
+
+      const rejected = await t.rejects('ENROLLMENT_NOT_FOUND', 'scores.save', assignment.id, evaluationId, { enrollmentId: late, value: 6 });
+      t.equal(rejected?.error?.code, 'ENROLLMENT_NOT_FOUND', 'Calificar la inscripción posterior se rechaza como una que no está en la lista');
+      const many = await t.rejects('ENROLLMENT_NOT_FOUND', 'scores.saveMany', assignment.id, evaluationId, [
+        { enrollmentId: early, value: 9 },
+        { enrollmentId: late, value: 6 },
+      ]);
+      t.equal(many?.error?.enrollmentId, late, 'El rechazo identifica la inscripción posterior');
+      const notes = await t.sql(`
+        SELECT inscripcion_id AS id, nota::TEXT AS nota FROM calificacion
+         WHERE evaluacion_id = $1 AND fecha_eliminacion IS NULL ORDER BY inscripcion_id`, [evaluationId]);
+      t.equal(notes, [{ id: early, nota: '8.00' }, { id: moved, nota: '5.00' }].sort((a, b) => a.id - b.id), 'Los rechazos no cambiaron ninguna nota');
+      await t.logout();
+    } finally {
+      // Vuelve a la fecha con la que se calificó: no queda una calificación anterior a la inscripción
+      // (invariante calificacion-desde-inscripcion)
+      await setEnrollmentDate(yesterday);
+    }
   });
 });

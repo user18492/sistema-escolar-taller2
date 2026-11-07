@@ -65,4 +65,18 @@ async function waitEnabled(t, selector, label) {
   await t.ui.waitFor(`document.querySelector(${JSON.stringify(selector)}) && !document.querySelector(${JSON.stringify(selector)}).disabled`, { message: `${label} no se habilitó` });
 }
 
-module.exports = { HOME_BY_ROLE, loginViaUi, logoutViaUi, openFromSidebar, pickDropdown, pickSearchable, waitEnabled };
+// Estado de los botones de acción de la fila con ese selector, por su data-action (p. ej.,
+// { print, edit, delete }), cada uno { disabled, title, label } (label es su aria-label), o null si
+// la fila no está
+function rowActionsState(t, rowSelector) {
+  return t.ui.js(`(() => {
+    const row = document.querySelector(${JSON.stringify(rowSelector)});
+    if (!row) return null;
+    return Object.fromEntries(Array.from(row.querySelectorAll('[data-action]'), (button) => [
+      button.dataset.action,
+      { disabled: button.disabled, title: button.title, label: button.getAttribute('aria-label') },
+    ]));
+  })()`);
+}
+
+module.exports = { HOME_BY_ROLE, loginViaUi, logoutViaUi, openFromSidebar, pickDropdown, pickSearchable, waitEnabled, rowActionsState };

@@ -3,18 +3,7 @@
 // el cierre no corre: la inscripción del ciclo cerrado sigue activa.
 const { group, test } = require('../lib/framework');
 const { SEED_USERS } = require('../lib/fixtures');
-const { loginViaUi, logoutViaUi, openFromSidebar } = require('./helpers');
-
-// Estado de los botones de acción de la fila con ese selector: { print, edit, delete }, cada uno
-// { disabled, title, label } (label es su aria-label), o null si la fila no está
-const rowActionsState = (t, rowSelector) => t.ui.js(`(() => {
-  const row = document.querySelector(${JSON.stringify(rowSelector)});
-  if (!row) return null;
-  return Object.fromEntries(Array.from(row.querySelectorAll('[data-action]'), (button) => [
-    button.dataset.action,
-    { disabled: button.disabled, title: button.title, label: button.getAttribute('aria-label') },
-  ]));
-})()`);
+const { loginViaUi, logoutViaUi, openFromSidebar, rowActionsState } = require('./helpers');
 
 group('ui.school-year', 'Ciclo lectivo: lo de un ciclo cerrado en solo lectura', {
   async setup({ fixtures }) {

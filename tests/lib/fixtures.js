@@ -278,6 +278,28 @@ class Fixtures {
     }
   }
 
+  // Corre `run()` con la fecha de la base (fn_fecha_actual) en `isoDate` ('AAAA-MM-DD', del ciclo
+  // actual), y this.today y this.year en ella, y después restaura la definición que tenía, también si
+  // `run()` falla. A diferencia de inSchoolYear, el cambio se confirma enseguida: lo ve también la
+  // aplicación, así que sirve para probar por la API o la interfaz lo que depende del trimestre
+  // (fn_trimestre_cerrado). Lo que se crea adentro tiene que cumplir las invariantes con la fecha
+  // restaurada: fechas que no sean posteriores a hoy (p. ej., el 01/01 del ciclo).
+  async onDate(isoDate, run) {
+    const { definition } = await this.one(
+      `SELECT pg_get_functiondef('${SINGLE_SOURCE.today}()'::regprocedure) AS definition`);
+    const current = { today: this.today, year: this.year };
+    this.today = isoDate;
+    this.year = Number(isoDate.slice(0, 4));
+    try {
+      await this.db.query(replaceTodaySql(isoDate));
+      return await run();
+    } finally {
+      this.today = current.today;
+      this.year = current.year;
+      await this.db.query(definition);
+    }
+  }
+
   // Escenario completo del Profesor: un profesor propio con un curso del ciclo actual, una
   // asignación, un alumno inscripto (activo) y una evaluación de hoy.
   async teacherScenario({ institutionId } = {}) {

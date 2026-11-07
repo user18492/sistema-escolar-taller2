@@ -3,9 +3,12 @@
 // los de otras páginas, se guardan juntos con "Guardar calificaciones", después de confirmarlo
 // (pedido del 2026-11-06). Con cambios sin guardar, salir de la vista por la ruta de navegación o
 // "Cerrar sesión" pide confirmación, y "Salir sin guardar" sale sin guardar nada
-// (plans/profesor-calificaciones-sin-guardar/00-salir-de-la-vista.md).
+// (plans/profesor-calificaciones-sin-guardar/00-salir-de-la-vista.md). Una evaluación de un trimestre
+// cerrado se ve en solo lectura (plans/promedios/02-restricciones-backend-y-vistas.md), con el reloj
+// de la base fijado como en main.teacher: datos del 01/01 del ciclo actual vistos el 09/06, con el
+// 1.er trimestre ya cerrado y el 2.º abierto.
 const { group, test } = require('../lib/framework');
-const { loginViaUi, logoutViaUi } = require('./helpers');
+const { loginViaUi, logoutViaUi, rowActionsState } = require('./helpers');
 
 const SCORES_VIEW = 'teacher/evaluation-scores/index.html';
 
@@ -58,6 +61,61 @@ group('ui.scores', 'Calificaciones: evaluación con fecha futura', {
       await ui.idle();
       const field = await scoreField();
       t.check(!field.disabled, 'La nota está habilitada en una evaluación de hoy', field);
+    });
+    await logoutViaUi(t);
+  });
+
+  test('term-closed-read-only', 'En una evaluación de un trimestre cerrado la nota, Eliminar y "Guardar calificaciones" quedan deshabilitados, con el motivo como title; en una del trimestre abierto, la nota habilitada', async (t) => {
+    const { ui } = t;
+    const { teacher } = t.data;
+    const closedTermToday = `${t.year}-06-09`;
+    // Creadas el 01/01, en un curso propio (no cambia los alumnos de las otras pruebas): un alumno de
+    // ese día calificado en una evaluación del 01/01 (1.er trimestre), y otra evaluación del 09/06
+    // (2.º trimestre)
+    const closed = await t.fixtures.onDate(`${t.year}-01-01`, async () => {
+      const course = await t.fixtures.createCourse({ institutionId: teacher.institutionId });
+      const assignment = await t.fixtures.assign({ teacherId: teacher.id, courseId: course.id });
+      const student = await t.fixtures.createStudent({ institutionId: course.institutionId });
+      const enrollmentId = await t.fixtures.enroll({ studentId: student.id, courseId: course.id });
+      const evaluationId = await t.fixtures.createEvaluation({ assignmentId: assignment.id });
+      await t.fixtures.score({ evaluationId, enrollmentId, value: 6 });
+      const openEvaluationId = await t.fixtures.createEvaluation({ assignmentId: assignment.id, date: closedTermToday });
+      return { assignment, enrollmentId, evaluationId, openEvaluationId };
+    });
+    const { assignment } = closed;
+    const row = `tr[data-enrollment-id="${closed.enrollmentId}"]`;
+    const input = `${row} .numeric-stepper-input`;
+    const openScores = async (evaluationId) => {
+      const query = new URLSearchParams({ assignmentId: String(assignment.id), evaluationId: String(evaluationId) });
+      t.require(await ui.navigate(`${SCORES_VIEW}?${query}`) === SCORES_VIEW, 'No se abrieron las calificaciones de la evaluación');
+      await ui.idle();
+      await ui.waitFor(`document.querySelector('${input}')`, { message: 'La fila del alumno no apareció en Calificaciones' });
+    };
+    // Estado del campo de la nota del alumno: { disabled, title, value }, con el title del control
+    const scoreField = () => ui.js(`(() => {
+      const input = document.querySelector('${input}');
+      return { disabled: input.disabled, title: input.closest('.numeric-stepper').title, value: input.value };
+    })()`);
+
+    await loginViaUi(t, teacher);
+    await t.fixtures.onDate(closedTermToday, async () => {
+      await t.step('Evaluación del trimestre cerrado', async () => {
+        await openScores(closed.evaluationId);
+        const field = await scoreField();
+        t.check(field.disabled, 'La nota está deshabilitada', field);
+        t.check(/trimestre/i.test(field.title), 'El title de la nota explica que el trimestre está cerrado', field);
+        t.equal(field.value, '6', 'La nota cargada se sigue viendo');
+        const actions = await rowActionsState(t, row);
+        t.check(actions?.delete?.disabled, 'Eliminar está deshabilitado', actions);
+        const saveButton = await ui.js(`(() => { const button = document.getElementById('saveScoresBtn'); return { disabled: button.disabled, title: button.title }; })()`);
+        t.check(saveButton.disabled && /trimestre/i.test(saveButton.title), '"Guardar calificaciones" está deshabilitado, con el motivo como title', saveButton);
+      });
+
+      await t.step('Evaluación del trimestre abierto', async () => {
+        await openScores(closed.openEvaluationId);
+        const field = await scoreField();
+        t.check(!field.disabled, 'La nota está habilitada en una evaluación del trimestre abierto', field);
+      });
     });
     await logoutViaUi(t);
   });
