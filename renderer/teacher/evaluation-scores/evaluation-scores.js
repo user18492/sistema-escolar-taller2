@@ -18,6 +18,9 @@
 // que se puede modificar: vacía el campo y la baja (baja lógica) queda como un cambio sin guardar
 // más. La fila se conserva, porque el alumno sigue inscripto en el curso, y el campo admite otra
 // nota; volver a escribir la guardada deshace la baja.
+// Las filas con un cambio sin guardar (alta, corrección o baja) llevan además la acción "Deshacer
+// cambio", después de Eliminar: la calificación vuelve a la nota guardada (vacía, si no tenía) y la
+// fila deja de contar como cambio, para "Guardar calificaciones" y para el aviso al salir.
 // "Guardar calificaciones", habilitado mientras haya cambios sin guardar, abre un modal de
 // confirmación (confirm-modal.component.js) con cuántas calificaciones se cargan o corrigen y
 // cuántas se eliminan; al confirmar, el proceso principal guarda todos los cambios o ninguno
@@ -204,10 +207,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // La marca de cambio sin guardar (.unsaved-mark) se ve mientras la calificación tenga un cambio
   // (alta, corrección o baja, sin distinguirlos), y su texto queda como descripción del campo para
   // los lectores de pantalla. aria-describedby se quita sin el cambio porque también leería la
-  // marca oculta.
+  // marca oculta. Deshacer se muestra con la marca.
   const syncRowState = (row, score) => {
     const isAvailable = score.value !== null && displayedValue(score) !== null && score.isEnrollmentActive;
-    row.querySelector('row-actions').toggleAttribute('disabled', !isAvailable);
+    const actions = row.querySelector('row-actions');
+    actions.toggleAttribute('disabled', !isAvailable);
+    actions.toggleAttribute('show-undo', hasDraft(score));
     const mark = row.querySelector('.unsaved-mark');
     const input = row.querySelector('.numeric-stepper-input');
     mark.hidden = !hasDraft(score);
@@ -299,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // cambio de la calificación, que se guarda con "Guardar calificaciones". Una calificación ya
     // cargada no se quita vaciando el campo, sino con Eliminar: si el campo quedó vacío, vuelve la
     // nota que mostraba al recibir el foco y un toast lo explica, salvo que el foco haya pasado
-    // justamente al Eliminar de su fila.
+    // justamente al Eliminar o al Deshacer de su fila.
     input.addEventListener('blur', (event) => {
       const typed = parseScore(input.value);
       const value = typed === null ? null : clamp(typed);
@@ -311,8 +316,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const row = stepper.closest('tr');
       if (row) syncRowState(row, score);
       if (!removal) return;
-      const deleteButton = row?.querySelector('[data-action="delete"]');
-      if (deleteButton && event.relatedTarget === deleteButton) return;
+      const rowAction = event.relatedTarget?.closest?.('[data-action="delete"], [data-action="undo"]');
+      if (rowAction && row?.contains(rowAction)) return;
       showToast({
         type: 'error',
         title: 'La calificación no se quitó',
@@ -496,6 +501,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = button.closest('tr');
     const score = findScore(Number(row.dataset.enrollmentId));
     setDraft(score, null);
+    refreshRow(score);
+    row.querySelector('.numeric-stepper-input').focus();
+  });
+
+  // ---------- Deshacer cambio ----------
+
+  // Deshacer descarta el cambio sin guardar de la fila: el campo vuelve a la nota guardada (vacío, si
+  // no tenía), la marca y el propio Deshacer se ocultan, y "Guardar calificaciones" descuenta el
+  // cambio (si era el último, se deshabilita). El foco pasa al campo de la fila, porque el botón
+  // desaparece. Por delegación, como Eliminar.
+  tbody.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="undo"]');
+    if (!button || button.hidden) return;
+    const row = button.closest('tr');
+    const score = findScore(Number(row.dataset.enrollmentId));
+    setDraft(score, score.value);
     refreshRow(score);
     row.querySelector('.numeric-stepper-input').focus();
   });

@@ -91,6 +91,14 @@ td.col-student {
   width: 24%;
 }
 
+/* Lugar fijo para Eliminar y Deshacer (dos botones de 32 px separados por 16 px), aunque Deshacer
+   solo aparezca en las filas con un cambio sin guardar: así la columna Acciones no se ensancha al
+   aparecer y no corre a las demás (el campo de la nota se movería mientras se escribe). Se
+   reserva en el contenido porque un width en la celda no le gana al reparto en porcentajes. */
+.scores-card .table-actions {
+  min-width: 80px;
+}
+
 /* El alumno encabeza la fila: mismo destaque que el título en Evaluaciones. */
 .student-name {
   font-weight: 500;

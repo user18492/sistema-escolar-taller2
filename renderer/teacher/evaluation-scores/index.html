@@ -125,7 +125,9 @@
                  celda con el numeric stepper (escritura manual o botones − y +); el campo vacío
                  indica que no tiene nota. La de una inscripción finalizada queda deshabilitada, de
                  solo lectura. "Eliminar calificación" vacía el campo: la baja, como las cargas y
-                 correcciones, se guarda con "Guardar calificaciones", y la fila se conserva. -->
+                 correcciones, se guarda con "Guardar calificaciones", y la fila se conserva.
+                 "Deshacer cambio", después de Eliminar, solo aparece en las filas con un cambio sin
+                 guardar y devuelve la nota guardada. -->
             <template id="scoreRowTemplate">
               <tr>
                 <td class="student-name col-student col-truncate"><span class="text-truncate"></span></td>
@@ -152,7 +154,7 @@
                   <span class="unsaved-mark" role="img" aria-label="Cambio sin guardar" title="Cambio sin guardar" hidden></span>
                 </td>
                 <td>
-                  <row-actions delete-label="Eliminar calificación"></row-actions>
+                  <row-actions delete-label="Eliminar calificación" undo-label="Deshacer cambio"></row-actions>
                 </td>
               </tr>
             </template>

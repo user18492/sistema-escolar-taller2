@@ -382,6 +382,12 @@ row-actions {
   color: var(--color-text-primary);
 }
 
+/* Ese display no debe anular el atributo hidden (Deshacer, oculto sin un cambio sin guardar). */
+.user-action[hidden],
+.table-action[hidden] {
+  display: none;
+}
+
 .user-action svg,
 .table-action svg {
   width: 20px;

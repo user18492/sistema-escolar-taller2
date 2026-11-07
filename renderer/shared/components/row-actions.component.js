@@ -17,9 +17,13 @@
 //     una asignación docente con evaluaciones). Solo Eliminar queda deshabilitado, con ese texto
 //     como title y su etiqueta como aria-label. Se puede poner y quitar con la fila ya en la tabla;
 //     con "read-only-title", gana el texto de ese.
+//   - "undo-label" (opcional): agrega Deshacer, después de Eliminar, con ese aria-label y title,
+//     para deshacer un cambio sin guardar de la fila. Queda oculto salvo con "show-undo", que se
+//     puede poner y quitar con la fila ya en la tabla; "disabled", "read-only-title" y
+//     "delete-disabled-title" no lo afectan.
 //   - "variant" (opcional): "user" usa .user-actions/.user-action; por defecto .table-actions/.table-action.
 //   - "manage-href" (opcional): antepone un <manage-link> con ese href (requiere manage-link.component.js).
-// Los botones llevan data-action="print" / "edit" / "delete" / "restore". confirm-modal.component.js atiende
+// Los botones llevan data-action="print" / "edit" / "delete" / "undo" / "restore". confirm-modal.component.js atiende
 // Eliminar y Restaurar por delegación, pero hay vistas que enlazan Editar en DOMContentLoaded, así
 // que el script se carga sin defer en <head>.
 // Estilos en base.css.
@@ -35,12 +39,14 @@
     // resources/ArrowUturnLeft.svg
     restore: '<path d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />',
   };
+  // Deshacer usa el mismo ícono que Restaurar (resources/ArrowUturnLeft.svg)
+  ICONS.undo = ICONS.restore;
 
   // Acciones que un registro de solo lectura ("read-only-title") no ofrece
   const READ_ONLY_ACTIONS = ['edit', 'delete'];
 
   class RowActions extends HTMLElement {
-    static observedAttributes = ['disabled', 'read-only-title', 'delete-disabled-title'];
+    static observedAttributes = ['disabled', 'read-only-title', 'delete-disabled-title', 'show-undo'];
 
     connectedCallback() {
       if (this.rendered) return;
@@ -50,7 +56,7 @@
       // acción que tenga su etiqueta
       const actions = this.hasAttribute('restore-label')
         ? ['restore']
-        : ['print', 'edit', 'delete'].filter((action) => this.hasAttribute(`${action}-label`));
+        : ['print', 'edit', 'delete', 'undo'].filter((action) => this.hasAttribute(`${action}-label`));
       const buttons = actions.map((action) => `<button class="${prefix}-action" type="button" data-action="${action}" aria-label="" title="">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             ${ICONS[action]}
@@ -75,7 +81,8 @@
     }
 
     // Deshabilita los botones según "disabled", "read-only-title" y "delete-disabled-title" y les
-    // pone su title: la etiqueta de la acción o, en las que esos dos deshabilitan, el motivo
+    // pone su title: la etiqueta de la acción o, en las que esos dos deshabilitan, el motivo.
+    // Deshacer solo se muestra u oculta, según "show-undo".
     syncButtons() {
       const readOnlyTitle = this.getAttribute('read-only-title');
       const deleteDisabledTitle = this.getAttribute('delete-disabled-title');
@@ -87,6 +94,11 @@
       };
       this.querySelectorAll('[data-action]').forEach((button) => {
         const { action } = button.dataset;
+        if (action === 'undo') {
+          button.hidden = !this.hasAttribute('show-undo');
+          button.setAttribute('title', this.getAttribute('undo-label'));
+          return;
+        }
         const reason = reasonOf(action);
         button.disabled = this.hasAttribute('disabled') || reason !== null;
         button.setAttribute('title', reason ?? this.getAttribute(`${action}-label`));
