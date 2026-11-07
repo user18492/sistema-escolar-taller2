@@ -548,8 +548,8 @@ contextBridge.exposeInMainWorld('api', {
     list: () => ipcRenderer.invoke('backups:list'),
     // Solo ADMIN. Realiza un backup completo de los datos de su institución (usuarios, alumnos,
     // cursos, asignaciones docentes, inscripciones, evaluaciones y calificaciones, también los dados
-    // de baja; sin las fotos de perfil) en un archivo comprimido de la carpeta de backups de la
-    // aplicación, y lo registra en el historial. `format` es 'zip' o 'tar.gz'. Resuelve
+    // de baja; sin las fotos de perfil) en un archivo comprimido de la carpeta de backups de su
+    // institución, y lo registra en el historial. `format` es 'zip' o 'tar.gz'. Resuelve
     // { ok: true, backup } con el backup registrado (mismos campos que list, más fileName, el nombre
     // del archivo) o { ok: false, error: { code, message } }, sin dejar ningún archivo ni registro:
     // INVALID_INPUT indica un formato inválido; BACKUP_IN_PROGRESS, que ya hay un backup o una
@@ -557,14 +557,14 @@ contextBridge.exposeInMainWorld('api', {
     // segundo), y BACKUP_WRITE_FAILED, que no se pudo escribir el archivo en la carpeta.
     create: (format) => ipcRenderer.invoke('backups:create', format),
     // Solo ADMIN. Primer paso del restore: abre el diálogo del sistema para elegir un backup (.zip o
-    // .tar.gz), en la carpeta de backups de la aplicación, y lo lee y lo valida sin cambiar ningún
+    // .tar.gz), en la carpeta de backups de su institución, y lo lee y lo valida sin cambiar ningún
     // dato. La ruta la elige el proceso principal: la vista no la envía ni la recibe. Resuelve
     // { ok: true, file: null } si se cancela; { ok: true, file } con el backup elegido
     // ({ fileName, createdAt, userName }: el nombre del archivo, la fecha y la hora en ISO 8601 y el
     // nombre y el apellido de quien lo realizó), que queda listo para restore, o
     // { ok: false, error: { code, message } }: BACKUP_INVALID_FILE indica que el archivo no es un
     // backup del sistema que se pueda leer (o no tiene ningún administrador activo);
-    // BACKUP_OTHER_INSTITUTION, que es de otra institución (el mensaje la nombra);
+    // BACKUP_OTHER_INSTITUTION, que es de otra institución (el mensaje no la nombra);
     // BACKUP_INCOMPATIBLE, que es de otra versión del sistema o de otra base de datos, y
     // BACKUP_IN_PROGRESS, que ya hay un backup o una restauración en curso. Cada elección, aunque se
     // cancele o falle, descarta la anterior.

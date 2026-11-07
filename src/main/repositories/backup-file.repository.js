@@ -5,7 +5,10 @@ const AdmZip = require('adm-zip');
 const tar = require('tar');
 
 // Los archivos de backup se guardan en la carpeta de datos de la aplicación (userData), como las
-// fotos de perfil: cada PC ve solo los backups realizados desde ella.
+// fotos de perfil: cada PC ve solo los backups realizados desde ella. Dentro, cada institución tiene
+// su subcarpeta, backups/<institucion_id>/: varias instituciones gestionadas desde la misma PC no
+// mezclan sus archivos. Ordena los archivos, no los protege: el restore acepta cualquier ruta y
+// rechaza los de otra institución por su contenido (validateContent en backup.service.js).
 const DIRECTORY_NAME = 'backups';
 
 // Única entrada de cada archivo: el JSON que arma backup.service.js.
@@ -22,13 +25,18 @@ const TEMP_DIRECTORY_PREFIX = 'backup-';
 // Extensión del archivo a medio escribir: recién completo se renombra al nombre definitivo.
 const PARTIAL_SUFFIX = '.tmp';
 
-function getDirectory() {
-  return path.join(app.getPath('userData'), DIRECTORY_NAME);
+// La carpeta de backups de la institución `institutionId`. El id forma parte de la ruta: si no es
+// un entero positivo, lanza un error en vez de armar una ruta fuera de la carpeta de backups.
+function getDirectory(institutionId) {
+  if (!Number.isInteger(institutionId) || institutionId <= 0) {
+    throw new Error(`Id de institución inválido para la carpeta de backups: ${institutionId}`);
+  }
+  return path.join(app.getPath('userData'), DIRECTORY_NAME, String(institutionId));
 }
 
-// Crea la carpeta de backups si no existe y devuelve su ruta.
-async function ensureDirectory() {
-  const directory = getDirectory();
+// Crea la carpeta de backups de la institución `institutionId` si no existe y devuelve su ruta.
+async function ensureDirectory(institutionId) {
+  const directory = getDirectory(institutionId);
   await fs.mkdir(directory, { recursive: true });
   return directory;
 }
@@ -82,12 +90,13 @@ async function writeTarGz(partialPath, buffer) {
 const WRITERS = { zip: writeZip, 'tar.gz': writeTarGz };
 
 // Guarda `buffer` (el contenido de backup.json) comprimido en `format` (uno de FORMATS) como
-// `fileName` en la carpeta de backups, que se crea si no existe, y devuelve la ruta del archivo.
+// `fileName` en la carpeta de backups de la institución `institutionId`, que se crea si no existe,
+// y devuelve la ruta del archivo.
 // Escribe primero `<fileName>.tmp` y lo renombra al terminar: un fallo no deja un archivo a medias
 // con un nombre válido. Nunca reemplaza un backup: si `fileName` ya existe, lanza un error que
 // reconoce isFileExistsError. Los errores del disco salen como los lanza fs (isFileSystemError).
-async function write(fileName, buffer, format) {
-  const directory = await ensureDirectory();
+async function write(institutionId, fileName, buffer, format) {
+  const directory = await ensureDirectory(institutionId);
   const filePath = path.join(directory, fileName);
   const partialPath = filePath + PARTIAL_SUFFIX;
 
@@ -105,9 +114,10 @@ async function write(fileName, buffer, format) {
   return filePath;
 }
 
-// Borra el backup `fileName` de la carpeta de backups. No falla si ya no existe.
-async function remove(fileName) {
-  await fs.rm(path.join(getDirectory(), fileName), { force: true });
+// Borra el backup `fileName` de la carpeta de backups de la institución `institutionId`. No falla
+// si ya no existe.
+async function remove(institutionId, fileName) {
+  await fs.rm(path.join(getDirectory(institutionId), fileName), { force: true });
 }
 
 // ---------- Lectura ----------

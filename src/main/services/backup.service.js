@@ -19,9 +19,6 @@ const { FORMATS } = backupFileRepository;
 // archivos que no sabe leer.
 const FORMAT_VERSION = 1;
 
-// Largo máximo del nombre de la institución en el nombre del archivo.
-const SLUG_MAX_LENGTH = 40;
-
 // ---------- Una operación a la vez ----------
 
 // Una operación a la vez en este proceso (un backup, la elección del archivo a restaurar o un
@@ -47,27 +44,17 @@ async function runExclusive(operation) {
 
 const pad = (value) => String(value).padStart(2, '0');
 
-// El nombre de la institución en minúsculas, sin tildes y con cada tramo de caracteres que no sean
-// [a-z0-9] reemplazado por un guion, recortado a SLUG_MAX_LENGTH caracteres y sin guiones en los
-// extremos: "Colegio Manuel Belgrano" da "colegio-manuel-belgrano".
-function slugify(name) {
-  const slug = name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .slice(0, SLUG_MAX_LENGTH)
-    .replace(/^-+|-+$/g, '');
-  return slug || 'institucion';
-}
-
-// <slug>_<cuit>_<AAAA-MM-DD>_<HH-mm-ss>.<zip|tar.gz>, con la fecha y la hora locales de `createdAt`
-// (la de la instantánea). Por ejemplo: colegio-manuel-belgrano_30-12345678-9_2026-11-06_15-30-00.zip
-function buildFileName(institution, createdAt, format) {
+// <institucion_id>_<usuario_id>_<AAAA-MM-DD>_<HH-mm-ss>.<zip|tar.gz>, con los ids de la institución
+// y de quien lo realiza, y la fecha y la hora locales de `createdAt` (la de la instantánea). Por
+// ejemplo: 2_15_2026-11-07_15-30-00.zip. Sin el nombre ni el CUIT de la institución ni el nombre del
+// usuario: mirar la carpeta no revela qué instituciones hay ni datos personales (quién lo realizó se
+// ve en el historial y en backup.json). El id de la institución repite el de la subcarpeta, pero
+// identifica el archivo si se lo mueve de lugar.
+function buildFileName(institutionId, userId, createdAt, format) {
   const date = new Date(createdAt);
   const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   const time = `${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
-  return `${slugify(institution.name)}_${institution.cuit}_${day}_${time}${backupFileRepository.EXTENSIONS[format]}`;
+  return `${institutionId}_${userId}_${day}_${time}${backupFileRepository.EXTENSIONS[format]}`;
 }
 
 // ---------- Contenido del archivo ----------
@@ -114,9 +101,9 @@ async function list(user) {
 
 // Escribe el archivo y traduce los errores del disco: BACKUP_FILE_EXISTS si ya hay un backup con ese
 // nombre (dos en el mismo segundo) y BACKUP_WRITE_FAILED si no se pudo escribir en la carpeta.
-async function writeFile(fileName, buffer, format) {
+async function writeFile(institutionId, fileName, buffer, format) {
   try {
-    await backupFileRepository.write(fileName, buffer, format);
+    await backupFileRepository.write(institutionId, fileName, buffer, format);
   } catch (error) {
     if (backupFileRepository.isFileExistsError(error)) {
       throw new BackupError(
@@ -136,7 +123,7 @@ async function writeFile(fileName, buffer, format) {
 }
 
 // Backup completo de la institución de `user` en `format` (uno de FORMATS): lee la instantánea,
-// escribe el archivo en la carpeta de backups y lo registra en el historial, con la fecha de la
+// escribe el archivo en la carpeta de backups de la institución y lo registra en el historial, con la fecha de la
 // instantánea. Si el registro falla, borra el archivo. Devuelve el backup como en list, con el
 // nombre del archivo en `fileName`. Lanza un BackupError BACKUP_IN_PROGRESS si ya hay uno en curso,
 // y los de writeFile.
@@ -146,9 +133,9 @@ async function create(user, format) {
     if (!snapshot) throw new Error(`No existe la institución ${user.institutionId}`);
 
     const createdBy = creatorOf(user, snapshot);
-    const fileName = buildFileName(snapshot.institution, snapshot.createdAt, format);
+    const fileName = buildFileName(user.institutionId, user.id, snapshot.createdAt, format);
     const buffer = Buffer.from(JSON.stringify(buildContent(snapshot, createdBy)), 'utf8');
-    await writeFile(fileName, buffer, format);
+    await writeFile(user.institutionId, fileName, buffer, format);
 
     let backup;
     try {
@@ -158,7 +145,7 @@ async function create(user, format) {
         createdAt: snapshot.createdAt,
       });
     } catch (error) {
-      await backupFileRepository.remove(fileName).catch((removeError) => {
+      await backupFileRepository.remove(user.institutionId, fileName).catch((removeError) => {
         console.error('Error al borrar el archivo de un backup que no se pudo registrar:', removeError);
       });
       throw error;
@@ -171,6 +158,7 @@ async function create(user, format) {
 
 const INVALID_FILE_MESSAGE = 'El archivo elegido no es un backup válido del sistema.';
 const INCOMPATIBLE_MESSAGE = 'El backup es de otra versión del sistema o de otra base de datos.';
+const OTHER_INSTITUTION_MESSAGE = 'El backup pertenece a otra institución.';
 
 const invalidFile = (message = INVALID_FILE_MESSAGE) => new BackupError('BACKUP_INVALID_FILE', message);
 const incompatible = () => new BackupError('BACKUP_INCOMPATIBLE', INCOMPATIBLE_MESSAGE);
@@ -267,7 +255,7 @@ function hasActiveAdmin(content, reference) {
 // Comprueba que el contenido de un backup (`content`, el backup.json ya interpretado) se puede
 // restaurar en la institución de `reference` (lo que devuelve backupRepository.readRestoreReference
 // para la institución de la sesión), con las reglas en orden: el formato (BACKUP_INVALID_FILE), la
-// institución (BACKUP_OTHER_INSTITUTION, con la del archivo en el mensaje), el esquema y los
+// institución (BACKUP_OTHER_INSTITUTION, con un mensaje genérico), el esquema y los
 // catálogos (BACKUP_INCOMPATIBLE), las filas de la institución del archivo y referenciadas entre
 // ellas (BACKUP_INVALID_FILE) y un administrador activo y vigente (BACKUP_INVALID_FILE). Lanza
 // el BackupError de la primera que no se cumple. La usan selectFile y, otra vez dentro de la
@@ -277,10 +265,9 @@ function validateContent(content, reference) {
   const { institution } = reference;
   if (!institution) throw new Error('No existe la institución de la sesión');
   if (content.institution.id !== institution.id || content.institution.cuit !== institution.cuit) {
-    throw new BackupError(
-      'BACKUP_OTHER_INSTITUTION',
-      `El backup es de otra institución: ${content.institution.name} (CUIT ${content.institution.cuit}). Solo se pueden restaurar backups de ${institution.name}.`
-    );
+    // Sin el nombre ni el CUIT de la institución del archivo: el mensaje no confirma datos de otra
+    // institución a quien eligió el archivo.
+    throw new BackupError('BACKUP_OTHER_INSTITUTION', OTHER_INSTITUTION_MESSAGE);
   }
   if (!isCompatible(content, reference)) throw incompatible();
   if (!hasConsistentRows(content)) throw invalidFile();
@@ -323,14 +310,15 @@ async function selectPath(user, filePath) {
   };
 }
 
-// Abre sobre `browserWindow` el diálogo para elegir un backup, en la carpeta de backups, y lo lee y
-// lo valida (selectPath). Devuelve null si se cancela, y si no, lo que devuelve selectPath. Una
+// Abre sobre `browserWindow` el diálogo para elegir un backup, en la carpeta de backups de la
+// institución de `user`, y lo lee y lo valida (selectPath). El diálogo permite subir a otra carpeta:
+// un archivo de otra institución lo rechaza validateContent. Devuelve null si se cancela, y si no, lo que devuelve selectPath. Una
 // elección nueva, aunque se cancele o falle, descarta la anterior. Lanza un BackupError
 // BACKUP_IN_PROGRESS si ya hay un backup o una restauración en curso, y los de selectPath.
 async function selectFile(user, browserWindow) {
   return runExclusive(async () => {
     pendingSelection = null;
-    const defaultPath = await backupFileRepository.ensureDirectory();
+    const defaultPath = await backupFileRepository.ensureDirectory(user.institutionId);
     const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, { ...DIALOG_OPTIONS, defaultPath });
     if (canceled || !filePaths?.length) return null;
     return selectPath(user, filePaths[0]);
