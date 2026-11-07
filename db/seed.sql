@@ -618,26 +618,43 @@ FROM (VALUES
     ('30-69854321-5', 'esteban.montiel@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 'Filosofía', FALSE)
 ) AS a(cuit, email, nivel_educativo, grado, division, turno, materia, baja);
 
--- Evaluaciones de cada asignación, con el día y el mes de su fecha (el año es el del ciclo de la
--- asignación). En el ciclo actual, las cuatro de cada asignación vigente y, además, un recuperatorio
--- en Matemática de 2° A de primaria, que se da de baja; en el ciclo anterior (más abajo), las cuatro,
--- sin el recuperatorio. k interviene en la nota
-CREATE TEMP TABLE seed_evaluacion ON COMMIT DROP AS
+-- Trimestres de un ciclo lectivo, por mes, con el último día de cada uno: el 1.º hasta el 31 de mayo,
+-- el 2.º del 1 de junio al 31 de agosto y el 3.º del 1 de septiembre al 31 de diciembre. Cada ciclo
+-- se carga por trimestre, en orden cronológico, con el reloj de la base en el último día del
+-- trimestre (más abajo)
+CREATE TEMP TABLE seed_trimestre ON COMMIT DROP AS
 SELECT *
+FROM (VALUES
+    (1, 1, 5, 31),
+    (2, 6, 8, 31),
+    (3, 9, 12, 31)
+) AS t(trimestre, mes_desde, mes_hasta, dia_hasta);
+
+-- Evaluaciones de cada asignación, con el día y el mes de su fecha (el año es el del ciclo de la
+-- asignación) y su trimestre. En el ciclo actual, las cuatro de cada asignación vigente y, además, un
+-- recuperatorio en Matemática de 2° A de primaria, que se da de baja; en el ciclo anterior (más
+-- abajo), las cuatro, sin el recuperatorio. k interviene en la nota
+CREATE TEMP TABLE seed_evaluacion ON COMMIT DROP AS
+SELECT e.*, t.trimestre
 FROM (VALUES
     ('Evaluación diagnóstica', 3, 20, 1, FALSE),
     ('Recuperatorio', 4, 10, 5, TRUE),
     ('Trabajo práctico 1', 5, 15, 2, FALSE),
     ('Evaluación escrita 1', 8, 21, 3, FALSE),
     ('Trabajo práctico 2', 11, 13, 4, FALSE)
-) AS e(titulo, mes, dia, k, recuperatorio);
+) AS e(titulo, mes, dia, k, recuperatorio)
+JOIN seed_trimestre t ON e.mes BETWEEN t.mes_desde AND t.mes_hasta;
 
 -- Ciclo lectivo anterior (el actual - 1, sin año fijo): un lote histórico, cargado con todos los
 -- triggers activos. Los datos de un ciclo cerrado no se pueden cargar (trg_curso_ciclo_lectivo y los
 -- de las demás tablas), así que, dentro de esta transacción, se fija el reloj de la base
--- (fn_fecha_actual(), de la que sale todo lo del ciclo lectivo) en el 31 de diciembre del año
--- anterior, se carga ese ciclo como si fuera el actual, se restaura el reloj y se cierra el ciclo
--- con sp_inscripcion_finalizar_ciclos_cerrados, como lo hace la aplicación al iniciarse.
+-- (fn_fecha_actual(), de la que sale todo lo del ciclo lectivo) en el año anterior, se carga ese
+-- ciclo como si fuera el actual, se restaura el reloj y se cierra el ciclo con
+-- sp_inscripcion_finalizar_ciclos_cerrados, como lo hace la aplicación al iniciarse.
+-- Se carga por trimestre, en orden cronológico, con el reloj en el último día de cada uno: en el 1.º,
+-- los cursos, las asignaciones y las inscripciones, y en cada trimestre, sus evaluaciones y sus
+-- calificaciones. Así cada dato se escribe en una fecha en la que la aplicación también podría
+-- escribirlo.
 -- Por institución carga 12 cursos, 25 asignaciones, 312 inscripciones, 100 evaluaciones y 2596
 -- calificaciones, todas vigentes; el cierre deja las inscripciones finalizadas.
 -- El reemplazo de la función es transaccional: si el seed falla, ON_ERROR_STOP corta, la
@@ -650,27 +667,64 @@ FROM (VALUES
 -- dar de baja profesores (solo un profesor activo recibe asignaciones).
 -- Con el reloj fijado, fn_anio_ciclo_lectivo_actual() devuelve el año anterior: este tramo usa
 -- seed_reloj.anio_anterior para que se lea sin ambigüedad.
+-- El ciclo actual se carga después por trimestre con el mismo mecanismo (más abajo).
 CREATE TEMP TABLE seed_reloj ON COMMIT DROP AS
 SELECT pg_get_functiondef('fn_fecha_actual()'::regprocedure) AS definicion,
        fn_fecha_actual() AS fecha_real,
-       fn_anio_ciclo_lectivo_actual() - 1 AS anio_anterior;
+       fn_anio_ciclo_lectivo_actual() - 1 AS anio_anterior,
+       fn_anio_ciclo_lectivo_actual() AS anio_actual;
 
--- Se fija el reloj en el 31 de diciembre del año anterior. Sin RAISE NOTICE: psql no tiene que
--- mostrar avisos
-DO $$
+-- Fija el reloj en el último día del trimestre p_trimestre del ciclo p_ciclo ('anterior' o
+-- 'actual') o, si la fecha real es anterior, en ella: en el ciclo actual nada queda con una fecha
+-- futura. Es un procedimiento temporal (pg_temp): desaparece al terminar psql y no queda en el
+-- esquema. Sin RAISE NOTICE: psql no tiene que mostrar avisos
+CREATE PROCEDURE pg_temp.seed_fijar_reloj(p_ciclo TEXT, p_trimestre INT)
+LANGUAGE plpgsql AS $$
 DECLARE
-    v_anio  INT;
+    v_anio   INT;
+    v_fecha  DATE;
 BEGIN
-    SELECT r.anio_anterior INTO v_anio FROM seed_reloj r;
+    SELECT CASE p_ciclo WHEN 'anterior' THEN r.anio_anterior WHEN 'actual' THEN r.anio_actual END,
+           LEAST(make_date(CASE p_ciclo WHEN 'anterior' THEN r.anio_anterior WHEN 'actual' THEN r.anio_actual END,
+                           t.mes_hasta, t.dia_hasta),
+                 r.fecha_real)
+      INTO v_anio, v_fecha
+      FROM seed_reloj r
+      JOIN seed_trimestre t ON t.trimestre = p_trimestre;
+
+    IF v_fecha IS NULL THEN
+        RAISE EXCEPTION 'No existe el trimestre % del ciclo lectivo %', p_trimestre, p_ciclo;
+    END IF;
 
     EXECUTE format('CREATE OR REPLACE FUNCTION fn_fecha_actual() RETURNS DATE LANGUAGE sql STABLE AS %L',
-                   format('SELECT DATE %L', to_char(make_date(v_anio, 12, 31), 'YYYY-MM-DD')));
+                   format('SELECT DATE %L', to_char(v_fecha, 'YYYY-MM-DD')));
 
-    IF fn_ciclo_lectivo_estado(v_anio) IS DISTINCT FROM 'ACTUAL' THEN
-        RAISE EXCEPTION 'No se pudo fijar el reloj en el ciclo lectivo %', v_anio;
+    IF fn_fecha_actual() IS DISTINCT FROM v_fecha
+       OR fn_ciclo_lectivo_estado(v_anio) IS DISTINCT FROM 'ACTUAL' THEN
+        RAISE EXCEPTION 'No se pudo fijar el reloj en el trimestre % del ciclo lectivo %', p_trimestre, v_anio;
     END IF;
-END
+END;
 $$;
+
+-- Restaura el reloj con la definición guardada. Después, el ciclo anterior queda cerrado
+CREATE PROCEDURE pg_temp.seed_restaurar_reloj()
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_reloj  RECORD;
+BEGIN
+    SELECT r.definicion, r.fecha_real, r.anio_anterior INTO v_reloj FROM seed_reloj r;
+
+    EXECUTE v_reloj.definicion;
+
+    IF fn_fecha_actual() IS DISTINCT FROM v_reloj.fecha_real
+       OR fn_ciclo_lectivo_estado(v_reloj.anio_anterior) IS DISTINCT FROM 'CERRADO' THEN
+        RAISE EXCEPTION 'No se pudo restaurar el reloj en la fecha %', v_reloj.fecha_real;
+    END IF;
+END;
+$$;
+
+-- 1.º trimestre del ciclo anterior: el reloj, en el 31 de mayo del año anterior
+CALL pg_temp.seed_fijar_reloj('anterior', 1);
 
 -- Cursos del ciclo anterior: 12 por institución, los 12 grados con la división A (sin las B de 1°),
 -- con el mismo turno que la A del ciclo actual (la misma expresión que los INSERT del ciclo actual,
@@ -769,7 +823,9 @@ LEFT JOIN curso c ON c.institucion_id = i.institucion_id AND c.grado_id = g.grad
 ORDER BY i.institucion_id, fecha, s.n;
 
 -- Evaluaciones del ciclo anterior: las de seed_evaluacion sin el recuperatorio, en cada una de sus 25
--- asignaciones, 100 por institución
+-- asignaciones, 100 por institución. Se cargan por trimestre: seed_evaluar_anterior(t) carga las
+-- del trimestre t
+PREPARE seed_evaluar_anterior(INT) AS
 INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion)
 SELECT a.asignacion_docente_id, se.titulo, make_date(r.anio_anterior, se.mes, se.dia)
 FROM asignacion_docente a
@@ -778,13 +834,15 @@ JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
 CROSS JOIN seed_reloj r
 JOIN seed_evaluacion se ON NOT se.recuperatorio
 WHERE c.anio_ciclo_lectivo = r.anio_anterior
+  AND se.trimestre = $1
 ORDER BY c.institucion_id, c.curso_id, gm.grado_materia_id, se.mes, se.dia;
 
--- Calificaciones del ciclo anterior: una por inscripción y evaluación de su curso, todas vigentes
--- (con el reloj en el 31 de diciembre, todas las evaluaciones ya se tomaron): 2596 por institución
--- (4 evaluaciones por 312 inscripciones en dos asignaciones y 25 en la tercera de 2° A de
--- primaria). Nota de 4 a 10, en pasos de 0,25, con otra fórmula que la del ciclo actual (unas 23 %
--- menores que 6)
+-- Calificaciones del ciclo anterior: una por inscripción y evaluación de su curso, todas vigentes:
+-- 2596 por institución (4 evaluaciones por 312 inscripciones en dos asignaciones y 25 en la tercera
+-- de 2° A de primaria). Nota de 4 a 10, en pasos de 0,25, con otra fórmula que la del ciclo actual
+-- (unas 23 % menores que 6). seed_calificar_anterior(t) califica las evaluaciones del trimestre t,
+-- con el reloj en su último día, cuando ya se tomaron todas
+PREPARE seed_calificar_anterior(INT) AS
 INSERT INTO calificacion (evaluacion_id, inscripcion_id, nota)
 SELECT e.evaluacion_id, i.inscripcion_id,
        LEAST(10, 4 + (s.n * 3 % 7) * 0.75 + ((s.n + 2 * se.k) % 5) * 0.5)
@@ -798,23 +856,27 @@ JOIN asignacion_docente a ON a.curso_id = c.curso_id
 JOIN evaluacion e ON e.asignacion_docente_id = a.asignacion_docente_id
 JOIN seed_evaluacion se ON se.titulo = e.titulo
 WHERE c.anio_ciclo_lectivo = r.anio_anterior
+  AND se.trimestre = $1
 ORDER BY c.institucion_id, e.evaluacion_id, i.inscripcion_id;
 
+EXECUTE seed_evaluar_anterior(1);
+EXECUTE seed_calificar_anterior(1);
+
+-- 2.º trimestre del ciclo anterior: el reloj, en el 31 de agosto
+CALL pg_temp.seed_fijar_reloj('anterior', 2);
+EXECUTE seed_evaluar_anterior(2);
+EXECUTE seed_calificar_anterior(2);
+
+-- 3.º trimestre del ciclo anterior: el reloj, en el 31 de diciembre
+CALL pg_temp.seed_fijar_reloj('anterior', 3);
+EXECUTE seed_evaluar_anterior(3);
+EXECUTE seed_calificar_anterior(3);
+
+DEALLOCATE seed_evaluar_anterior;
+DEALLOCATE seed_calificar_anterior;
+
 -- Se restaura el reloj con la definición guardada, y el ciclo anterior queda cerrado
-DO $$
-DECLARE
-    v_reloj  RECORD;
-BEGIN
-    SELECT r.definicion, r.fecha_real, r.anio_anterior INTO v_reloj FROM seed_reloj r;
-
-    EXECUTE v_reloj.definicion;
-
-    IF fn_fecha_actual() IS DISTINCT FROM v_reloj.fecha_real
-       OR fn_ciclo_lectivo_estado(v_reloj.anio_anterior) IS DISTINCT FROM 'CERRADO' THEN
-        RAISE EXCEPTION 'No se pudo restaurar el reloj después de cargar el ciclo lectivo %', v_reloj.anio_anterior;
-    END IF;
-END
-$$;
+CALL pg_temp.seed_restaurar_reloj();
 
 -- Cierre del ciclo anterior: sus inscripciones activas pasan a FINALIZADA. Dentro de un DO, porque
 -- un CALL suelto escribe su resultado
@@ -1015,6 +1077,15 @@ UPDATE usuario u
 -- Inscripciones, evaluaciones y calificaciones del ciclo lectivo actual. Todas sus fechas son de ese
 -- ciclo y ninguna inscripción es futura: cada fecha es la del día y mes indicados o, si se carga
 -- antes, el día de la carga. Solo se califican las evaluaciones con fecha de hoy o anterior.
+-- Se cargan por trimestre, en orden cronológico, como el ciclo anterior: el reloj, en el último día
+-- de cada uno o, si es anterior, en la fecha real (pg_temp.seed_fijar_reloj). En cada trimestre se
+-- cargan sus evaluaciones (las futuras quedan sin calificar) y se califican; después se hacen las
+-- bajas y las cancelaciones de sus fechas, y las calificaciones posteriores a una cancelación se
+-- cargan después de ella. Al final se restaura el reloj.
+
+-- 1.º trimestre: el reloj, en el 31 de mayo o, si es anterior, en la fecha real. Las inscripciones
+-- se cargan en él: todas sus fechas son de febrero o abril
+CALL pg_temp.seed_fijar_reloj('actual', 1);
 
 -- Inscripciones de cada alumno, con su curso y su fecha. tipo: 'error' (la del caso 7, que se da de
 -- baja), 'inicial' (la primera, activa) o 'cambio' (la del curso nuevo en un cambio de división).
@@ -1086,6 +1157,9 @@ JOIN inscripcion_estado e ON e.nombre = 'ACTIVA'
 WHERE si.tipo = 'inicial'
 ORDER BY si.institucion_id, si.fecha, si.n;
 
+-- Evaluaciones del ciclo actual, en las asignaciones vigentes. seed_evaluar(t) carga las del
+-- trimestre t
+PREPARE seed_evaluar(INT) AS
 INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion)
 SELECT a.asignacion_docente_id, se.titulo, make_date(c.anio_ciclo_lectivo, se.mes, se.dia)
 FROM asignacion_docente a
@@ -1098,15 +1172,17 @@ JOIN seed_evaluacion se ON NOT se.recuperatorio
                             AND c.division = 'A' AND m.nombre = 'Matemática')
 WHERE a.fecha_eliminacion IS NULL
   AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+  AND se.trimestre = $1
 ORDER BY c.institucion_id, c.curso_id, gm.grado_materia_id, se.mes, se.dia;
 
 -- Calificaciones de cada inscripción activa y vigente en las evaluaciones vigentes de su curso con
 -- fecha de hoy o anterior, a partir de su fecha de inscripción y antes de su califica_hasta, si no
--- tiene ninguna en esa evaluación. Se ejecuta ahora y otra vez después de los cambios de división.
+-- tiene ninguna en esa evaluación. seed_calificar(t) califica las evaluaciones del trimestre t; en
+-- el 1.º se ejecuta otra vez después de los cambios de división.
 -- Nota de 4,50 a 10, en pasos de 0,25 (unas 14 % menores que 6).
 -- Excepción: en Lengua de 2° A de primaria, los 3 regulares de mayor n quedan sin calificar en la
 -- Evaluación escrita 1
-PREPARE seed_calificar AS
+PREPARE seed_calificar(INT) AS
 INSERT INTO calificacion (evaluacion_id, inscripcion_id, nota)
 SELECT e.evaluacion_id, i.inscripcion_id,
        LEAST(10, 4.5 + (si.n * 5 % 7) * 0.75 + ((si.n + 3 * se.k) % 5) * 0.5)
@@ -1135,9 +1211,50 @@ WHERE ie.nombre = 'ACTIVA'
                      AND si.n BETWEEN sc.n_hasta - 2 AND sc.n_hasta
                      AND m.nombre = 'Lengua'
                      AND e.titulo = 'Evaluación escrita 1')
+  AND se.trimestre = $1
 ORDER BY si.institucion_id, e.evaluacion_id, i.inscripcion_id;
 
-EXECUTE seed_calificar;
+-- Cancelaciones de los casos 1 a 6: las inscripciones iniciales cuyo califica_hasta (la fecha del
+-- cambio de división, del abandono o de la baja del alumno) cae en el trimestre p_trimestre. Se
+-- llama después de calificar lo anterior a esa fecha y antes de calificar lo posterior: desde ahí,
+-- seed_calificar ya no califica la inscripción cancelada.
+-- Casos 1 a 4: la inscripción inicial pasa a CANCELADA, con sus calificaciones. Casos 5 y 6: el
+-- alumno se da de baja, y sp_alumno_dar_de_baja cancela su inscripción. Es un procedimiento temporal,
+-- como pg_temp.seed_fijar_reloj
+CREATE PROCEDURE pg_temp.seed_cancelar_inscripciones(p_trimestre INT)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_alumno      RECORD;
+    v_canceladas  INT;
+BEGIN
+    UPDATE inscripcion i
+       SET inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'CANCELADA')
+      FROM seed_inscripcion si, seed_trimestre t
+     WHERE si.tipo = 'inicial'
+       AND si.caso BETWEEN 1 AND 4
+       AND t.trimestre = p_trimestre
+       AND EXTRACT(MONTH FROM si.califica_hasta) BETWEEN t.mes_desde AND t.mes_hasta
+       AND i.alumno_id = si.alumno_id
+       AND i.curso_id = si.curso_id;
+
+    FOR v_alumno IN
+        SELECT si.alumno_id, si.institucion_id
+          FROM seed_inscripcion si
+          JOIN seed_trimestre t ON t.trimestre = p_trimestre
+         WHERE si.tipo = 'inicial'
+           AND si.caso IN (5, 6)
+           AND EXTRACT(MONTH FROM si.califica_hasta) BETWEEN t.mes_desde AND t.mes_hasta
+         ORDER BY si.institucion_id, si.caso
+    LOOP
+        CALL sp_alumno_dar_de_baja(v_alumno.alumno_id, v_alumno.institucion_id, v_canceladas);
+    END LOOP;
+END;
+$$;
+
+-- 1.º trimestre: sus evaluaciones (del 20 de marzo, el 10 de abril y el 15 de mayo) y sus
+-- calificaciones
+EXECUTE seed_evaluar(1);
+EXECUTE seed_calificar(1);
 
 -- Calificación dada de baja: en Lengua de 2° A de primaria, la de la Evaluación diagnóstica del
 -- regular de menor n se da de baja y se carga otra, con un punto más (hasta 10). Si todavía no se
@@ -1170,35 +1287,12 @@ UPDATE evaluacion
    SET fecha_eliminacion = LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 4, 13), fn_fecha_actual())::TIMESTAMPTZ
  WHERE titulo = 'Recuperatorio';
 
--- Casos 1 a 4: la inscripción inicial pasa a CANCELADA, con sus calificaciones
-UPDATE inscripcion i
-   SET inscripcion_estado_id = (SELECT inscripcion_estado_id FROM inscripcion_estado WHERE nombre = 'CANCELADA')
-  FROM seed_inscripcion si
- WHERE si.tipo = 'inicial'
-   AND si.caso BETWEEN 1 AND 4
-   AND i.alumno_id = si.alumno_id
-   AND i.curso_id = si.curso_id;
+-- Cancelaciones del 1.º trimestre: el abandono del caso 4 y la baja del caso 6 (1 de marzo), y los
+-- cambios de división de los casos 1 y 2 (20 de abril)
+CALL pg_temp.seed_cancelar_inscripciones(1);
 
--- Casos 5 y 6: el alumno se da de baja, y sp_alumno_dar_de_baja cancela su inscripción. Dentro de un
--- DO, porque un CALL suelto escribe su resultado
-DO $$
-DECLARE
-    v_alumno      RECORD;
-    v_canceladas  INT;
-BEGIN
-    FOR v_alumno IN
-        SELECT si.alumno_id, si.institucion_id
-          FROM seed_inscripcion si
-         WHERE si.tipo = 'inicial'
-           AND si.caso IN (5, 6)
-         ORDER BY si.institucion_id, si.caso
-    LOOP
-        CALL sp_alumno_dar_de_baja(v_alumno.alumno_id, v_alumno.institucion_id, v_canceladas);
-    END LOOP;
-END
-$$;
-
--- Casos 1 y 2: la inscripción en el curso nuevo, activa, y sus calificaciones
+-- Casos 1 y 2: la inscripción en el curso nuevo, activa, y sus calificaciones del 1.º trimestre (las
+-- posteriores al cambio)
 INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
 SELECT si.alumno_id, si.curso_id, e.inscripcion_estado_id, si.fecha
 FROM seed_inscripcion si
@@ -1206,8 +1300,26 @@ JOIN inscripcion_estado e ON e.nombre = 'ACTIVA'
 WHERE si.tipo = 'cambio'
 ORDER BY si.institucion_id, si.fecha, si.n;
 
-EXECUTE seed_calificar;
+EXECUTE seed_calificar(1);
 
+-- 2.º trimestre: el reloj, en el 31 de agosto o, si es anterior, en la fecha real. Su evaluación (del
+-- 21 de agosto), las cancelaciones de sus fechas, anteriores a ella (el abandono del caso 3, el 1 de
+-- junio, y la baja del caso 5, el 1 de julio), y sus calificaciones
+CALL pg_temp.seed_fijar_reloj('actual', 2);
+EXECUTE seed_evaluar(2);
+CALL pg_temp.seed_cancelar_inscripciones(2);
+EXECUTE seed_calificar(2);
+
+-- 3.º trimestre: el reloj, en el 31 de diciembre o, si es anterior, en la fecha real. Su evaluación
+-- (del 13 de noviembre) y sus calificaciones
+CALL pg_temp.seed_fijar_reloj('actual', 3);
+EXECUTE seed_evaluar(3);
+EXECUTE seed_calificar(3);
+
+DEALLOCATE seed_evaluar;
 DEALLOCATE seed_calificar;
+
+-- Se restaura el reloj con la definición guardada
+CALL pg_temp.seed_restaurar_reloj();
 
 COMMIT;
