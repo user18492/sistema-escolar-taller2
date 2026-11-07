@@ -51,10 +51,46 @@ confirm-modal {
   letter-spacing: -0.01em;
 }
 
-.confirm-content p {
+/* Descripción en bloques (renderDescription de confirm-modal.component.js): la pregunta, los datos
+   afectados y la consecuencia, cada uno separado del anterior. */
+.confirm-description {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
   margin-top: 8px;
+}
+
+.confirm-description p {
   font-size: 15px;
   color: var(--color-text-secondary);
+}
+
+/* Datos afectados (fecha, usuario y archivo del backup; cantidades): una fila por dato, con las
+   etiquetas en una columna y los valores alineados en la otra, recortados con "…" si no entran
+   (.text-truncate de base.css, con el valor completo en el tooltip). */
+.confirm-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 6px;
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-size: 14px;
+}
+
+.confirm-details dt {
+  color: var(--color-text-secondary);
+}
+
+.confirm-details dd {
+  margin: 0;
+  font-weight: 500;
+  color: var(--color-text-primary);
 }
 
 /* Resultado de la confirmación cuando el modal sigue abierto (error del backend, registro que ya

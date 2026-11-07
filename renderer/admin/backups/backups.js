@@ -242,7 +242,15 @@ document.addEventListener('DOMContentLoaded', () => {
     beforeOpen: closeAllDropdowns,
     describe: () => {
       const { fileName, createdAt, userName } = restoreFile;
-      return `Se reemplazarán todos los datos actuales de la institución por los del backup del ${formatDateTime(createdAt)}, realizado por ${userName} (${fileName}). Los cambios posteriores a ese backup se perderán y la sesión se cerrará.`;
+      return {
+        text: '¿Quieres reemplazar todos los datos actuales de la institución por los de este backup?',
+        details: [
+          { label: 'Fecha y hora', value: formatDateTime(createdAt) },
+          { label: 'Realizado por', value: userName },
+          { label: 'Archivo', value: fileName },
+        ],
+        consequence: 'Se perderán los cambios posteriores al backup y se cerrará la sesión.',
+      };
     },
     onConfirm: restoreBackup,
   });
