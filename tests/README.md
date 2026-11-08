@@ -181,12 +181,12 @@ group('main.secretary.enrollments', 'Secretario: inscripciones', {
   una transacción que la prueba deshace (`db/school-year.test.js`).
 - **Trimestres**: en un trimestre cerrado (`fn_trimestre_cerrado`, 7 días después de su fin) no se
   crea, edita ni califica nada, y cuáles están cerrados depende del día (con `inSchoolYear`, el 15/06,
-  el 1.º ya cerró). Lo que depende del trimestre se prueba en una transacción que se deshace, con el
+  el 1° ya cerró). Lo que depende del trimestre se prueba en una transacción que se deshace, con el
   reloj reemplazado (`replaceTodaySql`) por días del ciclo actual: los datos se crean con el
   trimestre abierto y después se adelanta el reloj (`db/averages.test.js`). En las capas `main` y
   `ui`, donde el reloj lo tiene que ver también la aplicación, se fija con `fixtures.onDate(fecha, …)`,
   que lo confirma y lo restaura al terminar: los datos se crean el 01/01 del ciclo actual (no son
-  posteriores a ningún hoy) y se prueban el 09/06, con el 1.er trimestre cerrado y el 2.º abierto
+  posteriores a ningún hoy) y se prueban el 09/06, con el 1° trimestre cerrado y el 2° abierto
   (`main/teacher.test.js`).
 
 ### Reglas para los planes

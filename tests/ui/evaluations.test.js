@@ -2,8 +2,8 @@
 // modal advierte cuántas hay y que también se dan de baja
 // (plans/profesor-evaluaciones/01-advertencia-de-baja.md). Una evaluación de un trimestre cerrado se
 // ve en solo lectura (plans/promedios/02-restricciones-backend-y-vistas.md), con el reloj de la base
-// fijado como en main.teacher: datos del 01/01 del ciclo actual vistos el 09/06, con el 1.er
-// trimestre ya cerrado y el 2.º abierto.
+// fijado como en main.teacher: datos del 01/01 del ciclo actual vistos el 09/06, con el 1°
+// trimestre ya cerrado y el 2° abierto.
 const { group, test } = require('../lib/framework');
 const { loginViaUi, logoutViaUi, rowActionsState } = require('./helpers');
 
@@ -60,11 +60,13 @@ group('ui.evaluations', 'Evaluaciones: advertencia al eliminar una evaluación c
     await logoutViaUi(t);
   });
 
-  test('term-closed-read-only', 'Una evaluación de un trimestre cerrado tiene Editar y Eliminar deshabilitados, con el motivo como title; Gestionar sigue habilitado', async (t) => {
+  test('term-closed-read-only', 'Una evaluación de un trimestre cerrado tiene Editar y Eliminar deshabilitados, con el motivo como title; Gestionar sigue habilitado', {
+    history: [{ plan: 'Pedido del 2026-11-08: formato único de los trimestres (sin plan en plans/)', date: '2026-11-08', change: 'Los trimestres se nombran "1° trimestre", "2° trimestre" y "3° trimestre" (antes "1.er", "2.º", "3.er") en los comentarios' }],
+  }, async (t) => {
     const { ui } = t;
     const { teacher, assignment } = t.data;
     const closedTermToday = `${t.year}-06-09`;
-    // Una del 01/01 (1.er trimestre) y otra del 09/06 (2.º trimestre), creadas el 01/01
+    // Una del 01/01 (1° trimestre) y otra del 09/06 (2° trimestre), creadas el 01/01
     const { closedId, openId } = await t.fixtures.onDate(`${t.year}-01-01`, async () => ({
       closedId: await t.fixtures.createEvaluation({ assignmentId: assignment.id, title: 'Del trimestre cerrado' }),
       openId: await t.fixtures.createEvaluation({ assignmentId: assignment.id, title: 'Del trimestre abierto', date: closedTermToday }),

@@ -5,8 +5,8 @@
 // cada resultado se comprueba con una consulta independiente.
 // Lo de un trimestre cerrado (plans/promedios/02-restricciones-backend-y-vistas.md) se prueba con el
 // reloj de la base fijado, también para la aplicación (fixtures.onDate): los datos se crean el 01/01
-// del ciclo actual, con el 1.er trimestre abierto, y se prueban el 09/06, con ese trimestre ya
-// cerrado (cierra el 08/06) y el 2.º abierto. Así no dependen del día en que corre la suite.
+// del ciclo actual, con el 1° trimestre abierto, y se prueban el 09/06, con ese trimestre ya
+// cerrado (cierra el 08/06) y el 2° abierto. Así no dependen del día en que corre la suite.
 // Los promedios de Alumnos (plans/promedios/03-promedios-profesor.md) se comparan con una consulta
 // propia sobre las tablas: los de dos trimestres, en un curso propio del ciclo anterior cargado con
 // el reloj en cada fecha, y los del ciclo actual, con datos del 01/01 vistos ese día y el 09/06.
@@ -15,7 +15,7 @@ const { sortedIds, sortedNumbers } = require('../lib/domain');
 const { replaceTodaySql } = require('../lib/clock');
 
 // Fechas del ciclo actual para lo del trimestre cerrado: el día en que se crean los datos, el día en
-// que se prueban y el último del 1.er trimestre
+// que se prueban y el último del 1° trimestre
 const termDates = (t) => ({
   createdOn: `${t.year}-01-01`,
   closedTermToday: `${t.year}-06-09`,
@@ -369,7 +369,9 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.logout();
   });
 
-  test('term-closed-evaluation', 'Una evaluación de un trimestre cerrado no se edita ni se da de baja (TERM_CLOSED), y ninguna se crea ni pasa a una fecha de uno cerrado', async (t) => {
+  test('term-closed-evaluation', 'Una evaluación de un trimestre cerrado no se edita ni se da de baja (TERM_CLOSED), y ninguna se crea ni pasa a una fecha de uno cerrado', {
+    history: [{ plan: 'Pedido del 2026-11-08: formato único de los trimestres (sin plan en plans/)', date: '2026-11-08', change: 'Los trimestres se nombran "1° trimestre", "2° trimestre" y "3° trimestre" (antes "1.er", "2.º", "3.er") en los comentarios y en los mensajes de las comprobaciones' }],
+  }, async (t) => {
     const { assignment } = t.data;
     const { createdOn, closedTermToday, firstTermLastDay } = termDates(t);
     const closed = await firstTermEvaluation(t);
@@ -382,10 +384,10 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.login(t.data.teacher);
     await t.fixtures.onDate(closedTermToday, async () => {
       const { evaluations } = await t.ok('evaluations.listByOwnAssignment', assignment.id);
-      // El 09/06 solo está cerrado el 1.er trimestre: las evaluaciones anteriores al 01/06
+      // El 09/06 solo está cerrado el 1° trimestre: las evaluaciones anteriores al 01/06
       const closedIds = (list) => sortedIds(list.filter((evaluation) => evaluation.isTermClosed));
       t.equal(closedIds(evaluations), sortedIds(evaluations.filter((evaluation) => evaluation.evaluationDate < `${t.year}-06-01`)),
-        'isTermClosed marca solo las evaluaciones del 1.er trimestre');
+        'isTermClosed marca solo las evaluaciones del 1° trimestre');
       t.check(closedIds(evaluations).includes(closed.evaluationId), 'La evaluación del 01/01 es de un trimestre cerrado', evaluations);
 
       await t.rejects('TERM_CLOSED', 'evaluations.update', assignment.id, closed.evaluationId, { title: 'Renombrada', evaluationDate: createdOn });
@@ -400,7 +402,7 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
       t.equal(count, 0, 'No se creó la evaluación del trimestre cerrado');
 
       const { evaluation: open } = await t.ok('evaluations.create', assignment.id, { title: 'Del trimestre abierto', evaluationDate: closedTermToday });
-      t.equal(open?.isTermClosed, false, 'La evaluación creada en el 2.º trimestre no es de un trimestre cerrado');
+      t.equal(open?.isTermClosed, false, 'La evaluación creada en el 2° trimestre no es de un trimestre cerrado');
       const moved = await t.rejects('INVALID_INPUT', 'evaluations.update', assignment.id, open.id, { title: 'Del trimestre abierto', evaluationDate: firstTermLastDay });
       t.check(moved?.error?.fieldErrors?.evaluationDate, 'Pasar una evaluación a una fecha de un trimestre cerrado marca la fecha', moved);
       const { fecha } = await t.sqlOne(`SELECT to_char(fecha_evaluacion, 'YYYY-MM-DD') AS fecha FROM evaluacion WHERE evaluacion_id = $1`, [open.id]);
@@ -508,7 +510,9 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     }
   });
 
-  test('averages', 'Los promedios trimestrales y anuales de Alumnos cuentan 0 la evaluación sin nota, excluyen la anterior a la inscripción y la futura, y marcan Parcial o Final', async (t) => {
+  test('averages', 'Los promedios trimestrales y anuales de Alumnos cuentan 0 la evaluación sin nota, excluyen la anterior a la inscripción y la futura, y marcan Parcial o Final', {
+    history: [{ plan: 'Pedido del 2026-11-08: formato único de los trimestres (sin plan en plans/)', date: '2026-11-08', change: 'Los trimestres se nombran "1° trimestre", "2° trimestre" y "3° trimestre" (antes "1.er", "2.º", "3.er") en los comentarios, en los pasos y en los mensajes de las comprobaciones' }],
+  }, async (t) => {
     const { teacher, foreign, removed } = t.data;
     const institutionId = teacher.institutionId;
     const enrollStudent = async (courseId, date) => t.fixtures.enroll({
@@ -546,8 +550,8 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.login(teacher);
     await t.step('Ciclo cerrado', async () => {
       const averages = await checkAverages(t, previous.assignment.id, 'Ciclo cerrado');
-      // A: 1.º (6 + 7,75) / 2 = 6,875; 2.º (9,01 + 0) / 2 = 4,505; anual 5,69, sin redondear antes
-      // (con los trimestrales redondeados daría 5,70). B: 1.º solo la del 04/01 (8); 2.º 5,50
+      // A: 1° (6 + 7,75) / 2 = 6,875; 2° (9,01 + 0) / 2 = 4,505; anual 5,69, sin redondear antes
+      // (con los trimestrales redondeados daría 5,70). B: 1° solo la del 04/01 (8); 2° 5,50
       t.equal(valuesOf(averages.get(previous.a)), { terms: [6.88, 4.51, null], annual: 5.69 }, 'Promedios de A');
       t.equal(valuesOf(averages.get(previous.b)), { terms: [8, 5.5, null], annual: 6.75 }, 'Promedios de B');
       const marks = averages.get(previous.a);
@@ -568,7 +572,7 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
       await t.fixtures.createEvaluation({ assignmentId: assignment.id, date: `${t.year}-01-02` });
       return { assignment, c, d };
     });
-    await t.step('Ciclo actual, 1.er trimestre abierto', async () => {
+    await t.step('Ciclo actual, 1° trimestre abierto', async () => {
       await t.fixtures.onDate(createdOn, async () => {
         const averages = await checkAverages(t, current.assignment.id, 'El 01/01');
         t.equal(valuesOf(averages.get(current.c)), { terms: [7, null, null], annual: 7 }, 'La evaluación futura no cuenta');
@@ -578,13 +582,13 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
           'Con el trimestre abierto, todo es Parcial');
       });
     });
-    await t.step('Ciclo actual, 1.er trimestre cerrado', async () => {
+    await t.step('Ciclo actual, 1° trimestre cerrado', async () => {
       await t.fixtures.onDate(closedTermToday, async () => {
         const averages = await checkAverages(t, current.assignment.id, 'El 09/06');
         t.equal(valuesOf(averages.get(current.c)), { terms: [3.5, null, null], annual: 3.5 }, 'La del 02/01 ya cuenta, con 0');
         const marks = averages.get(current.c);
         t.equal([...marks.terms.map((term) => term.isFinal), marks.annual.isFinal], [true, false, false, false],
-          'El 1.er trimestre cerrado es Final; el anual sigue Parcial');
+          'El 1° trimestre cerrado es Final; el anual sigue Parcial');
       });
     });
 

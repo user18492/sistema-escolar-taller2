@@ -69,7 +69,7 @@ group('db.averages', 'Trimestres y promedios: trimestre cerrado, fecha de inscri
     const course = await fixtures.createCourse();
     const assignment = await fixtures.assign({ teacherId: teacher.id, courseId: course.id });
     // Una inscripción finalizada, del ciclo anterior, cargada como en su año: una evaluación del
-    // 15/06 (2.º trimestre) con una nota
+    // 15/06 (2° trimestre) con una nota
     const closed = await fixtures.inSchoolYear(fixtures.year - 1, async () => {
       const closedCourse = await fixtures.createCourse();
       const closedAssignment = await fixtures.assign({ teacherId: teacher.id, courseId: closedCourse.id });
@@ -144,7 +144,9 @@ group('db.averages', 'Trimestres y promedios: trimestre cerrado, fecha de inscri
     });
   });
 
-  test('score-closed-term', 'En una evaluación de un trimestre cerrado no se carga, no se corrige ni se da de baja ninguna nota; en el plazo de 7 días, sí', async (t) => {
+  test('score-closed-term', 'En una evaluación de un trimestre cerrado no se carga, no se corrige ni se da de baja ninguna nota; en el plazo de 7 días, sí', {
+    history: [{ plan: 'Pedido del 2026-11-08: formato único de los trimestres (sin plan en plans/)', date: '2026-11-08', change: 'Los trimestres se nombran "1° trimestre", "2° trimestre" y "3° trimestre" (antes "1.er", "2.º", "3.er") en los comentarios' }],
+  }, async (t) => {
     const constraint = 'ck_calificacion_trimestre_cerrado';
     await rolledBack(t, async () => {
       await setClock(t, '05-20');
@@ -152,7 +154,7 @@ group('db.averages', 'Trimestres y promedios: trimestre cerrado, fecha de inscri
       const unscoredId = await enrollOn(t, '03-01');
       const firstTerm = await evaluationOn(t, '05-10');
       const scoreId = await t.fixtures.score({ evaluationId: firstTerm, enrollmentId });
-      // En el plazo de carga: el 07/06 el 1.er trimestre sigue abierto
+      // En el plazo de carga: el 07/06 el 1° trimestre sigue abierto
       await setClock(t, '06-07');
       await passes(t, 'cargar en el plazo', scoreSql(firstTerm, unscoredId));
       await passes(t, 'corregir en el plazo', updateScore(scoreId, 'nota = 9'));
@@ -232,9 +234,11 @@ group('db.averages', 'Trimestres y promedios: trimestre cerrado, fecha de inscri
     });
   });
 
-  test('term-average-view', 'vw_promedio_trimestral: sin nota o con la nota dada de baja cuenta 0, sin redondear, solo desde la inscripción y hasta hoy, sin canceladas ni dadas de baja', async (t) => {
+  test('term-average-view', 'vw_promedio_trimestral: sin nota o con la nota dada de baja cuenta 0, sin redondear, solo desde la inscripción y hasta hoy, sin canceladas ni dadas de baja', {
+    history: [{ plan: 'Pedido del 2026-11-08: formato único de los trimestres (sin plan en plans/)', date: '2026-11-08', change: 'Los trimestres se nombran "1° trimestre", "2° trimestre" y "3° trimestre" (antes "1.er", "2.º", "3.er") en los comentarios y en el mensaje de la comprobación' }],
+  }, async (t) => {
     await rolledBack(t, async () => {
-      // 1.er trimestre, todavía abierto
+      // 1° trimestre, todavía abierto
       await setClock(t, '05-20');
       const full = await enrollOn(t, '03-01');
       const late = await enrollOn(t, '05-12');
@@ -249,7 +253,7 @@ group('db.averages', 'Trimestres y promedios: trimestre cerrado, fecha de inscri
       // late se inscribió el 12/05: solo cuenta la del 15/05, con la nota dada de baja
       const lateScore = await t.fixtures.score({ evaluationId: first[2], enrollmentId: late, value: 9 });
       await t.db.query(`UPDATE calificacion SET fecha_eliminacion = now() WHERE calificacion_id = $1`, [lateScore]);
-      // Sin evaluaciones en el 2.º trimestre. En el 3.º, una con nota, otra sin nota y una futura
+      // Sin evaluaciones en el 2° trimestre. En el 3°, una con nota, otra sin nota y una futura
       await setClock(t, '10-20');
       const third = await evaluationOn(t, '10-10');
       await evaluationOn(t, '10-15');
@@ -273,7 +277,7 @@ group('db.averages', 'Trimestres y promedios: trimestre cerrado, fecha de inscri
         row(closed.enrollmentId, closed.assignment.id, 2, '8.500000', 1),
       ].sort((a, b) => a.enrollment - b.enrollment || a.assignment - b.assignment || a.term - b.term);
       t.equal(rows, expected,
-        'Promedios: 22/3 sin redondear; la evaluación sin nota y la nota dada de baja cuentan 0; la anterior a la inscripción y la futura no cuentan; la finalizada tiene promedio; la cancelada, la dada de baja, el 2.º trimestre y la materia sin evaluaciones no tienen filas');
+        'Promedios: 22/3 sin redondear; la evaluación sin nota y la nota dada de baja cuentan 0; la anterior a la inscripción y la futura no cuentan; la finalizada tiene promedio; la cancelada, la dada de baja, el 2° trimestre y la materia sin evaluaciones no tienen filas');
       t.check(future && emptyAssignment.id, 'La evaluación futura y la materia sin evaluaciones existen');
     });
   });

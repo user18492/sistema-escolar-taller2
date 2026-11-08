@@ -6,7 +6,7 @@
 // (plans/profesor-calificaciones-sin-guardar/00-salir-de-la-vista.md). Una evaluación de un trimestre
 // cerrado se ve en solo lectura (plans/promedios/02-restricciones-backend-y-vistas.md), con el reloj
 // de la base fijado como en main.teacher: datos del 01/01 del ciclo actual vistos el 09/06, con el
-// 1.er trimestre ya cerrado y el 2.º abierto.
+// 1° trimestre ya cerrado y el 2° abierto.
 const { group, test } = require('../lib/framework');
 const { loginViaUi, logoutViaUi, rowActionsState } = require('./helpers');
 
@@ -65,13 +65,15 @@ group('ui.scores', 'Calificaciones: evaluación con fecha futura', {
     await logoutViaUi(t);
   });
 
-  test('term-closed-read-only', 'En una evaluación de un trimestre cerrado la nota, Eliminar y "Guardar calificaciones" quedan deshabilitados, con el motivo como title; en una del trimestre abierto, la nota habilitada', async (t) => {
+  test('term-closed-read-only', 'En una evaluación de un trimestre cerrado la nota, Eliminar y "Guardar calificaciones" quedan deshabilitados, con el motivo como title; en una del trimestre abierto, la nota habilitada', {
+    history: [{ plan: 'Pedido del 2026-11-08: formato único de los trimestres (sin plan en plans/)', date: '2026-11-08', change: 'Los trimestres se nombran "1° trimestre", "2° trimestre" y "3° trimestre" (antes "1.er", "2.º", "3.er") en los comentarios' }],
+  }, async (t) => {
     const { ui } = t;
     const { teacher } = t.data;
     const closedTermToday = `${t.year}-06-09`;
     // Creadas el 01/01, en un curso propio (no cambia los alumnos de las otras pruebas): un alumno de
-    // ese día calificado en una evaluación del 01/01 (1.er trimestre), y otra evaluación del 09/06
-    // (2.º trimestre)
+    // ese día calificado en una evaluación del 01/01 (1° trimestre), y otra evaluación del 09/06
+    // (2° trimestre)
     const closed = await t.fixtures.onDate(`${t.year}-01-01`, async () => {
       const course = await t.fixtures.createCourse({ institutionId: teacher.institutionId });
       const assignment = await t.fixtures.assign({ teacherId: teacher.id, courseId: course.id });

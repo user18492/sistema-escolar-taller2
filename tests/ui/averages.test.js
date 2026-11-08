@@ -1,8 +1,8 @@
 // Capa ui: promedios en Alumnos del Profesor (plans/promedios/03-promedios-profesor.md). Cada fila
 // suma los tres trimestres y el anual, con el número en es-AR y la marca Parcial o Final debajo, y
 // una raya con su title donde no hay evaluaciones tomadas. Con el reloj de la base fijado como en
-// main.teacher: datos del 01/01 del ciclo actual vistos el 09/06, con el 1.er trimestre ya cerrado y
-// el 2.º abierto.
+// main.teacher: datos del 01/01 del ciclo actual vistos el 09/06, con el 1° trimestre ya cerrado y
+// el 2° abierto.
 // Desde Inscripciones del Secretario, Ver promedios abre la vista Promedios de la inscripción
 // (plans/promedios/04-promedios-secretario.md), con una fila por materia con docente en su curso, y
 // el breadcrumb vuelve a Inscripciones; en una cancelada, Ver promedios está deshabilitado.
@@ -29,7 +29,9 @@ group('ui.averages', 'Alumnos: promedios trimestrales y anuales', {
     });
   },
 }, () => {
-  test('columns', 'Alumnos muestra los promedios de cada trimestre y el anual, con su marca, y una raya donde no hay evaluaciones', async (t) => {
+  test('columns', 'Alumnos muestra los promedios de cada trimestre y el anual, con su marca, y una raya donde no hay evaluaciones', {
+    history: [{ plan: 'Pedido del 2026-11-08: formato único de los trimestres (sin plan en plans/)', date: '2026-11-08', change: 'Los trimestres se nombran "1° trimestre", "2° trimestre" y "3° trimestre" (antes "1.er", "2.º", "3.er"): los encabezados de Alumnos esperan el nuevo formato, que arma <term-label>' }],
+  }, async (t) => {
     const { ui } = t;
     const { teacher, assignment, enrollmentId } = t.data;
     const row = `tr[data-enrollment-id="${enrollmentId}"]`;
@@ -47,14 +49,14 @@ group('ui.averages', 'Alumnos: promedios trimestrales y anuales', {
         }));
         return { headers: headers.slice(-4), averages };
       })()`);
-      t.equal(view.headers, ['1.er trimestre', '2.º trimestre', '3.er trimestre', 'Anual'], 'Columnas de los promedios, después de Fecha de inscripción');
+      t.equal(view.headers, ['1° trimestre', '2° trimestre', '3° trimestre', 'Anual'], 'Columnas de los promedios, después de Fecha de inscripción');
       const noValue = { text: '—', title: 'Sin evaluaciones tomadas' };
       t.equal(view.averages, [
         { text: '7,50 Final', title: '' },
         noValue,
         noValue,
         { text: '7,50 Parcial', title: '' },
-      ], 'El 1.er trimestre cerrado es Final, el anual sigue Parcial y los trimestres sin evaluaciones muestran una raya');
+      ], 'El 1° trimestre cerrado es Final, el anual sigue Parcial y los trimestres sin evaluaciones muestran una raya');
     });
     await logoutViaUi(t);
   });
@@ -78,7 +80,9 @@ group('ui.enrollment-averages', 'Inscripciones: promedios de una inscripción', 
     return { assignment, active, cancelled };
   },
 }, () => {
-  test('open-and-back', 'Ver promedios abre los promedios de una inscripción activa, está deshabilitado en una cancelada y el breadcrumb vuelve a Inscripciones', async (t) => {
+  test('open-and-back', 'Ver promedios abre los promedios de una inscripción activa, está deshabilitado en una cancelada y el breadcrumb vuelve a Inscripciones', {
+    history: [{ plan: 'Pedido del 2026-11-08: formato único de los trimestres (sin plan en plans/)', date: '2026-11-08', change: 'Además, comprueba los encabezados de la vista Promedios: Materia, "1° trimestre", "2° trimestre", "3° trimestre" y Anual, que arma <term-label>' }],
+  }, async (t) => {
     const { ui } = t;
     const { assignment, active, cancelled } = t.data;
     const averagesButton = (enrollmentId) => `tr[data-enrollment-id="${enrollmentId}"] [data-action="averages"]`;
@@ -105,10 +109,12 @@ group('ui.enrollment-averages', 'Inscripciones: promedios de una inscripción', 
         SELECT m.nombre FROM asignacion_docente a JOIN grado_materia gm USING (grado_materia_id) JOIN materia m USING (materia_id)
          WHERE a.curso_id = (SELECT curso_id FROM inscripcion WHERE inscripcion_id = $1) AND a.fecha_eliminacion IS NULL`, [active]);
       const view = await ui.js(`(() => ({
+        headers: Array.from(document.querySelectorAll('.data-table thead th'), (th) => th.textContent.trim().replace(/\\s+/g, ' ')),
         subjects: Array.from(document.querySelectorAll('tr[data-subject]'), (row) => row.dataset.subject),
         averages: Array.from(document.querySelectorAll('tr[data-subject="${assignment.name}"] term-average'), (average) => average.getAttribute('value')),
         errorHidden: document.getElementById('enrollmentLoadError').hidden,
       }))()`);
+      t.equal(view.headers, ['Materia', '1° trimestre', '2° trimestre', '3° trimestre', 'Anual'], 'Columnas de los promedios');
       t.equal(view.subjects.slice().sort(), expectedSubjects.map((row) => row.nombre).sort(), 'Una fila por materia con docente en el curso');
       t.check(view.averages.includes('9'), 'La materia de la evaluación calificada muestra su promedio', view.averages);
       t.equal(view.errorHidden, true, 'Sin mensaje de error');

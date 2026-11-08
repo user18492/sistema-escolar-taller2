@@ -439,12 +439,14 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     await t.logout();
   });
 
-  test('averages', 'Los promedios de una inscripción traen cada materia con docente de su curso, con sus marcas; una cancelada, dada de baja o de otra institución no los tiene', async (t) => {
+  test('averages', 'Los promedios de una inscripción traen cada materia con docente de su curso, con sus marcas; una cancelada, dada de baja o de otra institución no los tiene', {
+    history: [{ plan: 'Pedido del 2026-11-08: formato único de los trimestres (sin plan en plans/)', date: '2026-11-08', change: 'Los trimestres se nombran "1° trimestre", "2° trimestre" y "3° trimestre" (antes "1.er", "2.º", "3.er") en los comentarios y en el mensaje de la comprobación' }],
+  }, async (t) => {
     const { course, scored, graduatedEnrollment } = t.data;
     // Otra materia del curso, sin evaluaciones: va con todo en null
     const teacher = await t.fixtures.createUser({ role: 'PROFESOR' });
     await t.fixtures.assign({ teacherId: teacher.id, courseId: course.id });
-    // Ciclo anterior, cerrado: una inscripción finalizada, con una nota del 15/06 (2.º trimestre)
+    // Ciclo anterior, cerrado: una inscripción finalizada, con una nota del 15/06 (2° trimestre)
     const previous = await t.fixtures.inSchoolYear(t.year - 1, async () => {
       const pastCourse = await t.fixtures.createCourse();
       const assignment = await t.fixtures.assign({ teacherId: teacher.id, courseId: pastCourse.id });
@@ -470,7 +472,7 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     t.check(results['Ciclo actual'].some((subject) => valuesOf(subject).annual === null && valuesOf(subject).terms.every((value) => value === null)),
       'La materia sin evaluaciones va con todo en null', results['Ciclo actual']);
     const [closed] = results['Ciclo cerrado'];
-    t.equal(valuesOf(closed), { terms: [null, 8.5, null], annual: 8.5 }, 'Ciclo cerrado: la nota del 2.º trimestre');
+    t.equal(valuesOf(closed), { terms: [null, 8.5, null], annual: 8.5 }, 'Ciclo cerrado: la nota del 2° trimestre');
     t.equal([...closed.terms.map((term) => term.isFinal), closed.annual.isFinal], [false, true, false, true],
       'Ciclo cerrado y finalizada: todo es Final, salvo los trimestres sin promedio');
 
