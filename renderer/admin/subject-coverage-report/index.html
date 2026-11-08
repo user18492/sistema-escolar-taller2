@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
+    <link rel="stylesheet" href="../../shared/styles/data-table.css" />
+    <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="./subject-coverage-report.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -20,6 +22,9 @@
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
+    <script src="../../shared/components/school-year.js"></script>
     <script src="./subject-coverage-report.js" defer></script>
   </head>
   <body>
@@ -79,7 +84,43 @@
                 <button type="button" class="column-filter-clear">Limpiar filtro</button>
               </div>
             </div>
+            <label class="report-switch" for="onlyIncompleteSwitch">
+              <input type="checkbox" role="switch" id="onlyIncompleteSwitch" checked />
+              Solo cursos incompletos
+            </label>
           </div>
+
+          <section class="card coverage-card">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Curso</th>
+                    <th scope="col">Nivel</th>
+                    <th scope="col">Materias del plan</th>
+                    <th scope="col">Asignadas</th>
+                    <th scope="col" class="col-subjects">Sin docente</th>
+                    <th scope="col" class="col-subjects">Con docente suspendido</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <table-pagination results="" label="Paginación de cursos" pages="1"></table-pagination>
+
+            <!-- Plantilla: subject-coverage-report.js la completa con una fila por curso del reporte -->
+            <template id="coverageRowTemplate">
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="col-subjects col-truncate"><span class="unassigned-subjects text-truncate"></span></td>
+                <td class="col-subjects col-truncate"><span class="suspended-subjects text-truncate"></span></td>
+              </tr>
+            </template>
+          </section>
         </main>
       </div>
     </div>

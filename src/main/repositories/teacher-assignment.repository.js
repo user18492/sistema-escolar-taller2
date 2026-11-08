@@ -3,8 +3,8 @@ const { TeacherAssignment } = require('../models/teacher-assignment.model');
 const { User } = require('../models/user.model');
 const { Course } = require('../models/course.model');
 const { Subject } = require('../models/subject.model');
-const { EDUCATION_LEVEL_BY_COLUMN_VALUE } = require('./grade.repository');
-const { SHIFT_BY_COLUMN_VALUE } = require('./course.repository');
+const { EDUCATION_LEVEL_BY_COLUMN_VALUE, COLUMN_VALUE_BY_EDUCATION_LEVEL } = require('./grade.repository');
+const { SHIFT_BY_COLUMN_VALUE, COLUMN_VALUE_BY_SHIFT } = require('./course.repository');
 
 // Asignaciones docentes con su profesor, su curso y su materia, y si tienen evaluaciones vigentes
 // (`tiene_evaluaciones`). `source` es de dónde salen las filas de asignacion_docente: la tabla o el
@@ -97,6 +97,54 @@ const COUNT_BY_INSTITUTION_SQL = `
     JOIN curso c ON c.curso_id = a.curso_id
    WHERE c.institucion_id = $1
      AND a.fecha_eliminacion IS NULL
+`;
+
+// Reporte Materias sin docente por curso: los cursos vigentes de la institución ($1) en el ciclo
+// lectivo $2, de un nivel educativo ($3) y de un turno ($4), con los valores de la base (NULL =
+// todos), y por cada uno las materias del plan de estudios de su grado (grado_materia) con su
+// asignación vigente, si tiene: a lo sumo una por materia (uq_asignacion_docente_curso_grado_materia,
+// db/schema.sql). Un grado sin plan da 0 materias, y entonces las dos listas quedan vacías.
+//   - subject_count: las materias del plan.
+//   - unassigned: los nombres de las que no tienen docente, por nombre. Cuenta también la de un
+//     profesor dado de baja: en el ciclo actual no puede tener asignaciones vigentes
+//     (trg_usuario_asignaciones_vigentes), pero en uno cerrado su asignación sigue vigente a su
+//     nombre, y esa materia queda sin docente (decisión del usuario).
+//   - suspended: las que tienen la asignación vigente de un profesor suspendido (estado FALSE y sin
+//     baja), con la materia, el nombre y el apellido, por nombre de materia.
+// Las dos listas son '{}' si no hay ninguna (array_agg con FILTER da NULL). El orden es el del
+// listado de cursos (course.repository.js): nivel educativo, grado, división y turno; curso_id
+// desempata.
+const FIND_SUBJECT_COVERAGE_SQL = `
+  SELECT c.curso_id,
+         g.nombre AS grado_nombre,
+         g.nivel_educativo,
+         c.division,
+         c.turno,
+         COUNT(gm.grado_materia_id)::INT AS subject_count,
+         COALESCE(array_agg(m.nombre ORDER BY m.nombre)
+                    FILTER (WHERE gm.grado_materia_id IS NOT NULL
+                              AND (a.asignacion_docente_id IS NULL OR u.fecha_eliminacion IS NOT NULL)),
+                  '{}') AS unassigned,
+         COALESCE(array_agg(json_build_object('subject_name', m.nombre,
+                                              'first_name', u.nombre,
+                                              'last_name', u.apellido) ORDER BY m.nombre)
+                    FILTER (WHERE u.estado = FALSE AND u.fecha_eliminacion IS NULL),
+                  '{}') AS suspended
+    FROM curso c
+    JOIN grado g ON g.grado_id = c.grado_id
+    LEFT JOIN grado_materia gm ON gm.grado_id = c.grado_id
+    LEFT JOIN materia m ON m.materia_id = gm.materia_id
+    LEFT JOIN asignacion_docente a ON a.curso_id = c.curso_id
+                                  AND a.grado_materia_id = gm.grado_materia_id
+                                  AND a.fecha_eliminacion IS NULL
+    LEFT JOIN usuario u ON u.usuario_id = a.usuario_id
+   WHERE c.institucion_id = $1
+     AND c.fecha_eliminacion IS NULL
+     AND c.anio_ciclo_lectivo = $2
+     AND ($3::VARCHAR IS NULL OR g.nivel_educativo = $3)
+     AND ($4::VARCHAR IS NULL OR c.turno = $4)
+   GROUP BY c.curso_id, g.grado_id
+   ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id
 `;
 
 // Una asignación vigente de un curso de la institución (la del curso: la asignación no la guarda),
@@ -266,6 +314,36 @@ async function countByInstitution(institutionId) {
   return { total: rows[0].total, teacherTotal: rows[0].teacher_total };
 }
 
+// Cobertura de las materias de los cursos vigentes de la institución en el ciclo lectivo
+// `schoolYear` (un año), con `educationLevel` (uno de EDUCATION_LEVELS de grade.repository.js) y
+// `shift` (uno de SHIFTS de course.repository.js) o null para todos. Por curso, en el orden del
+// listado de cursos: { courseId, gradeName, educationLevel, division, shift, subjectCount,
+// unassignedSubjects, suspendedSubjects }, con unassignedSubjects los nombres de las materias sin
+// docente y suspendedSubjects { subjectName, teacherFirstName, teacherLastName } de las que tienen
+// un profesor suspendido (ver FIND_SUBJECT_COVERAGE_SQL).
+async function findSubjectCoverage(institutionId, { schoolYear, educationLevel, shift }) {
+  const { rows } = await query(FIND_SUBJECT_COVERAGE_SQL, [
+    institutionId,
+    schoolYear,
+    educationLevel ? COLUMN_VALUE_BY_EDUCATION_LEVEL[educationLevel] : null,
+    shift ? COLUMN_VALUE_BY_SHIFT[shift] : null,
+  ]);
+  return rows.map((row) => ({
+    courseId: row.curso_id,
+    gradeName: row.grado_nombre,
+    educationLevel: EDUCATION_LEVEL_BY_COLUMN_VALUE[row.nivel_educativo],
+    division: row.division,
+    shift: SHIFT_BY_COLUMN_VALUE[row.turno],
+    subjectCount: row.subject_count,
+    unassignedSubjects: row.unassigned,
+    suspendedSubjects: row.suspended.map((subject) => ({
+      subjectName: subject.subject_name,
+      teacherFirstName: subject.first_name,
+      teacherLastName: subject.last_name,
+    })),
+  }));
+}
+
 // La asignación vigente con ese id, si es de un curso de la institución; null si no existe en ella
 // o fue dada de baja.
 async function findActiveById(teacherAssignmentId, institutionId) {
@@ -362,6 +440,7 @@ module.exports = {
   findByTeacher,
   findByCourse,
   countByInstitution,
+  findSubjectCoverage,
   findActiveById,
   findActiveByIdAndTeacher,
   create,

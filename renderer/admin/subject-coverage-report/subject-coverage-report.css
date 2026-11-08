@@ -1,2 +1,90 @@
 /* Reporte Materias sin docente por curso (Administrador). La ruta de navegación la aporta
-   breadcrumb.css y la barra de filtros, report-filters.css. */
+   breadcrumb.css; la barra de filtros, report-filters.css, y la tabla, data-table.css. */
+
+/* ---------- Interruptor "Solo cursos incompletos" ---------- */
+
+/* En la misma fila que los filtros, al final. Un <input type="checkbox" role="switch"> con su
+   label: el control nativo se reemplaza por una pista con su perilla, que se desplaza y toma el
+   azul de acento al encenderse. No hay un interruptor compartido. */
+.report-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.report-switch input {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 999px;
+  background: #d1d5db;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.report-switch input::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.report-switch input:checked {
+  background: var(--color-accent-blue);
+}
+
+.report-switch input:checked::before {
+  transform: translateX(16px);
+}
+
+.report-switch input:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-switch input,
+  .report-switch input::before {
+    transition: none;
+  }
+}
+
+/* ---------- Tabla ---------- */
+
+.coverage-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Las dos listas de materias toman un cuarto de la tabla cada una y recortan su texto
+   (.col-truncate de base.css); min-width las mantiene legibles en ventanas angostas. Ahí, los
+   encabezados largos ("Materias del plan", "Con docente suspendido") pasan a dos líneas, para que
+   la tabla entre sin desplazamiento horizontal a 1024 px. */
+.coverage-card .data-table th {
+  white-space: normal;
+}
+
+.data-table .col-subjects {
+  width: 25%;
+}
+
+.data-table td.col-subjects {
+  min-width: 100px;
+}

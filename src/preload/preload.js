@@ -53,7 +53,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   // Si la cuenta de la sesión fue suspendida o dada de baja, las operaciones de profile, de users, de
   // courses, de grades, de schoolYears, de teacherAssignments, de students, de enrollments, de
-  // evaluations, de scores, de dashboard y de backups resuelven
+  // evaluations, de scores, de dashboard, de reports y de backups resuelven
   // { ok: false, error: { code: 'ACCOUNT_SUSPENDED', message } } y el proceso principal cierra la
   // sesión y vuelve al login.
   // Lo de un ciclo lectivo cerrado (uno anterior al actual, el de schoolYears.getCurrent) es de solo
@@ -576,6 +576,23 @@ contextBridge.exposeInMainWorld('api', {
     // todavía no tiene ninguna), o
     // { ok: false, error: { code, message } }.
     getSecretarySummary: () => ipcRenderer.invoke('dashboard:get-secretary-summary'),
+  },
+  reports: {
+    // Solo ADMIN. Reporte Materias sin docente por curso de su institución. `filters` es
+    // { schoolYear, educationLevel, shift, onlyIncomplete }: schoolYear, el año del ciclo lectivo
+    // (un entero de 2000 a 2100); educationLevel, 'PRIMARY' o 'SECONDARY', y shift, 'MORNING' o
+    // 'AFTERNOON' (null para todos), y onlyIncomplete, true para dejar solo los cursos incompletos.
+    // Resuelve { ok: true, report } con { schoolYear, courses }: por cada curso vigente de ese
+    // ciclo, por nivel educativo, grado, división y turno, { id, gradeName, educationLevel,
+    // division, shift, subjectCount, assignedCount, unassignedSubjects, suspendedSubjects }, con los
+    // mismos valores que en courses.list. subjectCount son las materias del plan de estudios de su
+    // grado; unassignedSubjects, los nombres de las que no tienen docente (sin asignación vigente o
+    // con un profesor dado de baja, posible en un ciclo cerrado); suspendedSubjects,
+    // { subjectName, teacherName } de las que tienen la asignación vigente de un profesor
+    // suspendido (teacherName, "Nombre Apellido"), y assignedCount, subjectCount menos las que no
+    // tienen docente. Un curso es incompleto si alguna de las dos listas no está vacía. O
+    // { ok: false, error: { code, message } }: INVALID_INPUT indica filtros inválidos.
+    getSubjectCoverage: (filters) => ipcRenderer.invoke('reports:get-subject-coverage', filters),
   },
   backups: {
     // Solo ADMIN. Resuelve { ok: true, backups } con el historial de backups de su institución
