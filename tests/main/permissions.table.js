@@ -89,6 +89,7 @@ module.exports = {
     // Filtros vacíos: el ADMIN recibe INVALID_INPUT (falta el ciclo lectivo)
     'reports:get-subject-coverage': { roles: ['ADMIN'], args: [{}] },
     'reports:get-teacher-workload': { roles: ['ADMIN'], args: [{}] },
+    'reports:get-backup-regularity': { roles: ['ADMIN'], args: [{}] },
 
     'backups:list': { roles: ['ADMIN'], args: [] },
     // Un formato inválido: el ADMIN recibe INVALID_INPUT y no se escribe nada

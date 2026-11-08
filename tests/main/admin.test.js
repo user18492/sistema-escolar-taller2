@@ -735,3 +735,136 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
     await t.logout();
   });
 });
+
+// Reporte Regularidad de los backups (plans/reportes-administrador/03-regularidad-backups.md): los
+// backups de la institución por mes del ciclo elegido, con los meses futuros marcados, y el último
+// backup, que no depende del ciclo. Las filas de respaldo se insertan por SQL (no tiene clave
+// foránea al usuario), siempre a las 12:00, lejos del cambio de día en cualquier zona horaria.
+// Lo que depende del día se prueba con la fecha de la base fijada (fixtures.onDate).
+group('main.admin.reports.backup-regularity', 'Administrador: reporte Regularidad de los backups', {
+  async setup({ fixtures }) {
+    const institutionId = await fixtures.institutionId();
+    const year = fixtures.year;
+    const insertBackups = async (targetInstitutionId, dates) => {
+      for (const date of dates) {
+        await fixtures.db.query(
+          `INSERT INTO respaldo (institucion_id, usuario_id, usuario_nombre, usuario_apellido, fecha)
+           VALUES ($1, 0, 'Suite', 'Backup', ($2 || ' 12:00')::TIMESTAMP::TIMESTAMPTZ)`, [targetInstitutionId, date]);
+      }
+    };
+    // Ciclo anterior: dos en febrero, uno en mayo y uno en noviembre. Ciclo actual: dos en enero y
+    // uno en marzo, el último de la institución.
+    await insertBackups(institutionId, [`${year - 1}-02-10`, `${year - 1}-02-25`, `${year - 1}-05-20`, `${year - 1}-11-03`,
+      `${year}-01-10`, `${year}-01-28`, `${year}-03-15`]);
+    // Otra institución, con backups en meses que la propia no tiene, y su administrador; y otra sin
+    // ningún backup
+    const otherInstitution = await fixtures.createInstitution();
+    await insertBackups(otherInstitution.id, [`${year - 1}-07-07`, `${year}-04-04`, `${year}-04-20`]);
+    const foreignAdmin = await fixtures.createUser({ role: 'ADMIN', institutionId: otherInstitution.id });
+    const emptyAdmin = await fixtures.createUser({ role: 'ADMIN', institutionId: (await fixtures.createInstitution()).id });
+    return { institutionId, otherInstitutionId: otherInstitution.id, foreignAdmin, emptyAdmin, lastBackupDay: `${year}-03-15` };
+  },
+}, () => {
+  const midYear = (t) => `${t.year}-06-09`;
+
+  // Los 12 meses del año, con los backups de la institución en cada uno: rangos de fechas por mes
+  // (distinto del EXTRACT agrupado del repositorio)
+  const expectedCounts = async (t, schoolYear, institutionId = t.data.institutionId) => (await t.sql(`
+    SELECT m AS month,
+           (SELECT COUNT(*) FROM respaldo r
+             WHERE r.institucion_id = $1
+               AND r.fecha >= make_date($2, m, 1)
+               AND r.fecha < make_date($2, m, 1) + INTERVAL '1 month')::INT AS count
+      FROM generate_series(1, 12) AS m
+     ORDER BY m`, [institutionId, schoolYear])).map(({ month, count }) => ({ month, count }));
+
+  const countsOf = (report) => report.months.map(({ month, count }) => ({ month, count }));
+  const futureMonthsOf = (report) => report.months.filter((month) => month.future).map((month) => month.month);
+  const countOf = (report, month) => report.months.find((row) => row.month === month)?.count;
+
+  test('counts', 'Los 12 meses del ciclo pedido, con los backups de cada uno según una consulta propia y 0 en los que no tienen', async (t) => {
+    await t.login('admin');
+    await t.fixtures.onDate(midYear(t), async () => {
+      for (const schoolYear of [t.year - 1, t.year]) {
+        await t.step(String(schoolYear), async () => {
+          const { report } = await t.ok('reports.getBackupRegularity', { schoolYear });
+          t.equal(report.schoolYear, schoolYear, 'El reporte es del ciclo pedido');
+          t.equal(report.months.map((month) => month.month), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 'Los 12 meses, en orden');
+          t.equal(countsOf(report), await expectedCounts(t, schoolYear), 'Backups por mes');
+        });
+      }
+      const previous = (await t.ok('reports.getBackupRegularity', { schoolYear: t.year - 1 })).report;
+      t.equal([2, 3, 5, 7, 11].map((month) => countOf(previous, month)), [2, 0, 1, 0, 1],
+        'Ciclo anterior: dos en febrero, uno en mayo y en noviembre, y 0 en marzo y en julio (julio es de la otra institución)');
+      const current = (await t.ok('reports.getBackupRegularity', { schoolYear: t.year })).report;
+      t.equal([1, 2, 3, 4].map((month) => countOf(current, month)), [2, 0, 1, 0],
+        'Ciclo actual: el año del filtro cuenta solo los de ese año (abril es de la otra institución)');
+    });
+    await t.logout();
+  });
+
+  test('future', 'En el ciclo actual, los meses posteriores al de hoy son futuros; en uno pasado, ninguno; en uno futuro, todos', async (t) => {
+    await t.login('admin');
+    await t.fixtures.onDate(midYear(t), async () => {
+      const futureOf = async (schoolYear) => futureMonthsOf((await t.ok('reports.getBackupRegularity', { schoolYear })).report);
+      t.equal(await futureOf(t.year), [7, 8, 9, 10, 11, 12], 'El 09/06, de julio a diciembre');
+      t.equal(await futureOf(t.year - 1), [], 'Ciclo pasado: ninguno');
+      const next = (await t.ok('reports.getBackupRegularity', { schoolYear: t.year + 1 })).report;
+      t.equal(futureMonthsOf(next).length, 12, 'Ciclo futuro: todos');
+      t.check(next.months.every((month) => month.count === 0), 'Ciclo futuro: sin backups', next.months);
+    });
+    await t.fixtures.onDate(`${t.year}-12-31`, async () => {
+      t.equal(futureMonthsOf((await t.ok('reports.getBackupRegularity', { schoolYear: t.year })).report), [], 'El 31/12, ninguno');
+    });
+    await t.logout();
+  });
+
+  test('last-backup', 'El último backup es el más reciente de la institución, con los días según la fecha de la base, en cualquier ciclo', async (t) => {
+    const { institutionId, lastBackupDay } = t.data;
+    const { max } = await t.sqlOne(`SELECT MAX(fecha) AS max FROM respaldo WHERE institucion_id = $1`, [institutionId]);
+    await t.login('admin');
+    const cases = [
+      { today: midYear(t), label: 'Meses después' },
+      { today: lastBackupDay, label: 'El mismo día: 0' },
+      { today: `${t.year}-01-05`, label: 'La fecha de la base antes del backup: 0, nunca negativo' },
+    ];
+    for (const { today, label } of cases) {
+      await t.step(label, async () => {
+        const { days } = await t.sqlOne(`SELECT GREATEST(0, $1::DATE - $2::DATE) AS days`, [today, lastBackupDay]);
+        await t.fixtures.onDate(today, async () => {
+          for (const schoolYear of [t.year, t.year - 1, t.year + 1]) {
+            const { report } = await t.ok('reports.getBackupRegularity', { schoolYear });
+            t.equal(report.lastBackup && { createdAt: new Date(report.lastBackup.createdAt).getTime(), daysAgo: report.lastBackup.daysAgo },
+              { createdAt: max.getTime(), daysAgo: days }, `Ciclo ${schoolYear}: el último backup no depende del filtro`);
+            t.check(typeof report.lastBackup?.createdAt === 'string' && !Number.isNaN(Date.parse(report.lastBackup.createdAt)),
+              'createdAt es un texto ISO 8601', report.lastBackup);
+          }
+        });
+      });
+    }
+    await t.logout();
+  });
+
+  test('institution-scope', 'Cada administrador ve solo los backups de su institución; sin backups, lastBackup es null y todos los meses en 0', async (t) => {
+    const { otherInstitutionId, foreignAdmin, emptyAdmin } = t.data;
+    await t.login(foreignAdmin);
+    for (const schoolYear of [t.year - 1, t.year]) {
+      t.equal(countsOf((await t.ok('reports.getBackupRegularity', { schoolYear })).report),
+        await expectedCounts(t, schoolYear, otherInstitutionId), `Ciclo ${schoolYear}: solo los de la otra institución`);
+    }
+    const { max } = await t.sqlOne(`SELECT MAX(fecha) AS max FROM respaldo WHERE institucion_id = $1`, [otherInstitutionId]);
+    const foreign = (await t.ok('reports.getBackupRegularity', { schoolYear: t.year })).report;
+    t.equal(new Date(foreign.lastBackup?.createdAt).getTime(), max.getTime(), 'Su último backup es el de su institución');
+    await t.logout();
+
+    await t.login(emptyAdmin);
+    const empty = (await t.ok('reports.getBackupRegularity', { schoolYear: t.year })).report;
+    t.equal(empty.lastBackup, null, 'Sin backups: lastBackup es null');
+    t.equal(empty.months.map((month) => month.count), Array(12).fill(0), 'Sin backups: los 12 meses en 0');
+    for (const schoolYear of [1999, 2101, String(t.year), null]) {
+      await t.rejects('INVALID_INPUT', 'reports.getBackupRegularity', { schoolYear });
+    }
+    await t.rejects('INVALID_INPUT', 'reports.getBackupRegularity', null);
+    await t.logout();
+  });
+});

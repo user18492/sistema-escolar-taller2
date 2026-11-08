@@ -4,7 +4,8 @@
 // defecto los cursos incompletos del ciclo actual; el interruptor, el filtro de año y la paginación
 // (parte 01). Carga docente por profesor muestra una fila por profesor, de mayor a menor, con la
 // línea del promedio, el tono de los suspendidos y el tooltip, y el filtro Nivel actualiza las
-// barras (parte 02).
+// barras (parte 02). Regularidad de los backups muestra 12 columnas con los backups de cada mes, los
+// meses futuros atenuados y el último backup, que no cambia con el ciclo elegido (parte 03).
 const { group, test } = require('../lib/framework');
 const { SEED_USERS } = require('../lib/fixtures');
 const { loginViaUi, logoutViaUi, openFromSidebar, typeInColumnFilter, chooseColumnFilterOption, clearColumnFilter } = require('./helpers');
@@ -267,6 +268,97 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
     // La barra del profesor ocupado (todas sus asignaciones son de secundaria) queda vacía
     t.equal(await t.ui.js(`document.querySelector('[data-teacher-id="${t.data.busiestTeacher.id}"] .workload-bar').getBoundingClientRect().width`),
       0, 'Sin asignaciones de primaria, la barra del profesor ocupado queda vacía');
+    await logoutViaUi(t);
+  });
+});
+
+// Reporte Regularidad de los backups (parte 03). Los datos propios: dos backups del ciclo actual
+// (hace 3 y hace 40 días, con la fecha de la base) y tres del anterior, dos de ellos en marzo.
+group('ui.reports.backup-regularity', 'Reportes: Regularidad de los backups', {
+  async setup({ fixtures }) {
+    const institutionId = await fixtures.institutionId();
+    await fixtures.db.query(`
+      INSERT INTO respaldo (institucion_id, usuario_id, usuario_nombre, usuario_apellido, fecha)
+      SELECT $1, 0, 'Suite', 'Backup', (day + TIME '12:00')::TIMESTAMPTZ
+        FROM unnest(ARRAY[fn_fecha_actual() - 3, fn_fecha_actual() - 40,
+                          make_date($2 - 1, 3, 15), make_date($2 - 1, 3, 20), make_date($2 - 1, 8, 1)]) AS day`,
+    [institutionId, fixtures.year]);
+    return { institutionId };
+  },
+}, () => {
+  const VIEW = 'admin/backup-regularity-report/index.html';
+  const COLUMNS = '.chart-col[data-month]';
+
+  // Los backups de la institución en cada mes del año `year`, por rangos de fechas (consulta propia)
+  const expectedCounts = async (t, year) => (await t.sql(`
+    SELECT (SELECT COUNT(*) FROM respaldo r
+             WHERE r.institucion_id = $1 AND r.fecha >= make_date($2, m, 1)
+               AND r.fecha < make_date($2, m, 1) + INTERVAL '1 month')::INT AS count
+      FROM generate_series(1, 12) AS m ORDER BY m`, [t.data.institutionId, year])).map((row) => row.count);
+
+  // Lo que muestra la vista: el ciclo del botón, el indicador y, por columna, el mes, la cantidad,
+  // si es futura y su tooltip
+  const viewState = (t) => t.ui.js(`(() => ({
+    year: document.querySelector('.report-filters [data-filter="year"] .report-filter-value').textContent.trim(),
+    summary: document.querySelector('.last-backup-summary').textContent.trim(),
+    date: document.querySelector('.last-backup-date').hidden ? null : document.querySelector('.last-backup-date').textContent.trim(),
+    columns: Array.from(document.querySelectorAll(${JSON.stringify(COLUMNS)}), (column) => ({
+      month: Number(column.dataset.month),
+      count: Number(column.querySelector('.backup-value').textContent),
+      future: column.classList.contains('is-future'),
+      title: column.title,
+    })),
+  }))()`);
+
+  // Espera que la vista muestre el ciclo `year` con las cantidades `counts`
+  const expectColumns = async (t, { year, counts, label }) => {
+    const ok = await t.ui.waitFor(`(() => {
+      const shown = Array.from(document.querySelectorAll(${JSON.stringify(COLUMNS)}), (column) => Number(column.querySelector('.backup-value').textContent));
+      return JSON.stringify(shown) === ${JSON.stringify(JSON.stringify(counts))}
+        && document.querySelector('.report-filters [data-filter="year"] .report-filter-value').textContent.trim() === '${year}';
+    })()`, { timeoutMs: 6000 });
+    t.check(ok, `${label}: el ciclo ${year} con los backups de cada mes`, { expected: counts, state: await viewState(t) });
+  };
+
+  const openReport = async (t) => {
+    await loginViaUi(t, SEED_USERS.admin);
+    t.require(await t.ui.navigate(VIEW) === VIEW, 'No se abrió el reporte');
+    await t.ui.idle();
+  };
+
+  test('columns', '12 columnas con los backups de cada mes del ciclo actual, los meses futuros atenuados y el indicador del último backup', async (t) => {
+    await openReport(t);
+    await expectColumns(t, { year: t.year, counts: await expectedCounts(t, t.year), label: 'Ciclo actual' });
+    const state = await viewState(t);
+    t.equal(state.columns.map((column) => column.month), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 'Una columna por mes, en orden');
+    const currentMonth = Number(t.today.slice(5, 7));
+    t.equal(state.columns.filter((column) => column.future).map((column) => column.month),
+      state.columns.map((column) => column.month).filter((month) => month > currentMonth), 'Los meses posteriores al de hoy van atenuados');
+    t.check(state.columns.every((column) => (column.future ? column.title === 'Mes futuro' : column.title.endsWith(`${t.year}: ${column.count} ${column.count === 1 ? 'backup' : 'backups'}`))),
+      'El tooltip de cada columna', state.columns);
+
+    const { days } = await t.sqlOne(`SELECT fn_fecha_actual() - MAX(fecha)::DATE AS days FROM respaldo WHERE institucion_id = $1`, [t.data.institutionId]);
+    t.equal(state.summary, `Último backup: hace ${days} ${days === 1 ? 'día' : 'días'}`, 'El indicador cuenta los días desde el último backup');
+    t.check(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/.test(state.date ?? ''), 'La fecha completa, DD/MM/AAAA hh:mm, como texto secundario', state.date);
+    await logoutViaUi(t);
+  });
+
+  test('year-filter', 'Un cambio de año cambia las columnas pero no el indicador, y "Limpiar filtro" vuelve al ciclo actual', async (t) => {
+    await openReport(t);
+    await expectColumns(t, { year: t.year, counts: await expectedCounts(t, t.year), label: 'Ciclo actual' });
+    const before = await viewState(t);
+
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(t.year - 1));
+    const previousCounts = await expectedCounts(t, t.year - 1);
+    t.equal(previousCounts[2], 2, 'La consulta propia cuenta los dos backups de marzo del ciclo anterior');
+    await expectColumns(t, { year: t.year - 1, counts: previousCounts, label: 'Ciclo anterior' });
+    const after = await viewState(t);
+    t.equal({ summary: after.summary, date: after.date }, { summary: before.summary, date: before.date }, 'El indicador no cambia con el ciclo');
+    t.equal(after.columns.filter((column) => column.future).length, 0, 'En un ciclo pasado no hay meses futuros');
+    t.equal(after.columns[2].title, `Marzo ${t.year - 1}: 2 backups`, 'El tooltip de marzo');
+
+    await clearColumnFilter(t, 'year');
+    await expectColumns(t, { year: t.year, counts: await expectedCounts(t, t.year), label: 'Después de "Limpiar filtro"' });
     await logoutViaUi(t);
   });
 });
