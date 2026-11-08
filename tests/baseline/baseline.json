@@ -1,21 +1,20 @@
 {
   "version": 1,
-  "takenAt": "2026-11-08T14:17:06.432Z",
-  "commit": "464c727bcf9b2f10b3beb44949447c34c8ac1175",
+  "takenAt": "2026-11-08T20:45:03.101Z",
+  "commit": "6fa02f447c89ecc5b614de91a23f736f84812792",
   "branch": "main",
   "dirty": true,
   "changedFiles": [
-    "renderer/admin/assignments/assignments.js",
-    "renderer/admin/courses/courses.js",
-    "renderer/secretary/enrollments/enrollments.js",
-    "renderer/shared/components/column-filter.js",
-    "renderer/shared/components/school-year.js",
-    "renderer/teacher/assignments/assignments.js",
-    "renderer/teacher/assignments/index.html",
-    "src/main/ipc/enrollment.controller.js",
-    "src/main/repositories/enrollment.repository.js",
-    "src/main/services/enrollment.service.js",
-    "src/preload/preload.js"
+    "renderer/secretary/reports/index.html",
+    "renderer/secretary/reports/reports.css",
+    "renderer/shared/components/column-filter-toggle.component.js",
+    "renderer/shared/components/sidebar.js",
+    "renderer/admin/backup-regularity-report/",
+    "renderer/admin/reports/",
+    "renderer/admin/subject-coverage-report/",
+    "renderer/admin/teacher-workload-report/",
+    "renderer/shared/styles/chart.css",
+    "renderer/shared/styles/report-filters.css"
   ],
   "today": "2026-11-08",
   "year": 2026,
@@ -1890,6 +1889,15 @@
       "historyCount": 1,
       "knownFailure": null
     },
+    "main.teacher.evaluation-term": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "216d0757f704",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "main.teacher.term-closed-scores": {
       "layer": "main",
       "status": "pass",
@@ -2145,10 +2153,19 @@
     "ui.evaluations.term-closed-read-only": {
       "layer": "ui",
       "status": "pass",
-      "hash": "3437735d6a5e",
+      "hash": "3a8a8b12c6a6",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 1,
+      "historyCount": 2,
+      "knownFailure": null
+    },
+    "ui.evaluations.term-column-filter": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "c98ca38b2e98",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
       "knownFailure": null
     },
     "ui.evaluations.invariants": {
@@ -2290,6 +2307,24 @@
       "knownFailure": null
     },
     "ui.minimal.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.reports.navigation": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "f9887e09a92a",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.reports.invariants": {
       "layer": "ui",
       "status": "pass",
       "hash": "d97564bc2bbc",
@@ -2580,24 +2615,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 172,
-      "ok": 172,
-      "tests": 52
+      "calls": 187,
+      "ok": 187,
+      "tests": 54
     },
     "auth:get-remembered-email": {
-      "calls": 111,
-      "ok": 111,
-      "tests": 70
+      "calls": 115,
+      "ok": 115,
+      "tests": 73
     },
     "auth:login": {
-      "calls": 160,
-      "ok": 152,
-      "tests": 127
+      "calls": 163,
+      "ok": 155,
+      "tests": 130
     },
     "auth:logout": {
-      "calls": 201,
-      "ok": 201,
-      "tests": 145
+      "calls": 206,
+      "ok": 206,
+      "tests": 149
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2645,9 +2680,9 @@
       "tests": 4
     },
     "dashboard:get-admin-summary": {
-      "calls": 16,
-      "ok": 16,
-      "tests": 14
+      "calls": 17,
+      "ok": 17,
+      "tests": 15
     },
     "dashboard:get-secretary-summary": {
       "calls": 15,
@@ -2710,9 +2745,9 @@
       "tests": 7
     },
     "evaluations:create": {
-      "calls": 14,
-      "ok": 9,
-      "tests": 9
+      "calls": 15,
+      "ok": 10,
+      "tests": 10
     },
     "evaluations:delete": {
       "calls": 6,
@@ -2720,14 +2755,14 @@
       "tests": 5
     },
     "evaluations:list-by-own-assignment": {
-      "calls": 15,
-      "ok": 15,
-      "tests": 14
+      "calls": 17,
+      "ok": 17,
+      "tests": 16
     },
     "evaluations:update": {
-      "calls": 8,
-      "ok": 2,
-      "tests": 5
+      "calls": 9,
+      "ok": 3,
+      "tests": 6
     },
     "grades:list": {
       "calls": 11,
@@ -2750,9 +2785,9 @@
       "tests": 2
     },
     "school-years:get-current": {
-      "calls": 85,
-      "ok": 85,
-      "tests": 32
+      "calls": 87,
+      "ok": 87,
+      "tests": 33
     },
     "scores:delete": {
       "calls": 5,
@@ -2765,9 +2800,9 @@
       "tests": 4
     },
     "scores:list-by-own-evaluation": {
-      "calls": 20,
-      "ok": 18,
-      "tests": 13
+      "calls": 21,
+      "ok": 19,
+      "tests": 14
     },
     "scores:save": {
       "calls": 16,
@@ -2815,9 +2850,9 @@
       "tests": 3
     },
     "teacher-assignments:get-own": {
-      "calls": 33,
-      "ok": 30,
-      "tests": 15
+      "calls": 34,
+      "ok": 31,
+      "tests": 16
     },
     "teacher-assignments:list": {
       "calls": 8,
@@ -2840,9 +2875,9 @@
       "tests": 8
     },
     "teacher-assignments:list-own": {
-      "calls": 20,
-      "ok": 19,
-      "tests": 19
+      "calls": 21,
+      "ok": 20,
+      "tests": 20
     },
     "teacher-assignments:update": {
       "calls": 10,
@@ -2880,9 +2915,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 226,
-      "ok": 226,
-      "tests": 78
+      "calls": 244,
+      "ok": 244,
+      "tests": 81
     },
     "window:minimize": {
       "calls": 1,

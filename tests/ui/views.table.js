@@ -13,6 +13,12 @@ module.exports = {
   'profile/settings/index.html': { roles: ['ADMIN', 'SECRETARIO', 'PROFESOR'] },
 
   'admin/dashboard/index.html': { roles: ['ADMIN'] },
+  // Reportes y sus tres reportes (plans/reportes-administrador/00-navegacion-y-base.md): sin filas
+  // hasta que cada reporte cargue sus datos (partes 01 a 03).
+  'admin/reports/index.html': { roles: ['ADMIN'] },
+  'admin/subject-coverage-report/index.html': { roles: ['ADMIN'] },
+  'admin/teacher-workload-report/index.html': { roles: ['ADMIN'] },
+  'admin/backup-regularity-report/index.html': { roles: ['ADMIN'] },
   'admin/users/index.html': {
     roles: ['ADMIN'],
     rows: {
