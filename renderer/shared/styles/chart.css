@@ -3,8 +3,9 @@
    (.chart-y-axis) y el área del gráfico (.chart-plot): la grilla (.chart-gridlines), las columnas
    (.chart-bars > .chart-col > .chart-bar-group > .chart-bar) y sus etiquetas (.chart-labels). Debajo,
    la leyenda (.chart-legend). El alto de cada barra y su color los define la vista.
-   Animación de entrada: las barras crecen desde la base al agregar .is-loaded a .chart-bars; con
-   .is-resetting vuelven a cero sin transición, para repetirla. Se omite con prefers-reduced-motion.
+   Animación de entrada: las barras crecen desde la base al agregar .is-loaded a .chart-bars, cada
+   columna un poco después que la anterior (hasta 12); con .is-resetting vuelven a cero sin
+   transición, para repetirla. Se omite con prefers-reduced-motion.
    Barras horizontales: una lista .chart-hbars con una barra .chart-hbar por fila, que crece desde
    la izquierda con las mismas clases; la disposición de las filas, el ancho y el color los define
    la vista. */
@@ -192,6 +193,31 @@
 
 .chart-col:nth-child(6) .chart-bar {
   transition-delay: 0.15s;
+}
+
+/* Hasta 12 columnas (los meses del año) */
+.chart-col:nth-child(7) .chart-bar {
+  transition-delay: 0.18s;
+}
+
+.chart-col:nth-child(8) .chart-bar {
+  transition-delay: 0.21s;
+}
+
+.chart-col:nth-child(9) .chart-bar {
+  transition-delay: 0.24s;
+}
+
+.chart-col:nth-child(10) .chart-bar {
+  transition-delay: 0.27s;
+}
+
+.chart-col:nth-child(11) .chart-bar {
+  transition-delay: 0.3s;
+}
+
+.chart-col:nth-child(12) .chart-bar {
+  transition-delay: 0.33s;
 }
 
 /* Reinicio instantáneo, para repetir la animación (p. ej. al cambiar un filtro) */

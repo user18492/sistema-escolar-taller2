@@ -1,4 +1,6 @@
 const teacherAssignmentRepository = require('../repositories/teacher-assignment.repository');
+const backupRepository = require('../repositories/backup.repository');
+const schoolYearService = require('./school-year.service');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const { SHIFTS } = require('../repositories/course.repository');
 
@@ -120,4 +122,39 @@ async function getTeacherWorkload(currentUser, filters) {
   return { schoolYear, average, teachers };
 }
 
-module.exports = { getSubjectCoverage, getTeacherWorkload, ReportError };
+// ---------- Reporte 3: Regularidad de los backups ----------
+
+const MONTHS_IN_YEAR = 12;
+
+// Cuántos backups de la institución hay en cada mes del ciclo lectivo `filters.schoolYear` (el año
+// calendario: el ciclo lectivo va de enero a diciembre) y el último backup de la institución, que no
+// depende del ciclo elegido (decisión del usuario). Resuelve { schoolYear, lastBackup, months }:
+//   - lastBackup: { createdAt (texto ISO 8601), daysAgo } del último backup, con daysAgo los días
+//     desde su fecha hasta la del día de la base (0 si es de hoy), o null si no hay ninguno.
+//   - months: los 12 meses, { month (1 a 12), count, future }, con count 0 si no tiene backups.
+//     future marca los meses que todavía no llegaron, con la fecha de la base: en el ciclo actual,
+//     los posteriores al del día; en un ciclo futuro, todos; en uno pasado, ninguno.
+// Las limitaciones de los datos, en backup.repository.js (countByMonth).
+async function getBackupRegularity(currentUser, filters) {
+  const { schoolYear } = parseFilters(filters);
+  const [counts, lastBackup, { year, today }] = await Promise.all([
+    backupRepository.countByMonth(currentUser.institutionId, schoolYear),
+    backupRepository.findLastBackupDays(currentUser.institutionId),
+    schoolYearService.getCurrentSchoolYear(),
+  ]);
+  const countByMonth = new Map(counts.map(({ month, count }) => [month, count]));
+  // today es 'AAAA-MM-DD': el mes, sin pasar por la zona horaria del proceso
+  const currentMonth = Number(today.slice(5, 7));
+  const isFuture = (month) => schoolYear > year || (schoolYear === year && month > currentMonth);
+  const months = Array.from({ length: MONTHS_IN_YEAR }, (_, index) => {
+    const month = index + 1;
+    return { month, count: countByMonth.get(month) ?? 0, future: isFuture(month) };
+  });
+  return {
+    schoolYear,
+    lastBackup: lastBackup && { createdAt: lastBackup.createdAt.toISOString(), daysAgo: lastBackup.daysAgo },
+    months,
+  };
+}
+
+module.exports = { getSubjectCoverage, getTeacherWorkload, getBackupRegularity, ReportError };

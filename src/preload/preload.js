@@ -603,6 +603,16 @@ contextBridge.exposeInMainWorld('api', {
     // todos ellos, o null si no hay ninguno. En un ciclo pasado lista a los profesores no dados de
     // baja hoy. O { ok: false, error: { code, message } }: INVALID_INPUT indica filtros inválidos.
     getTeacherWorkload: (filters) => ipcRenderer.invoke('reports:get-teacher-workload', filters),
+    // Solo ADMIN. Reporte Regularidad de los backups de su institución. `filters` es
+    // { schoolYear }, como en getSubjectCoverage. Resuelve { ok: true, report } con
+    // { schoolYear, lastBackup, months }: lastBackup, el último backup de la institución, de
+    // cualquier ciclo ({ createdAt, daysAgo }, con createdAt en ISO 8601 y daysAgo los días desde
+    // su fecha hasta hoy, 0 si es de hoy), o null si no hay ninguno; months, los 12 meses de ese
+    // año, { month (1 a 12), count, future }, con count los backups del mes (0 si no hay) y future
+    // true en los meses que todavía no llegaron (en el ciclo actual, los posteriores al de hoy; en
+    // uno futuro, todos). O { ok: false, error: { code, message } }: INVALID_INPUT indica filtros
+    // inválidos.
+    getBackupRegularity: (filters) => ipcRenderer.invoke('reports:get-backup-regularity', filters),
   },
   backups: {
     // Solo ADMIN. Resuelve { ok: true, backups } con el historial de backups de su institución

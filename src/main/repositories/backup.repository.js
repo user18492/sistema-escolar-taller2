@@ -50,6 +50,52 @@ async function create({ institutionId, user, createdAt }) {
   return toBackup(rows[0]);
 }
 
+// ---------- Reporte Regularidad de los backups ----------
+
+// Limitaciones del reporte (plans/reportes-administrador/README.md): la tabla respaldo registra solo
+// los backups, no los restores, y no guarda la ruta, el tamaño ni el formato del archivo, así que no
+// se puede verificar que el archivo siga existiendo. La vista Backup ya lista el historial fila por
+// fila: el reporte aporta solo la agregación por mes y el indicador del último backup. El mes y el
+// año de cada backup (y el día, para los días desde el último) se toman en la zona horaria de la
+// sesión de PostgreSQL.
+
+// Cuántos backups de la institución $1 hay en cada mes del año $2: una fila por mes con alguno
+// (month de 1 a 12, count), en orden. Los meses sin backups no vienen.
+const COUNT_BY_MONTH_SQL = `
+  SELECT EXTRACT(MONTH FROM fecha)::INT AS month,
+         COUNT(*)::INT AS count
+    FROM respaldo
+   WHERE institucion_id = $1
+     AND EXTRACT(YEAR FROM fecha) = $2
+   GROUP BY 1
+   ORDER BY 1
+`;
+
+// El último backup de la institución $1 (NULL si no tiene ninguno) y los días que pasaron desde su
+// fecha hasta la del día de la base (fn_fecha_actual, nunca CURRENT_DATE). GREATEST evita un número
+// negativo si la fecha de la base queda antes de la del backup (p. ej., con el reloj de la suite
+// congelado antes de NOW()).
+const FIND_LAST_BACKUP_DAYS_SQL = `
+  SELECT MAX(fecha) AS last_backup,
+         GREATEST(0, fn_fecha_actual() - MAX(fecha)::DATE) AS days_ago
+    FROM respaldo
+   WHERE institucion_id = $1
+`;
+
+// [{ month, count }] de los meses del año `year` con algún backup de la institución.
+async function countByMonth(institutionId, year) {
+  const { rows } = await query(COUNT_BY_MONTH_SQL, [institutionId, year]);
+  return rows.map((row) => ({ month: row.month, count: row.count }));
+}
+
+// { createdAt (Date), daysAgo } del último backup de la institución, o null si no tiene ninguno.
+async function findLastBackupDays(institutionId) {
+  const { rows } = await query(FIND_LAST_BACKUP_DAYS_SQL, [institutionId]);
+  const row = rows[0];
+  if (!row.last_backup) return null;
+  return { createdAt: row.last_backup, daysAgo: row.days_ago };
+}
+
 // ---------- Instantánea de los datos de una institución ----------
 
 // Las tablas que entran en el backup, en el orden en que se cargan (cada una referencia solo a las
@@ -299,6 +345,8 @@ module.exports = {
   CATALOG_TABLE_NAMES,
   findAllByInstitution,
   create,
+  countByMonth,
+  findLastBackupDays,
   readInstitutionSnapshot,
   readRestoreReference,
   replaceInstitutionData,

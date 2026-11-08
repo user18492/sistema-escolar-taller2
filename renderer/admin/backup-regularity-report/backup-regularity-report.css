@@ -1,2 +1,159 @@
 /* Reporte Regularidad de los backups (Administrador). La ruta de navegación la aporta
-   breadcrumb.css y la barra de filtros, report-filters.css. */
+   breadcrumb.css; la barra de filtros, report-filters.css, y la card, el encabezado, el eje, la
+   grilla, las columnas, sus etiquetas, la leyenda y la animación de entrada, chart.css. Aquí, la
+   card del último backup, la cantidad sobre cada columna, los meses futuros atenuados y el texto de
+   las limitaciones. */
+
+/* ---------- Último backup ---------- */
+
+.last-backup-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+}
+
+.last-backup-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-blue-bg);
+  color: var(--color-accent-blue);
+}
+
+.last-backup-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.last-backup-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.last-backup-summary {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.last-backup-date {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.last-backup-date[hidden] {
+  display: none;
+}
+
+/* ---------- Gráfico ---------- */
+
+/* Espacio arriba para la cantidad de la columna más alta, que queda sobre el área del gráfico */
+.backup-chart {
+  padding-top: 20px;
+}
+
+.backup-chart[hidden] {
+  display: none;
+}
+
+/* Cada marca del eje, centrada sobre su línea de la grilla: sin alto propio, space-between las
+   deja en las mismas posiciones que las líneas */
+.backup-chart .chart-y-axis span {
+  line-height: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 12 columnas: menos separación que la de chart.css, igual en las barras y en sus etiquetas */
+.backup-chart .chart-bars,
+.backup-chart .chart-labels {
+  gap: 12px;
+}
+
+.backup-chart .chart-bar-group {
+  position: relative;
+}
+
+/* Alto = cantidad / máximo del eje (lo define la vista, también en --backup-bar-height) */
+.backup-bar {
+  background: var(--color-accent-blue);
+}
+
+/* La cantidad, sobre la barra (o sobre la base, con 0) */
+.backup-value {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--backup-bar-height, 0%) + 4px);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  pointer-events: none;
+}
+
+.backup-value[hidden] {
+  display: none;
+}
+
+/* Mes futuro: la columna queda como un fondo rayado tenue, la etiqueta más clara, y si tuviera
+   backups, la barra atenuada */
+.chart-col.is-future .chart-bar-group {
+  border-radius: 4px 4px 0 0;
+  background: repeating-linear-gradient(135deg, transparent 0 6px, #f3f4f6 6px 12px);
+}
+
+.chart-col.is-future .backup-bar,
+.chart-col.is-future .backup-value {
+  opacity: 0.4;
+}
+
+.chart-col-label.is-future {
+  opacity: 0.5;
+}
+
+/* ---------- Leyenda ---------- */
+
+.legend-dot-backups {
+  background: var(--color-accent-blue);
+}
+
+.legend-dot-future {
+  border: 1px solid #d1d5db;
+  background: repeating-linear-gradient(135deg, var(--color-bg) 0 2px, #d1d5db 2px 3.5px);
+}
+
+.legend-item[hidden] {
+  display: none;
+}
+
+/* ---------- Mensajes y limitaciones ---------- */
+
+/* Cargando o error, en lugar del gráfico; como .table-message (data-table.css) */
+.backup-chart-message {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.backup-chart-message[hidden] {
+  display: none;
+}
+
+.backup-limitations {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
