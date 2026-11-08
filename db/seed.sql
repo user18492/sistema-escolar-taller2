@@ -618,8 +618,8 @@ FROM (VALUES
     ('30-69854321-5', 'esteban.montiel@colegiobelgrano.edu.ar', 'SECUNDARIA', '6°', 'A', 'MAÑANA', 'Filosofía', FALSE)
 ) AS a(cuit, email, nivel_educativo, grado, division, turno, materia, baja);
 
--- Trimestres de un ciclo lectivo, por mes, con el último día de cada uno: el 1.º hasta el 31 de mayo,
--- el 2.º del 1 de junio al 31 de agosto y el 3.º del 1 de septiembre al 31 de diciembre. Cada ciclo
+-- Trimestres de un ciclo lectivo, por mes, con el último día de cada uno: el 1° hasta el 31 de mayo,
+-- el 2° del 1 de junio al 31 de agosto y el 3° del 1 de septiembre al 31 de diciembre. Cada ciclo
 -- se carga por trimestre, en orden cronológico, con el reloj de la base en el último día del
 -- trimestre (más abajo)
 CREATE TEMP TABLE seed_trimestre ON COMMIT DROP AS
@@ -651,7 +651,7 @@ JOIN seed_trimestre t ON e.mes BETWEEN t.mes_desde AND t.mes_hasta;
 -- (fn_fecha_actual(), de la que sale todo lo del ciclo lectivo) en el año anterior, se carga ese
 -- ciclo como si fuera el actual, se restaura el reloj y se cierra el ciclo con
 -- sp_inscripcion_finalizar_ciclos_cerrados, como lo hace la aplicación al iniciarse.
--- Se carga por trimestre, en orden cronológico, con el reloj en el último día de cada uno: en el 1.º,
+-- Se carga por trimestre, en orden cronológico, con el reloj en el último día de cada uno: en el 1°,
 -- los cursos, las asignaciones y las inscripciones, y en cada trimestre, sus evaluaciones y sus
 -- calificaciones. Así cada dato se escribe en una fecha en la que la aplicación también podría
 -- escribirlo.
@@ -723,7 +723,7 @@ BEGIN
 END;
 $$;
 
--- 1.º trimestre del ciclo anterior: el reloj, en el 31 de mayo del año anterior
+-- 1° trimestre del ciclo anterior: el reloj, en el 31 de mayo del año anterior
 CALL pg_temp.seed_fijar_reloj('anterior', 1);
 
 -- Cursos del ciclo anterior: 12 por institución, los 12 grados con la división A (sin las B de 1°),
@@ -862,12 +862,12 @@ ORDER BY c.institucion_id, e.evaluacion_id, i.inscripcion_id;
 EXECUTE seed_evaluar_anterior(1);
 EXECUTE seed_calificar_anterior(1);
 
--- 2.º trimestre del ciclo anterior: el reloj, en el 31 de agosto
+-- 2° trimestre del ciclo anterior: el reloj, en el 31 de agosto
 CALL pg_temp.seed_fijar_reloj('anterior', 2);
 EXECUTE seed_evaluar_anterior(2);
 EXECUTE seed_calificar_anterior(2);
 
--- 3.º trimestre del ciclo anterior: el reloj, en el 31 de diciembre
+-- 3° trimestre del ciclo anterior: el reloj, en el 31 de diciembre
 CALL pg_temp.seed_fijar_reloj('anterior', 3);
 EXECUTE seed_evaluar_anterior(3);
 EXECUTE seed_calificar_anterior(3);
@@ -1083,7 +1083,7 @@ UPDATE usuario u
 -- bajas y las cancelaciones de sus fechas, y las calificaciones posteriores a una cancelación se
 -- cargan después de ella. Al final se restaura el reloj.
 
--- 1.º trimestre: el reloj, en el 31 de mayo o, si es anterior, en la fecha real. Las inscripciones
+-- 1° trimestre: el reloj, en el 31 de mayo o, si es anterior, en la fecha real. Las inscripciones
 -- se cargan en él: todas sus fechas son de febrero o abril
 CALL pg_temp.seed_fijar_reloj('actual', 1);
 
@@ -1178,7 +1178,7 @@ ORDER BY c.institucion_id, c.curso_id, gm.grado_materia_id, se.mes, se.dia;
 -- Calificaciones de cada inscripción activa y vigente en las evaluaciones vigentes de su curso con
 -- fecha de hoy o anterior, a partir de su fecha de inscripción y antes de su califica_hasta, si no
 -- tiene ninguna en esa evaluación. seed_calificar(t) califica las evaluaciones del trimestre t; en
--- el 1.º se ejecuta otra vez después de los cambios de división.
+-- el 1° se ejecuta otra vez después de los cambios de división.
 -- Nota de 4,50 a 10, en pasos de 0,25 (unas 14 % menores que 6).
 -- Excepción: en Lengua de 2° A de primaria, los 3 regulares de mayor n quedan sin calificar en la
 -- Evaluación escrita 1
@@ -1251,7 +1251,7 @@ BEGIN
 END;
 $$;
 
--- 1.º trimestre: sus evaluaciones (del 20 de marzo, el 10 de abril y el 15 de mayo) y sus
+-- 1° trimestre: sus evaluaciones (del 20 de marzo, el 10 de abril y el 15 de mayo) y sus
 -- calificaciones
 EXECUTE seed_evaluar(1);
 EXECUTE seed_calificar(1);
@@ -1287,11 +1287,11 @@ UPDATE evaluacion
    SET fecha_eliminacion = LEAST(make_date(fn_anio_ciclo_lectivo_actual(), 4, 13), fn_fecha_actual())::TIMESTAMPTZ
  WHERE titulo = 'Recuperatorio';
 
--- Cancelaciones del 1.º trimestre: el abandono del caso 4 y la baja del caso 6 (1 de marzo), y los
+-- Cancelaciones del 1° trimestre: el abandono del caso 4 y la baja del caso 6 (1 de marzo), y los
 -- cambios de división de los casos 1 y 2 (20 de abril)
 CALL pg_temp.seed_cancelar_inscripciones(1);
 
--- Casos 1 y 2: la inscripción en el curso nuevo, activa, y sus calificaciones del 1.º trimestre (las
+-- Casos 1 y 2: la inscripción en el curso nuevo, activa, y sus calificaciones del 1° trimestre (las
 -- posteriores al cambio)
 INSERT INTO inscripcion (alumno_id, curso_id, inscripcion_estado_id, fecha_inscripcion)
 SELECT si.alumno_id, si.curso_id, e.inscripcion_estado_id, si.fecha
@@ -1302,7 +1302,7 @@ ORDER BY si.institucion_id, si.fecha, si.n;
 
 EXECUTE seed_calificar(1);
 
--- 2.º trimestre: el reloj, en el 31 de agosto o, si es anterior, en la fecha real. Su evaluación (del
+-- 2° trimestre: el reloj, en el 31 de agosto o, si es anterior, en la fecha real. Su evaluación (del
 -- 21 de agosto), las cancelaciones de sus fechas, anteriores a ella (el abandono del caso 3, el 1 de
 -- junio, y la baja del caso 5, el 1 de julio), y sus calificaciones
 CALL pg_temp.seed_fijar_reloj('actual', 2);
@@ -1310,7 +1310,7 @@ EXECUTE seed_evaluar(2);
 CALL pg_temp.seed_cancelar_inscripciones(2);
 EXECUTE seed_calificar(2);
 
--- 3.º trimestre: el reloj, en el 31 de diciembre o, si es anterior, en la fecha real. Su evaluación
+-- 3° trimestre: el reloj, en el 31 de diciembre o, si es anterior, en la fecha real. Su evaluación
 -- (del 13 de noviembre) y sus calificaciones
 CALL pg_temp.seed_fijar_reloj('actual', 3);
 EXECUTE seed_evaluar(3);

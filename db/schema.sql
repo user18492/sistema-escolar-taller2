@@ -63,7 +63,7 @@ $$;
 
 -- Si el trimestre p_trimestre del ciclo lectivo p_anio está cerrado: su ciclo está cerrado
 -- (fn_ciclo_lectivo_estado), o la fecha actual es posterior al último día del trimestre más el plazo
--- de carga de 7 días, fijo acá. Así, el 1.º se cierra el 08/06, el 2.º el 08/09 y el 3.º con el
+-- de carga de 7 días, fijo acá. Así, el 1° se cierra el 08/06, el 2° el 08/09 y el 3° con el
 -- ciclo (el 01/01 siguiente, antes de que venza su plazo). En un trimestre cerrado no se crea, edita
 -- ni da de baja ninguna evaluación, y no se carga, corrige ni da de baja ninguna calificación
 -- (trg_evaluacion_trimestre_cerrado y trg_calificacion_trimestre_cerrado, más abajo). Es STRICT,
