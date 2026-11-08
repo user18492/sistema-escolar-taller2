@@ -259,7 +259,28 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     return { ids: ids.sort((a, b) => a - b), total };
   }
 
-  test('list', 'El listado pagina las inscripciones vigentes de alumnos vigentes y filtra por estado', async (t) => {
+  // Las inscripciones de expectedListed inscriptas en el año `year` (el del ciclo de su curso) y sus
+  // alumnos: las opciones de los filtros de ese ciclo
+  const expectedOptionsOfYear = async (t, year) => {
+    const rows = await t.sql(`
+      SELECT i.inscripcion_id AS id, i.alumno_id AS "studentId" FROM inscripcion i JOIN curso c USING (curso_id) JOIN alumno a USING (alumno_id)
+       WHERE i.fecha_eliminacion IS NULL AND a.fecha_eliminacion IS NULL
+         AND c.institucion_id = (SELECT institucion_id FROM institucion WHERE cuit = $1)
+         AND EXTRACT(YEAR FROM i.fecha_inscripcion) = $2`, [SM, year]);
+    return { enrollments: sortedNumbers(rows), students: [...new Set(rows.map((row) => row.studentId))].sort((a, b) => a - b) };
+  };
+  const optionIds = (options) => ({
+    enrollments: sortedIds(options.enrollments),
+    students: options.students.map((student) => student.id).sort((a, b) => a - b),
+  });
+
+  test('list', 'El listado pagina las inscripciones vigentes de alumnos vigentes y filtra por estado', {
+    history: [{
+      plan: 'Pedido del 2026-11-08: ciclo lectivo actual por defecto en las tablas (sin plan en plans/)',
+      date: '2026-11-08',
+      change: 'enrollments.listFilterOptions recibe el año del ciclo que muestra la tabla: las opciones de filtro son las inscripciones del ciclo actual (antes, todas) y sus alumnos',
+    }],
+  }, async (t) => {
     await t.login('secretary');
     const expected = await expectedListed(t);
     const all = await listAll(t, EMPTY_FILTERS);
@@ -267,8 +288,42 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     t.equal(all.total, expected.length, 'total coincide con la base');
     const cancelled = await listAll(t, { ...EMPTY_FILTERS, statuses: ['CANCELLED'] });
     t.equal(cancelled.ids, sortedNumbers(expected.filter((row) => row.estado === 'CANCELADA')), 'El filtro por estado');
-    const options = await t.ok('enrollments.listFilterOptions');
-    t.equal(sortedIds(options.enrollments), sortedNumbers(expected), 'Las opciones de filtro son las mismas inscripciones');
+    const options = await t.ok('enrollments.listFilterOptions', t.year);
+    t.equal(optionIds(options), await expectedOptionsOfYear(t, t.year), 'Las opciones de filtro son las inscripciones del ciclo actual y sus alumnos');
+    await t.logout();
+  });
+
+  test('list-filter-options-school-year', 'Las opciones de los filtros Número de inscripción y Alumno son las del ciclo pedido, en el orden del listado; un año inválido se rechaza', async (t) => {
+    // Ciclo anterior, cerrado: una inscripción de un alumno que no tiene inscripciones en el actual
+    const previous = await t.fixtures.inSchoolYear(t.year - 1, async () => {
+      const course = await t.fixtures.createCourse();
+      const student = await t.fixtures.createStudent();
+      return { student, enrollmentId: await t.fixtures.enroll({ studentId: student.id, courseId: course.id }) };
+    });
+    await t.login('secretary');
+    const current = await t.ok('enrollments.listFilterOptions', t.year);
+    const closed = await t.ok('enrollments.listFilterOptions', t.year - 1);
+    t.equal(optionIds(current), await expectedOptionsOfYear(t, t.year), 'Ciclo actual: sus inscripciones y sus alumnos');
+    t.equal(optionIds(closed), await expectedOptionsOfYear(t, t.year - 1), 'Ciclo anterior: sus inscripciones y sus alumnos');
+    t.check(sortedIds(closed.enrollments).includes(previous.enrollmentId) && !sortedIds(current.enrollments).includes(previous.enrollmentId),
+      'La inscripción del ciclo anterior se ofrece solo en su ciclo');
+    t.check(!current.students.some(({ id }) => id === previous.student.id), 'Su alumno, sin inscripciones en el ciclo actual, no se ofrece en él');
+
+    // Mismo orden que el listado filtrado por ese año
+    const listed = await listAll(t, { ...EMPTY_FILTERS, enrollmentDate: { ...NO_DATE, year: t.year - 1 } });
+    t.equal(sortedIds(closed.enrollments), listed.ids, 'Son las mismas inscripciones que lista enrollments.list con ese año');
+    const listedInOrder = [];
+    for (let page = 1; listedInOrder.length < listed.total; page += 1) {
+      const result = await t.ok('enrollments.list', { ...EMPTY_FILTERS, enrollmentDate: { ...NO_DATE, year: t.year - 1 } }, page, 100);
+      if (!result.enrollments.length) break;
+      listedInOrder.push(...result.enrollments.map(({ id }) => id));
+    }
+    t.equal(closed.enrollments.map(({ id }) => id), listedInOrder, 'En el mismo orden que el listado');
+
+    t.equal((await t.ok('enrollments.listFilterOptions', 1900)), { ok: true, enrollments: [], students: [] }, 'Un ciclo sin inscripciones no ofrece nada');
+    for (const year of [undefined, null, '2026', 2026.5, -1, 10000]) {
+      await t.rejects('INVALID_INPUT', 'enrollments.listFilterOptions', year);
+    }
     await t.logout();
   });
 

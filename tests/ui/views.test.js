@@ -98,9 +98,16 @@ group('ui.views', 'Recorrido de las vistas y bloqueo por rol', () => {
     t.equal(landed, 'auth/login/index.html', 'El login abre sin sesión');
   });
 
-  test('walk-admin', 'Todas las vistas del Administrador cargan sin errores y con sus datos', async (t) => walk(t, 'admin'));
-  test('walk-secretary', 'Todas las vistas del Secretario cargan sin errores y con sus datos', async (t) => walk(t, 'secretary'));
-  test('walk-teacher', 'Todas las vistas del Profesor cargan sin errores y con sus datos', async (t) => walk(t, 'teacher'));
+  // Desde el pedido del 2026-11-08, las tablas de Cursos, Docencia, Inscripciones y Asignaciones del
+  // Profesor muestran por defecto solo el ciclo lectivo actual (views.table.js)
+  const CURRENT_SCHOOL_YEAR_HISTORY = {
+    plan: 'Pedido del 2026-11-08: ciclo lectivo actual por defecto en las tablas (sin plan en plans/)',
+    date: '2026-11-08',
+    change: 'En views.table.js, las filas que tienen que mostrar Cursos, Docencia, Inscripciones y Asignaciones del Profesor son solo las del ciclo lectivo actual',
+  };
+  test('walk-admin', 'Todas las vistas del Administrador cargan sin errores y con sus datos', { history: [CURRENT_SCHOOL_YEAR_HISTORY] }, async (t) => walk(t, 'admin'));
+  test('walk-secretary', 'Todas las vistas del Secretario cargan sin errores y con sus datos', { history: [CURRENT_SCHOOL_YEAR_HISTORY] }, async (t) => walk(t, 'secretary'));
+  test('walk-teacher', 'Todas las vistas del Profesor cargan sin errores y con sus datos', { history: [CURRENT_SCHOOL_YEAR_HISTORY] }, async (t) => walk(t, 'teacher'));
 
   test('blocked-views', 'Ningún rol abre las vistas de otro, y sin sesión solo se abre el login', async (t) => {
     const { ui } = t;

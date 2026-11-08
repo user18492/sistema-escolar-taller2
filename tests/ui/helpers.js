@@ -79,4 +79,37 @@ function rowActionsState(t, rowSelector) {
   })()`);
 }
 
-module.exports = { HOME_BY_ROLE, loginViaUi, logoutViaUi, openFromSidebar, pickDropdown, pickSearchable, waitEnabled, rowActionsState };
+// Abre el panel del filtro de columna `filter` (el data-filter de su <th>) con un clic en su embudo.
+async function openColumnFilter(t, filter) {
+  const header = `th[data-filter="${filter}"]`;
+  await t.ui.click(`${header} .column-filter-toggle`);
+  await t.ui.waitFor(`document.querySelector('${header} .column-filter-panel').matches(':popover-open')`, { message: `No se abrió el filtro ${filter}` });
+}
+
+// Escribe `text` en el campo `inputSelector` del panel del filtro de columna `filter` y lo cierra
+// con Escape (Enter tiene un bug conocido: vuelve a abrirlo).
+async function typeInColumnFilter(t, filter, inputSelector, text) {
+  await openColumnFilter(t, filter);
+  await t.ui.fill(`th[data-filter="${filter}"] ${inputSelector}`, text);
+  await t.ui.press('Escape');
+}
+
+// Marca la opción con ese data-value del filtro de columna `filter` y cierra el panel con Escape
+// (en una lista de selección única, el clic ya lo cerró).
+async function chooseColumnFilterOption(t, filter, value) {
+  const header = `th[data-filter="${filter}"]`;
+  await openColumnFilter(t, filter);
+  await t.ui.chooseOption(`${header} .dropdown-option[data-value="${value}"]`);
+  if (await t.ui.js(`document.querySelector('${header} .column-filter-panel').matches(':popover-open')`)) await t.ui.press('Escape');
+}
+
+// "Limpiar filtro" del filtro de columna `filter`, que cierra el panel.
+async function clearColumnFilter(t, filter) {
+  await openColumnFilter(t, filter);
+  await t.ui.click(`th[data-filter="${filter}"] .column-filter-clear`);
+}
+
+module.exports = {
+  HOME_BY_ROLE, loginViaUi, logoutViaUi, openFromSidebar, pickDropdown, pickSearchable, waitEnabled, rowActionsState,
+  openColumnFilter, typeInColumnFilter, chooseColumnFilterOption, clearColumnFilter,
+};

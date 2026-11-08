@@ -20,15 +20,22 @@ module.exports = {
       sql: (ctx) => [`SELECT usuario_id FROM usuario WHERE institucion_id = $1 AND usuario_id <> $2 AND fecha_eliminacion IS NULL`, [ctx.institutionId, ctx.userId]],
     },
   },
+  // Cursos, Docencia, Inscripciones y Asignaciones del Profesor muestran por defecto solo el ciclo
+  // lectivo actual (pedido del 2026-11-08): sus filas esperadas son las de ese ciclo.
   'admin/courses/index.html': {
     roles: ['ADMIN'],
-    rows: { selector: 'tr[data-course-id]', sql: (ctx) => [`SELECT curso_id FROM curso WHERE institucion_id = $1 AND fecha_eliminacion IS NULL`, [ctx.institutionId]] },
+    rows: {
+      selector: 'tr[data-course-id]',
+      sql: (ctx) => [`SELECT curso_id FROM curso WHERE institucion_id = $1 AND fecha_eliminacion IS NULL
+                       AND anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()`, [ctx.institutionId]],
+    },
   },
   'admin/assignments/index.html': {
     roles: ['ADMIN'],
     rows: {
       selector: 'tr[data-assignment-id]',
-      sql: (ctx) => [`SELECT a.asignacion_docente_id FROM asignacion_docente a JOIN curso c USING (curso_id) WHERE c.institucion_id = $1 AND a.fecha_eliminacion IS NULL`, [ctx.institutionId]],
+      sql: (ctx) => [`SELECT a.asignacion_docente_id FROM asignacion_docente a JOIN curso c USING (curso_id) WHERE c.institucion_id = $1 AND a.fecha_eliminacion IS NULL
+                       AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()`, [ctx.institutionId]],
     },
   },
   'admin/backups/index.html': {
@@ -47,7 +54,8 @@ module.exports = {
     rows: {
       selector: 'tr[data-enrollment-id]',
       sql: (ctx) => [`SELECT i.inscripcion_id FROM inscripcion i JOIN curso c USING (curso_id) JOIN alumno a USING (alumno_id)
-                       WHERE c.institucion_id = $1 AND i.fecha_eliminacion IS NULL AND a.fecha_eliminacion IS NULL`, [ctx.institutionId]],
+                       WHERE c.institucion_id = $1 AND i.fecha_eliminacion IS NULL AND a.fecha_eliminacion IS NULL
+                         AND EXTRACT(YEAR FROM i.fecha_inscripcion) = fn_anio_ciclo_lectivo_actual()`, [ctx.institutionId]],
     },
   },
   'secretary/enrollment-averages/index.html': {
@@ -62,7 +70,12 @@ module.exports = {
 
   'teacher/assignments/index.html': {
     roles: ['PROFESOR'],
-    rows: { selector: 'tr[data-assignment-id]', sql: (ctx) => [`SELECT asignacion_docente_id FROM asignacion_docente WHERE usuario_id = $1 AND fecha_eliminacion IS NULL`, [ctx.userId]] },
+    rows: {
+      selector: 'tr[data-assignment-id]',
+      sql: (ctx) => [`SELECT a.asignacion_docente_id FROM asignacion_docente a JOIN curso c USING (curso_id)
+                       WHERE a.usuario_id = $1 AND a.fecha_eliminacion IS NULL
+                         AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()`, [ctx.userId]],
+    },
   },
   'teacher/assignment-management/index.html': {
     roles: ['PROFESOR'],
