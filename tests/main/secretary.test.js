@@ -6,7 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { group, test } = require('../lib/framework');
 const { SEED_INSTITUTIONS } = require('../lib/fixtures');
-const { ENROLLMENT_STATUS, STUDENT_STATUS, enrollmentNumber, sortedIds, sortedNumbers } = require('../lib/domain');
+const { ENROLLMENT_STATUS, LEVEL, SHIFT, STUDENT_STATUS, enrollmentNumber, sortedIds, sortedNumbers } = require('../lib/domain');
 
 const SM = SEED_INSTITUTIONS.SM;
 const NO_DATE = { day: null, month: null, year: null };
@@ -25,6 +25,78 @@ function pdfText(file) {
     if (result.status === 0) return result.stdout.replace(/\s+/g, ' ');
   }
   return null;
+}
+
+// Lo que espera enrollments.getAverages de la inscripción `enrollmentId`, con una consulta propia
+// sobre las tablas (sin vw_promedio_trimestral, fn_trimestre ni fn_trimestre_cerrado; como
+// expectedAverages de main/teacher.test.js): una materia por asignación docente vigente de su curso,
+// por nombre, con los tres trimestres y el anual (plans/promedios/04-promedios-secretario.md).
+async function expectedEnrollmentAverages(t, enrollmentId) {
+  const rows = await t.sql(`
+    WITH materias AS (
+      SELECT a.asignacion_docente_id, m.nombre AS materia, i.inscripcion_id, i.fecha_inscripcion,
+             ie.nombre AS estado, c.anio_ciclo_lectivo AS anio
+        FROM inscripcion i
+        JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+        JOIN curso c ON c.curso_id = i.curso_id
+        JOIN asignacion_docente a ON a.curso_id = i.curso_id AND a.fecha_eliminacion IS NULL
+        JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
+        JOIN materia m ON m.materia_id = gm.materia_id
+       WHERE i.inscripcion_id = $1
+    ), notas AS (
+      SELECT s.asignacion_docente_id,
+             CASE WHEN EXTRACT(MONTH FROM e.fecha_evaluacion) <= 5 THEN 1
+                  WHEN EXTRACT(MONTH FROM e.fecha_evaluacion) <= 8 THEN 2 ELSE 3 END AS trimestre,
+             COALESCE((SELECT ca.nota FROM calificacion ca
+                        WHERE ca.evaluacion_id = e.evaluacion_id AND ca.inscripcion_id = s.inscripcion_id
+                          AND ca.fecha_eliminacion IS NULL), 0) AS nota
+        FROM materias s
+        JOIN evaluacion e ON e.asignacion_docente_id = s.asignacion_docente_id
+       WHERE e.fecha_eliminacion IS NULL AND e.fecha_evaluacion BETWEEN s.fecha_inscripcion AND fn_fecha_actual()
+    ), trimestrales AS (
+      SELECT asignacion_docente_id, trimestre, AVG(nota) AS promedio FROM notas GROUP BY asignacion_docente_id, trimestre
+    )
+    SELECT s.materia, g.trimestre,
+           ROUND(tr.promedio, 2)::TEXT AS valor,
+           (s.anio < EXTRACT(YEAR FROM fn_fecha_actual())
+            OR fn_fecha_actual() > make_date(s.anio, CASE g.trimestre WHEN 1 THEN 5 WHEN 2 THEN 8 ELSE 12 END, 31) + 7) AS cerrado,
+           ROUND((SELECT AVG(x.promedio) FROM trimestrales x WHERE x.asignacion_docente_id = s.asignacion_docente_id), 2)::TEXT AS anual,
+           (s.anio < EXTRACT(YEAR FROM fn_fecha_actual()) OR s.estado = 'FINALIZADA') AS anual_final
+      FROM materias s
+      CROSS JOIN generate_series(1, 3) AS g(trimestre)
+      LEFT JOIN trimestrales tr ON tr.asignacion_docente_id = s.asignacion_docente_id AND tr.trimestre = g.trimestre
+     ORDER BY s.materia, g.trimestre`, [enrollmentId]);
+  const toValue = (text) => (text === null ? null : Number(text));
+  const subjects = [];
+  for (const row of rows) {
+    if (row.trimestre === 1) {
+      const annual = toValue(row.anual);
+      subjects.push({ subjectName: row.materia, terms: [], annual: { value: annual, isFinal: annual !== null && row.anual_final } });
+    }
+    const value = toValue(row.valor);
+    subjects[subjects.length - 1].terms.push({ term: row.trimestre, value, isFinal: value !== null && row.cerrado });
+  }
+  return subjects;
+}
+
+// La inscripción como la devuelve enrollments.getAverages, con una consulta propia
+async function expectedAveragesEnrollment(t, enrollmentId) {
+  const row = await t.sqlOne(`
+    SELECT i.inscripcion_id AS id, ie.nombre AS estado, al.nombre, al.apellido, c.curso_id, g.nombre AS grado,
+           g.nivel_educativo, c.division, c.turno, c.anio_ciclo_lectivo
+      FROM inscripcion i JOIN inscripcion_estado ie USING (inscripcion_estado_id) JOIN alumno al USING (alumno_id)
+      JOIN curso c USING (curso_id) JOIN grado g ON g.grado_id = c.grado_id
+     WHERE i.inscripcion_id = $1`, [enrollmentId]);
+  return {
+    id: row.id,
+    number: enrollmentNumber(row.id),
+    status: ENROLLMENT_STATUS[row.estado],
+    student: { firstName: row.nombre, lastName: row.apellido },
+    course: {
+      id: row.curso_id, gradeName: row.grado, educationLevel: LEVEL[row.nivel_educativo], division: row.division,
+      shift: SHIFT[row.turno], schoolYear: row.anio_ciclo_lectivo,
+    },
+  };
 }
 
 group('main.secretary.students', 'Secretario: alumnos', {
@@ -364,6 +436,59 @@ group('main.secretary.enrollments', 'Secretario: inscripciones y comprobante', {
     await t.rejects('ENROLLMENT_NOT_FOUND', 'enrollments.openReceipt', 2147483000);
     t.harness.openPathResult = 'No hay un programa asociado';
     await t.rejects('PDF_VIEWER_UNAVAILABLE', 'enrollments.openReceipt', id);
+    await t.logout();
+  });
+
+  test('averages', 'Los promedios de una inscripción traen cada materia con docente de su curso, con sus marcas; una cancelada, dada de baja o de otra institución no los tiene', async (t) => {
+    const { course, scored, graduatedEnrollment } = t.data;
+    // Otra materia del curso, sin evaluaciones: va con todo en null
+    const teacher = await t.fixtures.createUser({ role: 'PROFESOR' });
+    await t.fixtures.assign({ teacherId: teacher.id, courseId: course.id });
+    // Ciclo anterior, cerrado: una inscripción finalizada, con una nota del 15/06 (2.º trimestre)
+    const previous = await t.fixtures.inSchoolYear(t.year - 1, async () => {
+      const pastCourse = await t.fixtures.createCourse();
+      const assignment = await t.fixtures.assign({ teacherId: teacher.id, courseId: pastCourse.id });
+      const enrollmentId = await t.fixtures.enroll({ studentId: (await t.fixtures.createStudent()).id, courseId: pastCourse.id });
+      const evaluationId = await t.fixtures.createEvaluation({ assignmentId: assignment.id });
+      await t.fixtures.score({ evaluationId, enrollmentId, value: 8.5 });
+      return enrollmentId;
+    });
+    await t.fixtures.setEnrollmentStatus(previous, 'FINALIZADA');
+
+    await t.login('secretary');
+    const results = {};
+    for (const [label, enrollmentId] of [['Ciclo actual', scored], ['Ciclo cerrado', previous]]) {
+      await t.step(label, async () => {
+        const result = await t.ok('enrollments.getAverages', enrollmentId);
+        t.equal(result.enrollment, await expectedAveragesEnrollment(t, enrollmentId), `${label}: la inscripción`);
+        t.equal(result.subjects, await expectedEnrollmentAverages(t, enrollmentId),
+          `${label}: una materia por asignación vigente del curso, por nombre, con los valores y las marcas de la consulta propia`);
+        results[label] = result.subjects;
+      });
+    }
+    const valuesOf = ({ terms, annual }) => ({ terms: terms.map((term) => term.value), annual: annual.value });
+    t.check(results['Ciclo actual'].some((subject) => valuesOf(subject).annual === null && valuesOf(subject).terms.every((value) => value === null)),
+      'La materia sin evaluaciones va con todo en null', results['Ciclo actual']);
+    const [closed] = results['Ciclo cerrado'];
+    t.equal(valuesOf(closed), { terms: [null, 8.5, null], annual: 8.5 }, 'Ciclo cerrado: la nota del 2.º trimestre');
+    t.equal([...closed.terms.map((term) => term.isFinal), closed.annual.isFinal], [false, true, false, true],
+      'Ciclo cerrado y finalizada: todo es Final, salvo los trimestres sin promedio');
+
+    await t.rejects('ENROLLMENT_CANCELLED', 'enrollments.getAverages', graduatedEnrollment);
+    const deleted = await t.fixtures.enroll({ studentId: (await t.fixtures.createStudent()).id, courseId: course.id });
+    await t.ok('enrollments.delete', deleted);
+    await t.rejects('ENROLLMENT_DELETED', 'enrollments.getAverages', deleted);
+    const other = await t.fixtures.createInstitution();
+    const otherCourse = await t.fixtures.createCourse({ institutionId: other.id });
+    const otherEnrollment = await t.fixtures.enroll({
+      studentId: (await t.fixtures.createStudent({ institutionId: other.id })).id, courseId: otherCourse.id,
+    });
+    await t.rejects('ENROLLMENT_NOT_FOUND', 'enrollments.getAverages', otherEnrollment);
+    await t.rejects('INVALID_INPUT', 'enrollments.getAverages', 0);
+    await t.logout();
+
+    await t.login('teacher');
+    await t.rejects('FORBIDDEN', 'enrollments.getAverages', scored);
     await t.logout();
   });
 });

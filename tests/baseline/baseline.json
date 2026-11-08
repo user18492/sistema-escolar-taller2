@@ -1,21 +1,20 @@
 {
   "version": 1,
-  "takenAt": "2026-11-07T23:47:51.893Z",
-  "commit": "54c928b0343d6e1f0cfe8dc02bee6d1686be8777",
+  "takenAt": "2026-11-08T12:43:47.090Z",
+  "commit": "a2e25bdccd2c29f873c689860bd5387d6cd86c63",
   "branch": "main",
   "dirty": true,
   "changedFiles": [
-    "renderer/teacher/assignment-students/assignment-students.css",
-    "renderer/teacher/assignment-students/assignment-students.js",
-    "renderer/teacher/assignment-students/index.html",
-    "src/main/ipc/score.controller.js",
-    "src/main/repositories/score.repository.js",
-    "src/main/services/score.service.js",
+    "renderer/secretary/enrollments/enrollments.js",
+    "renderer/secretary/enrollments/index.html",
+    "renderer/shared/components/row-actions.component.js",
+    "src/main/ipc/enrollment.controller.js",
+    "src/main/repositories/teacher-assignment.repository.js",
+    "src/main/services/enrollment.service.js",
     "src/preload/preload.js",
-    "renderer/shared/components/term-average.component.js",
-    "renderer/shared/styles/term-average.css"
+    "renderer/secretary/enrollment-averages/"
   ],
-  "today": "2026-11-07",
+  "today": "2026-11-08",
   "year": 2026,
   "environment": {
     "node": "24.19.0",
@@ -1636,6 +1635,15 @@
       "historyCount": 0,
       "knownFailure": null
     },
+    "main.secretary.enrollments.averages": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "a9d064324a97",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
     "main.secretary.enrollments.invariants": {
       "layer": "main",
       "status": "pass",
@@ -1997,6 +2005,33 @@
       "knownFailure": null
     },
     "ui.averages.invariants": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d97564bc2bbc",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.enrollment-averages.open-and-back": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "916f2f3a53db",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.enrollment-averages.cancelled-error": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "b8666d410133",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.enrollment-averages.invariants": {
       "layer": "ui",
       "status": "pass",
       "hash": "d97564bc2bbc",
@@ -2524,24 +2559,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 155,
-      "ok": 155,
-      "tests": 49
+      "calls": 164,
+      "ok": 164,
+      "tests": 51
     },
     "auth:get-remembered-email": {
-      "calls": 104,
-      "ok": 104,
-      "tests": 66
+      "calls": 108,
+      "ok": 108,
+      "tests": 69
     },
     "auth:login": {
-      "calls": 152,
-      "ok": 144,
-      "tests": 122
+      "calls": 156,
+      "ok": 148,
+      "tests": 125
     },
     "auth:logout": {
-      "calls": 192,
-      "ok": 192,
-      "tests": 139
+      "calls": 198,
+      "ok": 198,
+      "tests": 143
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2594,9 +2629,9 @@
       "tests": 13
     },
     "dashboard:get-secretary-summary": {
-      "calls": 12,
-      "ok": 12,
-      "tests": 12
+      "calls": 14,
+      "ok": 14,
+      "tests": 14
     },
     "enrollments:create": {
       "calls": 5,
@@ -2604,19 +2639,24 @@
       "tests": 3
     },
     "enrollments:delete": {
-      "calls": 5,
-      "ok": 2,
-      "tests": 3
+      "calls": 6,
+      "ok": 3,
+      "tests": 4
     },
     "enrollments:get": {
       "calls": 4,
       "ok": 3,
       "tests": 4
     },
+    "enrollments:get-averages": {
+      "calls": 10,
+      "ok": 4,
+      "tests": 4
+    },
     "enrollments:list": {
-      "calls": 42,
-      "ok": 36,
-      "tests": 10
+      "calls": 44,
+      "ok": 38,
+      "tests": 11
     },
     "enrollments:list-by-own-assignment": {
       "calls": 10,
@@ -2624,19 +2664,19 @@
       "tests": 6
     },
     "enrollments:list-enrollable-courses": {
-      "calls": 8,
-      "ok": 8,
-      "tests": 8
+      "calls": 10,
+      "ok": 10,
+      "tests": 9
     },
     "enrollments:list-enrollable-students": {
-      "calls": 8,
-      "ok": 8,
-      "tests": 8
+      "calls": 10,
+      "ok": 10,
+      "tests": 9
     },
     "enrollments:list-filter-options": {
-      "calls": 9,
-      "ok": 9,
-      "tests": 7
+      "calls": 11,
+      "ok": 11,
+      "tests": 8
     },
     "enrollments:open-receipt": {
       "calls": 5,
@@ -2689,9 +2729,9 @@
       "tests": 2
     },
     "school-years:get-current": {
-      "calls": 45,
-      "ok": 45,
-      "tests": 26
+      "calls": 47,
+      "ok": 47,
+      "tests": 27
     },
     "scores:delete": {
       "calls": 5,
@@ -2819,9 +2859,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 206,
-      "ok": 206,
-      "tests": 74
+      "calls": 217,
+      "ok": 217,
+      "tests": 77
     },
     "window:minimize": {
       "calls": 1,

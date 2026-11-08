@@ -69,6 +69,7 @@ module.exports = {
     'enrollments:update': { roles: ['SECRETARIO'], args: [NO_ID, {}] },
     'enrollments:delete': { roles: ['SECRETARIO'], args: [NO_ID] },
     'enrollments:open-receipt': { roles: ['SECRETARIO'], args: [NO_ID] },
+    'enrollments:get-averages': { roles: ['SECRETARIO'], args: [NO_ID] },
     'enrollments:list-by-own-assignment': { roles: ['PROFESOR'], args: [NO_ID] },
 
     'evaluations:list-by-own-assignment': { roles: ['PROFESOR'], args: [NO_ID] },

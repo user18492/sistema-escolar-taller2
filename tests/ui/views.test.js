@@ -37,6 +37,20 @@ async function contextFor(t, key) {
     t.require(assignment, 'El seed no tiene una asignación del profesor con evaluaciones y alumnos para recorrer sus vistas');
     Object.assign(ctx, { assignmentId: assignment.id, evaluationId: assignment.evaluation });
   }
+  if (account.role === 'SECRETARIO') {
+    // Una inscripción que lista Inscripciones, con promedios (activa o finalizada) y materias con
+    // docente en su curso (plans/promedios/04-promedios-secretario.md)
+    const enrollment = await t.sqlOne(`
+      SELECT i.inscripcion_id AS id
+        FROM inscripcion i JOIN inscripcion_estado ie USING (inscripcion_estado_id)
+        JOIN curso c USING (curso_id) JOIN alumno al USING (alumno_id)
+       WHERE c.institucion_id = $1 AND i.fecha_eliminacion IS NULL AND al.fecha_eliminacion IS NULL
+         AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
+         AND EXISTS (SELECT 1 FROM asignacion_docente a WHERE a.curso_id = i.curso_id AND a.fecha_eliminacion IS NULL)
+       ORDER BY i.inscripcion_id LIMIT 1`, [ctx.institutionId]);
+    t.require(enrollment, 'El seed no tiene una inscripción activa o finalizada con materias asignadas para recorrer sus vistas');
+    ctx.enrollmentId = enrollment.id;
+  }
   return ctx;
 }
 

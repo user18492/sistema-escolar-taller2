@@ -50,6 +50,15 @@ module.exports = {
                        WHERE c.institucion_id = $1 AND i.fecha_eliminacion IS NULL AND a.fecha_eliminacion IS NULL`, [ctx.institutionId]],
     },
   },
+  'secretary/enrollment-averages/index.html': {
+    roles: ['SECRETARIO'],
+    query: (ctx) => ({ enrollmentId: ctx.enrollmentId }),
+    rows: {
+      selector: 'tr[data-subject]',
+      sql: (ctx) => [`SELECT a.asignacion_docente_id FROM asignacion_docente a JOIN inscripcion i USING (curso_id)
+                       WHERE i.inscripcion_id = $1 AND a.fecha_eliminacion IS NULL`, [ctx.enrollmentId]],
+    },
+  },
 
   'teacher/assignments/index.html': {
     roles: ['PROFESOR'],
