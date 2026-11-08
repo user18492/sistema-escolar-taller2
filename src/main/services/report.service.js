@@ -90,4 +90,34 @@ async function getSubjectCoverage(currentUser, filters) {
   return { schoolYear, courses: onlyIncomplete ? courses.filter(isIncomplete) : courses };
 }
 
-module.exports = { getSubjectCoverage, ReportError };
+// ---------- Reporte 2: Carga docente por profesor ----------
+
+// Por cada profesor de la institución que no está dado de baja (activo o suspendido, también sin
+// asignaciones), sus asignaciones vigentes de cursos vigentes del ciclo lectivo `filters.schoolYear`
+// (con su Nivel y su Turno, si llegan): { id, firstName, lastName, suspended, assignmentCount,
+// courseCount }, con courseCount los cursos distintos, de más a menos asignaciones (y por apellido
+// y nombre). En un ciclo pasado lista a los profesores no dados de baja hoy (ver countByTeacher).
+// `average` es la media de assignmentCount de todos los profesores listados, incluidos los que
+// tienen 0, o null si no hay ninguno. Resuelve { schoolYear, average, teachers }.
+async function getTeacherWorkload(currentUser, filters) {
+  const { schoolYear, educationLevel, shift } = parseFilters(filters);
+  const rows = await teacherAssignmentRepository.countByTeacher(currentUser.institutionId, {
+    schoolYear,
+    educationLevel,
+    shift,
+  });
+  const teachers = rows.map((row) => ({
+    id: row.teacherId,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    suspended: row.suspended,
+    assignmentCount: row.assignmentCount,
+    courseCount: row.courseCount,
+  }));
+  const average = teachers.length
+    ? teachers.reduce((sum, teacher) => sum + teacher.assignmentCount, 0) / teachers.length
+    : null;
+  return { schoolYear, average, teachers };
+}
+
+module.exports = { getSubjectCoverage, getTeacherWorkload, ReportError };

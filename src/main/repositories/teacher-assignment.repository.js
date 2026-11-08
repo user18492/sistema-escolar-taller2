@@ -147,6 +147,45 @@ const FIND_SUBJECT_COVERAGE_SQL = `
    ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id
 `;
 
+// Reporte Carga docente por profesor: los profesores (rol PROFESOR) de la institución ($1) que no
+// están dados de baja, activos y suspendidos, con sus asignaciones vigentes de cursos vigentes del
+// ciclo lectivo $2, de un nivel educativo ($3) y de un turno ($4), con los valores de la base
+// (NULL = todos). Las condiciones de la asignación y de su curso van en el LEFT JOIN, no en el
+// WHERE, para conservar a los profesores que no tienen ninguna (cuentan 0). No hace falta mirar la
+// institución del curso: las asignaciones vigentes de un usuario son de cursos de su institución
+// (trg_asignacion_docente_coherencia, db/schema.sql).
+//   - assignment_count: las asignaciones; course_count: los cursos distintos (dos materias del
+//     mismo curso son 2 asignaciones en 1 curso).
+// Limitación en un ciclo pasado: lista a los profesores no dados de baja hoy. usuario no guarda la
+// fecha de alta, así que puede aparecer con 0 uno que entró después de ese ciclo, y no aparece uno
+// dado de baja después, aunque haya tenido asignaciones en él.
+// El orden es total: de más a menos asignaciones y, con la misma cantidad, por apellido y nombre;
+// usuario_id desempata entre dos que se llaman igual.
+const COUNT_BY_TEACHER_SQL = `
+  SELECT u.usuario_id,
+         u.nombre,
+         u.apellido,
+         u.estado,
+         COUNT(a.asignacion_docente_id)::INT AS assignment_count,
+         COUNT(DISTINCT a.curso_id)::INT AS course_count
+    FROM usuario u
+    JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
+    LEFT JOIN (asignacion_docente a
+               JOIN curso c ON c.curso_id = a.curso_id
+               JOIN grado g ON g.grado_id = c.grado_id)
+           ON a.usuario_id = u.usuario_id
+          AND a.fecha_eliminacion IS NULL
+          AND c.fecha_eliminacion IS NULL
+          AND c.anio_ciclo_lectivo = $2
+          AND ($3::VARCHAR IS NULL OR g.nivel_educativo = $3)
+          AND ($4::VARCHAR IS NULL OR c.turno = $4)
+   WHERE u.institucion_id = $1
+     AND r.nombre = 'PROFESOR'
+     AND u.fecha_eliminacion IS NULL
+   GROUP BY u.usuario_id
+   ORDER BY assignment_count DESC, u.apellido, u.nombre, u.usuario_id
+`;
+
 // Una asignación vigente de un curso de la institución (la del curso: la asignación no la guarda),
 // con su profesor, su curso y su materia.
 const FIND_ACTIVE_BY_ID_SQL = `${selectFrom('asignacion_docente')}
@@ -344,6 +383,29 @@ async function findSubjectCoverage(institutionId, { schoolYear, educationLevel, 
   }));
 }
 
+// Carga docente de los profesores no dados de baja de la institución (activos y suspendidos, también
+// sin asignaciones) en el ciclo lectivo `schoolYear` (un año), con `educationLevel` (uno de
+// EDUCATION_LEVELS de grade.repository.js) y `shift` (uno de SHIFTS de course.repository.js) o null
+// para todos. Por profesor, de más a menos asignaciones: { teacherId, firstName, lastName,
+// suspended, assignmentCount, courseCount } (ver COUNT_BY_TEACHER_SQL, también su limitación en
+// los ciclos pasados).
+async function countByTeacher(institutionId, { schoolYear, educationLevel, shift }) {
+  const { rows } = await query(COUNT_BY_TEACHER_SQL, [
+    institutionId,
+    schoolYear,
+    educationLevel ? COLUMN_VALUE_BY_EDUCATION_LEVEL[educationLevel] : null,
+    shift ? COLUMN_VALUE_BY_SHIFT[shift] : null,
+  ]);
+  return rows.map((row) => ({
+    teacherId: row.usuario_id,
+    firstName: row.nombre,
+    lastName: row.apellido,
+    suspended: !row.estado,
+    assignmentCount: row.assignment_count,
+    courseCount: row.course_count,
+  }));
+}
+
 // La asignación vigente con ese id, si es de un curso de la institución; null si no existe en ella
 // o fue dada de baja.
 async function findActiveById(teacherAssignmentId, institutionId) {
@@ -441,6 +503,7 @@ module.exports = {
   findByCourse,
   countByInstitution,
   findSubjectCoverage,
+  countByTeacher,
   findActiveById,
   findActiveByIdAndTeacher,
   create,

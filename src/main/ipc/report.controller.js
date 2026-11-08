@@ -36,6 +36,8 @@ function reportAction(getReport, errorLabel) {
 function registerReportHandlers(browserWindow) {
   handleProtected(browserWindow, 'reports:get-subject-coverage', ['ADMIN'],
     reportAction((currentUser, filters) => reportService.getSubjectCoverage(currentUser, filters), 'Materias sin docente por curso'));
+  handleProtected(browserWindow, 'reports:get-teacher-workload', ['ADMIN'],
+    reportAction((currentUser, filters) => reportService.getTeacherWorkload(currentUser, filters), 'Carga docente por profesor'));
 }
 
 module.exports = { registerReportHandlers };

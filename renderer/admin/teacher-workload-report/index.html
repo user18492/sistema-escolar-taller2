@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
+    <link rel="stylesheet" href="../../shared/styles/chart.css" />
     <link rel="stylesheet" href="./teacher-workload-report.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -20,6 +21,8 @@
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/school-year.js"></script>
     <script src="./teacher-workload-report.js" defer></script>
   </head>
   <body>
@@ -80,6 +83,47 @@
               </div>
             </div>
           </div>
+
+          <!-- Gráfico de barras horizontales (chart.css): una fila por profesor -->
+          <section class="card chart-card workload-card" aria-labelledby="workloadTitle">
+            <div class="chart-header">
+              <div>
+                <h2 id="workloadTitle">Asignaciones por profesor</h2>
+                <p>Asignaciones vigentes de cada profesor en los cursos del ciclo lectivo, de mayor a menor.</p>
+              </div>
+            </div>
+
+            <p class="workload-message" role="status">Cargando reporte…</p>
+
+            <!-- teacher-workload-report.js completa la escala, la línea del promedio y las filas -->
+            <div class="workload-chart" hidden>
+              <div class="workload-average-row" aria-hidden="true">
+                <span class="workload-average-label"></span>
+              </div>
+              <div class="workload-plot">
+                <div class="workload-gridlines" aria-hidden="true"></div>
+                <ol class="workload-rows chart-hbars" aria-label="Asignaciones por profesor"></ol>
+                <div class="workload-average" aria-hidden="true">
+                  <span class="workload-average-line"></span>
+                </div>
+              </div>
+              <div class="workload-ticks" aria-hidden="true"></div>
+            </div>
+
+            <div class="chart-legend" hidden>
+              <span class="legend-item"><span class="legend-dot legend-dot-active"></span>Activo</span>
+              <span class="legend-item"><span class="legend-dot legend-dot-suspended"></span>Suspendido</span>
+            </div>
+
+            <!-- Plantilla: teacher-workload-report.js la completa con una fila por profesor del reporte -->
+            <template id="workloadRowTemplate">
+              <li class="workload-row">
+                <span class="workload-name text-truncate"></span>
+                <span class="workload-track" aria-hidden="true"><span class="workload-bar chart-hbar"></span></span>
+                <span class="workload-count"></span>
+              </li>
+            </template>
+          </section>
         </main>
       </div>
     </div>

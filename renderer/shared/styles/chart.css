@@ -4,7 +4,10 @@
    (.chart-bars > .chart-col > .chart-bar-group > .chart-bar) y sus etiquetas (.chart-labels). Debajo,
    la leyenda (.chart-legend). El alto de cada barra y su color los define la vista.
    Animación de entrada: las barras crecen desde la base al agregar .is-loaded a .chart-bars; con
-   .is-resetting vuelven a cero sin transición, para repetirla. Se omite con prefers-reduced-motion. */
+   .is-resetting vuelven a cero sin transición, para repetirla. Se omite con prefers-reduced-motion.
+   Barras horizontales: una lista .chart-hbars con una barra .chart-hbar por fila, que crece desde
+   la izquierda con las mismas clases; la disposición de las filas, el ancho y el color los define
+   la vista. */
 
 /* ---------- Card y encabezado ---------- */
 
@@ -196,8 +199,27 @@
   transition: none;
 }
 
+/* ---------- Barras horizontales ---------- */
+
+.chart-hbar {
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.chart-hbars.is-loaded .chart-hbar {
+  transform: scaleX(1);
+}
+
+.chart-hbars.is-resetting .chart-hbar {
+  transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .chart-bar {
+  .chart-bar,
+  .chart-hbar {
     transition: none;
   }
 }
