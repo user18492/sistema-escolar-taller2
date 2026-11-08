@@ -164,13 +164,19 @@ async function listEnrollments(currentUser, filters, page, pageSize, enrollmentI
 }
 
 // Opciones de los filtros Número de inscripción y Alumno de la tabla de Inscripciones del
-// Secretario: todas las inscripciones que lista listEnrollments sin filtros (las vigentes de la
-// institución de `currentUser`, sin las de alumnos dados de baja) y sus alumnos, una vez cada uno.
-// Las dos listas siguen el orden del listado (por alumno).
+// Secretario, que muestra un ciclo lectivo por vez: las inscripciones que lista listEnrollments
+// filtrando solo por el año `schoolYear` de la fecha de inscripción, que es el ciclo lectivo del
+// curso (las vigentes de la institución de `currentUser` de ese ciclo, sin las de alumnos dados de
+// baja), y sus alumnos, una vez cada uno. Las dos listas siguen el orden del listado (por alumno).
 // Devuelve { enrollments, students }: enrollments con { id, number, student } (student con nombre y
 // apellido) y students con { id, firstName, lastName, email }.
-async function listEnrollmentFilterOptions(currentUser) {
-  const enrollments = await enrollmentRepository.findNotDeletedByInstitution(currentUser.institutionId);
+// Lanza el EnrollmentError INVALID_INPUT si el año no está en el rango del filtro de año
+// (DATE_PART_RANGES).
+async function listEnrollmentFilterOptions(currentUser, schoolYear) {
+  if (schoolYear === null || !isValidDatePart('year', schoolYear)) {
+    throw new EnrollmentError('INVALID_INPUT', 'El ciclo lectivo enviado no es válido.');
+  }
+  const enrollments = await enrollmentRepository.findNotDeletedByInstitutionAndYear(currentUser.institutionId, schoolYear);
   // Un Map conserva el orden de la primera inscripción de cada alumno, que es el del listado
   const students = new Map(enrollments.map(({ student }) => [student.id, student]));
   return {

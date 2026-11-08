@@ -16,6 +16,14 @@
 // Para dejar el filtro sin nada elegido (p. ej., al cambiar de pestaña), la vista emite
 // column-filter-reset sobre el <th class="column-filter">: hace lo mismo que "Limpiar filtro", pero
 // sin cerrar el panel ni emitir column-filter-change.
+// Para reemplazar todas las opciones de una lista que sale de los registros cargados (p. ej., al
+// cambiar el ciclo lectivo que muestra la tabla, school-year.js), la vista usa
+// replaceColumnFilterOptions(root, options, selectedValues): `root` es el <th class="column-filter">,
+// `options` las nuevas .dropdown-option (con data-value) y `selectedValues`, los data-value que la
+// vista tenía elegidos. Quedan marcadas las que siguen entre las nuevas; las demás dejan de filtrar.
+// La opción "Todos" (data-value vacío) y .dropdown-empty se conservan en su lugar, y el embudo se
+// actualiza. Devuelve los data-value que siguen marcados, para que la vista actualice su filtro; no
+// emite column-filter-change.
 // El panel se promueve al top layer del navegador con la API de popover, así que la lista
 // deja de estar recortada por el desplazamiento de la tabla; su posición y su alto máximo
 // se calculan sobre el botón del encabezado, y se abre hacia arriba si abajo no cabe.
@@ -321,6 +329,21 @@
 
     refreshState();
   }
+
+  window.replaceColumnFilterOptions = (root, options, selectedValues) => {
+    const list = root.querySelector('[role="listbox"]');
+    const allOption = list.querySelector('.dropdown-option[data-value=""]');
+    const emptyState = list.querySelector('.dropdown-empty');
+    list.replaceChildren(...[allOption, ...options, emptyState].filter(Boolean));
+    const kept = options.map((option) => option.dataset.value).filter((value) => selectedValues.includes(value));
+    options.forEach((option) => {
+      const isSelected = kept.includes(option.dataset.value);
+      option.classList.toggle('selected', isSelected);
+      option.setAttribute('aria-selected', String(isSelected));
+    });
+    root.dispatchEvent(new Event('column-filter-refresh'));
+    return kept;
+  };
 
   const setupAll = () => document.querySelectorAll('.column-filter').forEach(setupColumnFilter);
 

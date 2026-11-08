@@ -1,7 +1,8 @@
-// Vista Cursos del Administrador: la tabla muestra los cursos vigentes de la institución, de todos
-// los ciclos lectivos, que llegan del proceso principal (window.api.courses.list), y los filtros de
-// columna los filtran en memoria. La lista filtrada se pagina en memoria, 10 por página, con
-// <table-pagination>.
+// Vista Cursos del Administrador: la tabla muestra los cursos vigentes de la institución, que llegan
+// del proceso principal (window.api.courses.list) de todos los ciclos lectivos, y los filtros de
+// columna los filtran en memoria. Muestra un solo ciclo (shownSchoolYear, school-year.js): por
+// defecto el actual, con el filtro Ciclo lectivo sin aplicar, o el año elegido en ese filtro. La
+// lista filtrada se pagina en memoria, 10 por página, con <table-pagination>.
 // Nuevo curso lo crea para el ciclo lectivo del año en curso (window.api.courses.create), con los
 // grados del catálogo (window.api.grades.list); Editar guarda el grado, la división y el turno de un
 // curso, que conserva su ciclo lectivo (window.api.courses.update), y Eliminar lo da de baja (baja
@@ -51,7 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const gradeKey = (level, name) => `${level}:${name}`;
 
   // Lo que filtra cada columna, por su data-filter: los grados marcados, la división escrita, el
-  // turno elegido y el año completo. Vacío (nada marcado, "Todos" o sin texto) no filtra.
+  // turno elegido y el año completo. Vacío (nada marcado, "Todos" o sin texto) no filtra, salvo el
+  // año, que vacío muestra el ciclo actual.
   const activeFilters = { grade: [], division: '', shift: [], year: '' };
 
   // Valor de cada filtro después de un cambio: el de Grado lo da su componente y los demás llegan
@@ -64,17 +66,25 @@ document.addEventListener('DOMContentLoaded', () => {
     year: ({ text }) => text,
   };
 
-  // Si el curso pasa el filtro de la columna con ese valor, que no está vacío
+  // Si el curso pasa el filtro de la columna con ese valor, que no está vacío (el del año, también
+  // vacío: entonces es el del ciclo actual)
   const FILTER_MATCHERS = {
     grade: (course, grades) => grades.includes(gradeKey(course.educationLevel, course.gradeName)),
     division: (course, division) => course.division === division,
     shift: (course, shifts) => shifts.includes(course.shift),
-    year: (course, year) => String(course.schoolYear) === year,
+    year: (course, year) => course.schoolYear === shownSchoolYear(year, currentSchoolYear),
   };
 
-  // Entre columnas se combinan con Y; un filtro vacío no descarta nada
+  // Entre columnas se combinan con Y; un filtro vacío no descarta nada, salvo el año, que siempre
+  // deja solo los cursos del ciclo que se muestra
   const matchesFilters = (course) =>
-    Object.entries(activeFilters).every(([filter, value]) => value.length === 0 || FILTER_MATCHERS[filter](course, value));
+    Object.entries(activeFilters).every(([filter, value]) =>
+      (value.length === 0 && filter !== 'year') || FILTER_MATCHERS[filter](course, value));
+
+  // Sin resultados: si no hay ningún filtro aplicado, el ciclo actual no tiene cursos
+  const emptyMessage = () => (Object.values(activeFilters).some((value) => value.length > 0)
+    ? 'Ningún curso coincide con los filtros.'
+    : `No hay cursos del ciclo lectivo ${currentSchoolYear.year}.`);
 
   // Cargando, error o sin resultados, en una única fila de todo el ancho
   const showMessage = (message) => {
@@ -126,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const visibleCourses = courses.filter(matchesFilters);
     const pageCourses = pagination.slice(visibleCourses, { page });
     if (pageCourses.length) tbody.replaceChildren(...pageCourses.map(createRow));
-    else showMessage(courses.length ? 'Ningún curso coincide con los filtros.' : 'No hay cursos registrados.');
+    else showMessage(emptyMessage());
   };
 
   // Pide la lista junto con el ciclo lectivo actual, que dice qué cursos son de solo lectura: si no

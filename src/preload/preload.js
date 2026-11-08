@@ -328,12 +328,14 @@ contextBridge.exposeInMainWorld('api', {
     // INVALID_INPUT indica filtros, página o enrollmentId inválidos.
     list: (filters, page, pageSize, enrollmentId = null) =>
       ipcRenderer.invoke('enrollments:list', filters, page, pageSize, enrollmentId),
-    // Solo SECRETARIO. Las opciones de los filtros Número de inscripción y Alumno: resuelve
-    // { ok: true, enrollments, students } con todas las inscripciones que lista list sin filtros,
-    // también sin las de alumnos dados de baja ({ id, number, student }, con number como en list y
-    // student { firstName, lastName }), y sus alumnos, una vez cada uno ({ id, firstName, lastName,
-    // email }), las dos listas en el orden de list, o { ok: false, error: { code, message } }.
-    listFilterOptions: () => ipcRenderer.invoke('enrollments:list-filter-options'),
+    // Solo SECRETARIO. Las opciones de los filtros Número de inscripción y Alumno, las del ciclo
+    // lectivo que muestra la tabla: resuelve { ok: true, enrollments, students } con las
+    // inscripciones que lista list filtrando solo por el año `schoolYear` (un entero de 0 a 9999) de
+    // la fecha de inscripción, que es el ciclo lectivo del curso, también sin las de alumnos dados de
+    // baja ({ id, number, student }, con number como en list y student { firstName, lastName }), y
+    // sus alumnos, una vez cada uno ({ id, firstName, lastName, email }), las dos listas en el orden
+    // de list, o { ok: false, error: { code, message } }: INVALID_INPUT indica un año inválido.
+    listFilterOptions: (schoolYear) => ipcRenderer.invoke('enrollments:list-filter-options', schoolYear),
     // Solo SECRETARIO. Lo que ofrece el formulario de alta en Alumno: resuelve { ok: true, students }
     // con los alumnos vigentes y activos de su institución que no tienen una inscripción vigente y
     // activa (sin los dados de baja, los egresados ni los ya inscriptos: un alumno solo puede tener

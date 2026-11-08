@@ -7,6 +7,15 @@
 //     today la fecha del día ('AAAA-MM-DD'), o null si no se pudo obtener.
 //   - closedSchoolYearTitle(year): el texto que explica por qué lo de ese ciclo, cerrado, no se
 //     edita ni se elimina; el mismo mensaje de SCHOOL_YEAR_CLOSED.
+// Las tablas de registros que pertenecen a un ciclo lectivo (Cursos y Docencia del Administrador,
+// Asignaciones del Profesor e Inscripciones del Secretario) muestran siempre un solo ciclo: por
+// defecto el actual, con su filtro de año sin aplicar (vacío); al elegir un año en ese filtro, ese
+// ciclo, y "Limpiar filtro" vuelve al actual. El total, la paginación y las opciones de los filtros
+// que salen de los registros listados se calculan sobre ese ciclo.
+//   - shownSchoolYear(chosenYear, currentSchoolYear): el año del ciclo que muestra la tabla. Con
+//     `chosenYear`, el año que filtra el campo de año (AAAA, como texto o número), ese; sin él ('' o
+//     null: vacío o incompleto), el de `currentSchoolYear` ({ year, today }, de
+//     loadCurrentSchoolYear).
 
 (() => {
   window.loadCurrentSchoolYear = async () => {
@@ -20,4 +29,7 @@
   };
 
   window.closedSchoolYearTitle = (year) => `El ciclo lectivo ${year} está cerrado: sus datos son de solo lectura.`;
+
+  window.shownSchoolYear = (chosenYear, currentSchoolYear) =>
+    (chosenYear === null || chosenYear === undefined || chosenYear === '' ? currentSchoolYear.year : Number(chosenYear));
 })();

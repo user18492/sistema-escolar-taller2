@@ -135,10 +135,12 @@ const FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL = `
    LIMIT $12 OFFSET $13
 `;
 
-// Todas las inscripciones vigentes de alumnos vigentes de la institución, sin filtros, con los datos
-// de su alumno que necesitan las opciones de los filtros Número de inscripción y Alumno. Mismas
-// inscripciones y mismo orden que FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL sin filtros.
-const FIND_NOT_DELETED_BY_INSTITUTION_SQL = `
+// Las inscripciones vigentes de alumnos vigentes de la institución $1 inscriptas en el año $2, con
+// los datos de su alumno que necesitan las opciones de los filtros Número de inscripción y Alumno.
+// Mismas inscripciones y mismo orden que FIND_FILTERED_NOT_DELETED_BY_INSTITUTION_SQL filtrando
+// solo por ese año de la fecha de inscripción, que es el ciclo lectivo del curso
+// (ck_inscripcion_fecha_ciclo_lectivo en db/schema.sql).
+const FIND_NOT_DELETED_BY_INSTITUTION_AND_YEAR_SQL = `
   SELECT i.inscripcion_id,
          al.alumno_id,
          al.nombre,
@@ -150,6 +152,7 @@ const FIND_NOT_DELETED_BY_INSTITUTION_SQL = `
    WHERE c.institucion_id = $1
      AND i.fecha_eliminacion IS NULL
      AND al.fecha_eliminacion IS NULL
+     AND EXTRACT(YEAR FROM i.fecha_inscripcion) = $2::INT
    ORDER BY al.apellido, al.nombre, al.alumno_id, i.inscripcion_id
 `;
 
@@ -521,11 +524,11 @@ async function findPositionNotDeletedByInstitution(institutionId, filters, enrol
   return rows.length > 0 ? rows[0].preceding_count : null;
 }
 
-// Todas las inscripciones vigentes de alumnos vigentes de la institución, sin filtrar, ordenadas
-// como findPageNotDeletedByInstitution. Cada una trae solo su id y su alumno (id, nombre, apellido y
-// email).
-async function findNotDeletedByInstitution(institutionId) {
-  const { rows } = await query(FIND_NOT_DELETED_BY_INSTITUTION_SQL, [institutionId]);
+// Las inscripciones vigentes de alumnos vigentes de la institución inscriptas en el año `year` (el
+// del ciclo lectivo de su curso), ordenadas como findPageNotDeletedByInstitution. Cada una trae solo
+// su id y su alumno (id, nombre, apellido y email).
+async function findNotDeletedByInstitutionAndYear(institutionId, year) {
+  const { rows } = await query(FIND_NOT_DELETED_BY_INSTITUTION_AND_YEAR_SQL, [institutionId, year]);
   return rows.map((row) => new Enrollment({
     id: row.inscripcion_id,
     student: new Student({
@@ -680,7 +683,7 @@ module.exports = {
   countNotDeletedByInstitution,
   findPageNotDeletedByInstitution,
   findPositionNotDeletedByInstitution,
-  findNotDeletedByInstitution,
+  findNotDeletedByInstitutionAndYear,
   create,
   findById,
   updateStatus,

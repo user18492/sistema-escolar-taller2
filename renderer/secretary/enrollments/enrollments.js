@@ -1,10 +1,13 @@
 // Vista Inscripciones del Secretario: la tabla muestra las inscripciones vigentes (sin baja lógica)
-// de la institución, de todos los ciclos lectivos y en cualquier estado, sin las de alumnos dados de
-// baja, que llegan del proceso principal de a una página (window.api.enrollments.list). Los filtros
-// de columna y la paginación se resuelven allá, sobre todas las inscripciones: la vista envía los
-// filtros activos y la página, y recibe sus filas y el total que pasa los filtros, 10 por página,
-// con <table-pagination>. Las opciones de los filtros Número de inscripción y Alumno son las mismas
-// inscripciones y sus alumnos (window.api.enrollments.listFilterOptions).
+// de la institución, en cualquier estado, sin las de alumnos dados de baja, que llegan del proceso
+// principal de a una página (window.api.enrollments.list). Los filtros de columna y la paginación se
+// resuelven allá: la vista envía los filtros activos y la página, y recibe sus filas y el total que
+// pasa los filtros, 10 por página, con <table-pagination>. Muestra un solo ciclo lectivo
+// (shownSchoolYear, school-year.js), por el año de la fecha de inscripción, que es el ciclo del
+// curso: por defecto el actual, con el año del filtro Fecha de inscripción vacío (sin aplicar), o el
+// año escrito en ese filtro. Las opciones de los filtros Número de inscripción y Alumno son las
+// inscripciones de ese ciclo y sus alumnos (window.api.enrollments.listFilterOptions), y se vuelven a
+// pedir al cambiarlo.
 // Nueva inscripción la crea (window.api.enrollments.create), siempre activa y con la fecha del día:
 // el formulario ofrece los alumnos vigentes y activos de la institución sin una inscripción activa y
 // sus cursos vigentes del ciclo lectivo actual, los del nivel educativo elegido
@@ -82,7 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // los alumnos elegidos (por su id); del curso, los grados marcados, las divisiones escritas y los
   // turnos activos, y los estados marcados. Vacío (nada elegido, "Todos" o sin texto) no filtra.
   // De la fecha de inscripción, el día, el mes y el año escritos, cada uno por separado: null si su
-  // campo está vacío o incompleto.
+  // campo está vacío o incompleto. El año null no deja de filtrar: muestra el ciclo actual
+  // (listFilters).
   const NO_DATE = { day: null, month: null, year: null };
   const activeFilters = {
     enrollmentIds: [],
@@ -116,6 +120,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const hasActiveFilters = () =>
     Object.entries(activeFilters).some(([filter, value]) =>
       (filter === 'enrollmentDate' ? Object.values(value).some((part) => part !== null) : value.length > 0));
+
+  // Los filtros que se envían al proceso principal: los activos, con el año del ciclo que se muestra
+  // (el escrito o, sin él, el de `schoolYear`, el ciclo actual)
+  const listFilters = (schoolYear) => ({
+    ...activeFilters,
+    enrollmentDate: { ...activeFilters.enrollmentDate, year: shownSchoolYear(activeFilters.enrollmentDate.year, schoolYear) },
+  });
 
   // Cargando, error o sin resultados, en una única fila de todo el ancho
   const showMessage = (message) => {
@@ -180,49 +191,56 @@ document.addEventListener('DOMContentLoaded', () => {
     return option;
   };
 
-  // Opciones del filtro de `header`, antes de .dropdown-empty; column-filter.js las lee al usarlas.
-  // `filter` es lo que filtra esa columna en activeFilters: al volver a llenarlas (después de un
-  // alta o una baja), las elegidas siguen marcadas y, si alguna ya no llega (se dio de baja la
-  // inscripción, u otra sesión dio de baja al alumno), deja de filtrar. El embudo se actualiza.
+  // Opciones del filtro de `header`, antes de .dropdown-empty (replaceColumnFilterOptions,
+  // column-filter.js). `filter` es lo que filtra esa columna en activeFilters: al volver a llenarlas
+  // (al cambiar de ciclo, o después de un alta o una baja), las elegidas siguen marcadas y, si alguna
+  // ya no llega (es de otro ciclo, se dio de baja la inscripción u otra sesión dio de baja al
+  // alumno), deja de filtrar. El embudo se actualiza.
   const fillOptions = (header, filter, options) => {
-    const list = header.querySelector('[role="listbox"]');
-    const emptyState = list.querySelector('.dropdown-empty');
-    emptyState.textContent = NO_RESULTS_TEXT;
-    list.replaceChildren(...options, emptyState);
-    const values = options.map((option) => Number(option.dataset.value));
-    activeFilters[filter] = activeFilters[filter].filter((value) => values.includes(value));
-    options.forEach((option) => {
-      const isSelected = activeFilters[filter].includes(Number(option.dataset.value));
-      option.classList.toggle('selected', isSelected);
-      option.setAttribute('aria-selected', String(isSelected));
-    });
-    header.dispatchEvent(new Event('column-filter-refresh'));
+    header.querySelector('.dropdown-empty').textContent = NO_RESULTS_TEXT;
+    activeFilters[filter] = replaceColumnFilterOptions(header, options, activeFilters[filter].map(String)).map(Number);
   };
 
-  // Las opciones de los filtros llegaron alguna vez: si no llegan al volver a pedirlas, se
-  // conservan las que había
-  let hasFilterOptions = false;
+  // El año del ciclo cuyas opciones muestran los filtros Número de inscripción y Alumno: null si
+  // todavía no llegaron o si no llegaron las del último ciclo pedido
+  let optionsYear = null;
+  // Cambia con cada pedido de opciones: descarta la respuesta de uno anterior que llegue tarde, con
+  // otro ciclo
+  let optionsRequestId = 0;
 
   // Pide las opciones de Número de inscripción (el número, con el alumno debajo) y de Alumno (el
-  // alumno, con su email debajo): todas las inscripciones que lista la tabla sin filtros y sus
-  // alumnos, no solo los de la página a la vista. Se vuelven a pedir después de un alta, para sumar
-  // la inscripción nueva y su alumno, y después de una baja, para quitarlos. Si no llegan la primera
-  // vez, las dos listas quedan vacías con el motivo.
+  // alumno, con su email debajo): las inscripciones del ciclo que muestra la tabla (sin los demás
+  // filtros) y sus alumnos, no solo los de la página a la vista. Se vuelven a pedir al cambiar de
+  // ciclo, después de un alta, para sumar la inscripción nueva y su alumno, y después de una baja,
+  // para quitarlos. Si no llegan, se conservan las que había si son de ese mismo ciclo; si no, las
+  // dos listas quedan vacías con el motivo y lo elegido en ellas deja de filtrar, para que la tabla
+  // no quede filtrada por inscripciones o alumnos de otro ciclo.
   async function loadFilterOptions() {
+    optionsRequestId += 1;
+    const requestId = optionsRequestId;
     let response;
+    let year = null;
     try {
-      response = await window.api?.enrollments?.listFilterOptions();
+      const schoolYear = await loadCurrentSchoolYear();
+      if (schoolYear) {
+        year = shownSchoolYear(activeFilters.enrollmentDate.year, schoolYear);
+        response = await window.api?.enrollments?.listFilterOptions(year);
+      }
     } catch (error) {
       console.error('Error al cargar las opciones de los filtros:', error);
     }
+    if (requestId !== optionsRequestId) return;
     if (!response?.ok) {
-      if (hasFilterOptions) return;
+      if (optionsYear !== null && optionsYear === year) return;
+      optionsYear = null;
+      fillOptions(numberHeader, 'enrollmentIds', []);
+      fillOptions(studentHeader, 'studentIds', []);
       [numberHeader, studentHeader].forEach((header) => {
         header.querySelector('.dropdown-empty').textContent = OPTIONS_LOAD_ERROR;
       });
       return;
     }
-    hasFilterOptions = true;
+    optionsYear = year;
     fillOptions(numberHeader, 'enrollmentIds', response.enrollments.map((enrollment) =>
       createOption(enrollment.id, enrollment.number, fullName(enrollment.student))));
     fillOptions(studentHeader, 'studentIds', response.students.map((student) =>
@@ -239,10 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // de página. Mientras se espera, la tabla conserva sus filas; si no tenía (al cargar la vista,
   // después de un error o sin resultados), muestra que está cargando.
   // Con `enrollmentId` (una inscripción recién creada), el proceso principal devuelve en cambio la
-  // página donde quedó, si pasa los filtros. Junto con la página se pide el ciclo lectivo actual, que
-  // dice qué inscripciones son de solo lectura: si no llega alguno de los dos, la tabla muestra el
-  // error. Devuelve las inscripciones que quedaron en la tabla, o null si no llegaron o si un pedido
-  // posterior reemplazó a este.
+  // página donde quedó, si pasa los filtros. Antes de la página se pide el ciclo lectivo actual, el
+  // que se muestra sin un año escrito y el que dice qué inscripciones son de solo lectura: si no
+  // llega alguno de los dos, la tabla muestra el error. Devuelve las inscripciones que quedaron en la
+  // tabla, o null si no llegaron o si un pedido posterior reemplazó a este.
   async function loadEnrollments(page, enrollmentId = null) {
     listRequestId += 1;
     const requestId = listRequestId;
@@ -251,10 +269,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let response;
     let schoolYear = null;
     try {
-      [response, schoolYear] = await Promise.all([
-        window.api?.enrollments?.list(activeFilters, page, pagination.pageSize, enrollmentId),
-        loadCurrentSchoolYear(),
-      ]);
+      schoolYear = await loadCurrentSchoolYear();
+      if (schoolYear) {
+        response = await window.api?.enrollments?.list(listFilters(schoolYear), page, pagination.pageSize, enrollmentId);
+      }
     } catch (error) {
       console.error('Error al cargar las inscripciones:', error);
     }
@@ -267,19 +285,23 @@ document.addEventListener('DOMContentLoaded', () => {
     currentSchoolYear = schoolYear;
     pagination.update({ total: response.total, page: response.page });
     if (response.enrollments.length) tbody.replaceChildren(...response.enrollments.map(createRow));
-    else showMessage(hasActiveFilters() ? 'Ninguna inscripción coincide con los filtros.' : 'No hay inscripciones registradas.');
+    else showMessage(hasActiveFilters() ? 'Ninguna inscripción coincide con los filtros.' : `No hay inscripciones del ciclo lectivo ${schoolYear.year}.`);
     return response.enrollments;
   }
 
   // Cada filtro de columna avisa sus cambios (column-filter.js). Si lo que filtra no cambió (Curso
   // avisa cada clic dentro de su panel, y Fecha de inscripción, cada tecla, aunque un día, un mes o
   // un año incompleto todavía no filtre), la tabla y la página quedan como están; si cambió, se
-  // vuelven a pedir las inscripciones desde la página 1.
-  table.tHead.addEventListener('column-filter-change', (event) => {
+  // vuelven a pedir las inscripciones desde la página 1. Si cambió el ciclo (otro año escrito, o el
+  // actual al borrarlo o con "Limpiar filtro"), antes se piden sus opciones de Número de inscripción
+  // y Alumno: así lo elegido que no es de ese ciclo deja de filtrar antes de pedir la página.
+  table.tHead.addEventListener('column-filter-change', async (event) => {
     const values = FILTER_VALUES[event.target.dataset.filter](event.detail);
     const hasChanged = Object.entries(values).some(([filter, value]) => JSON.stringify(value) !== JSON.stringify(activeFilters[filter]));
     if (!hasChanged) return;
+    const previousYear = activeFilters.enrollmentDate.year;
     Object.assign(activeFilters, values);
+    if (activeFilters.enrollmentDate.year !== previousYear) await loadFilterOptions();
     loadEnrollments(1);
   });
 

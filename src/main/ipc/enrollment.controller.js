@@ -101,11 +101,20 @@ async function listEnrollments(currentUser, filters, page, pageSize, enrollmentI
   }
 }
 
-// Nunca rechaza: si la consulta falla, devuelve un mensaje genérico con el detalle en la consola.
-async function listEnrollmentFilterOptions(currentUser) {
+// `schoolYear` es el año del ciclo lectivo cuyas inscripciones se ofrecen (un entero); que esté en
+// rango lo comprueba el servicio.
+// Nunca rechaza: los errores previstos (un año fuera de rango) llevan su mensaje y, si la consulta
+// falla, devuelve un mensaje genérico con el detalle en la consola.
+async function listEnrollmentFilterOptions(currentUser, schoolYear) {
+  if (!Number.isInteger(schoolYear)) {
+    return failure('INVALID_INPUT', 'Los datos enviados no son válidos.');
+  }
   try {
-    return { ok: true, ...(await enrollmentService.listEnrollmentFilterOptions(currentUser)) };
+    return { ok: true, ...(await enrollmentService.listEnrollmentFilterOptions(currentUser, schoolYear)) };
   } catch (error) {
+    if (error instanceof EnrollmentError) {
+      return failure(error.code, error.message);
+    }
     console.error('Error al listar las opciones de los filtros de inscripciones:', error);
     return failure('UNEXPECTED_ERROR', 'No se pudieron cargar las opciones de los filtros. Intentá nuevamente.');
   }

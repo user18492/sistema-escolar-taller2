@@ -1,8 +1,10 @@
 // Vista Docencia del Administrador: la tabla muestra las asignaciones docentes vigentes de la
-// institución, de todos los ciclos lectivos, que llegan del proceso principal
-// (window.api.teacherAssignments.list), y los filtros de columna las filtran en memoria. Las opciones
-// de los filtros Profesor y Materia son los profesores y las materias de esas asignaciones. La lista
-// filtrada se pagina en memoria, 10 por página, con <table-pagination>.
+// institución, que llegan del proceso principal (window.api.teacherAssignments.list) de todos los
+// ciclos lectivos, y los filtros de columna las filtran en memoria. Muestra un solo ciclo
+// (shownSchoolYear, school-year.js): por defecto el actual, con el filtro Ciclo lectivo sin aplicar,
+// o el año elegido en ese filtro. Las opciones de los filtros Profesor y Materia son los profesores
+// y las materias de las asignaciones de ese ciclo, y se rearman al cambiarlo. La lista filtrada se
+// pagina en memoria, 10 por página, con <table-pagination>.
 // La foto de perfil de cada profesor se muestra con fillAvatar (user-avatar.component.js).
 // Nueva asignación la crea (window.api.teacherAssignments.create) para un curso del ciclo lectivo
 // del año en curso: el formulario ofrece los profesores activos y los cursos vigentes de ese ciclo
@@ -75,7 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Lo que filtra cada dato de la asignación: el profesor elegido y las materias marcadas (por su
   // id), el año completo y, del curso, los grados marcados, las divisiones escritas y los turnos
-  // activos. Vacío (nada elegido, "Todas" o sin texto) no filtra.
+  // activos. Vacío (nada elegido, "Todas" o sin texto) no filtra, salvo el año, que vacío muestra el
+  // ciclo actual.
   const activeFilters = { teacher: [], grade: [], division: [], shift: [], subject: [], year: '' };
 
   // Valores de activeFilters que fija cada columna, por su data-filter, después de un cambio: los
@@ -91,20 +94,27 @@ document.addEventListener('DOMContentLoaded', () => {
     year: ({ text }) => ({ year: text }),
   };
 
-  // Si la asignación pasa cada filtro con ese valor, que no está vacío. Con los dos turnos activos
-  // pasan todas, igual que sin ninguno.
+  // Si la asignación pasa cada filtro con ese valor, que no está vacío (el del año, también vacío:
+  // entonces es el del ciclo actual). Con los dos turnos activos pasan todas, igual que sin ninguno.
   const FILTER_MATCHERS = {
     teacher: ({ teacher }, ids) => ids.includes(String(teacher.id)),
     grade: ({ course }, grades) => grades.includes(gradeKey(course.educationLevel, course.gradeName)),
     division: ({ course }, divisions) => divisions.includes(course.division),
     shift: ({ course }, shifts) => shifts.includes(course.shift),
     subject: ({ subject }, ids) => ids.includes(String(subject.id)),
-    year: ({ course }, year) => String(course.schoolYear) === year,
+    year: ({ course }, year) => course.schoolYear === shownSchoolYear(year, currentSchoolYear),
   };
 
-  // Entre sí se combinan con Y; un filtro vacío no descarta nada
+  // Entre sí se combinan con Y; un filtro vacío no descarta nada, salvo el año, que siempre deja
+  // solo las asignaciones del ciclo que se muestra
   const matchesFilters = (assignment) =>
-    Object.entries(activeFilters).every(([filter, value]) => value.length === 0 || FILTER_MATCHERS[filter](assignment, value));
+    Object.entries(activeFilters).every(([filter, value]) =>
+      (value.length === 0 && filter !== 'year') || FILTER_MATCHERS[filter](assignment, value));
+
+  // Sin resultados: si no hay ningún filtro aplicado, el ciclo actual no tiene asignaciones
+  const emptyMessage = () => (Object.values(activeFilters).some((value) => value.length > 0)
+    ? 'Ninguna asignación coincide con los filtros.'
+    : `No hay asignaciones docentes del ciclo lectivo ${currentSchoolYear.year}.`);
 
   // Cargando, error o sin resultados, en una única fila de todo el ancho
   const showMessage = (message) => {
@@ -176,23 +186,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const compareSubjects = (a, b) => nameCollator.compare(a.name, b.name) || a.id - b.id;
 
   // Los profesores (por apellido y nombre) y las materias (por nombre) que tienen alguna asignación
-  // en la lista cargada: las opciones de sus filtros
-  const listedTeachers = () => uniqueById(assignments.map(({ teacher }) => teacher)).sort(compareTeachers);
-  const listedSubjects = () => uniqueById(assignments.map(({ subject }) => subject)).sort(compareSubjects);
+  // del ciclo que se muestra en la lista cargada: las opciones de sus filtros
+  const shownAssignments = () => assignments.filter((assignment) => FILTER_MATCHERS.year(assignment, activeFilters.year));
+  const listedTeachers = () => uniqueById(shownAssignments().map(({ teacher }) => teacher)).sort(compareTeachers);
+  const listedSubjects = () => uniqueById(shownAssignments().map(({ subject }) => subject)).sort(compareSubjects);
 
-  // Opciones de Profesor y de Materia. Las de Profesor van antes de .dropdown-empty y las de
-  // Materia, después de "Todas"; column-filter.js las lee al usarlas.
-  // Llegan sin marcar, así que esos dos filtros dejan de aplicarse y sus embudos se actualizan.
+  // Opciones de Profesor y de Materia (replaceColumnFilterOptions, column-filter.js): las de
+  // Profesor van antes de .dropdown-empty y las de Materia, después de "Todas". Se rearman al cargar
+  // la lista, al cambiar el ciclo que se muestra y después de crear, editar o eliminar: las elegidas
+  // que siguen siendo opciones quedan marcadas y las demás dejan de filtrar.
   const fillFilterOptions = () => {
-    const teacherList = teacherHeader.querySelector('[role="listbox"]');
-    teacherList.replaceChildren(...listedTeachers().map(createTeacherOption), teacherList.querySelector('.dropdown-empty'));
-
-    const subjectList = subjectHeader.querySelector('[role="listbox"]');
-    subjectList.replaceChildren(subjectList.querySelector('.dropdown-option[data-value=""]'), ...listedSubjects().map(createSubjectOption));
-
-    activeFilters.teacher = [];
-    activeFilters.subject = [];
-    [teacherHeader, subjectHeader].forEach((header) => header.dispatchEvent(new Event('column-filter-refresh')));
+    activeFilters.teacher = replaceColumnFilterOptions(teacherHeader, listedTeachers().map(createTeacherOption), activeFilters.teacher);
+    activeFilters.subject = replaceColumnFilterOptions(subjectHeader, listedSubjects().map(createSubjectOption), activeFilters.subject);
   };
 
   // Muestra la página `page` (por defecto, la actual) de las asignaciones que pasan los filtros (10
@@ -202,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const visibleAssignments = assignments.filter(matchesFilters);
     const pageAssignments = pagination.slice(visibleAssignments, { page });
     if (pageAssignments.length) tbody.replaceChildren(...pageAssignments.map(createRow));
-    else showMessage(assignments.length ? 'Ninguna asignación coincide con los filtros.' : 'No hay asignaciones docentes registradas.');
+    else showMessage(emptyMessage());
   };
 
   // Pide la lista junto con el ciclo lectivo actual, que dice qué asignaciones son de solo lectura,
@@ -236,13 +241,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cada filtro de columna avisa sus cambios (column-filter.js). Si lo que filtra no cambió (el
   // campo de año avisa cada tecla, aunque el año incompleto todavía no filtre, y Curso, cada clic
   // dentro de su panel), la tabla y la página quedan como están. Mientras carga o si la carga
-  // falló, se guardan los valores sin reemplazar el mensaje de la tabla.
+  // falló, se guardan los valores sin reemplazar el mensaje de la tabla. Un cambio de ciclo
+  // (elegir otro año o limpiar el filtro) rearma antes las opciones de Profesor y Materia.
   table.tHead.addEventListener('column-filter-change', (event) => {
     const values = FILTER_VALUES[event.target.dataset.filter](event.detail);
     const hasChanged = Object.entries(values).some(([filter, value]) => String(value) !== String(activeFilters[filter]));
     if (!hasChanged) return;
     Object.assign(activeFilters, values);
-    if (isLoaded) renderRows({ page: 1 });
+    if (!isLoaded) return;
+    if ('year' in values) fillFilterOptions();
+    renderRows({ page: 1 });
   });
 
   // Previo, Siguiente o un número: el componente ya marcó la página nueva
@@ -279,23 +287,9 @@ document.addEventListener('DOMContentLoaded', () => {
     return items.toSpliced(index === -1 ? items.length : index, 0, item);
   };
 
-  // Agrega al filtro de `header` la opción de `item` (un profesor o una materia) si no la tenía,
-  // antes de la del que lo sigue en `items` (los de las asignaciones cargadas, ya ordenados) y sin
-  // tocar las marcadas
-  const addFilterOption = (header, items, item, createOption) => {
-    const list = header.querySelector('[role="listbox"]');
-    const optionOf = ({ id }) => list.querySelector(`.dropdown-option[data-value="${id}"]`);
-    if (optionOf(item)) return;
-    const nextItem = items[items.findIndex(({ id }) => id === item.id) + 1];
-    list.insertBefore(createOption(item), (nextItem && optionOf(nextItem)) ?? list.querySelector('.dropdown-empty'));
-  };
-
-  // Agrega la asignación a la lista en memoria, en su lugar, sin recargarla ni tocar los filtros;
-  // su profesor y su materia pasan a ser opciones de los filtros si todavía no lo eran.
+  // Agrega la asignación a la lista en memoria, en su lugar, sin recargarla ni tocar los filtros.
   const addAssignment = (newAssignment) => {
     assignments = insertSorted(assignments, newAssignment, compareAssignments);
-    addFilterOption(teacherHeader, listedTeachers(), newAssignment.teacher, createTeacherOption);
-    addFilterOption(subjectHeader, listedSubjects(), newAssignment.subject, createSubjectOption);
   };
 
   // Si la asignación coincide con los filtros activos, la tabla pasa a la página donde quedó; si
@@ -305,57 +299,38 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
   };
 
-  // Agrega la asignación creada a la lista en memoria (addAssignment) y la muestra
-  // (showAssignment). Si la lista no se había podido cargar, se vuelve a pedir: mostrar solo la
-  // asignación nueva taparía el error.
+  // Agrega la asignación creada a la lista en memoria (addAssignment), rearma las opciones de los
+  // filtros (si es del ciclo que se muestra, su profesor y su materia pasan a ser opciones) y la
+  // muestra (showAssignment). Si la lista no se había podido cargar, se vuelve a pedir: mostrar solo
+  // la asignación nueva taparía el error.
   const insertAssignment = (newAssignment) => {
     if (!isLoaded) {
       loadAssignments();
       return;
     }
     addAssignment(newAssignment);
+    fillFilterOptions();
     showAssignment(newAssignment);
-  };
-
-  // Quita del filtro de `header` la opción de `item` (un profesor o una materia) si ya no está en
-  // `items` (los de las asignaciones cargadas). Si estaba marcada, `filter` deja de filtrar por
-  // ella y el embudo se actualiza.
-  const removeFilterOption = (header, filter, items, item) => {
-    if (items.some(({ id }) => id === item.id)) return;
-    const option = header.querySelector(`.dropdown-option[data-value="${item.id}"]`);
-    if (!option) return;
-    const wasSelected = option.classList.contains('selected');
-    option.remove();
-    if (!wasSelected) return;
-    activeFilters[filter] = activeFilters[filter].filter((value) => value !== String(item.id));
-    header.dispatchEvent(new Event('column-filter-refresh'));
-  };
-
-  // El profesor y la materia de una asignación que salió de la lista en memoria dejan de ser
-  // opciones de los filtros si no les queda otra asignación, sin tocar las demás.
-  const removeUnusedFilterOptions = ({ teacher, subject }) => {
-    removeFilterOption(teacherHeader, 'teacher', listedTeachers(), teacher);
-    removeFilterOption(subjectHeader, 'subject', listedSubjects(), subject);
   };
 
   // Reemplaza en la lista en memoria la asignación editada, que pasa al lugar que le toca con sus
   // datos nuevos, como una recién creada: si coincide con los filtros activos, la tabla pasa a la
-  // página donde quedó; si no, su fila deja de mostrarse. Las opciones de los filtros se ajustan
-  // después de sumarla: así el profesor y la materia que conserva no pierden su marca.
+  // página donde quedó; si no, su fila deja de mostrarse. Las opciones de los filtros se rearman
+  // después de sumarla: así el profesor y la materia que conserva no pierden su marca, y los que ya
+  // no tienen asignaciones en el ciclo dejan de ser opciones.
   const replaceAssignment = (updatedAssignment) => {
-    const previousAssignment = assignments.find(({ id }) => id === updatedAssignment.id);
-    assignments = assignments.filter((assignment) => assignment !== previousAssignment);
+    assignments = assignments.filter(({ id }) => id !== updatedAssignment.id);
     addAssignment(updatedAssignment);
-    if (previousAssignment) removeUnusedFilterOptions(previousAssignment);
+    fillFilterOptions();
     showAssignment(updatedAssignment);
   };
 
-  // Quita de la lista en memoria la asignación dada de baja, sin recargarla, y ajusta las opciones
-  // de los filtros (removeUnusedFilterOptions). La página se conserva; si era la última y quedó
-  // vacía, el componente pasa a la anterior.
+  // Quita de la lista en memoria la asignación dada de baja, sin recargarla, y rearma las opciones
+  // de los filtros (fillFilterOptions). La página se conserva; si era la última y quedó vacía, el
+  // componente pasa a la anterior.
   const removeAssignment = (deletedAssignment) => {
     assignments = assignments.filter((assignment) => assignment.id !== deletedAssignment.id);
-    removeUnusedFilterOptions(deletedAssignment);
+    fillFilterOptions();
     renderRows();
   };
 
