@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reportes - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="./reports.css" />
+    <script src="../../shared/components/drag-guard.component.js"></script>
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/session-user-cache.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <app-sidebar active="reports"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Reportes</h1>
+              <p>Consulta los reportes de la institución</p>
+            </div>
+          </div>
+
+          <!-- Cada opción abre la vista de su reporte, con la ruta de navegación de vuelta aquí -->
+          <ul class="report-list" aria-label="Reportes disponibles">
+            <li>
+              <a class="card report-link" href="../subject-coverage-report/index.html">
+                <span class="report-link-text">
+                  <span class="report-link-name">Materias sin docente por curso</span>
+                  <span class="report-link-question">¿Qué cursos del ciclo tienen materias de su plan de estudios sin profesor asignado, o con un profesor suspendido?</span>
+                </span>
+                <!-- resources/ChevronRight.svg, el de manage-link -->
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </a>
+            </li>
+            <li>
+              <a class="card report-link" href="../teacher-workload-report/index.html">
+                <span class="report-link-text">
+                  <span class="report-link-name">Carga docente por profesor</span>
+                  <span class="report-link-question">¿Cómo se reparten las asignaciones entre los profesores? ¿Quién está sobrecargado y quién no tiene ninguna?</span>
+                </span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </a>
+            </li>
+            <li>
+              <a class="card report-link" href="../backup-regularity-report/index.html">
+                <span class="report-link-text">
+                  <span class="report-link-name">Regularidad de los backups</span>
+                  <span class="report-link-question">¿Se hacen backups con regularidad? ¿Hay meses sin respaldo y cuántos días pasaron desde el último?</span>
+                </span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </a>
+            </li>
+          </ul>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

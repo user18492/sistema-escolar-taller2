@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Carga docente - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
+    <link rel="stylesheet" href="./teacher-workload-report.css" />
+    <script src="../../shared/components/drag-guard.component.js"></script>
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/session-user-cache.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/column-filter.js"></script>
+    <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="./teacher-workload-report.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <!-- Vista abierta desde Reportes: el menú sigue marcando esa sección. -->
+      <app-sidebar active="reports"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a href="../reports/index.html">Reportes</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Carga docente por profesor</span>
+            </nav>
+
+            <div class="page-header">
+              <div>
+                <h1>Carga docente por profesor</h1>
+                <p>¿Cómo se reparten las asignaciones entre los profesores? ¿Quién está sobrecargado y quién no tiene ninguna?</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barra de filtros (report-filters.css): cada botón muestra el valor vigente -->
+          <div class="report-filters" role="group" aria-label="Filtros del reporte">
+            <div class="column-filter" data-filter="year">
+              <column-filter-toggle target="yearFilter" heading="Ciclo lectivo" value="—" label="Filtrar por ciclo lectivo"></column-filter-toggle>
+              <div id="yearFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por ciclo lectivo">
+                <div class="field">
+                  <input type="text" class="column-filter-input" data-format="year" inputmode="numeric" placeholder="AAAA" aria-label="Filtrar por ciclo lectivo (AAAA)" autocomplete="off" />
+                </div>
+                <button type="button" class="column-filter-clear">Limpiar filtro</button>
+              </div>
+            </div>
+            <div class="column-filter" data-filter="level">
+              <column-filter-toggle target="levelFilter" heading="Nivel" value="Todos" label="Filtrar por nivel"></column-filter-toggle>
+              <div id="levelFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por nivel">
+                <ul class="dropdown-menu" role="listbox" aria-label="Nivel">
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
+                  <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
+                </ul>
+                <button type="button" class="column-filter-clear">Limpiar filtro</button>
+              </div>
+            </div>
+            <div class="column-filter" data-filter="shift">
+              <column-filter-toggle target="shiftFilter" heading="Turno" value="Todos" label="Filtrar por turno"></column-filter-toggle>
+              <div id="shiftFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por turno">
+                <ul class="dropdown-menu" role="listbox" aria-label="Turno">
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="MORNING" aria-selected="false">Mañana</li>
+                  <li class="dropdown-option" role="option" data-value="AFTERNOON" aria-selected="false">Tarde</li>
+                </ul>
+                <button type="button" class="column-filter-clear">Limpiar filtro</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,203 @@
+/* Estilos reutilizables: gráficos de barras en HTML/CSS propios (sin librerías), de los reportes.
+   Marcado: una .card.chart-card con su .chart-header (título y descripción) y un .chart con el eje
+   (.chart-y-axis) y el área del gráfico (.chart-plot): la grilla (.chart-gridlines), las columnas
+   (.chart-bars > .chart-col > .chart-bar-group > .chart-bar) y sus etiquetas (.chart-labels). Debajo,
+   la leyenda (.chart-legend). El alto de cada barra y su color los define la vista.
+   Animación de entrada: las barras crecen desde la base al agregar .is-loaded a .chart-bars; con
+   .is-resetting vuelven a cero sin transición, para repetirla. Se omite con prefers-reduced-motion. */
+
+/* ---------- Card y encabezado ---------- */
+
+.chart-card {
+  position: relative;
+  padding: 24px;
+}
+
+.chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.chart-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+}
+
+.chart-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.chart-header p {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Leyenda ---------- */
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.chart-legend[hidden] {
+  display: none;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ---------- Eje, grilla y barras ---------- */
+
+.chart {
+  display: flex;
+  gap: 16px;
+}
+
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 260px;
+  padding-bottom: 24px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  text-align: right;
+}
+
+.chart-plot {
+  position: relative;
+  flex: 1;
+  height: 260px;
+}
+
+.chart-gridlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 236px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.chart-gridlines span {
+  border-top: 1px dashed var(--color-border);
+}
+
+.chart-bars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 236px;
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  padding: 0 4px;
+}
+
+.chart-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.chart-bar-group {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+}
+
+.chart-bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- Etiquetas de las columnas ---------- */
+
+.chart-labels {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 24px;
+  display: flex;
+  gap: 18px;
+  padding: 0 4px;
+}
+
+.chart-col-label {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+/* ---------- Animación de entrada ---------- */
+
+.chart-bars.is-loaded .chart-bar {
+  transform: scaleY(1);
+}
+
+/* Cada columna arranca un poco después que la anterior */
+.chart-col:nth-child(2) .chart-bar {
+  transition-delay: 0.03s;
+}
+
+.chart-col:nth-child(3) .chart-bar {
+  transition-delay: 0.06s;
+}
+
+.chart-col:nth-child(4) .chart-bar {
+  transition-delay: 0.09s;
+}
+
+.chart-col:nth-child(5) .chart-bar {
+  transition-delay: 0.12s;
+}
+
+.chart-col:nth-child(6) .chart-bar {
+  transition-delay: 0.15s;
+}
+
+/* Reinicio instantáneo, para repetir la animación (p. ej. al cambiar un filtro) */
+.chart-bars.is-resetting .chart-bar {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-bar {
+    transition: none;
+  }
+}

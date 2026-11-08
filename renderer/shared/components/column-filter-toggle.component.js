@@ -5,6 +5,9 @@
 //   - "target": id del panel (aria-controls y popovertarget).
 //   - "heading": texto visible del encabezado.
 //   - "label": aria-label del botón.
+//   - "value" (opcional): el valor vigente del filtro, en un <span class="report-filter-value">
+//     después del título. Lo usa la barra de filtros de los reportes (report-filters.css); la
+//     vista actualiza ese span.
 // El comportamiento lo aporta column-filter.js, que en DOMContentLoaded toma este botón y su
 // aria-label; por eso el script se carga sin defer en <head> y el botón no se vuelve a generar.
 // Estilos en column-filter.css.
@@ -26,7 +29,14 @@
       button.setAttribute('aria-label', this.getAttribute('label'));
       button.setAttribute('aria-controls', target);
       button.setAttribute('popovertarget', target);
-      button.querySelector('span').textContent = this.getAttribute('heading');
+      const heading = button.querySelector('span');
+      heading.textContent = this.getAttribute('heading');
+      if (this.hasAttribute('value')) {
+        const value = document.createElement('span');
+        value.className = 'report-filter-value';
+        value.textContent = this.getAttribute('value');
+        heading.after(value);
+      }
     }
   }
 

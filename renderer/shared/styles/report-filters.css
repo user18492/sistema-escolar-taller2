@@ -1,0 +1,51 @@
+/* Estilos reutilizables: barra de filtros de los reportes del Administrador.
+   Marcado: un contenedor .report-filters con un .column-filter por filtro, igual que los <th> de
+   las tablas (<column-filter-toggle> con su atributo value y su panel .column-filter-panel[popover]),
+   fuera de una tabla. El comportamiento lo aporta column-filter.js y los paneles, column-filter.css,
+   que se carga antes que esta hoja.
+   Cada botón se ve como un chip con borde, igual que el desplegable del encabezado de los gráficos
+   (secretary/reports/reports.css), con el título, el valor vigente (.report-filter-value, que la
+   vista actualiza) y el embudo. */
+
+.report-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-filters .column-filter-toggle {
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.report-filters .column-filter-toggle:hover {
+  background: #f9fafb;
+}
+
+.report-filters .column-filter-toggle[aria-expanded="true"] {
+  border-color: var(--color-accent-blue);
+}
+
+.report-filters .column-filter-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* "Ciclo lectivo · 2026": el punto separa el título del valor con el mismo aire a cada lado. */
+.report-filter-value {
+  margin-left: -2px;
+  color: var(--color-text-secondary);
+}
+
+.report-filter-value::before {
+  content: '·';
+  margin-right: 6px;
+}
