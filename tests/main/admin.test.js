@@ -1,5 +1,5 @@
 // Capa main: casos de uso del Administrador por la API del preload (usuarios, cursos, asignaciones
-// docentes e indicadores del inicio). Inicia sesión con el administrador del seed (solo lo lee) y
+// docentes, indicadores del inicio y reportes). Inicia sesión con el administrador del seed (solo lo lee) y
 // opera sobre datos propios; cada resultado se comprueba con una consulta independiente.
 const { group, test } = require('../lib/framework');
 const { SEED_INSTITUTIONS } = require('../lib/fixtures');
@@ -430,6 +430,169 @@ group('main.admin.dashboard', 'Administrador: indicadores del inicio', () => {
              (SELECT COUNT(DISTINCT usuario_id) FROM asignacion_docente WHERE fecha_eliminacion IS NULL
                 AND curso_id IN (SELECT curso_id FROM curso WHERE institucion_id IN (SELECT institucion_id FROM i) AND fecha_eliminacion IS NULL))::INT AS "assignedTeacherCount"`, [SM]);
     t.equal(summary, expected, 'Indicadores del administrador');
+    await t.logout();
+  });
+});
+
+// Reporte Materias sin docente por curso (plans/reportes-administrador/01-materias-sin-docente.md):
+// por cada curso vigente del ciclo, las materias del plan de su grado sin docente (sin asignación
+// vigente o con el profesor dado de baja) y con un docente suspendido.
+group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias sin docente por curso', {
+  async setup({ fixtures }) {
+    const institutionId = await fixtures.institutionId();
+    const activeTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Activo' });
+    const suspendedTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Suspendido' });
+    // Del ciclo actual: una materia de un profesor activo, otra de uno que queda suspendido después
+    // de asignarla y el resto sin asignar
+    const partialCourse = await fixtures.createCourse({ level: 'SECUNDARIA', grade: '4°', shift: 'TARDE' });
+    const activeAssignment = await fixtures.assign({ teacherId: activeTeacher.id, courseId: partialCourse.id });
+    const suspendedAssignment = await fixtures.assign({ teacherId: suspendedTeacher.id, courseId: partialCourse.id });
+    await fixtures.db.query(`UPDATE usuario SET estado = FALSE WHERE usuario_id = $1`, [suspendedTeacher.id]);
+    // Del ciclo actual, con todas las materias de su plan a cargo del profesor activo
+    const completeCourse = await fixtures.createCourse({ level: 'PRIMARIA', grade: '1°', shift: 'MAÑANA' });
+    for (const subject of await fixtures.subjectsOfGrade(completeCourse.gradeId)) {
+      await fixtures.assign({ teacherId: activeTeacher.id, courseId: completeCourse.id, subjectName: subject.name });
+    }
+    // De un ciclo cerrado, con una materia de un profesor que se da de baja después
+    const closedTeacher = await fixtures.createUser({ role: 'PROFESOR' });
+    const closed = await fixtures.inSchoolYear(fixtures.year - 1, async () => {
+      const course = await fixtures.createCourse();
+      return { course, assignment: await fixtures.assign({ teacherId: closedTeacher.id, courseId: course.id }) };
+    });
+    await fixtures.db.query(`UPDATE usuario SET estado = FALSE, fecha_eliminacion = now() WHERE usuario_id = $1`, [closedTeacher.id]);
+    // Fuera del reporte: un curso dado de baja y uno de otra institución, los dos del ciclo actual
+    const deletedCourse = await fixtures.createCourse({ deleted: true });
+    const otherInstitution = await fixtures.createInstitution();
+    const foreignCourse = await fixtures.createCourse({ institutionId: otherInstitution.id });
+    return {
+      institutionId, suspendedTeacher, partialCourse, activeAssignment, suspendedAssignment, completeCourse,
+      closed, deletedCourse, foreignCourse,
+    };
+  },
+}, () => {
+  const filtersOf = (overrides) => ({ educationLevel: null, shift: null, onlyIncomplete: false, ...overrides });
+
+  // Lo esperado de cada curso vigente de la institución en el ciclo `year`, con subconsultas por
+  // materia (distinto de la consulta agrupada del repositorio). Sin docente: sin asignación vigente
+  // o con el profesor dado de baja; con docente suspendido: "Materia (Nombre Apellido)".
+  const expectedCourses = async (t, year) => (await t.sql(`
+    SELECT c.curso_id AS id, g.nivel_educativo, c.turno,
+           (SELECT COUNT(*) FROM grado_materia gm WHERE gm.grado_id = c.grado_id)::INT AS "subjectCount",
+           ARRAY(SELECT m.nombre FROM grado_materia gm JOIN materia m USING (materia_id)
+                  WHERE gm.grado_id = c.grado_id
+                    AND NOT EXISTS (SELECT 1 FROM asignacion_docente a JOIN usuario u USING (usuario_id)
+                                     WHERE a.curso_id = c.curso_id AND a.grado_materia_id = gm.grado_materia_id
+                                       AND a.fecha_eliminacion IS NULL AND u.fecha_eliminacion IS NULL)
+                  ORDER BY m.nombre) AS unassigned,
+           ARRAY(SELECT m.nombre || ' (' || u.nombre || ' ' || u.apellido || ')'
+                   FROM asignacion_docente a JOIN usuario u USING (usuario_id)
+                   JOIN grado_materia gm USING (grado_materia_id) JOIN materia m USING (materia_id)
+                  WHERE a.curso_id = c.curso_id AND a.fecha_eliminacion IS NULL
+                    AND u.fecha_eliminacion IS NULL AND NOT u.estado
+                  ORDER BY m.nombre) AS suspended
+      FROM curso c JOIN grado g USING (grado_id)
+     WHERE c.institucion_id = $1 AND c.fecha_eliminacion IS NULL AND c.anio_ciclo_lectivo = $2
+     ORDER BY c.curso_id`, [t.data.institutionId, year])).map((row) => ({
+    id: row.id,
+    educationLevel: LEVEL[row.nivel_educativo],
+    shift: SHIFT[row.turno],
+    subjectCount: row.subjectCount,
+    assignedCount: row.subjectCount - row.unassigned.length,
+    unassigned: row.unassigned,
+    suspended: row.suspended,
+  }));
+
+  // Las filas del reporte con la forma de expectedCourses, por id
+  const shownCourses = (courses) => courses
+    .map((course) => ({
+      id: course.id,
+      educationLevel: course.educationLevel,
+      shift: course.shift,
+      subjectCount: course.subjectCount,
+      assignedCount: course.assignedCount,
+      unassigned: course.unassignedSubjects,
+      suspended: course.suspendedSubjects.map(({ subjectName, teacherName }) => `${subjectName} (${teacherName})`),
+    }))
+    .sort((a, b) => a.id - b.id);
+
+  const isIncomplete = (course) => course.unassigned.length > 0 || course.suspended.length > 0;
+
+  test('counts', 'Los conteos y las listas de cada curso del ciclo actual coinciden con una consulta propia', async (t) => {
+    const { partialCourse, activeAssignment, suspendedAssignment, suspendedTeacher } = t.data;
+    await t.login('admin');
+    const { report } = await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year }));
+    t.equal(report.schoolYear, t.year, 'El reporte es del ciclo pedido');
+    t.equal(shownCourses(report.courses), await expectedCourses(t, t.year), 'Cursos, conteos y listas');
+
+    const partial = report.courses.find((course) => course.id === partialCourse.id);
+    t.require(partial, 'El curso con materias sin docente no está en el reporte', report.courses);
+    t.equal({ gradeName: partial.gradeName, division: partial.division },
+      { gradeName: partialCourse.grade, division: partialCourse.division }, 'Grado y división del curso');
+    t.equal(partial.assignedCount, 2, 'Asignadas: la del profesor activo y la del suspendido');
+    t.check(!partial.unassignedSubjects.includes(activeAssignment.name) && !partial.unassignedSubjects.includes(suspendedAssignment.name),
+      'Sin docente no incluye a las materias asignadas', partial.unassignedSubjects);
+    t.equal(partial.suspendedSubjects, [{ subjectName: suspendedAssignment.name, teacherName: `${suspendedTeacher.firstName} ${suspendedTeacher.lastName}` }],
+      'Con docente suspendido: la materia y el nombre del profesor');
+    await t.logout();
+  });
+
+  test('only-incomplete', 'Con onlyIncomplete quedan solo los cursos incompletos: el curso completo se excluye y sin él aparece', async (t) => {
+    const { partialCourse, completeCourse } = t.data;
+    await t.login('admin');
+    const all = (await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year }))).report.courses;
+    const incomplete = (await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, onlyIncomplete: true }))).report.courses;
+    const complete = all.find((course) => course.id === completeCourse.id);
+    t.require(complete, 'Sin onlyIncomplete, el curso completo no está en el reporte', all);
+    t.equal({ unassigned: complete.unassignedSubjects, suspended: complete.suspendedSubjects, assigned: complete.assignedCount === complete.subjectCount },
+      { unassigned: [], suspended: [], assigned: true }, 'El curso completo tiene todas sus materias asignadas');
+    const expectedIds = (await expectedCourses(t, t.year)).filter(isIncomplete).map((course) => course.id);
+    t.equal(shownCourses(incomplete).map((course) => course.id), expectedIds, 'Con onlyIncomplete, los cursos incompletos de la consulta propia');
+    t.check(!incomplete.some((course) => course.id === completeCourse.id), 'Con onlyIncomplete no aparece el curso completo');
+    t.check(incomplete.some((course) => course.id === partialCourse.id), 'Con onlyIncomplete aparece el curso incompleto');
+    await t.logout();
+  });
+
+  test('closed-school-year-deleted-teacher', 'En un ciclo cerrado, la materia de un profesor dado de baja después cuenta como sin docente', async (t) => {
+    const { closed } = t.data;
+    await t.login('admin');
+    const { report } = await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year - 1 }));
+    t.equal(report.schoolYear, t.year - 1, 'El reporte es del ciclo pedido');
+    t.equal(shownCourses(report.courses), await expectedCourses(t, t.year - 1), 'Cursos, conteos y listas del ciclo cerrado');
+    const course = report.courses.find((row) => row.id === closed.course.id);
+    t.require(course, 'El curso del ciclo cerrado no está en el reporte', report.courses);
+    t.check(course.unassignedSubjects.includes(closed.assignment.name), 'La materia del profesor dado de baja está en Sin docente', course);
+    t.equal({ assigned: course.assignedCount, suspended: course.suspendedSubjects },
+      { assigned: course.subjectCount - course.unassignedSubjects.length, suspended: [] }, 'No cuenta como asignada ni como suspendida');
+    await t.logout();
+  });
+
+  test('scope-and-filters', 'Fuera el curso dado de baja y los de otra institución; Nivel y Turno filtran; un año inválido es INVALID_INPUT', async (t) => {
+    const { deletedCourse, foreignCourse } = t.data;
+    await t.login('admin');
+    const ids = (courses) => courses.map((course) => course.id);
+    const all = (await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year }))).report.courses;
+    t.check(!ids(all).includes(deletedCourse.id), 'El curso dado de baja no aparece');
+    t.check(!ids(all).includes(foreignCourse.id), 'El curso de otra institución no aparece');
+
+    const expected = await expectedCourses(t, t.year);
+    for (const educationLevel of ['PRIMARY', 'SECONDARY']) {
+      const { courses } = (await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, educationLevel }))).report;
+      t.equal(shownCourses(courses), expected.filter((course) => course.educationLevel === educationLevel), `Nivel ${educationLevel}`);
+    }
+    for (const shift of ['MORNING', 'AFTERNOON']) {
+      const { courses } = (await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, shift }))).report;
+      t.equal(shownCourses(courses), expected.filter((course) => course.shift === shift), `Turno ${shift}`);
+    }
+    const { courses: both } = (await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, educationLevel: 'PRIMARY', shift: 'MORNING' }))).report;
+    t.equal(shownCourses(both), expected.filter((course) => course.educationLevel === 'PRIMARY' && course.shift === 'MORNING'), 'Nivel y Turno combinados');
+
+    for (const schoolYear of [1999, 2101, 2026.5, String(t.year), null]) {
+      await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', filtersOf({ schoolYear }));
+    }
+    await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, educationLevel: 'PRIMARIA' }));
+    await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, shift: 'NIGHT' }));
+    await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, onlyIncomplete: 'true' }));
+    await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', null);
     await t.logout();
   });
 });

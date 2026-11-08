@@ -16,7 +16,20 @@ module.exports = {
   // Reportes y sus tres reportes (plans/reportes-administrador/00-navegacion-y-base.md): sin filas
   // hasta que cada reporte cargue sus datos (partes 01 a 03).
   'admin/reports/index.html': { roles: ['ADMIN'] },
-  'admin/subject-coverage-report/index.html': { roles: ['ADMIN'] },
+  // Por defecto, los cursos incompletos del ciclo actual: con alguna materia del plan sin una
+  // asignación vigente de un profesor activo y no dado de baja (parte 01)
+  'admin/subject-coverage-report/index.html': {
+    roles: ['ADMIN'],
+    rows: {
+      selector: 'tr[data-course-id]',
+      sql: (ctx) => [`SELECT c.curso_id FROM curso c WHERE c.institucion_id = $1 AND c.fecha_eliminacion IS NULL
+                       AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+                       AND EXISTS (SELECT 1 FROM grado_materia gm WHERE gm.grado_id = c.grado_id
+                                     AND NOT EXISTS (SELECT 1 FROM asignacion_docente a JOIN usuario u USING (usuario_id)
+                                                      WHERE a.curso_id = c.curso_id AND a.grado_materia_id = gm.grado_materia_id
+                                                        AND a.fecha_eliminacion IS NULL AND u.fecha_eliminacion IS NULL AND u.estado))`, [ctx.institutionId]],
+    },
+  },
   'admin/teacher-workload-report/index.html': { roles: ['ADMIN'] },
   'admin/backup-regularity-report/index.html': { roles: ['ADMIN'] },
   'admin/users/index.html': {
