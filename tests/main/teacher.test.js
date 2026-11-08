@@ -411,6 +411,38 @@ group('main.teacher', 'Profesor: asignaciones, alumnos, evaluaciones y calificac
     await t.logout();
   });
 
+  test('evaluation-term', 'Cada evaluación trae su trimestre (term), el de fn_trimestre con el que cuenta en los promedios, en el listado, el alta y la edición', async (t) => {
+    // Una asignación propia, aparte de la del setup, con una evaluación a cada lado de los dos
+    // cortes, creadas el 01/01 (con los tres trimestres abiertos)
+    const course = await t.fixtures.createCourse({ institutionId: t.data.course.institutionId });
+    const assignment = await t.fixtures.assign({ teacherId: t.data.teacher.id, courseId: course.id });
+    const expectedByDate = { '05-31': 1, '06-01': 2, '08-31': 2, '09-01': 3 };
+    await t.fixtures.onDate(termDates(t).createdOn, async () => {
+      for (const day of Object.keys(expectedByDate)) {
+        await t.fixtures.createEvaluation({ assignmentId: assignment.id, title: `Del ${day}`, date: `${t.year}-${day}` });
+      }
+    });
+    // El trimestre de cada una según la base, con la misma función que vw_promedio_trimestral
+    const termsInDb = async () => Object.fromEntries((await t.sql(`
+      SELECT evaluacion_id AS id, fn_trimestre(fecha_evaluacion) AS term
+        FROM evaluacion WHERE asignacion_docente_id = $1 AND fecha_eliminacion IS NULL`, [assignment.id]))
+      .map(({ id, term }) => [id, term]));
+
+    await t.login(t.data.teacher);
+    const { evaluations } = await t.ok('evaluations.listByOwnAssignment', assignment.id);
+    t.equal(Object.fromEntries(evaluations.map(({ evaluationDate, term }) => [evaluationDate.slice(5), term])), expectedByDate,
+      'Los cortes: 1 hasta el 31/05, 2 del 01/06 al 31/08 y 3 desde el 01/09');
+    t.equal(Object.fromEntries(evaluations.map(({ id, term }) => [id, term])), await termsInDb(), 'term es el de fn_trimestre en la base');
+
+    const { evaluation: created } = await t.ok('evaluations.create', assignment.id, { title: 'Del día', evaluationDate: t.today });
+    t.equal(created?.term, (await termsInDb())[created?.id], 'El alta devuelve el trimestre de su fecha');
+    const { evaluation: updated } = await t.ok('evaluations.update', assignment.id, created.id, { title: 'Del día, renombrada', evaluationDate: t.today });
+    t.equal(updated?.term, created.term, 'La edición devuelve el trimestre de su fecha');
+    const { evaluation: listed } = await t.ok('scores.listByOwnEvaluation', assignment.id, created.id);
+    t.equal(listed?.term, created.term, 'Calificaciones trae la evaluación con su trimestre');
+    await t.logout();
+  });
+
   test('term-closed-scores', 'En una evaluación de un trimestre cerrado no se carga, corrige ni da de baja ninguna nota (TERM_CLOSED)', async (t) => {
     const { assignment } = t.data;
     const closed = await firstTermEvaluation(t);
