@@ -13,6 +13,7 @@
     <script src="../../shared/components/user-avatar.component.js"></script>
     <script src="../../shared/components/session-user-cache.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/report-description.component.js"></script>
   </head>
   <body>
     <app-titlebar></app-titlebar>
@@ -35,7 +36,7 @@
               <a class="card report-link" href="../subject-coverage-report/index.html">
                 <span class="report-link-text">
                   <span class="report-link-name">Materias sin docente por curso</span>
-                  <span class="report-link-question">¿Qué cursos del ciclo tienen materias de su plan de estudios sin profesor asignado, o con un profesor suspendido?</span>
+                  <span class="report-link-description"><report-description report="subject-coverage"></report-description></span>
                 </span>
                 <!-- resources/ChevronRight.svg, el de manage-link -->
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -47,7 +48,7 @@
               <a class="card report-link" href="../teacher-workload-report/index.html">
                 <span class="report-link-text">
                   <span class="report-link-name">Carga docente por profesor</span>
-                  <span class="report-link-question">¿Cómo se reparten las asignaciones entre los profesores? ¿Quién está sobrecargado y quién no tiene ninguna?</span>
+                  <span class="report-link-description"><report-description report="teacher-workload"></report-description></span>
                 </span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
@@ -58,7 +59,7 @@
               <a class="card report-link" href="../backup-regularity-report/index.html">
                 <span class="report-link-text">
                   <span class="report-link-name">Regularidad de los backups</span>
-                  <span class="report-link-question">¿Se hacen backups con regularidad? ¿Hay meses sin respaldo y cuántos días pasaron desde el último?</span>
+                  <span class="report-link-description"><report-description report="backup-regularity"></report-description></span>
                 </span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
