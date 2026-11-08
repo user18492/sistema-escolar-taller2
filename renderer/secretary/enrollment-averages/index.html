@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Promedios - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/assignment-summary.css" />
+    <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/data-table.css" />
+    <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/term-average.css" />
+    <link rel="stylesheet" href="./enrollment-averages.css" />
+    <script src="../../shared/components/drag-guard.component.js"></script>
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/session-user-cache.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/term-average.component.js"></script>
+    <script src="./enrollment-averages.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <!-- Vista de consulta abierta desde Inscripciones: el menú sigue marcando esa sección. -->
+      <app-sidebar nav-role="secretary" active="enrollments"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a href="../enrollments/index.html">Inscripciones</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Promedios</span>
+            </nav>
+
+            <div class="page-header">
+              <div>
+                <h1>Promedios</h1>
+                <p>Consulta los promedios de la inscripción en cada materia del curso.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Solo si no se pudo cargar la inscripción: reemplaza a la tarjeta y a la tabla -->
+          <p class="form-error" id="enrollmentLoadError" role="alert" hidden></p>
+
+          <!-- Datos de la inscripción elegida en Inscripciones (con los estilos de
+               assignment-summary.css): enrollment-averages.js los completa con los que devuelve el
+               proceso principal; hasta entonces, una raya -->
+          <section class="card assignment-summary enrollment-summary">
+            <div class="summary-item">
+              <span class="summary-label">Alumno</span>
+              <span class="summary-value text-truncate" data-field="student">—</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Curso</span>
+              <span class="summary-value text-truncate" data-field="course">—</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Ciclo lectivo</span>
+              <span class="summary-value text-truncate" data-field="year">—</span>
+            </div>
+          </section>
+
+          <!-- Promedios de la inscripción en cada materia con docente asignado en su curso:
+               enrollment-averages.js los carga del proceso principal -->
+          <section class="card averages-card">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="col-subject">Materia</th>
+                    <th class="col-average">1.er trimestre</th>
+                    <th class="col-average">2.º trimestre</th>
+                    <th class="col-average">3.er trimestre</th>
+                    <th class="col-average">Anual</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <!-- Plantilla: enrollment-averages.js la completa con lo que devuelve el proceso
+                 principal, una fila por materia -->
+            <template id="subjectRowTemplate">
+              <tr>
+                <td class="col-subject col-truncate"><span class="text-truncate"></span></td>
+                <td class="col-average"><term-average></term-average></td>
+                <td class="col-average"><term-average></term-average></td>
+                <td class="col-average"><term-average></term-average></td>
+                <td class="col-average"><term-average></term-average></td>
+              </tr>
+            </template>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

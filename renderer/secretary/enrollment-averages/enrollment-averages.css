@@ -1,0 +1,28 @@
+/* Vista Promedios de una inscripción (Secretario) — puramente visual, sin lógica */
+
+/* ---------- Tarjeta de la inscripción ---------- */
+
+/* La organización de los datos la aporta assignment-summary.css, con display: flex, que
+   no debe anular el atributo hidden. */
+.enrollment-summary[hidden] {
+  display: none;
+}
+
+/* ---------- Card de promedios ---------- */
+
+.averages-card {
+  padding: 24px;
+}
+
+/* ---------- Table ---------- */
+
+/* Materia toma el ancho que dejan los promedios y trunca su texto (.col-truncate de
+   base.css); cada promedio conserva el mismo ancho, así las columnas quedan parejas.
+   min-width mantiene legible la materia en ventanas angostas. */
+.data-table td.col-subject {
+  min-width: 160px;
+}
+
+.data-table .col-average {
+  width: 14%;
+}

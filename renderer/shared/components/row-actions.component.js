@@ -1,8 +1,13 @@
-// Componente reutilizable: acciones de las filas de tabla (Editar y Eliminar, con Imprimir y "Gestionar"
-// opcionales; o Restaurar, en las filas de los registros dados de baja).
+// Componente reutilizable: acciones de las filas de tabla (Editar y Eliminar, con Ver promedios,
+// Imprimir y "Gestionar" opcionales; o Restaurar, en las filas de los registros dados de baja).
 // Uso: <row-actions edit-label="Editar curso" delete-label="Borrar curso"></row-actions> en la última celda.
 //   - "edit-label" / "delete-label": aria-label y title de cada botón. La acción que no tiene su
 //     etiqueta no se genera (solo "delete-label": la fila lleva únicamente Eliminar).
+//   - "averages-label" (opcional): antepone Ver promedios, con ese aria-label y title, antes de
+//     Imprimir.
+//   - "averages-disabled-title" (opcional): el registro no tiene promedios (p. ej., una inscripción
+//     cancelada). Solo Ver promedios queda deshabilitado, con ese texto como title y su etiqueta
+//     como aria-label. Se puede poner y quitar con la fila ya en la tabla.
 //   - "print-label" (opcional): antepone Imprimir, con ese aria-label y title.
 //   - "restore-label" (opcional): la fila es de un registro dado de baja. En lugar de Editar y
 //     Eliminar lleva solo Restaurar, con ese aria-label y title.
@@ -11,7 +16,7 @@
 //   - "read-only-title" (opcional): el registro de la fila es de solo lectura (p. ej., de un ciclo
 //     lectivo cerrado, school-year.js, o un curso con asignaciones docentes o inscripciones). Editar
 //     y Eliminar quedan deshabilitados y llevan ese texto como title, con su etiqueta como
-//     aria-label; Imprimir, Restaurar y "Gestionar" no cambian. Se puede poner y quitar con la fila
+//     aria-label; Ver promedios, Imprimir, Restaurar y "Gestionar" no cambian. Se puede poner y quitar con la fila
 //     ya en la tabla, y se suma a "disabled".
 //   - "delete-disabled-title" (opcional): el registro no se puede eliminar, pero sí editar (p. ej.,
 //     una asignación docente con evaluaciones). Solo Eliminar queda deshabilitado, con ese texto
@@ -23,13 +28,15 @@
 //     "delete-disabled-title" no lo afectan.
 //   - "variant" (opcional): "user" usa .user-actions/.user-action; por defecto .table-actions/.table-action.
 //   - "manage-href" (opcional): antepone un <manage-link> con ese href (requiere manage-link.component.js).
-// Los botones llevan data-action="print" / "edit" / "delete" / "undo" / "restore". confirm-modal.component.js atiende
+// Los botones llevan data-action="averages" / "print" / "edit" / "delete" / "undo" / "restore". confirm-modal.component.js atiende
 // Eliminar y Restaurar por delegación, pero hay vistas que enlazan Editar en DOMContentLoaded, así
 // que el script se carga sin defer en <head>.
 // Estilos en base.css.
 
 (() => {
   const ICONS = {
+    // resources/Eye.svg
+    averages: '<path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />',
     // resources/Printer.svg
     print: '<path d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />',
     // resources/PencilSquare.svg
@@ -46,7 +53,7 @@
   const READ_ONLY_ACTIONS = ['edit', 'delete'];
 
   class RowActions extends HTMLElement {
-    static observedAttributes = ['disabled', 'read-only-title', 'delete-disabled-title', 'show-undo'];
+    static observedAttributes = ['disabled', 'read-only-title', 'delete-disabled-title', 'averages-disabled-title', 'show-undo'];
 
     connectedCallback() {
       if (this.rendered) return;
@@ -56,7 +63,7 @@
       // acción que tenga su etiqueta
       const actions = this.hasAttribute('restore-label')
         ? ['restore']
-        : ['print', 'edit', 'delete', 'undo'].filter((action) => this.hasAttribute(`${action}-label`));
+        : ['averages', 'print', 'edit', 'delete', 'undo'].filter((action) => this.hasAttribute(`${action}-label`));
       const buttons = actions.map((action) => `<button class="${prefix}-action" type="button" data-action="${action}" aria-label="" title="">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             ${ICONS[action]}
@@ -80,16 +87,18 @@
       }
     }
 
-    // Deshabilita los botones según "disabled", "read-only-title" y "delete-disabled-title" y les
-    // pone su title: la etiqueta de la acción o, en las que esos dos deshabilitan, el motivo.
-    // Deshacer solo se muestra u oculta, según "show-undo".
+    // Deshabilita los botones según "disabled", "read-only-title", "delete-disabled-title" y
+    // "averages-disabled-title" y les pone su title: la etiqueta de la acción o, en las que esos
+    // tres deshabilitan, el motivo. Deshacer solo se muestra u oculta, según "show-undo".
     syncButtons() {
       const readOnlyTitle = this.getAttribute('read-only-title');
       const deleteDisabledTitle = this.getAttribute('delete-disabled-title');
+      const averagesDisabledTitle = this.getAttribute('averages-disabled-title');
       // Motivo por el que la acción no está disponible, o null: el de solo lectura gana
       const reasonOf = (action) => {
         if (readOnlyTitle !== null && READ_ONLY_ACTIONS.includes(action)) return readOnlyTitle;
         if (deleteDisabledTitle !== null && action === 'delete') return deleteDisabledTitle;
+        if (averagesDisabledTitle !== null && action === 'averages') return averagesDisabledTitle;
         return null;
       };
       this.querySelectorAll('[data-action]').forEach((button) => {

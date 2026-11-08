@@ -398,6 +398,17 @@ contextBridge.exposeInMainWorld('api', {
     // ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en get, y PDF_VIEWER_UNAVAILABLE, que
     // el sistema no pudo abrir el PDF.
     openReceipt: (enrollmentId) => ipcRenderer.invoke('enrollments:open-receipt', enrollmentId),
+    // Solo SECRETARIO. Resuelve { ok: true, enrollment, subjects } con los promedios de la
+    // inscripción vigente con ese id (inscripcion_id) de su institución, activa o finalizada, de
+    // cualquier ciclo lectivo. `enrollment` es { id, number, status, student, course }: number el
+    // número de inscripción, status ACTIVE o COMPLETED, student { firstName, lastName } y course,
+    // con los campos de courses.list (schoolYear, su ciclo lectivo). `subjects` son las materias con
+    // una asignación docente vigente en su curso (solo esas), por nombre ({ subjectName, terms,
+    // annual }, con terms y annual como en scores.listAveragesByOwnAssignment: una materia sin
+    // evaluaciones tomadas va con todo en null). O { ok: false, error: { code, message } }:
+    // INVALID_INPUT indica un id inválido; ENROLLMENT_NOT_FOUND y ENROLLMENT_DELETED, lo mismo que en
+    // get, y ENROLLMENT_CANCELLED, que está cancelada: no tiene promedios.
+    getAverages: (enrollmentId) => ipcRenderer.invoke('enrollments:get-averages', enrollmentId),
     // Solo PROFESOR. Resuelve { ok: true, enrollments } con las inscripciones del curso de la
     // asignación docente vigente con ese id (asignacion_docente_id), si está a su cargo: las
     // vigentes, activas y finalizadas, del curso, sin las canceladas ni las dadas de baja

@@ -76,6 +76,17 @@ const FIND_BY_TEACHER_SQL = `${selectFrom('asignacion_docente')}
             m.nombre, a.asignacion_docente_id
 `;
 
+// Las asignaciones docentes vigentes de un curso, con su profesor y su materia: las materias que
+// tienen un profesor en el curso. Con el criterio de FIND_BY_INSTITUTION_SQL, solo hace falta mirar
+// la baja de la asignación. Por nombre de materia: un curso tiene a lo sumo una asignación vigente
+// por materia (uq_asignacion_docente_curso_grado_materia, db/schema.sql) y el nombre no se repite en
+// el catálogo, así que el orden es total; asignacion_docente_id desempata igual.
+const FIND_BY_COURSE_SQL = `${selectFrom('asignacion_docente')}
+   WHERE a.curso_id = $1
+     AND a.fecha_eliminacion IS NULL
+   ORDER BY m.nombre, a.asignacion_docente_id
+`;
+
 // Cantidad de asignaciones docentes vigentes de una institución, de todos los ciclos lectivos (las
 // que lista FIND_BY_INSTITUTION_SQL, con el mismo criterio: solo cuenta la baja de la asignación),
 // y de profesores distintos que tienen al menos una.
@@ -239,6 +250,14 @@ async function findByTeacher(teacherId) {
   return rows.map(toTeacherAssignment);
 }
 
+// Asignaciones docentes vigentes del curso `courseId` (un curso_id), ordenadas por nombre de
+// materia. Lista vacía si no tiene ninguna o si el curso no existe: que sea un curso de la
+// institución lo comprueba el servicio.
+async function findByCourse(courseId) {
+  const { rows } = await query(FIND_BY_COURSE_SQL, [courseId]);
+  return rows.map(toTeacherAssignment);
+}
+
 // Cuenta las asignaciones docentes vigentes de la institución, de todos los ciclos lectivos (las de
 // findByInstitution). Devuelve { total, teacherTotal }: cuántas son y cuántos profesores distintos
 // tienen al menos una.
@@ -341,6 +360,7 @@ function isWithEvaluationsError(error) {
 module.exports = {
   findByInstitution,
   findByTeacher,
+  findByCourse,
   countByInstitution,
   findActiveById,
   findActiveByIdAndTeacher,

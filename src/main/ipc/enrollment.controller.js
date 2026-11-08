@@ -222,6 +222,23 @@ async function openEnrollmentReceipt(currentUser, enrollmentId) {
   }
 }
 
+// Nunca rechaza: los errores previstos (la inscripción no está vigente en la institución o está
+// cancelada) llevan su mensaje y el resto, uno genérico con el detalle en la consola.
+async function getEnrollmentAverages(currentUser, enrollmentId) {
+  if (!isId(enrollmentId)) {
+    return failure('INVALID_INPUT', 'No se pudo identificar la inscripción.');
+  }
+  try {
+    return { ok: true, ...(await enrollmentService.getEnrollmentAverages(currentUser, enrollmentId)) };
+  } catch (error) {
+    if (error instanceof EnrollmentError) {
+      return failure(error.code, error.message);
+    }
+    console.error('Error al consultar los promedios de la inscripción:', error);
+    return failure('UNEXPECTED_ERROR', 'No se pudieron cargar los promedios. Intentá nuevamente.');
+  }
+}
+
 // `teacherAssignmentId` es el id de una asignación del profesor de la sesión: que esté a su cargo
 // lo comprueba el servicio.
 // Nunca rechaza: los errores previstos (los de la asignación) llevan su mensaje y el resto, uno
@@ -256,6 +273,7 @@ function registerEnrollmentHandlers(browserWindow) {
   handleProtected(browserWindow, 'enrollments:update', ['SECRETARIO'], updateEnrollment);
   handleProtected(browserWindow, 'enrollments:delete', ['SECRETARIO'], deleteEnrollment);
   handleProtected(browserWindow, 'enrollments:open-receipt', ['SECRETARIO'], openEnrollmentReceipt);
+  handleProtected(browserWindow, 'enrollments:get-averages', ['SECRETARIO'], getEnrollmentAverages);
   handleProtected(browserWindow, 'enrollments:list-by-own-assignment', ['PROFESOR'], listOwnAssignmentEnrollments);
 }
 

@@ -23,9 +23,12 @@
 // Imprimir comprobante (data-action="print") le pide al proceso principal que genere el comprobante
 // en PDF y lo abra con el visor de PDF predeterminado (window.api.enrollments.openReceipt), desde
 // donde se imprime o se guarda. Si no se pudo, lo avisa con un toast.
+// Ver promedios (data-action="averages") abre la vista Promedios de esa inscripción
+// (../enrollment-averages/, con ?enrollmentId=). Está deshabilitado en una cancelada, que no tiene
+// promedios.
 // El ciclo lectivo actual llega con cada página, de la base (school-year.js): las inscripciones de
-// un ciclo cerrado se ven en solo lectura, con Editar y Eliminar deshabilitados e Imprimir
-// habilitado.
+// un ciclo cerrado se ven en solo lectura, con Editar y Eliminar deshabilitados, y Ver promedios e
+// Imprimir habilitados.
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -137,11 +140,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Motivo de Eliminar deshabilitado en una inscripción con calificaciones vigentes (hasScores)
   const HAS_SCORES_TITLE = 'No se puede eliminar: la inscripción tiene calificaciones.';
+  // Motivo de Ver promedios deshabilitado en una inscripción cancelada
+  const CANCELLED_AVERAGES_TITLE = 'La inscripción está cancelada: no tiene promedios.';
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
   // inscripcion_id en data-enrollment-id; el número de inscripción llega ya armado. La de una
   // inscripción de un ciclo cerrado lleva Editar y Eliminar deshabilitados, y la de una con
-  // calificaciones, solo Eliminar, con el motivo como title; <row-actions> lo lee al conectarse.
+  // calificaciones, solo Eliminar; la de una cancelada, además, Ver promedios. Todos con el motivo
+  // como title; <row-actions> lo lee al conectarse.
   const createRow = (enrollment) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.enrollmentId = String(enrollment.id);
@@ -159,6 +165,9 @@ document.addEventListener('DOMContentLoaded', () => {
       rowActions.setAttribute('read-only-title', closedSchoolYearTitle(schoolYear));
     } else if (enrollment.hasScores) {
       rowActions.setAttribute('delete-disabled-title', HAS_SCORES_TITLE);
+    }
+    if (enrollment.status === 'CANCELLED') {
+      rowActions.setAttribute('averages-disabled-title', CANCELLED_AVERAGES_TITLE);
     }
     return row;
   };
@@ -887,5 +896,17 @@ document.addEventListener('DOMContentLoaded', () => {
   tbody.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action="print"]');
     if (button) openReceipt(button);
+  });
+
+  // ---------- Ver promedios ----------
+
+  // Abre la vista Promedios con el id del data-enrollment-id de la fila (el inscripcion_id); esa
+  // vista vuelve a comprobar que la inscripción siga vigente en la institución y no esté cancelada.
+  // Por delegación, como Imprimir
+  tbody.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="averages"]');
+    if (!button) return;
+    const query = new URLSearchParams({ enrollmentId: button.closest('tr').dataset.enrollmentId });
+    window.location.href = `../enrollment-averages/index.html?${query}`;
   });
 });

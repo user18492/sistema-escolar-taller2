@@ -2,6 +2,8 @@ const enrollmentRepository = require('../repositories/enrollment.repository');
 const studentRepository = require('../repositories/student.repository');
 const courseRepository = require('../repositories/course.repository');
 const institutionRepository = require('../repositories/institution.repository');
+const teacherAssignmentRepository = require('../repositories/teacher-assignment.repository');
+const scoreRepository = require('../repositories/score.repository');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const teacherAssignmentService = require('./teacher-assignment.service');
 const schoolYearService = require('./school-year.service');
@@ -605,6 +607,57 @@ async function openEnrollmentReceipt(currentUser, enrollmentId) {
   );
 }
 
+// ---------- Promedios ----------
+
+// Estado de una inscripción cancelada, con los códigos del sistema (CANCELADA en
+// inscripcion_estado.nombre): no tiene promedios.
+const CANCELLED_STATUS = 'CANCELLED';
+
+// Promedios de una materia sin fila de scoreRepository.findAverages: todo null, sin marcas
+const NO_AVERAGES = {
+  termAverages: [null, null, null],
+  closedTerms: [false, false, false],
+  annualAverage: null,
+  isAnnualFinal: false,
+};
+
+// Los promedios de la inscripción vigente con ese id de la institución de `currentUser` (el de la
+// sesión), activa o finalizada, de cualquier ciclo lectivo: en cada materia con una asignación
+// docente vigente en su curso (solo esas), por nombre de materia. El id llega del renderer, así
+// que la inscripción se busca de nuevo.
+// Devuelve { enrollment, subjects }: enrollment con { id, number, status, student, course }
+// (student con nombre y apellido y course, toListedCourse, con su ciclo lectivo) y subjects con
+// { subjectName, terms, annual }, terms y annual como en scoreService.toListedAverages. Una materia
+// sin evaluaciones tomadas va con todo en null.
+// Lanza los EnrollmentError de findNotDeletedEnrollment y ENROLLMENT_CANCELLED si está cancelada.
+async function getEnrollmentAverages(currentUser, enrollmentId) {
+  // score.service.js importa este módulo al cargarse: se importa acá, al usarla, para no formar un
+  // ciclo de require que deje a uno de los dos sin sus exports
+  const { toListedAverages } = require('./score.service');
+  const enrollment = await findNotDeletedEnrollment(currentUser.institutionId, enrollmentId);
+  if (enrollment.status === CANCELLED_STATUS) {
+    throw new EnrollmentError('ENROLLMENT_CANCELLED', 'La inscripción está cancelada: no tiene promedios.');
+  }
+  const teacherAssignments = await teacherAssignmentRepository.findByCourse(enrollment.course.id);
+  const averages = await scoreRepository.findAverages([enrollment.id]);
+  const averagesByTeacherAssignmentId = new Map(averages.map((row) => [row.teacherAssignmentId, row]));
+  return {
+    enrollment: {
+      id: enrollment.id,
+      number: formatEnrollmentNumber(enrollment.id),
+      status: enrollment.status,
+      student: { firstName: enrollment.student.firstName, lastName: enrollment.student.lastName },
+      course: toListedCourse(enrollment.course),
+    },
+    // Toda asignación vigente del curso tiene fila en findAverages; si otra sesión creó una entre
+    // las dos consultas, va sin promedios
+    subjects: teacherAssignments.map(({ id, subject }) => ({
+      subjectName: subject.name,
+      ...toListedAverages(averagesByTeacherAssignmentId.get(id) ?? NO_AVERAGES),
+    })),
+  };
+}
+
 module.exports = {
   listOwnAssignmentEnrollments,
   listEnrollments,
@@ -616,6 +669,7 @@ module.exports = {
   updateEnrollment,
   deleteEnrollment,
   openEnrollmentReceipt,
+  getEnrollmentAverages,
   formatEnrollmentNumber,
   toListedStudent,
   EnrollmentError,
