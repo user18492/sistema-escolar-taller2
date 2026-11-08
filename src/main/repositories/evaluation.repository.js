@@ -1,15 +1,18 @@
 const { query } = require('../database/connection');
 const { Evaluation } = require('../models/evaluation.model');
 
-// Columna trimestre_cerrado: si el trimestre de la evaluación está cerrado (fn_trimestre_cerrado,
-// db/schema.sql), con su fecha (`dateColumn`) y la de la base. Lo calcula la base, que es la que
-// rechaza después las escrituras en ese trimestre (trg_evaluacion_trimestre_cerrado).
-const termClosedColumn = (dateColumn) =>
-  `fn_trimestre_cerrado(EXTRACT(YEAR FROM ${dateColumn})::INT, fn_trimestre(${dateColumn})) AS trimestre_cerrado`;
+// Columnas del trimestre de la evaluación, con su fecha (`dateColumn`): trimestre, su número (1, 2 o
+// 3) con los cortes de fn_trimestre (db/schema.sql), los mismos de los promedios
+// (vw_promedio_trimestral), y trimestre_cerrado, si ese trimestre está cerrado
+// (fn_trimestre_cerrado), con la fecha de la base. Los calcula la base, que es la que rechaza
+// después las escrituras en ese trimestre (trg_evaluacion_trimestre_cerrado).
+const termColumns = (dateColumn) =>
+  `fn_trimestre(${dateColumn}) AS trimestre,
+   fn_trimestre_cerrado(EXTRACT(YEAR FROM ${dateColumn})::INT, fn_trimestre(${dateColumn})) AS trimestre_cerrado`;
 
 // Listado de las evaluaciones vigentes de una asignación docente (sin las dadas de baja), con
-// trimestre_cerrado. El orden es total: la fecha (la más antigua primero) y, entre las del mismo
-// día, el título, que no se repite entre las vigentes de una asignación
+// trimestre y trimestre_cerrado. El orden es total: la fecha (la más antigua primero) y, entre las
+// del mismo día, el título, que no se repite entre las vigentes de una asignación
 // (uq_evaluacion_asignacion_docente_titulo, db/schema.sql), así dos consultas sobre los mismos datos
 // dan siempre el mismo orden.
 const FIND_BY_TEACHER_ASSIGNMENT_SQL = `
@@ -17,7 +20,7 @@ const FIND_BY_TEACHER_ASSIGNMENT_SQL = `
          e.asignacion_docente_id,
          e.titulo,
          e.fecha_evaluacion,
-         ${termClosedColumn('e.fecha_evaluacion')}
+         ${termColumns('e.fecha_evaluacion')}
     FROM evaluacion e
    WHERE e.asignacion_docente_id = $1
      AND e.fecha_eliminacion IS NULL
@@ -25,13 +28,13 @@ const FIND_BY_TEACHER_ASSIGNMENT_SQL = `
 `;
 
 // Una evaluación vigente de una asignación docente: una de las que lista
-// FIND_BY_TEACHER_ASSIGNMENT_SQL, también con trimestre_cerrado.
+// FIND_BY_TEACHER_ASSIGNMENT_SQL, también con trimestre y trimestre_cerrado.
 const FIND_ACTIVE_BY_ID_AND_TEACHER_ASSIGNMENT_SQL = `
   SELECT e.evaluacion_id,
          e.asignacion_docente_id,
          e.titulo,
          e.fecha_evaluacion,
-         ${termClosedColumn('e.fecha_evaluacion')}
+         ${termColumns('e.fecha_evaluacion')}
     FROM evaluacion e
    WHERE e.evaluacion_id = $1
      AND e.asignacion_docente_id = $2
@@ -39,12 +42,12 @@ const FIND_ACTIVE_BY_ID_AND_TEACHER_ASSIGNMENT_SQL = `
 `;
 
 // Alta: una evaluación vigente de la asignación docente. Devuelve la fila creada, con
-// trimestre_cerrado (como las de la edición y la baja).
+// trimestre y trimestre_cerrado (como las de la edición y la baja).
 const CREATE_SQL = `
   INSERT INTO evaluacion (asignacion_docente_id, titulo, fecha_evaluacion)
   VALUES ($1, $2, $3)
   RETURNING evaluacion_id, asignacion_docente_id, titulo, fecha_evaluacion,
-            ${termClosedColumn('fecha_evaluacion')}
+            ${termColumns('fecha_evaluacion')}
 `;
 
 // Edición: solo modifica el título y la fecha de una evaluación vigente de la asignación docente,
@@ -57,7 +60,7 @@ const UPDATE_SQL = `
      AND asignacion_docente_id = $2
      AND fecha_eliminacion IS NULL
   RETURNING evaluacion_id, asignacion_docente_id, titulo, fecha_evaluacion,
-            ${termClosedColumn('fecha_evaluacion')}
+            ${termColumns('fecha_evaluacion')}
 `;
 
 // Baja lógica: la fila se conserva con la fecha de baja, y trg_evaluacion_baja_calificaciones
@@ -71,7 +74,7 @@ const MARK_AS_DELETED_SQL = `
      AND asignacion_docente_id = $2
      AND fecha_eliminacion IS NULL
   RETURNING evaluacion_id, asignacion_docente_id, titulo, fecha_evaluacion,
-            ${termClosedColumn('fecha_evaluacion')}
+            ${termColumns('fecha_evaluacion')}
 `;
 
 // Índice único y restricciones (con los nombres que les da db/schema.sql) que rechazan un alta, una
@@ -103,12 +106,14 @@ function toEvaluation(row) {
     teacherAssignmentId: row.asignacion_docente_id,
     title: row.titulo,
     evaluationDate: row.fecha_evaluacion,
+    term: row.trimestre,
     isTermClosed: row.trimestre_cerrado,
   });
 }
 
 // Evaluaciones vigentes de la asignación docente `teacherAssignmentId` (un asignacion_docente_id),
-// ordenadas por fecha, con isTermClosed (la de toEvaluation, como en las demás funciones). Que la asignación se pueda consultar lo comprueba el servicio.
+// ordenadas por fecha, con term e isTermClosed (los de toEvaluation, como en las demás funciones).
+// Que la asignación se pueda consultar lo comprueba el servicio.
 async function findByTeacherAssignment(teacherAssignmentId) {
   const { rows } = await query(FIND_BY_TEACHER_ASSIGNMENT_SQL, [teacherAssignmentId]);
   return rows.map(toEvaluation);

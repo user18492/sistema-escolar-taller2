@@ -5,8 +5,10 @@
 // Si la asignación no existe o no está a cargo del profesor de la sesión, o si la carga falla, la
 // tarjeta, el alta y la tabla se ocultan y queda solo el mensaje de error.
 // La tabla muestra las evaluaciones vigentes de esa asignación, que llegan del proceso principal
-// (window.api.evaluations.listByOwnAssignment) con el mismo id, y el filtro Título, con una opción
-// por evaluación, las filtra en memoria. La lista filtrada se pagina en memoria, 10 por página, con
+// (window.api.evaluations.listByOwnAssignment) con el mismo id, cada una con su trimestre, que
+// calcula la base con los cortes de los promedios. El filtro Título, con una opción por evaluación,
+// y el filtro Trimestre, con los tres trimestres como opciones fijas, las filtran en memoria: se
+// muestran las que cumplen los dos. La lista filtrada se pagina en memoria, 10 por página, con
 // <table-pagination>.
 // Nueva evaluación la crea en esa asignación (window.api.evaluations.create), con el título y el
 // día y el mes que pide el formulario: el año es el ciclo lectivo de la asignación. Editar abre el
@@ -59,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // El script del componente se carga sin defer en <head>: acá ya está definido y conectado
   const pagination = evaluationsCard.querySelector('table-pagination');
   const titleHeader = table.querySelector('th[data-filter="title"]');
+  const termHeader = table.querySelector('th[data-filter="term"]');
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar las evaluaciones. Intentá nuevamente.';
 
@@ -71,10 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Eliminar quedan deshabilitados; null si no, o hasta que llega con la lista
   let readOnlyTitle = null;
   // El motivo con el que Editar y Eliminar quedan deshabilitados en una evaluación de un trimestre
-  // cerrado (isTermClosed, de la base), si el ciclo lectivo no lo está
-  const CLOSED_TERM_TITLE = 'El trimestre de esta evaluación está cerrado: es de solo lectura.';
+  // cerrado (isTermClosed, de la base), si el ciclo lectivo no lo está: nombra su trimestre (term)
+  const closedTermTitle = (term) => `El ${termLabel(term)} está cerrado: esta evaluación es de solo lectura.`;
   // La evaluación elegida en el filtro Título, por su id. Vacío (nada elegido) no filtra.
   let selectedEvaluationIds = [];
+  // Los trimestres marcados en el filtro Trimestre, como el data-value de sus opciones ('1', '2' o
+  // '3'). Vacío (nada marcado, o "Todos") no filtra.
+  let selectedTerms = [];
 
   // Cargando, error o sin resultados, en una única fila de todo el ancho
   const showMessage = (message) => {
@@ -90,14 +96,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const toDisplayDate = (isoDate) => isoDate.split('-').reverse().join('/');
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
-  // evaluacion_id en data-evaluation-id. En una asignación de un ciclo cerrado, o si la evaluación
-  // es de un trimestre cerrado, lleva Editar y Eliminar deshabilitados, con el motivo como title (el
-  // del ciclo, si son las dos cosas).
-  const createRow = ({ id, title, evaluationDate, isTermClosed }) => {
+  // evaluacion_id en data-evaluation-id. El trimestre (term) lo calcula la base con los cortes de
+  // los promedios y <term-label> lo nombra. En una asignación de un ciclo cerrado, o si la
+  // evaluación es de un trimestre cerrado, lleva Editar y Eliminar deshabilitados, con el motivo
+  // como title (el del ciclo, si son las dos cosas).
+  const createRow = ({ id, title, evaluationDate, term, isTermClosed }) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.evaluationId = String(id);
     row.cells[0].querySelector('.text-truncate').textContent = title;
     row.cells[1].textContent = toDisplayDate(evaluationDate);
+    row.cells[2].querySelector('term-label').setAttribute('term', String(term));
     // "Gestionar" abre las calificaciones de esa evaluación y le pasa el id de la asignación y el
     // de la evaluación, con los que esa vista las carga. El destino y el motivo de solo lectura se
     // asignan antes de conectar el <row-actions>, que los lee al generarse.
@@ -105,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoresParams = new URLSearchParams(assignmentParams);
     scoresParams.set('evaluationId', String(id));
     rowActions.setAttribute('manage-href', `${rowActions.getAttribute('manage-href')}?${scoresParams.toString()}`);
-    const rowReadOnlyTitle = readOnlyTitle ?? (isTermClosed ? CLOSED_TERM_TITLE : null);
+    const rowReadOnlyTitle = readOnlyTitle ?? (isTermClosed ? closedTermTitle(term) : null);
     if (rowReadOnlyTitle) rowActions.setAttribute('read-only-title', rowReadOnlyTitle);
     return row;
   };
@@ -134,18 +142,20 @@ document.addEventListener('DOMContentLoaded', () => {
     titleHeader.dispatchEvent(new Event('column-filter-refresh'));
   };
 
-  // Las evaluaciones que pasan el filtro Título
+  // Las evaluaciones que pasan los dos filtros, Título y Trimestre: cada uno sin nada elegido no
+  // filtra. Conservan el orden de la lista (por fecha), así las de un mismo trimestre quedan juntas.
   const filteredEvaluations = () =>
-    (selectedEvaluationIds.length
-      ? evaluations.filter(({ id }) => selectedEvaluationIds.includes(String(id)))
-      : evaluations);
+    evaluations.filter(({ id, term }) =>
+      (!selectedEvaluationIds.length || selectedEvaluationIds.includes(String(id)))
+      && (!selectedTerms.length || selectedTerms.includes(String(term))));
 
-  // Muestra la página `page` (por defecto, la actual) de las evaluaciones que pasan el filtro (10
+  // Muestra la página `page` (por defecto, la actual) de las evaluaciones que pasan los filtros (10
   // por página, en memoria): el total y los números de página salen de esa lista filtrada. Al
-  // cambiar el filtro se vuelve a la página 1.
+  // cambiar un filtro se vuelve a la página 1.
   const renderRows = ({ page } = {}) => {
     const pageEvaluations = pagination.slice(filteredEvaluations(), { page });
     if (pageEvaluations.length) tbody.replaceChildren(...pageEvaluations.map(createRow));
+    else if (evaluations.length) showMessage('Ninguna evaluación coincide con los filtros.');
     else showMessage('No hay evaluaciones registradas para esta asignación.');
   };
 
@@ -191,11 +201,19 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows();
   }
 
-  // El filtro de Título avisa sus cambios (column-filter.js). Si lo que filtra no cambió ("Limpiar
-  // filtro" sin nada elegido), la tabla y la página quedan como están; eso incluye a los avisos
-  // previos a la carga, cuando todavía no hay opciones que elegir.
+  // Los filtros Título y Trimestre avisan sus cambios (column-filter.js), cada uno desde su
+  // encabezado. Si lo que filtra no cambió ("Limpiar filtro" sin nada elegido), la tabla y la página
+  // quedan como están; eso incluye a los avisos de Título previos a la carga, cuando todavía no hay
+  // opciones que elegir. Antes de la carga, Trimestre solo guarda lo marcado, que se aplica al
+  // llegar la lista.
   table.tHead.addEventListener('column-filter-change', (event) => {
     const { values } = event.detail;
+    if (event.target === termHeader) {
+      if (String(values) === String(selectedTerms)) return;
+      selectedTerms = values;
+      if (isLoaded) renderRows({ page: 1 });
+      return;
+    }
     if (String(values) === String(selectedEvaluationIds)) return;
     selectedEvaluationIds = values;
     renderRows({ page: 1 });
@@ -220,13 +238,22 @@ document.addEventListener('DOMContentLoaded', () => {
     evaluations = evaluations.toSpliced(index === -1 ? evaluations.length : index, 0, evaluation);
   };
 
+  // Si `evaluation` (una de la lista en memoria) pasa los filtros, la tabla pasa a la página donde
+  // quedó; si no (una creada o editada con una fecha de un trimestre que el filtro Trimestre no
+  // marca), no se muestra y la página se conserva, como en Docencia (assignments.js).
+  const showEvaluation = (evaluation) => {
+    const visibleIndex = filteredEvaluations().indexOf(evaluation);
+    renderRows(visibleIndex === -1 ? {} : { page: Math.floor(visibleIndex / pagination.pageSize) + 1 });
+  };
+
   // La opción del filtro Título de la evaluación con ese id
   const evaluationOption = (evaluationId) => titleHeader.querySelector(`.dropdown-option[data-value="${evaluationId}"]`);
 
   // Agrega la evaluación creada a la lista en memoria, en su lugar, sin recargarla, y la tabla pasa
   // a la página donde quedó. El filtro Título elige una de las evaluaciones que ya estaban, así que
   // nunca mostraría a la nueva: se quita (fillFilterOptions), y ella pasa a ser una de sus opciones.
-  // Si la lista no se había podido cargar, se vuelve a pedir: mostrar solo la evaluación nueva
+  // El filtro Trimestre se conserva: si la nueva no es de uno de los marcados, no se muestra
+  // (showEvaluation). Si la lista no se había podido cargar, se vuelve a pedir: mostrar solo la evaluación nueva
   // taparía el error. La respuesta del alta no trae scoreCount: una evaluación nueva no tiene
   // calificaciones.
   const insertEvaluation = (createdEvaluation) => {
@@ -237,14 +264,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const newEvaluation = { ...createdEvaluation, scoreCount: 0 };
     placeEvaluation(newEvaluation);
     fillFilterOptions();
-    renderRows({ page: Math.floor(evaluations.indexOf(newEvaluation) / pagination.pageSize) + 1 });
+    showEvaluation(newEvaluation);
   };
 
   // Reemplaza en la lista en memoria la evaluación editada, que pasa al lugar que le toca con sus
-  // datos nuevos, sin recargarla, y la tabla pasa a la página donde quedó. Su opción del filtro
-  // Título muestra los datos nuevos y cambia de lugar con ella. El filtro elige por id: si estaba
-  // aplicado, la editada es la elegida (es la única fila a la vista) y lo sigue siendo, y el
-  // embudo, que la nombra por su título, se actualiza. La respuesta de la edición no trae
+  // datos nuevos, sin recargarla, y la tabla pasa a la página donde quedó (showEvaluation). Su
+  // opción del filtro Título muestra los datos nuevos y cambia de lugar con ella. El filtro elige
+  // por id: si estaba aplicado, la editada es la elegida y lo sigue siendo, y el embudo, que la
+  // nombra por su título, se actualiza. Con una fecha nueva puede cambiar de trimestre: si el
+  // filtro Trimestre la deja afuera, su fila deja de mostrarse. La respuesta de la edición no trae
   // scoreCount: conserva el de la que reemplaza, porque editar no cambia sus calificaciones.
   const replaceEvaluation = (savedEvaluation) => {
     const { scoreCount } = evaluations.find(({ id }) => id === savedEvaluation.id);
@@ -257,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextOption = nextEvaluation ? evaluationOption(nextEvaluation.id) : option.parentNode.querySelector('.dropdown-empty');
     option.parentNode.insertBefore(option, nextOption);
     titleHeader.dispatchEvent(new Event('column-filter-refresh'));
-    renderRows({ page: Math.floor(filteredEvaluations().indexOf(updatedEvaluation) / pagination.pageSize) + 1 });
+    showEvaluation(updatedEvaluation);
   };
 
   // Quita de la lista en memoria la evaluación dada de baja, sin recargarla, y su opción del filtro

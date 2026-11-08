@@ -89,13 +89,15 @@ async function parseEvaluationData(data, schoolYear) {
 
 // Lista explícita de campos, como toListedCourse (course.service.js): lo que muestran la tabla de
 // Evaluaciones del Profesor y su filtro, y el id para identificar la fila. `evaluationDate` es el
-// día de la evaluación ('AAAA-MM-DD') e `isTermClosed`, si su trimestre está cerrado, con la fecha
-// de la base al consultarla: la evaluación y sus calificaciones son de solo lectura.
-function toListedEvaluation({ id, title, evaluationDate, isTermClosed }) {
+// día de la evaluación ('AAAA-MM-DD'), `term` su trimestre (1, 2 o 3, el de los promedios, que
+// calcula la base) e `isTermClosed`, si ese trimestre está cerrado, con la fecha de la base al
+// consultarla: la evaluación y sus calificaciones son de solo lectura.
+function toListedEvaluation({ id, title, evaluationDate, term, isTermClosed }) {
   return {
     id,
     title,
     evaluationDate: toIsoDate(evaluationDate),
+    term,
     isTermClosed,
   };
 }

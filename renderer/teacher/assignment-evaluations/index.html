@@ -39,6 +39,7 @@
     <script src="../../shared/components/manage-link.component.js"></script>
     <script src="../../shared/components/row-actions.component.js"></script>
     <script src="../../shared/components/school-year.js"></script>
+    <script src="../../shared/components/term-label.component.js"></script>
     <script src="./assignment-evaluations.js" defer></script>
   </head>
   <body>
@@ -101,6 +102,20 @@
                       </div>
                     </th>
                     <th>Fecha</th>
+                    <!-- Opciones fijas: los tres trimestres del ciclo lectivo, con data-value el term que
+                         llega del proceso principal -->
+                    <th scope="col" class="column-filter" data-filter="term">
+                      <column-filter-toggle target="termFilter" heading="Trimestre" label="Filtrar por trimestre"></column-filter-toggle>
+                      <div id="termFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por trimestre">
+                        <ul class="dropdown-menu" role="listbox" aria-label="Trimestre" aria-multiselectable="true">
+                          <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                          <li class="dropdown-option" role="option" data-value="1" aria-selected="false"><term-label term="1"></term-label></li>
+                          <li class="dropdown-option" role="option" data-value="2" aria-selected="false"><term-label term="2"></term-label></li>
+                          <li class="dropdown-option" role="option" data-value="3" aria-selected="false"><term-label term="3"></term-label></li>
+                        </ul>
+                        <button type="button" class="column-filter-clear">Limpiar filtro</button>
+                      </div>
+                    </th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -117,6 +132,7 @@
               <tr>
                 <td class="evaluation-title col-title col-truncate"><span class="text-truncate"></span></td>
                 <td></td>
+                <td><term-label></term-label></td>
                 <td>
                   <row-actions manage-href="../evaluation-scores/index.html" edit-label="Editar evaluación" delete-label="Eliminar evaluación"></row-actions>
                 </td>

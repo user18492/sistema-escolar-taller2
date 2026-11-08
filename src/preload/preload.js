@@ -426,8 +426,9 @@ contextBridge.exposeInMainWorld('api', {
   evaluations: {
     // Solo PROFESOR. Resuelve { ok: true, evaluations } con las evaluaciones vigentes (sin las dadas
     // de baja) de la asignación docente vigente con ese id (asignacion_docente_id), si está a su
-    // cargo ({ id, title, evaluationDate, isTermClosed, scoreCount }, con evaluationDate el día de
-    // la evaluación, 'AAAA-MM-DD'; isTermClosed true si su trimestre está cerrado, con la fecha de
+    // cargo ({ id, title, evaluationDate, term, isTermClosed, scoreCount }, con evaluationDate el
+    // día de la evaluación, 'AAAA-MM-DD'; term su trimestre, 1, 2 o 3, con los cortes de los
+    // promedios (fn_trimestre); isTermClosed true si ese trimestre está cerrado, con la fecha de
     // la base: la evaluación y sus calificaciones son de solo lectura, y scoreCount cuántas
     // calificaciones vigentes tiene, solo de las inscripciones que lista scores.listByOwnEvaluation:
     // vigentes, activas o finalizadas, inscriptas a más tardar el día de la evaluación; 0 si
@@ -483,7 +484,7 @@ contextBridge.exposeInMainWorld('api', {
   scores: {
     // Solo PROFESOR. Resuelve { ok: true, evaluation, scores } con la evaluación vigente con ese id
     // (evaluacion_id), si es de la asignación docente vigente con ese id (asignacion_docente_id) y
-    // esa asignación está a su cargo ({ id, title, evaluationDate, isTermClosed }, como en
+    // esa asignación está a su cargo ({ id, title, evaluationDate, term, isTermClosed }, como en
     // evaluations.listByOwnAssignment, sin scoreCount; con isTermClosed, las calificaciones son de
     // solo lectura), y con sus calificaciones: una por cada inscripción del curso de la asignación,
     // vigente, activa o finalizada (sin las canceladas ni las dadas de baja) e inscripta a más tardar
