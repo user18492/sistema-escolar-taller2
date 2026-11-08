@@ -30,7 +30,16 @@ module.exports = {
                                                         AND a.fecha_eliminacion IS NULL AND u.fecha_eliminacion IS NULL AND u.estado))`, [ctx.institutionId]],
     },
   },
-  'admin/teacher-workload-report/index.html': { roles: ['ADMIN'] },
+  // Una fila por profesor no dado de baja de la institución, activo o suspendido, también sin
+  // asignaciones (parte 02)
+  'admin/teacher-workload-report/index.html': {
+    roles: ['ADMIN'],
+    rows: {
+      selector: '[data-teacher-id]',
+      sql: (ctx) => [`SELECT u.usuario_id FROM usuario u JOIN usuario_rol r USING (usuario_rol_id)
+                       WHERE u.institucion_id = $1 AND r.nombre = 'PROFESOR' AND u.fecha_eliminacion IS NULL`, [ctx.institutionId]],
+    },
+  },
   'admin/backup-regularity-report/index.html': { roles: ['ADMIN'] },
   'admin/users/index.html': {
     roles: ['ADMIN'],

@@ -2,10 +2,12 @@
 // menú lateral y muestra los tres reportes; cada uno abre su vista, con su barra de filtros, y la
 // ruta de navegación vuelve a Reportes (parte 00). Materias sin docente por curso muestra por
 // defecto los cursos incompletos del ciclo actual; el interruptor, el filtro de año y la paginación
-// (parte 01).
+// (parte 01). Carga docente por profesor muestra una fila por profesor, de mayor a menor, con la
+// línea del promedio, el tono de los suspendidos y el tooltip, y el filtro Nivel actualiza las
+// barras (parte 02).
 const { group, test } = require('../lib/framework');
 const { SEED_USERS } = require('../lib/fixtures');
-const { loginViaUi, logoutViaUi, openFromSidebar, typeInColumnFilter, clearColumnFilter } = require('./helpers');
+const { loginViaUi, logoutViaUi, openFromSidebar, typeInColumnFilter, chooseColumnFilterOption, clearColumnFilter } = require('./helpers');
 
 const REPORTS_VIEW = 'admin/reports/index.html';
 
@@ -158,6 +160,113 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
     const back = await t.ui.waitFor(`document.querySelector('table-pagination').page === 1
       && document.querySelectorAll(${JSON.stringify(ROWS)}).length === 10`, { timeoutMs: 6000 });
     t.check(back, 'El cambio del interruptor vuelve a la página 1', await viewState(t));
+    await logoutViaUi(t);
+  });
+});
+
+// Reporte Carga docente por profesor (parte 02). Los datos propios agregan un profesor con más
+// asignaciones que cualquiera del seed (el primero de la lista) y uno suspendido con una.
+group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
+  async setup({ fixtures }) {
+    const institutionId = await fixtures.institutionId();
+    const busiestTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Ocupado' });
+    const { rows: [{ max }] } = await fixtures.db.query(`
+      SELECT COALESCE(MAX(n), 0)::INT AS max FROM (
+        SELECT COUNT(*) AS n FROM asignacion_docente a JOIN curso c USING (curso_id)
+         WHERE c.institucion_id = $1 AND c.anio_ciclo_lectivo = $2 AND a.fecha_eliminacion IS NULL AND c.fecha_eliminacion IS NULL
+         GROUP BY a.usuario_id) counts`, [institutionId, fixtures.year]);
+    // Cursos nuevos de secundaria, con todas las materias de su plan, hasta superar al de más
+    // asignaciones
+    let count = 0;
+    while (count <= max) {
+      const course = await fixtures.createCourse({ level: 'SECUNDARIA', grade: '4°', shift: 'TARDE' });
+      for (const subject of await fixtures.subjectsOfGrade(course.gradeId)) {
+        await fixtures.assign({ teacherId: busiestTeacher.id, courseId: course.id, subjectName: subject.name });
+        count += 1;
+      }
+    }
+    const suspendedTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Suspendido' });
+    await fixtures.assign({ teacherId: suspendedTeacher.id, courseId: (await fixtures.createCourse({ level: 'PRIMARIA', grade: '1°', shift: 'MAÑANA' })).id });
+    await fixtures.db.query(`UPDATE usuario SET estado = FALSE WHERE usuario_id = $1`, [suspendedTeacher.id]);
+    return { institutionId, busiestTeacher, suspendedTeacher };
+  },
+}, () => {
+  const VIEW = 'admin/teacher-workload-report/index.html';
+  const ROWS = '[data-teacher-id]';
+  const COLUMN_LEVEL = { PRIMARY: 'PRIMARIA', SECONDARY: 'SECUNDARIA' };
+
+  // Los profesores no dados de baja de la institución, con sus asignaciones vigentes de cursos
+  // vigentes del ciclo actual (de un nivel, si llega), en el orden del reporte (consulta propia)
+  const expectedTeachers = (t, educationLevel = null) => t.sql(`
+    SELECT u.usuario_id AS id,
+           (SELECT COUNT(*) FROM asignacion_docente a JOIN curso c USING (curso_id) JOIN grado g USING (grado_id)
+             WHERE a.usuario_id = u.usuario_id AND a.fecha_eliminacion IS NULL AND c.fecha_eliminacion IS NULL
+               AND c.anio_ciclo_lectivo = $2 AND ($3::TEXT IS NULL OR g.nivel_educativo = $3))::INT AS count
+      FROM usuario u JOIN usuario_rol r USING (usuario_rol_id)
+     WHERE u.institucion_id = $1 AND r.nombre = 'PROFESOR' AND u.fecha_eliminacion IS NULL
+     ORDER BY count DESC, u.apellido, u.nombre, u.usuario_id`, [t.data.institutionId, t.year, COLUMN_LEVEL[educationLevel] ?? null]);
+
+  // Las filas que muestra la vista, en orden: { id, count }
+  const shownRows = (t) => t.ui.js(`Array.from(document.querySelectorAll(${JSON.stringify(ROWS)}), (row) => ({
+    id: Number(row.dataset.teacherId), count: Number(row.querySelector('.workload-count').textContent),
+  }))`);
+
+  // Espera que la vista muestre exactamente `expected`, en orden
+  const expectRows = async (t, expected, label) => {
+    const ok = await t.ui.waitFor(`JSON.stringify(Array.from(document.querySelectorAll(${JSON.stringify(ROWS)}), (row) => ({
+      id: Number(row.dataset.teacherId), count: Number(row.querySelector('.workload-count').textContent),
+    }))) === ${JSON.stringify(JSON.stringify(expected))}`, { timeoutMs: 6000 });
+    t.check(ok, `${label}: una fila por profesor, en el orden de la consulta propia`, { expected, shown: await shownRows(t) });
+  };
+
+  const openReport = async (t) => {
+    await loginViaUi(t, SEED_USERS.admin);
+    t.require(await t.ui.navigate(VIEW) === VIEW, 'No se abrió el reporte');
+    await t.ui.idle();
+  };
+
+  test('rows', 'Una fila por profesor, de mayor a menor, con la línea del promedio, el tono de los suspendidos y los conteos en el tooltip', async (t) => {
+    const { busiestTeacher, suspendedTeacher } = t.data;
+    await openReport(t);
+    const expected = (await expectedTeachers(t)).map(({ id, count }) => ({ id, count }));
+    await expectRows(t, expected, 'Ciclo actual');
+    t.equal((await shownRows(t))[0]?.id, busiestTeacher.id, 'La primera fila es la del profesor con más asignaciones');
+
+    const average = expected.reduce((sum, row) => sum + row.count, 0) / expected.length;
+    const averageText = `Promedio: ${new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(average)}`;
+    const line = await t.ui.js(`(() => {
+      const line = document.querySelector('.workload-average-line');
+      const label = document.querySelector('.workload-average-label');
+      return { visible: Boolean(line && line.getBoundingClientRect().height > 0), label: label?.textContent.trim() };
+    })()`);
+    t.equal(line, { visible: true, label: averageText }, 'La línea del promedio se ve, con su etiqueta');
+
+    const suspended = await t.ui.js(`(() => {
+      const row = document.querySelector('[data-teacher-id="${suspendedTeacher.id}"]');
+      return row && { suspended: row.classList.contains('is-suspended'), title: row.title };
+    })()`);
+    t.equal(suspended, { suspended: true, title: '1 asignación en 1 curso · Suspendido' }, 'El suspendido lleva is-suspended y su tooltip');
+    const busiest = await t.ui.js(`(() => {
+      const row = document.querySelector('[data-teacher-id="${busiestTeacher.id}"]');
+      return row && { suspended: row.classList.contains('is-suspended'), title: row.title };
+    })()`);
+    const busiestCount = expected[0].count;
+    const busiestCourses = (await t.sqlOne(`SELECT COUNT(DISTINCT curso_id)::INT AS n FROM asignacion_docente WHERE usuario_id = $1 AND fecha_eliminacion IS NULL`, [busiestTeacher.id])).n;
+    t.equal(busiest, { suspended: false, title: `${busiestCount} asignaciones en ${busiestCourses} ${busiestCourses === 1 ? 'curso' : 'cursos'}` },
+      'Un activo, sin is-suspended y con sus conteos en el tooltip');
+    await logoutViaUi(t);
+  });
+
+  test('level-filter', 'Un cambio de Nivel actualiza las barras', async (t) => {
+    await openReport(t);
+    await expectRows(t, (await expectedTeachers(t)).map(({ id, count }) => ({ id, count })), 'Todos los niveles');
+    await chooseColumnFilterOption(t, 'level', 'PRIMARY');
+    await expectRows(t, (await expectedTeachers(t, 'PRIMARY')).map(({ id, count }) => ({ id, count })), 'Primaria');
+    t.equal(await t.ui.js(`document.querySelector('.report-filters [data-filter="level"] .report-filter-value').textContent.trim()`),
+      'Primaria', 'El botón muestra el nivel elegido');
+    // La barra del profesor ocupado (todas sus asignaciones son de secundaria) queda vacía
+    t.equal(await t.ui.js(`document.querySelector('[data-teacher-id="${t.data.busiestTeacher.id}"] .workload-bar').getBoundingClientRect().width`),
+      0, 'Sin asignaciones de primaria, la barra del profesor ocupado queda vacía');
     await logoutViaUi(t);
   });
 });
