@@ -486,24 +486,27 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
   const isIncomplete = (course) => course.unassigned.length > 0 || course.suspended.length > 0;
 
   // Lo esperado de cada curso incompleto de la institución en el ciclo `year`, con subconsultas por
-  // materia (distinto de la consulta agrupada del repositorio). Sin docente: sin asignación vigente
-  // o con el profesor dado de baja; con docente suspendido: "Materia (Nombre Apellido)". Con
-  // `{ all: true }`, también los cursos completos.
+  // materia (distinto de la consulta agrupada del repositorio). Sin docente: { subjectId,
+  // subjectName }, sin asignación vigente o con el profesor dado de baja; con docente suspendido:
+  // la asignación, la materia y el profesor, con sus ids de la base. Con `{ all: true }`, también
+  // los cursos completos.
   const expectedCourses = async (t, year, { all = false } = {}) => (await t.sql(`
     SELECT c.curso_id AS id, g.nivel_educativo, c.turno,
            (SELECT COUNT(*) FROM grado_materia gm WHERE gm.grado_id = c.grado_id)::INT AS "subjectCount",
-           ARRAY(SELECT m.nombre FROM grado_materia gm JOIN materia m USING (materia_id)
-                  WHERE gm.grado_id = c.grado_id
-                    AND NOT EXISTS (SELECT 1 FROM asignacion_docente a JOIN usuario u USING (usuario_id)
-                                     WHERE a.curso_id = c.curso_id AND a.grado_materia_id = gm.grado_materia_id
-                                       AND a.fecha_eliminacion IS NULL AND u.fecha_eliminacion IS NULL)
-                  ORDER BY m.nombre) AS unassigned,
-           ARRAY(SELECT m.nombre || ' (' || u.nombre || ' ' || u.apellido || ')'
-                   FROM asignacion_docente a JOIN usuario u USING (usuario_id)
-                   JOIN grado_materia gm USING (grado_materia_id) JOIN materia m USING (materia_id)
-                  WHERE a.curso_id = c.curso_id AND a.fecha_eliminacion IS NULL
-                    AND u.fecha_eliminacion IS NULL AND NOT u.estado
-                  ORDER BY m.nombre) AS suspended
+           COALESCE((SELECT json_agg(json_build_object('subjectId', m.materia_id, 'subjectName', m.nombre) ORDER BY m.nombre)
+                       FROM grado_materia gm JOIN materia m USING (materia_id)
+                      WHERE gm.grado_id = c.grado_id
+                        AND NOT EXISTS (SELECT 1 FROM asignacion_docente a JOIN usuario u USING (usuario_id)
+                                         WHERE a.curso_id = c.curso_id AND a.grado_materia_id = gm.grado_materia_id
+                                           AND a.fecha_eliminacion IS NULL AND u.fecha_eliminacion IS NULL)), '[]') AS unassigned,
+           COALESCE((SELECT json_agg(json_build_object(
+                              'teacherAssignmentId', a.asignacion_docente_id, 'subjectId', m.materia_id, 'subjectName', m.nombre,
+                              'teacher', json_build_object('id', u.usuario_id, 'firstName', u.nombre, 'lastName', u.apellido),
+                              'teacherName', u.nombre || ' ' || u.apellido) ORDER BY m.nombre)
+                       FROM asignacion_docente a JOIN usuario u USING (usuario_id)
+                       JOIN grado_materia gm USING (grado_materia_id) JOIN materia m USING (materia_id)
+                      WHERE a.curso_id = c.curso_id AND a.fecha_eliminacion IS NULL
+                        AND u.fecha_eliminacion IS NULL AND NOT u.estado), '[]') AS suspended
       FROM curso c JOIN grado g USING (grado_id)
      WHERE c.institucion_id = $1 AND c.fecha_eliminacion IS NULL AND c.anio_ciclo_lectivo = $2
      ORDER BY c.curso_id`, [t.data.institutionId, year])).map((row) => ({
@@ -525,12 +528,15 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
       subjectCount: course.subjectCount,
       assignedCount: course.assignedCount,
       unassigned: course.unassignedSubjects,
-      suspended: course.suspendedSubjects.map(({ subjectName, teacherName }) => `${subjectName} (${teacherName})`),
+      suspended: course.suspendedSubjects,
     }))
     .sort((a, b) => a.id - b.id);
 
-  test('counts', 'Los conteos y las listas de cada curso incompleto del ciclo actual coinciden con una consulta propia', {
-    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'El reporte trae solo los cursos incompletos: la consulta propia deja afuera los completos' }],
+  test('counts', 'Los conteos y las listas de cada curso incompleto del ciclo actual, con los ids de la base, coinciden con una consulta propia', {
+    history: [
+      { plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'El reporte trae solo los cursos incompletos: la consulta propia deja afuera los completos' },
+      { plan: 'plans/reportes-asignaciones/00-backend-ids.md', date: '2026-11-09', change: 'Sin docente trae { subjectId, subjectName } y con docente suspendido suma los ids de la asignación, la materia y el profesor: se comparan con los de la base' },
+    ],
   }, async (t) => {
     const { partialCourse, activeAssignment, suspendedAssignment, suspendedTeacher } = t.data;
     await t.login('admin');
@@ -543,10 +549,22 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     t.equal({ gradeName: partial.gradeName, division: partial.division },
       { gradeName: partialCourse.grade, division: partialCourse.division }, 'Grado y división del curso');
     t.equal(partial.assignedCount, 2, 'Asignadas: la del profesor activo y la del suspendido');
-    t.check(!partial.unassignedSubjects.includes(activeAssignment.name) && !partial.unassignedSubjects.includes(suspendedAssignment.name),
+    const unassignedIds = partial.unassignedSubjects.map((subject) => subject.subjectId);
+    t.check(!unassignedIds.includes(activeAssignment.subjectId) && !unassignedIds.includes(suspendedAssignment.subjectId),
       'Sin docente no incluye a las materias asignadas', partial.unassignedSubjects);
-    t.equal(partial.suspendedSubjects, [{ subjectName: suspendedAssignment.name, teacherName: `${suspendedTeacher.firstName} ${suspendedTeacher.lastName}` }],
-      'Con docente suspendido: la materia y el nombre del profesor');
+    const planSubjects = await t.sql(`SELECT m.materia_id AS "subjectId", m.nombre AS "subjectName"
+                                        FROM grado_materia gm JOIN materia m USING (materia_id)
+                                       WHERE gm.grado_id = (SELECT grado_id FROM curso WHERE curso_id = $1)
+                                         AND m.materia_id <> ALL ($2::INT[])
+                                       ORDER BY m.nombre`, [partialCourse.id, [activeAssignment.subjectId, suspendedAssignment.subjectId]]);
+    t.equal(partial.unassignedSubjects, planSubjects, 'Sin docente: el id y el nombre de cada materia del plan sin asignar');
+    t.equal(partial.suspendedSubjects, [{
+      teacherAssignmentId: suspendedAssignment.id,
+      subjectId: suspendedAssignment.subjectId,
+      subjectName: suspendedAssignment.name,
+      teacher: { id: suspendedTeacher.id, firstName: suspendedTeacher.firstName, lastName: suspendedTeacher.lastName },
+      teacherName: `${suspendedTeacher.firstName} ${suspendedTeacher.lastName}`,
+    }], 'Con docente suspendido: la asignación, la materia y el profesor, con sus ids');
     await t.logout();
   });
 
@@ -568,7 +586,10 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
   });
 
   test('closed-school-year-deleted-teacher', 'En un ciclo cerrado, la materia de un profesor dado de baja después cuenta como sin docente', {
-    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'El reporte trae solo los cursos incompletos del ciclo cerrado' }],
+    history: [
+      { plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'El reporte trae solo los cursos incompletos del ciclo cerrado' },
+      { plan: 'plans/reportes-asignaciones/00-backend-ids.md', date: '2026-11-09', change: 'Sin docente trae { subjectId, subjectName }: la materia del profesor dado de baja se busca por su id y su nombre' },
+    ],
   }, async (t) => {
     const { closed } = t.data;
     await t.login('admin');
@@ -577,14 +598,18 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     t.equal(shownCourses(report.courses), await expectedCourses(t, t.year - 1), 'Cursos, conteos y listas del ciclo cerrado');
     const course = report.courses.find((row) => row.id === closed.course.id);
     t.require(course, 'El curso del ciclo cerrado no está en el reporte', report.courses);
-    t.check(course.unassignedSubjects.includes(closed.assignment.name), 'La materia del profesor dado de baja está en Sin docente', course);
+    t.check(course.unassignedSubjects.some((subject) => subject.subjectId === closed.assignment.subjectId && subject.subjectName === closed.assignment.name),
+      'La materia del profesor dado de baja está en Sin docente', course);
     t.equal({ assigned: course.assignedCount, suspended: course.suspendedSubjects },
       { assigned: course.subjectCount - course.unassignedSubjects.length, suspended: [] }, 'No cuenta como asignada ni como suspendida');
     await t.logout();
   });
 
   test('scope-and-filters', 'Fuera el curso dado de baja y los de otra institución; Nivel y Turno filtran; un año inválido es INVALID_INPUT', {
-    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'Nivel y Turno filtran los cursos incompletos; onlyIncomplete ya no existe ni se valida' }],
+    history: [
+      { plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'Nivel y Turno filtran los cursos incompletos; onlyIncomplete ya no existe ni se valida' },
+      { plan: 'plans/reportes-asignaciones/00-backend-ids.md', date: '2026-11-09', change: 'La consulta propia (expectedCourses) compara las listas con la forma nueva, con los ids de la base' },
+    ],
   }, async (t) => {
     const { deletedCourse, foreignCourse } = t.data;
     await t.login('admin');
@@ -695,7 +720,8 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
 
   // Lo esperado de cada profesor no dado de baja de la institución, con subconsultas por profesor
   // (distinto del LEFT JOIN agrupado del repositorio), en el orden del reporte: cantidad, apellido,
-  // nombre y usuario_id. Las asignaciones, por curso (nivel, grado, división y turno) y materia.
+  // nombre y usuario_id. Las asignaciones, por curso (nivel, grado, división y turno) y materia, con
+  // los ids de la base: el de la asignación, el del curso y el de la materia, y el nivel del curso.
   const expectedTeachers = async (t, { institutionId = t.data.institutionId, schoolYear, educationLevel = null, shift = null }) => {
     const assignments = `FROM asignacion_docente a JOIN curso c USING (curso_id) JOIN grado g USING (grado_id)
                          JOIN grado_materia gm USING (grado_materia_id) JOIN materia m ON m.materia_id = gm.materia_id
@@ -705,13 +731,18 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
     const rows = await t.sql(`
       SELECT u.usuario_id AS id, u.nombre AS "firstName", u.apellido AS "lastName", NOT u.estado AS suspended,
              (SELECT COUNT(*) ${assignments})::INT AS "assignmentCount",
-             COALESCE((SELECT json_agg(json_build_object('gradeName', g.nombre, 'division', c.division, 'shift', c.turno, 'subjectName', m.nombre)
+             COALESCE((SELECT json_agg(json_build_object('id', a.asignacion_docente_id, 'courseId', c.curso_id, 'educationLevel', g.nivel_educativo,
+                                                         'gradeName', g.nombre, 'division', c.division, 'shift', c.turno,
+                                                         'subjectId', m.materia_id, 'subjectName', m.nombre)
                                        ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, m.nombre) ${assignments}), '[]') AS assignments
         FROM usuario u JOIN usuario_rol r USING (usuario_rol_id)
        WHERE u.institucion_id = $1 AND r.nombre = 'PROFESOR' AND u.fecha_eliminacion IS NULL
        ORDER BY "assignmentCount" DESC, u.apellido, u.nombre, u.usuario_id`,
     [institutionId, schoolYear, COLUMN_LEVEL[educationLevel] ?? null, COLUMN_SHIFT[shift] ?? null]);
-    return rows.map((row) => ({ ...row, assignments: row.assignments.map((assignment) => ({ ...assignment, shift: SHIFT[assignment.shift] })) }));
+    return rows.map((row) => ({
+      ...row,
+      assignments: row.assignments.map((assignment) => ({ ...assignment, educationLevel: LEVEL[assignment.educationLevel], shift: SHIFT[assignment.shift] })),
+    }));
   };
 
   // El resumen de una lista de profesores: el promedio redondeado y, contra ese entero, los de más,
@@ -729,8 +760,11 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
 
   const teacherOf = (report, teacher) => report.teachers.find((row) => row.id === teacher.id);
 
-  test('counts', 'Cada profesor no dado de baja, con sus asignaciones del ciclo actual (curso y materia), en el orden y con el resumen de una consulta propia', {
-    history: [{ plan: 'Pedido del 2026-11-09: tabla con las asignaciones de cada profesor y resumen del promedio (sin plan en plans/)', date: '2026-11-09', change: 'Cada profesor trae el curso y la materia de cada asignación en lugar de los cursos distintos, y el promedio pasa al resumen redondeado' }],
+  test('counts', 'Cada profesor no dado de baja, con sus asignaciones del ciclo actual (ids, curso y materia), en el orden y con el resumen de una consulta propia', {
+    history: [
+      { plan: 'Pedido del 2026-11-09: tabla con las asignaciones de cada profesor y resumen del promedio (sin plan en plans/)', date: '2026-11-09', change: 'Cada profesor trae el curso y la materia de cada asignación en lugar de los cursos distintos, y el promedio pasa al resumen redondeado' },
+      { plan: 'plans/reportes-asignaciones/00-backend-ids.md', date: '2026-11-09', change: 'Cada asignación suma su id, el del curso, el nivel y el id de la materia: se comparan con los de la base' },
+    ],
   }, async (t) => {
     const { idleTeacher, busyTeacher, suspendedTeacher, deletedTeacher } = t.data;
     await t.login('admin');
@@ -744,6 +778,14 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
     t.equal(busy && { count: busy.assignmentCount, courses: busy.assignments.map((assignment) => `${assignment.gradeName} ${assignment.shift}`) },
       { count: 3, courses: ['1° MORNING', '4° AFTERNOON', '4° AFTERNOON'] },
       'Dos materias del mismo curso y una de otro: 3 asignaciones, primaria antes que secundaria (sin la dada de baja)');
+    const byId = (a, b) => a.id - b.id;
+    const busyRows = await t.sql(`SELECT a.asignacion_docente_id AS id, a.curso_id AS "courseId", g.nivel_educativo AS level, gm.materia_id AS "subjectId"
+                                    FROM asignacion_docente a JOIN curso c USING (curso_id) JOIN grado g USING (grado_id)
+                                    JOIN grado_materia gm USING (grado_materia_id)
+                                   WHERE a.usuario_id = $1 AND a.fecha_eliminacion IS NULL AND c.anio_ciclo_lectivo = $2`, [busyTeacher.id, t.year]);
+    t.equal(busy && busy.assignments.map(({ id, courseId, educationLevel, subjectId }) => ({ id, courseId, educationLevel, subjectId })).sort(byId),
+      busyRows.map(({ level, ...row }) => ({ ...row, educationLevel: LEVEL[level] })).sort(byId),
+      'Los ids de la asignación, del curso y de la materia, y el nivel, son los de la base');
     t.equal(teacherOf(report, idleTeacher), { id: idleTeacher.id, firstName: idleTeacher.firstName, lastName: idleTeacher.lastName, suspended: false, assignmentCount: 0, assignments: [] },
       'El profesor sin asignaciones aparece con 0 y sin asignaciones');
     t.equal(teacherOf(report, suspendedTeacher) && { suspended: teacherOf(report, suspendedTeacher).suspended, assignments: teacherOf(report, suspendedTeacher).assignmentCount },
@@ -757,7 +799,10 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
   });
 
   test('filters', 'Nivel, Turno y un ciclo cerrado cuentan solo las asignaciones de esos cursos, y siguen listando a todos los profesores', {
-    history: [{ plan: 'Pedido del 2026-11-09: tabla con las asignaciones de cada profesor y resumen del promedio (sin plan en plans/)', date: '2026-11-09', change: 'El profesor ocupado se compara por sus asignaciones, no por sus cursos distintos, y el promedio pasa al resumen redondeado' }],
+    history: [
+      { plan: 'Pedido del 2026-11-09: tabla con las asignaciones de cada profesor y resumen del promedio (sin plan en plans/)', date: '2026-11-09', change: 'El profesor ocupado se compara por sus asignaciones, no por sus cursos distintos, y el promedio pasa al resumen redondeado' },
+      { plan: 'plans/reportes-asignaciones/00-backend-ids.md', date: '2026-11-09', change: 'La consulta propia (expectedTeachers) compara las asignaciones con la forma nueva, con los ids de la base' },
+    ],
   }, async (t) => {
     const { busyTeacher } = t.data;
     await t.login('admin');
