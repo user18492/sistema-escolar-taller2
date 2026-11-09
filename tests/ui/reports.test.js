@@ -2,7 +2,8 @@
 // menú lateral y muestra los tres reportes; cada uno abre su vista, con su barra de filtros, y la
 // ruta de navegación vuelve a Reportes (parte 00). Materias sin docente por curso muestra solo los
 // cursos incompletos, del ciclo actual por defecto; el filtro de año, el mensaje sin resultados y la
-// paginación (parte 01). Carga docente por profesor muestra una fila por profesor, de mayor a menor, con la
+// paginación (parte 01), y las celdas de materias ("—", la materia o la cantidad con el modal de la
+// lista completa). Carga docente por profesor muestra una fila por profesor, de mayor a menor, con la
 // línea del promedio, el tono de los suspendidos y el tooltip, y el filtro Nivel actualiza las
 // barras (parte 02). Regularidad de los backups muestra 12 columnas con los backups de cada mes, los
 // meses futuros atenuados y el último backup, que no cambia con el ciclo elegido (parte 03).
@@ -68,7 +69,33 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
       }
       return course;
     });
-    return { institutionId, completeCourse, closedCourse, olderCompleteCourse };
+    // Tres ciclos atrás, un curso por cada forma de celda de "Sin docente" y "Con docente
+    // suspendido" (ninguna materia, una, varias), con un profesor que se suspende después de asignarlo
+    const suspendedTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Suspendido' });
+    const subjectCells = await fixtures.inSchoolYear(fixtures.year - 3, async () => {
+      // Todas asignadas, una al suspendido: Sin docente "—", Con docente suspendido una
+      const oneSuspended = await fixtures.createCourse();
+      const oneSuspendedSubjects = await fixtures.subjectsOfGrade(oneSuspended.gradeId);
+      for (const [index, subject] of oneSuspendedSubjects.entries()) {
+        await fixtures.assign({ teacherId: index === 0 ? suspendedTeacher.id : teacher.id, courseId: oneSuspended.id, subjectName: subject.name });
+      }
+      // Todas menos una, dos al suspendido: Sin docente una, Con docente suspendido varias
+      const oneUnassigned = await fixtures.createCourse();
+      const oneUnassignedSubjects = await fixtures.subjectsOfGrade(oneUnassigned.gradeId);
+      for (const [index, subject] of oneUnassignedSubjects.slice(1).entries()) {
+        await fixtures.assign({ teacherId: index < 2 ? suspendedTeacher.id : teacher.id, courseId: oneUnassigned.id, subjectName: subject.name });
+      }
+      // Ninguna asignada: Sin docente varias, Con docente suspendido "—"
+      const noneAssigned = await fixtures.createCourse();
+      return {
+        oneSuspended: { id: oneSuspended.id, suspended: [oneSuspendedSubjects[0].name] },
+        oneUnassigned: { id: oneUnassigned.id, unassigned: [oneUnassignedSubjects[0].name], suspended: oneUnassignedSubjects.slice(1, 3).map((subject) => subject.name) },
+        noneAssigned: { id: noneAssigned.id, unassigned: (await fixtures.subjectsOfGrade(noneAssigned.gradeId)).map((subject) => subject.name) },
+      };
+    });
+    await fixtures.db.query('UPDATE usuario SET estado = false WHERE usuario_id = $1', [suspendedTeacher.id]);
+    const suspendedTeacherName = `${suspendedTeacher.firstName} ${suspendedTeacher.lastName}`;
+    return { institutionId, completeCourse, closedCourse, olderCompleteCourse, subjectCells, suspendedTeacherName };
   },
 }, () => {
   const VIEW = 'admin/subject-coverage-report/index.html';
@@ -180,6 +207,64 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
       && document.querySelector('.report-filters [data-filter="level"] .report-filter-value').textContent.trim() === 'Secundaria'
       && document.querySelectorAll(${JSON.stringify(ROWS)}).length === 10`, { timeoutMs: 6000 });
     t.check(back, 'El cambio de Nivel vuelve a la página 1', await viewState(t));
+    await logoutViaUi(t);
+  });
+
+  test('subject-cells', 'Sin docente y Con docente suspendido muestran "—", la materia o la cantidad con un botón que abre la lista completa en un modal, que se cierra con la X y con Escape', {
+    history: [{ plan: 'Pedido del 2026-11-09: celdas de materias según la cantidad, con modal para dos o más (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const { subjectCells: cells, suspendedTeacherName: teacher } = t.data;
+    const OVERLAY = '#subjectListOverlay';
+    const COLUMNS = { unassigned: '.unassigned-subjects', suspended: '.suspended-subjects' };
+    const withTeacher = (names) => names.map((name) => `${name} (${teacher})`);
+    const sorted = (list) => [...list].sort();
+
+    await openReport(t);
+    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year), label: 'Ciclo actual' });
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(t.year - 3));
+    await expectRows(t, { year: t.year - 3, ids: await expectedIds(t, t.year - 3), label: 'Tres ciclos atrás' });
+
+    // Lo que muestra una celda: su texto y, si tiene, la etiqueta del botón
+    const cellState = (id, column) => t.ui.js(`(() => {
+      const cell = document.querySelector('tr[data-course-id="${id}"] ${COLUMNS[column]}');
+      return { text: cell.textContent.replace(/\\s+/g, ' ').trim(), button: cell.querySelector('.subject-list-button')?.getAttribute('aria-label') ?? null };
+    })()`);
+    const modalState = () => t.ui.js(`(() => ({
+      label: document.querySelector('${OVERLAY} .modal').getAttribute('aria-label'),
+      items: Array.from(document.querySelectorAll('#subjectList li'), (item) => item.textContent),
+      focus: document.activeElement?.id || document.activeElement?.getAttribute('aria-label') || null,
+    }))()`);
+
+    // Ninguna materia y una sola: texto, sin botón
+    t.equal(await cellState(cells.oneSuspended.id, 'unassigned'), { text: '—', button: null }, 'Sin docente sin materias');
+    t.equal(await cellState(cells.noneAssigned.id, 'suspended'), { text: '—', button: null }, 'Con docente suspendido sin materias');
+    t.equal(await cellState(cells.oneUnassigned.id, 'unassigned'), { text: cells.oneUnassigned.unassigned[0], button: null }, 'Sin docente con una materia');
+    t.equal(await cellState(cells.oneSuspended.id, 'suspended'), { text: withTeacher(cells.oneSuspended.suspended)[0], button: null }, 'Con docente suspendido con una materia, con el docente');
+
+    // Varias: la cantidad y el botón; el modal lista todas, se cierra con la X (clic) y con Escape,
+    // y el foco vuelve al botón
+    const many = [
+      { id: cells.noneAssigned.id, column: 'unassigned', description: 'sin docente', items: cells.noneAssigned.unassigned, close: 'x' },
+      { id: cells.oneUnassigned.id, column: 'suspended', description: 'con docente suspendido', items: withTeacher(cells.oneUnassigned.suspended), close: 'Escape' },
+    ];
+    for (const cell of many) {
+      await t.step(`${cell.column} con ${cell.items.length}`, async () => {
+        const state = await cellState(cell.id, cell.column);
+        const buttonLabel = `Ver las ${cell.items.length} materias ${cell.description} de `;
+        t.equal(state.text, `${cell.items.length} materias`, 'La cantidad');
+        t.check(state.button?.startsWith(buttonLabel), 'El botón dice qué abre', state);
+        await t.ui.click(`tr[data-course-id="${cell.id}"] ${COLUMNS[cell.column]} .subject-list-button`);
+        t.require(await t.ui.waitModal(OVERLAY, true), 'El modal no se abrió');
+        const open = await modalState();
+        t.equal(sorted(open.items), sorted(cell.items), 'El modal lista todas las materias', open);
+        t.check(open.label.startsWith(`Materias ${cell.description} de `), 'El modal tiene nombre accesible', open);
+        t.equal(open.focus, 'closeSubjectListBtn', 'El foco pasa a la X');
+        if (cell.close === 'x') await t.ui.click('#closeSubjectListBtn');
+        else await t.ui.press('Escape');
+        t.require(await t.ui.waitModal(OVERLAY, false), `El modal no se cerró con ${cell.close}`);
+        t.equal((await modalState()).focus, state.button, 'El foco vuelve al botón');
+      });
+    }
     await logoutViaUi(t);
   });
 });
