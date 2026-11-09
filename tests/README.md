@@ -1,9 +1,13 @@
 # Suite de pruebas
 
-Pruebas generales y compartidas del sistema. Cada plan de `plans/` (las restricciones pendientes de
-`notas/restricciones/`) se ejecuta en una sesión distinta, y esta suite es lo único que comparten
-todas: **se corre al empezar y al terminar cada plan**, para confirmar que la aplicación sigue
-funcionando como antes y no solo lo que el plan modificó. Su objetivo es detectar los bugs
+Pruebas generales y compartidas del sistema. Se crearon para el cambio masivo de restricciones
+(los planes de `plans/`, cada uno en una sesión distinta), y la suite era lo único que compartían
+todas: se corría al empezar y al terminar cada plan, para confirmar que la aplicación seguía
+funcionando como antes y no solo lo que el plan modificaba.
+
+**Desde el 2026-11-09 la suite solo se corre cuando el prompt lo pide explícitamente** (regla 7.3 de
+`CLAUDE.md`): por defecto, cada sesión verifica solo lo que implementó, con una prueba breve, y no
+guarda la línea base. Las pruebas se conservan para cuando se pidan. Su objetivo es detectar los bugs
 invisibles: los controladores convierten los errores inesperados en una respuesta genérica y un log,
 la vista muestra un aviso y nada se rompe a la vista. La suite registra todo eso y hace fallar la
 prueba en la que ocurre.
@@ -209,7 +213,7 @@ group('main.secretary.enrollments', 'Secretario: inscripciones', {
 5. **Los cambios de cada plan en `tests/` van en un commit propio dentro de la rama**, separado del de
    la aplicación, para revisarlos aparte. Ese commit incluye la línea base actualizada.
 
-Recorrido de una sesión: `npm test -- --plan <nota>` al empezar (tiene que dar OK o solo fallas
+Recorrido de una sesión, solo cuando el prompt pide usar la suite: `npm test -- --plan <nota>` al empezar (tiene que dar OK o solo fallas
 conocidas); implementar el plan; ajustar o agregar pruebas según las reglas; `npm test -- --plan
 <nota>` hasta que no queden fallas; `npm test -- --update-baseline`; commit de la aplicación y commit
 aparte de `tests/`.
