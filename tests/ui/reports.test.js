@@ -9,7 +9,9 @@
 // del 2026-11-09). Regularidad de los backups muestra 12 columnas con los backups de cada mes, los
 // meses futuros atenuados y el último backup, que no cambia con el ciclo elegido (parte 03). En un
 // ciclo sin datos (sin cursos, o sin backups), cada reporte muestra solo el mensaje "No existen
-// registros…" (pedido del 2026-11-09, pruebas no-data).
+// registros…" (pedido del 2026-11-09, pruebas no-data). En el ciclo actual, los modales de
+// Materias sin docente y de Carga docente llevan Asignar y Reasignar, que pasan al formulario de
+// Docencia en el mismo modal (plans/reportes-asignaciones/ 02 y 03).
 const { group, test } = require('../lib/framework');
 const { SEED_USERS } = require('../lib/fixtures');
 const { LEVEL } = require('../lib/domain');
@@ -146,6 +148,88 @@ const waitNoData = (t, { message, year, shown }) => t.ui.waitFor(`(() => {
   return isShown === ${shown}
     && document.querySelector('.report-filters [data-filter="year"] .report-filter-value').textContent.trim() === '${year}';
 })()`, { timeoutMs: 6000 });
+
+// ---------- Modal por pasos de los reportes (plans/reportes-asignaciones/) ----------
+// Lista → formulario <assignment-form> → lista, en el modal `overlay`, con la lista en `list`.
+// Ayudas compartidas por Materias sin docente por curso (parte 02) y Carga docente por profesor
+// (parte 03).
+function stepModal(overlay, list) {
+  const TEACHER_SELECT = `${overlay} [data-role="teacher-select"]`;
+
+  // El paso que muestra el modal ('list', 'form' o null si está cerrado), su nombre accesible, la
+  // lista (texto de cada elemento y la etiqueta de su acción), el recuadro y el foco
+  const modalView = (t) => t.ui.js(`(() => {
+    const overlay = document.querySelector('${overlay}');
+    const modal = overlay.querySelector('.modal');
+    const listStep = modal.querySelector('.list-modal-step');
+    const form = modal.querySelector('assignment-form');
+    const shown = (el) => Boolean(el) && el.getClientRects().length > 0;
+    const step = !overlay.classList.contains('is-open') ? null : shown(listStep) && !shown(form.querySelector('.modal-body')) ? 'list' : !shown(listStep) && shown(form.querySelector('.modal-body')) ? 'form' : 'both';
+    const labelledBy = modal.getAttribute('aria-labelledby');
+    const active = document.activeElement;
+    return {
+      step,
+      name: labelledBy ? document.getElementById(labelledBy)?.textContent.trim() : modal.getAttribute('aria-label'),
+      items: Array.from(modal.querySelectorAll('${list} li'), (item) => ({
+        text: item.querySelector('.list-modal-text')?.textContent ?? item.textContent,
+        action: item.querySelector('.list-modal-action')?.getAttribute('aria-label') ?? null,
+      })),
+      boxBackground: getComputedStyle(modal.querySelector('.list-modal-items')).backgroundColor,
+      modalBackground: getComputedStyle(modal).backgroundColor,
+      focus: active?.id || active?.getAttribute('aria-label') || null,
+    };
+  })()`);
+
+  // Lo que muestra el formulario del modal: título, aclaración del profesor y cada campo (elegido y
+  // bloqueado)
+  const formView = (t) => t.ui.js(`(() => {
+    const q = (selector) => document.querySelector('${overlay} ' + selector);
+    const selected = (root) => root.querySelector('.dropdown-option.selected')?.dataset.value ?? null;
+    const hint = q('#newAssignmentTeacherHint');
+    return {
+      title: q('#newAssignmentTitle').textContent.trim(),
+      teacher: selected(q('[data-role="teacher-select"]')),
+      level: selected(q('[data-filter="new-assignment-level"]')),
+      levelLocked: q('[data-filter="new-assignment-level"] .dropdown-toggle').disabled,
+      course: selected(q('[data-role="course-select"]')),
+      courseLocked: q('[data-role="course-select"]').classList.contains('is-locked'),
+      subject: selected(q('[data-filter="new-assignment-subject"]')),
+      subjectLocked: q('#newAssignmentSubject').disabled,
+      teacherHint: hint.hidden ? null : hint.textContent,
+    };
+  })()`);
+
+  // Espera que el formulario tenga elegidos el nivel, el curso y la materia (llegan después de abrirlo)
+  const waitFormFilled = (t) => t.ui.waitFor(`(() => {
+    const q = (selector) => document.querySelector('${overlay} ' + selector);
+    return q('[data-filter="new-assignment-subject"] .dropdown-option.selected') && q('#newAssignmentSubject').disabled;
+  })()`, { message: 'El formulario no quedó con la materia elegida y bloqueada' });
+
+  const waitStep = async (t, step, label) => {
+    const ok = await t.ui.waitFor(`(() => {
+      const overlay = document.querySelector('${overlay}');
+      const modal = overlay.querySelector('.modal');
+      const shown = (el) => el.getClientRects().length > 0;
+      const isList = shown(modal.querySelector('.list-modal-step'));
+      const isForm = shown(modal.querySelector('assignment-form .modal-body'));
+      return overlay.classList.contains('is-open') && getComputedStyle(overlay).visibility === 'visible'
+        && (${JSON.stringify(step)} === 'list' ? isList && !isForm : isForm && !isList);
+    })()`, { timeoutMs: 6000 });
+    t.check(ok, `${label}: el modal muestra el paso ${step}`, await modalView(t));
+  };
+
+  // Elige el profesor `teacher` en el formulario y guarda; espera que termine de guardar
+  const chooseTeacherAndSave = async (t, teacher) => {
+    await t.ui.waitFor(`document.querySelectorAll('${TEACHER_SELECT} .dropdown-option').length > 0`, { message: 'No cargaron los profesores del formulario' });
+    await pickSearchable(t, TEACHER_SELECT, teacher.id, teacher.lastName);
+    await waitEnabled(t, '#createAssignmentBtn', 'Guardar');
+    await t.ui.click('#createAssignmentBtn', { scroll: false });
+    await t.ui.waitFor(`document.querySelector('${overlay} .modal').getAttribute('aria-busy') !== 'true'`, { timeoutMs: 6000 });
+    await t.ui.idle({ quietMs: 300 });
+  };
+
+  return { TEACHER_SELECT, modalView, formView, waitFormFilled, waitStep, chooseTeacherAndSave };
+}
 
 // Cada reporte: su vista y los filtros de su barra (data-filter), en orden
 const REPORTS = [
@@ -543,77 +627,7 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
     }
   };
 
-  // El paso que muestra el modal ('list', 'form' o null si está cerrado), su nombre accesible, la
-  // lista (texto de cada materia y la etiqueta de su acción), el recuadro y el foco
-  const modalView = (t) => t.ui.js(`(() => {
-    const overlay = document.querySelector('${OVERLAY}');
-    const modal = overlay.querySelector('.modal');
-    const listStep = modal.querySelector('.list-modal-step');
-    const form = modal.querySelector('assignment-form');
-    const shown = (el) => Boolean(el) && el.getClientRects().length > 0;
-    const step = !overlay.classList.contains('is-open') ? null : shown(listStep) && !shown(form.querySelector('.modal-body')) ? 'list' : !shown(listStep) && shown(form.querySelector('.modal-body')) ? 'form' : 'both';
-    const labelledBy = modal.getAttribute('aria-labelledby');
-    const active = document.activeElement;
-    return {
-      step,
-      name: labelledBy ? document.getElementById(labelledBy)?.textContent.trim() : modal.getAttribute('aria-label'),
-      items: Array.from(modal.querySelectorAll('#subjectList li'), (item) => ({
-        text: item.querySelector('.list-modal-text')?.textContent ?? item.textContent,
-        action: item.querySelector('.list-modal-action')?.getAttribute('aria-label') ?? null,
-      })),
-      boxBackground: getComputedStyle(modal.querySelector('.list-modal-items')).backgroundColor,
-      modalBackground: getComputedStyle(modal).backgroundColor,
-      focus: active?.id || active?.getAttribute('aria-label') || null,
-    };
-  })()`);
-
-  // Lo que muestra el formulario del modal: título, aclaración del profesor y cada campo (elegido y
-  // bloqueado)
-  const formView = (t) => t.ui.js(`(() => {
-    const q = (selector) => document.querySelector('${OVERLAY} ' + selector);
-    const selected = (root) => root.querySelector('.dropdown-option.selected')?.dataset.value ?? null;
-    const hint = q('#newAssignmentTeacherHint');
-    return {
-      title: q('#newAssignmentTitle').textContent.trim(),
-      teacher: selected(q('[data-role="teacher-select"]')),
-      level: selected(q('[data-filter="new-assignment-level"]')),
-      levelLocked: q('[data-filter="new-assignment-level"] .dropdown-toggle').disabled,
-      course: selected(q('[data-role="course-select"]')),
-      courseLocked: q('[data-role="course-select"]').classList.contains('is-locked'),
-      subject: selected(q('[data-filter="new-assignment-subject"]')),
-      subjectLocked: q('#newAssignmentSubject').disabled,
-      teacherHint: hint.hidden ? null : hint.textContent,
-    };
-  })()`);
-
-  // Espera que el formulario tenga elegidos el nivel, el curso y la materia (llegan después de abrirlo)
-  const waitFormFilled = (t) => t.ui.waitFor(`(() => {
-    const q = (selector) => document.querySelector('${OVERLAY} ' + selector);
-    return q('[data-filter="new-assignment-subject"] .dropdown-option.selected') && q('#newAssignmentSubject').disabled;
-  })()`, { message: 'El formulario no quedó con la materia elegida y bloqueada' });
-
-  const waitStep = async (t, step, label) => {
-    const ok = await t.ui.waitFor(`(() => {
-      const overlay = document.querySelector('${OVERLAY}');
-      const modal = overlay.querySelector('.modal');
-      const shown = (el) => el.getClientRects().length > 0;
-      const isList = shown(modal.querySelector('.list-modal-step'));
-      const isForm = shown(modal.querySelector('assignment-form .modal-body'));
-      return overlay.classList.contains('is-open') && getComputedStyle(overlay).visibility === 'visible'
-        && (${JSON.stringify(step)} === 'list' ? isList && !isForm : isForm && !isList);
-    })()`, { timeoutMs: 6000 });
-    t.check(ok, `${label}: el modal muestra el paso ${step}`, await modalView(t));
-  };
-
-  // Elige el profesor `teacher` en el formulario y guarda; espera que termine de guardar
-  const chooseTeacherAndSave = async (t, teacher) => {
-    await t.ui.waitFor(`document.querySelectorAll('${TEACHER_SELECT} .dropdown-option').length > 0`, { message: 'No cargaron los profesores del formulario' });
-    await pickSearchable(t, TEACHER_SELECT, teacher.id, teacher.lastName);
-    await waitEnabled(t, '#createAssignmentBtn', 'Guardar');
-    await t.ui.click('#createAssignmentBtn', { scroll: false });
-    await t.ui.waitFor(`document.querySelector('${OVERLAY} .modal').getAttribute('aria-busy') !== 'true'`, { timeoutMs: 6000 });
-    await t.ui.idle({ quietMs: 300 });
-  };
+  const { modalView, formView, waitFormFilled, waitStep, chooseTeacherAndSave } = stepModal(OVERLAY, '#subjectList');
 
   // La asignación vigente de la materia `subjectName` en el curso (su profesor), o null
   const assignedTeacher = async (t, course, subjectName) => (await t.sql(`
@@ -864,7 +878,8 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
 
 // Reporte Carga docente por profesor (parte 02 y pedido del 2026-11-09: tabla paginada con el
 // resumen del promedio arriba). Los datos propios agregan un profesor con más asignaciones que
-// cualquiera del seed (el primero de la lista), uno suspendido con una y uno sin asignaciones.
+// cualquiera del seed (el primero de la lista), uno suspendido con una y uno sin asignaciones, y
+// los de Reasignar (parte 03 de plans/reportes-asignaciones/).
 group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
   async setup({ fixtures }) {
     const institutionId = await fixtures.institutionId();
@@ -891,7 +906,31 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
     await fixtures.assign({ teacherId: suspendedTeacher.id, courseId: (await fixtures.createCourse({ level: 'PRIMARIA', grade: '1°', shift: 'MAÑANA' })).id });
     await fixtures.db.query(`UPDATE usuario SET estado = FALSE WHERE usuario_id = $1`, [suspendedTeacher.id]);
     const idleTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Libre' });
-    return { institutionId, busiestTeacher, suspendedTeacher, idleTeacher, zeroYear };
+    // Para Reasignar (plans/reportes-asignaciones/03-carga-docente.md): un profesor activo con dos
+    // asignaciones en un curso del ciclo actual y una en el anterior, uno activo sin asignaciones
+    // que las recibe y uno suspendido con una sola
+    const originTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Origen' });
+    const originCourse = await fixtures.createCourse({ level: 'PRIMARIA', grade: '2°', shift: 'MAÑANA' });
+    const originAssignments = [];
+    for (const subject of (await fixtures.subjectsOfGrade(originCourse.gradeId)).slice(0, 2)) {
+      const assignment = await fixtures.assign({ teacherId: originTeacher.id, courseId: originCourse.id, subjectName: subject.name });
+      originAssignments.push({ id: assignment.id, subjectId: subject.subjectId, subjectName: subject.name });
+    }
+    await fixtures.inSchoolYear(fixtures.year - 1, async () => {
+      const course = await fixtures.createCourse({ level: 'PRIMARIA', grade: '2°', shift: 'MAÑANA' });
+      await fixtures.assign({ teacherId: originTeacher.id, courseId: course.id });
+    });
+    const targetTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Destino' });
+    const loneTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Reemplazable' });
+    const loneAssignment = await fixtures.assign({ teacherId: loneTeacher.id, courseId: (await fixtures.createCourse({ level: 'SECUNDARIA', grade: '1°', shift: 'TARDE' })).id });
+    await fixtures.db.query(`UPDATE usuario SET estado = FALSE WHERE usuario_id = $1`, [loneTeacher.id]);
+    const teacherOf = (user) => ({ id: user.id, firstName: user.firstName, lastName: user.lastName });
+    return {
+      institutionId, busiestTeacher, suspendedTeacher, idleTeacher, zeroYear,
+      originTeacher: { ...teacherOf(originTeacher), courseId: originCourse.id, level: originCourse.level, assignments: originAssignments },
+      targetTeacher: teacherOf(targetTeacher),
+      loneTeacher: { ...teacherOf(loneTeacher), assignmentId: loneAssignment.id },
+    };
   },
 }, () => {
   const VIEW = 'admin/teacher-workload-report/index.html';
@@ -900,12 +939,15 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
   const PAGE_SIZE = 10;
   const COLUMN_LEVEL = { PRIMARY: 'PRIMARIA', SECONDARY: 'SECUNDARIA' };
   const SHIFT_LABELS = { 'MAÑANA': 'Mañana', TARDE: 'Tarde' };
+  const PLAN_03 = 'plans/reportes-asignaciones/03-carga-docente.md';
+  const { TEACHER_SELECT, modalView, formView, waitFormFilled, waitStep, chooseTeacherAndSave } = stepModal(OVERLAY, '#assignmentList');
 
   // Los profesores no dados de baja de la institución, con sus asignaciones vigentes de cursos
-  // vigentes del ciclo actual (de un nivel, si llega), en el orden del reporte (consulta propia):
+  // vigentes del ciclo `year` (el actual, si no llega; de un nivel, si llega), en el orden del
+  // reporte (consulta propia):
   // la fila que tiene que mostrar la vista ({ id, name, status, count, button }) y el texto de cada
   // asignación del modal
-  const expectedTeachers = async (t, educationLevel = null) => {
+  const expectedTeachers = async (t, educationLevel = null, year = t.year) => {
     const rows = await t.sql(`
       SELECT u.usuario_id AS id, u.nombre AS "firstName", u.apellido AS "lastName", u.estado AS active,
              COALESCE(json_agg(json_build_object('grade', g.nombre, 'division', c.division, 'shift', c.turno, 'subject', m.nombre)
@@ -923,7 +965,7 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
        WHERE u.institucion_id = $1 AND r.nombre = 'PROFESOR' AND u.fecha_eliminacion IS NULL
        GROUP BY u.usuario_id
        ORDER BY COUNT(a.asignacion_docente_id) DESC, u.apellido, u.nombre, u.usuario_id`,
-    [t.data.institutionId, t.year, COLUMN_LEVEL[educationLevel] ?? null]);
+    [t.data.institutionId, year, COLUMN_LEVEL[educationLevel] ?? null]);
     return rows.map((row) => ({
       id: row.id,
       name: `${row.lastName}, ${row.firstName}`,
@@ -1020,7 +1062,10 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
   });
 
   test('assignment-list', 'El botón de la cantidad abre el modal con el curso y la materia de cada asignación, que se cierra con la X y con Escape y devuelve el foco', {
-    history: [{ plan: 'Pedido del 2026-11-09: tabla en lugar del gráfico (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+    history: [
+      { plan: 'Pedido del 2026-11-09: tabla en lugar del gráfico (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' },
+      { plan: PLAN_03, date: '2026-11-09', change: 'En el ciclo actual cada elemento lleva Reasignar: compara solo el texto de la asignación (.list-modal-text)' },
+    ],
   }, async (t) => {
     const { busiestTeacher, suspendedTeacher } = t.data;
     await openReport(t);
@@ -1028,7 +1073,7 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
     await expectPage(t, expected, { page: 1, label: 'Ciclo actual' });
     const modalState = () => t.ui.js(`(() => ({
       label: document.querySelector('${OVERLAY} .modal').getAttribute('aria-label'),
-      items: Array.from(document.querySelectorAll('#assignmentList li'), (item) => item.textContent),
+      items: Array.from(document.querySelectorAll('#assignmentList li'), (item) => (item.querySelector('.list-modal-text') ?? item).textContent),
       focus: document.activeElement?.id || document.activeElement?.getAttribute('aria-label') || null,
     }))()`);
 
@@ -1158,6 +1203,227 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
     await clearColumnFilter(t, 'year');
     await expectPage(t, await expectedTeachers(t), { page: 1, label: 'Después de "Limpiar filtro"' });
     t.equal(await noDataState(t, PARTS), WITH_DATA, 'Ciclo actual otra vez: el resumen, la tabla y la paginación');
+    await logoutViaUi(t);
+  });
+
+  // ---------- Reasignar desde el reporte (plans/reportes-asignaciones/03-carga-docente.md) ----------
+
+  const NEW_TEST = { plan: PLAN_03, date: '2026-11-09', change: 'Prueba nueva' };
+  const summaryButtonOf = (teacherId) => `${ROWS}[data-teacher-id="${teacherId}"] .list-summary-button`;
+
+  // Lleva la tabla a la página del profesor `teacherId` en `expected` y espera que la muestre
+  const showTeacherPage = async (t, expected, teacherId) => {
+    const page = pageOf(expected, teacherId);
+    t.require(page > 0, `El profesor ${teacherId} no está en el reporte`);
+    if ((await viewState(t)).page !== page) await goToPage(t, page);
+    await expectPage(t, expected, { page, label: `Página del profesor ${teacherId}` });
+    return page;
+  };
+
+  // El profesor y la asignación vigente `assignmentId` (base)
+  const assignmentTeacher = async (t, assignmentId) => (await t.sqlOne(
+    `SELECT usuario_id FROM asignacion_docente WHERE asignacion_docente_id = $1 AND fecha_eliminacion IS NULL`, [assignmentId]))?.usuario_id ?? null;
+
+  // Cierra los toasts y espera que terminen de salir: el de éxito tapa la paginación, y
+  // dismissToasts vuelve sin esperar la animación de salida
+  const clearToasts = async (t) => {
+    await t.ui.dismissToasts();
+    await t.ui.waitFor(`!document.querySelector('.toast')`, { timeoutMs: 3000, message: 'El toast no terminó de salir' });
+  };
+
+  // El botón principal del formulario: texto y si está deshabilitado
+  const submitState = (t) => t.ui.js(`(() => {
+    const button = document.querySelector('${OVERLAY} #createAssignmentBtn');
+    return { text: button.textContent.trim(), disabled: button.disabled };
+  })()`);
+
+  test('reassign-from-list', 'En el ciclo actual, Reasignar en la lista de un profesor lleva al formulario en el mismo modal, con su profesor elegido y el nivel, el curso y la materia bloqueados; "Guardar cambios" se habilita solo con otro profesor, Cancelar vuelve a la lista y guardar pasa la asignación al otro, vuelve a la lista sin ella y actualiza las filas y el resumen sin cambiar de página', {
+    history: [NEW_TEST],
+  }, async (t) => {
+    const { originTeacher: origin, targetTeacher: target } = t.data;
+    await openReport(t);
+    const before = await expectedTeachers(t);
+    await expectPage(t, before, { page: 1, label: 'Ciclo actual' });
+    const page = await showTeacherPage(t, before, origin.id);
+    const originBefore = before.find((teacher) => teacher.id === origin.id);
+    const targetBefore = before.find((teacher) => teacher.id === target.id);
+
+    await t.ui.click(summaryButtonOf(origin.id));
+    await waitStep(t, 'list', 'Lista');
+    const list = await modalView(t);
+    t.check(list.boxBackground !== list.modalBackground, 'La lista va en un recuadro con otro fondo que el del modal', list);
+    t.equal(list.items.map((item) => item.text), originBefore.assignments, 'La lista tiene cada asignación del profesor');
+    t.equal(list.items.map((item) => item.action), originBefore.assignments.map((text) => `Reasignar ${text}`), 'Cada asignación tiene su Reasignar, con el curso y la materia');
+    const first = origin.assignments.find((assignment) => list.items[0]?.text.endsWith(`— ${assignment.subjectName}`));
+    t.require(first, 'La primera asignación de la lista no es una del profesor', list.items);
+
+    await t.step('Reasignar y Cancelar', async () => {
+      await t.ui.click('#assignmentList li:nth-child(1) .list-modal-action');
+      await waitStep(t, 'form', 'Reasignar');
+      await waitFormFilled(t);
+      await t.ui.waitFor(`Boolean(document.querySelector('${TEACHER_SELECT} .dropdown-option.selected'))`, { message: 'El formulario no quedó con el profesor elegido' });
+      t.equal(await formView(t), {
+        title: 'Editar asignación',
+        teacher: String(origin.id),
+        level: LEVEL[origin.level],
+        levelLocked: true,
+        course: String(origin.courseId),
+        courseLocked: true,
+        subject: String(first.subjectId),
+        subjectLocked: true,
+        teacherHint: null,
+      }, 'Editar asignación con el profesor de la fila y el nivel, el curso y la materia bloqueados');
+      t.equal(await submitState(t), { text: 'Guardar cambios', disabled: true }, '"Guardar cambios" deshabilitado con el mismo profesor');
+      t.equal((await modalView(t)).name, 'Editar asignación', 'El modal toma el nombre del formulario');
+      await t.ui.click('#cancelNewAssignmentBtn', { scroll: false });
+      await waitStep(t, 'list', 'Cancelar');
+      const back = await modalView(t);
+      t.equal(back.focus, list.items[0].action, 'El foco vuelve a Reasignar de esa asignación', back);
+      t.equal(back.items, list.items, 'La lista sigue igual');
+    });
+
+    await t.step('Reasignar y guardar', async () => {
+      await t.ui.click('#assignmentList li:nth-child(1) .list-modal-action');
+      await waitStep(t, 'form', 'Reasignar');
+      await waitFormFilled(t);
+      // chooseTeacherAndSave espera que "Guardar cambios" se habilite con el otro profesor
+      await chooseTeacherAndSave(t, target);
+      t.equal(await assignmentTeacher(t, first.id), target.id, 'La asignación pasó al profesor elegido (base)');
+      await waitStep(t, 'list', 'Después de guardar');
+      const after = await modalView(t);
+      t.equal(after.items.map((item) => item.text), list.items.slice(1).map((item) => item.text), 'La lista ya no tiene la asignación');
+      t.equal(after.focus, after.items[0]?.action, 'El foco queda en Reasignar de la asignación que ocupó su lugar', after);
+      t.check((await t.ui.toasts()).some((toast) => toast.type === 'success' && toast.title === 'Asignación actualizada'), 'El toast de éxito');
+      const expected = await expectedTeachers(t);
+      t.equal([expected.find((teacher) => teacher.id === origin.id)?.count, expected.find((teacher) => teacher.id === target.id)?.count],
+        [originBefore.count - 1, targetBefore.count + 1], 'Una asignación menos para uno y una más para el otro (consulta propia)');
+      t.equal((await viewState(t)).page, page, 'La tabla sigue en la misma página');
+      await expectPage(t, expected, { page, label: 'Después de guardar' });
+
+      await t.ui.press('Escape');
+      t.require(await t.ui.waitModal(OVERLAY, false), 'Escape no cerró el modal');
+      await clearToasts(t);
+      for (const teacher of [origin, target]) {
+        await showTeacherPage(t, expected, teacher.id);
+      }
+    });
+    await t.ui.dismissToasts();
+    await logoutViaUi(t);
+  });
+
+  test('reassign-last', 'Reasignar la única asignación de un profesor (suspendido) cierra el modal: su fila queda con 0 y sin botón, y el foco pasa al primer botón de la tabla', {
+    history: [NEW_TEST],
+  }, async (t) => {
+    const { loneTeacher: lone, targetTeacher: target } = t.data;
+    await openReport(t);
+    const before = await expectedTeachers(t);
+    await expectPage(t, before, { page: 1, label: 'Ciclo actual' });
+    const page = await showTeacherPage(t, before, lone.id);
+
+    await t.ui.click(summaryButtonOf(lone.id));
+    await waitStep(t, 'list', 'Lista');
+    const list = await modalView(t);
+    t.equal(list.items.map((item) => item.action), before.find((teacher) => teacher.id === lone.id).assignments.map((text) => `Reasignar ${text}`),
+      'La única asignación del suspendido tiene su Reasignar');
+    await t.ui.click('#assignmentList li:nth-child(1) .list-modal-action');
+    await waitStep(t, 'form', 'Reasignar');
+    await waitFormFilled(t);
+    const form = await formView(t);
+    t.check(form.teacherHint?.includes(lone.lastName), 'La aclaración nombra al profesor suspendido', form);
+    t.equal([form.teacher, form.levelLocked, form.courseLocked, form.subjectLocked], [null, true, true, true], 'Sin profesor, con el nivel, el curso y la materia bloqueados');
+
+    await chooseTeacherAndSave(t, target);
+    t.require(await t.ui.waitModal(OVERLAY, false), 'Guardar no cerró el modal');
+    t.equal(await assignmentTeacher(t, lone.assignmentId), target.id, 'La asignación pasó al profesor elegido (base)');
+    const expected = await expectedTeachers(t);
+    t.equal(expected.find((teacher) => teacher.id === lone.id)?.count, 0, 'El suspendido queda sin asignaciones (consulta propia)');
+    t.equal((await viewState(t)).page, page, 'La tabla sigue en la misma página');
+    await expectPage(t, expected, { page, label: 'Después de guardar' });
+    t.equal(await t.ui.js(`(() => {
+      const active = document.activeElement;
+      const first = document.querySelector('.workload-card tbody .list-summary-button')
+        ?? document.querySelector('.report-filters [data-filter="year"] .column-filter-toggle');
+      return active === first;
+    })()`), true, 'El foco pasa al primer botón de la tabla');
+    await clearToasts(t);
+    await showTeacherPage(t, expected, lone.id);
+    const row = (await viewState(t)).rows.find((candidate) => candidate.id === lone.id);
+    t.equal(row && { count: row.count, button: row.button }, { count: 0, button: false }, 'Su fila queda con 0, sin botón');
+    await t.ui.dismissToasts();
+    await logoutViaUi(t);
+  });
+
+  test('past-year-no-actions', 'En un ciclo anterior, la lista de asignaciones no tiene Reasignar', {
+    history: [NEW_TEST],
+  }, async (t) => {
+    const { originTeacher: origin } = t.data;
+    await openReport(t);
+    const current = await expectedTeachers(t);
+    await expectPage(t, current, { page: 1, label: 'Ciclo actual' });
+    await showTeacherPage(t, current, origin.id);
+    await t.ui.click(summaryButtonOf(origin.id));
+    await waitStep(t, 'list', 'Ciclo actual');
+    t.check((await modalView(t)).items.every((item) => item.action !== null), 'En el ciclo actual cada asignación tiene Reasignar');
+    await t.ui.press('Escape');
+    t.require(await t.ui.waitModal(OVERLAY, false), 'Escape no cerró el modal');
+
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(t.year - 1));
+    const past = await expectedTeachers(t, null, t.year - 1);
+    await expectPage(t, past, { page: 1, label: `Ciclo ${t.year - 1}` });
+    t.check(past.find((teacher) => teacher.id === origin.id)?.count > 0, `El profesor tiene asignaciones en ${t.year - 1}`);
+    await showTeacherPage(t, past, origin.id);
+    await t.ui.click(summaryButtonOf(origin.id));
+    await waitStep(t, 'list', `Ciclo ${t.year - 1}`);
+    const list = await modalView(t);
+    t.equal(list.items.map((item) => item.text), past.find((teacher) => teacher.id === origin.id).assignments, 'La lista tiene las asignaciones de ese ciclo');
+    t.check(list.items.every((item) => item.action === null), 'Ninguna tiene Reasignar', list.items);
+    await t.ui.press('Escape');
+    t.require(await t.ui.waitModal(OVERLAY, false), 'Escape no cerró el modal');
+    await logoutViaUi(t);
+  });
+
+  test('close-any-step', 'La X y Escape cierran el modal desde la lista y desde el formulario, y el foco vuelve al botón que lo abrió', {
+    history: [NEW_TEST],
+  }, async (t) => {
+    const { originTeacher: origin } = t.data;
+    const assignmentsOf = () => t.sql(`SELECT asignacion_docente_id, usuario_id FROM asignacion_docente WHERE usuario_id = $1 AND fecha_eliminacion IS NULL ORDER BY 1`, [origin.id]);
+    const assignmentsBefore = await assignmentsOf();
+    await openReport(t);
+    const expected = await expectedTeachers(t);
+    await expectPage(t, expected, { page: 1, label: 'Ciclo actual' });
+    await showTeacherPage(t, expected, origin.id);
+    const summaryButton = summaryButtonOf(origin.id);
+    const buttonLabel = await t.ui.js(`document.querySelector('${summaryButton}').getAttribute('aria-label')`);
+    const cases = [
+      { label: 'X en la lista', step: 'list', close: 'x' },
+      { label: 'Escape en la lista', step: 'list', close: 'Escape' },
+      { label: 'X en el formulario', step: 'form', close: 'x' },
+      { label: 'Escape en el formulario', step: 'form', close: 'Escape' },
+      // Con la lista de profesores abierta, Escape la cierra primero y el siguiente cierra el modal
+      { label: 'Escape en el formulario con la lista de profesores abierta', step: 'form', close: 'Escape', openMenu: true },
+    ];
+    for (const item of cases) {
+      await t.step(item.label, async () => {
+        await t.ui.click(summaryButton);
+        await waitStep(t, 'list', item.label);
+        if (item.step === 'form') {
+          await t.ui.click('#assignmentList li:nth-child(1) .list-modal-action');
+          await waitStep(t, 'form', item.label);
+          await waitFormFilled(t);
+        }
+        if (item.openMenu) {
+          await t.ui.waitFor(`document.querySelectorAll('${TEACHER_SELECT} .dropdown-option').length > 0`, { message: 'No cargaron los profesores del formulario' });
+          await t.ui.click(`${TEACHER_SELECT} .searchable-chevron`, { scroll: false });
+          await t.ui.press('Escape');
+          t.equal((await modalView(t)).step, 'form', 'El primer Escape cierra solo la lista de profesores');
+        }
+        if (item.close === 'x') await t.ui.click('.list-modal-close', { scroll: false });
+        else await t.ui.press('Escape');
+        t.require(await t.ui.waitModal(OVERLAY, false), `${item.label}: el modal no se cerró`);
+        t.equal((await modalView(t)).focus, buttonLabel, `${item.label}: el foco vuelve al botón de la fila`);
+      });
+    }
+    t.equal(await assignmentsOf(), assignmentsBefore, 'No se guardó nada');
     await logoutViaUi(t);
   });
 });

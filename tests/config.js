@@ -28,7 +28,9 @@ const PATHS = {
 const LAYERS = {
   db: { runtime: 'node', dir: 'db', timeoutMs: 120_000 },
   main: { runtime: 'electron', dir: 'main', timeoutMs: 240_000 },
-  ui: { runtime: 'electron', dir: 'ui', timeoutMs: 420_000 },
+  // 600 s desde plans/reportes-asignaciones/03-carga-docente.md (2026-11-09): la capa ya tardaba
+  // unos 415 s y quedaba al límite de los 420 s anteriores
+  ui: { runtime: 'electron', dir: 'ui', timeoutMs: 600_000 },
   startup: { runtime: 'node', dir: 'startup', timeoutMs: 180_000 },
 };
 

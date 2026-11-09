@@ -1,10 +1,14 @@
 {
   "version": 1,
-  "takenAt": "2026-11-09T18:52:40.154Z",
-  "commit": "3e7aea14e7c14590b416bcea2315e6b9be0edc81",
+  "takenAt": "2026-11-09T19:32:20.135Z",
+  "commit": "76465012a00caaec78d557796834931401581019",
   "branch": "main",
-  "dirty": false,
-  "changedFiles": [],
+  "dirty": true,
+  "changedFiles": [
+    "renderer/admin/teacher-workload-report/index.html",
+    "renderer/admin/teacher-workload-report/teacher-workload-report.css",
+    "renderer/admin/teacher-workload-report/teacher-workload-report.js"
+  ],
   "today": "2026-11-09",
   "year": 2026,
   "environment": {
@@ -2613,10 +2617,10 @@
     "ui.reports.teacher-workload.assignment-list": {
       "layer": "ui",
       "status": "pass",
-      "hash": "f63bd92c6e19",
+      "hash": "0981d14a9b0e",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 1,
+      "historyCount": 2,
       "knownFailure": null
     },
     "ui.reports.teacher-workload.level-filter": {
@@ -2641,6 +2645,42 @@
       "layer": "ui",
       "status": "pass",
       "hash": "547492ae1e7a",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.teacher-workload.reassign-from-list": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "c8d21d8d53c9",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.teacher-workload.reassign-last": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "650b54794792",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.teacher-workload.past-year-no-actions": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "148d2520494e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.teacher-workload.close-any-step": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "a0b6df1ec0c4",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 1,
@@ -2991,24 +3031,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 253,
-      "ok": 253,
-      "tests": 76
+      "calls": 265,
+      "ok": 265,
+      "tests": 80
     },
     "auth:get-remembered-email": {
-      "calls": 149,
-      "ok": 149,
-      "tests": 101
+      "calls": 153,
+      "ok": 153,
+      "tests": 105
     },
     "auth:login": {
-      "calls": 204,
-      "ok": 196,
-      "tests": 166
+      "calls": 208,
+      "ok": 200,
+      "tests": 170
     },
     "auth:logout": {
-      "calls": 259,
-      "ok": 259,
-      "tests": 191
+      "calls": 263,
+      "ok": 263,
+      "tests": 195
     },
     "auth:select-institution": {
       "calls": 5,
@@ -3056,9 +3096,9 @@
       "tests": 4
     },
     "dashboard:get-admin-summary": {
-      "calls": 39,
-      "ok": 39,
-      "tests": 37
+      "calls": 43,
+      "ok": 43,
+      "tests": 41
     },
     "dashboard:get-secretary-summary": {
       "calls": 15,
@@ -3171,14 +3211,14 @@
       "tests": 19
     },
     "reports:get-teacher-workload": {
-      "calls": 43,
-      "ok": 36,
-      "tests": 11
+      "calls": 50,
+      "ok": 43,
+      "tests": 15
     },
     "school-years:get-current": {
-      "calls": 115,
-      "ok": 115,
-      "tests": 56
+      "calls": 119,
+      "ok": 119,
+      "tests": 60
     },
     "scores:delete": {
       "calls": 5,
@@ -3251,19 +3291,19 @@
       "tests": 8
     },
     "teacher-assignments:list-assignable-courses": {
-      "calls": 22,
-      "ok": 22,
-      "tests": 21
+      "calls": 33,
+      "ok": 33,
+      "tests": 30
     },
     "teacher-assignments:list-assignable-subjects": {
-      "calls": 18,
-      "ok": 18,
-      "tests": 13
+      "calls": 24,
+      "ok": 24,
+      "tests": 16
     },
     "teacher-assignments:list-assignable-teachers": {
-      "calls": 22,
-      "ok": 22,
-      "tests": 21
+      "calls": 33,
+      "ok": 33,
+      "tests": 30
     },
     "teacher-assignments:list-own": {
       "calls": 21,
@@ -3271,9 +3311,9 @@
       "tests": 20
     },
     "teacher-assignments:update": {
-      "calls": 11,
-      "ok": 6,
-      "tests": 7
+      "calls": 13,
+      "ok": 8,
+      "tests": 9
     },
     "users:create": {
       "calls": 4,
@@ -3306,9 +3346,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 322,
-      "ok": 322,
-      "tests": 109
+      "calls": 334,
+      "ok": 334,
+      "tests": 113
     },
     "window:minimize": {
       "calls": 1,
