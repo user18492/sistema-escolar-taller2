@@ -14,6 +14,12 @@
     <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="../../shared/styles/searchable-select.css" />
+    <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
+    <link rel="stylesheet" href="../../shared/styles/info-box.css" />
+    <link rel="stylesheet" href="../../shared/styles/assignment-form.css" />
     <link rel="stylesheet" href="../../shared/styles/list-modal.css" />
     <link rel="stylesheet" href="../../shared/styles/report-message.css" />
     <link rel="stylesheet" href="./subject-coverage-report.css" />
@@ -22,12 +28,21 @@
     <script src="../../shared/components/user-avatar.component.js"></script>
     <script src="../../shared/components/session-user-cache.component.js"></script>
     <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="../../shared/components/report-description.component.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="../../shared/components/modal-resize.js"></script>
+    <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
+    <script src="../../shared/components/dropdown.component.js"></script>
+    <script src="../../shared/components/searchable-select.component.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
     <script src="../../shared/components/table-pagination.component.js"></script>
     <script src="../../shared/components/school-year.js"></script>
+    <script src="../../shared/components/assignment-form.component.js"></script>
+    <script src="../../shared/components/list-modal.component.js"></script>
     <script src="./subject-coverage-report.js" defer></script>
   </head>
   <body>
@@ -136,13 +151,22 @@
                 </button>
               </span>
             </template>
+
+            <!-- Plantilla: celda con una sola materia en el ciclo actual; subject-coverage-report.js
+                 le suma al lado su acción (Asignar o Reasignar, .list-modal-action) -->
+            <template id="subjectSingleTemplate">
+              <span class="subject-single"><span class="subject-single-text"></span></span>
+            </template>
           </section>
         </main>
       </div>
     </div>
 
-    <!-- Modal: lista completa de las materias de una celda. Sin título visible: su nombre accesible
-         (aria-label) lo pone subject-coverage-report.js al abrirlo, con la columna y el curso. -->
+    <!-- Modal por pasos (list-modal.component.js): la lista completa de las materias de una celda
+         y, desde Asignar o Reasignar, el formulario de Docencia (<assignment-form>). En el paso de
+         la lista no tiene título visible: su nombre accesible (aria-label) lo pone
+         subject-coverage-report.js al abrirlo, con la columna y el curso; en el del formulario, es
+         su título. -->
     <div class="modal-overlay" id="subjectListOverlay">
       <div class="modal list-modal" role="dialog" aria-modal="true" aria-label="">
         <div class="list-modal-head">
@@ -152,7 +176,10 @@
             </svg>
           </button>
         </div>
-        <ul class="list-modal-items" id="subjectList"></ul>
+        <div class="list-modal-step">
+          <ul class="list-modal-items" id="subjectList"></ul>
+        </div>
+        <assignment-form hidden></assignment-form>
       </div>
     </div>
   </body>

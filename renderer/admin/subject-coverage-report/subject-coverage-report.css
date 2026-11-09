@@ -1,6 +1,7 @@
 /* Reporte Materias sin docente por curso (Administrador). La ruta de navegación la aporta
-   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css, y la celda con la
-   cantidad de materias y el modal de la lista, list-modal.css. */
+   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css; la celda con la
+   cantidad de materias, el modal de la lista y las acciones Asignar y Reasignar, list-modal.css, y
+   el formulario del modal, assignment-form.css. */
 
 /* ---------- Tabla ---------- */
 
@@ -44,6 +45,16 @@
   min-width: 100px;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* Celda con una sola materia en el ciclo actual: la materia y, al lado, su acción (Asignar o
+   Reasignar, .list-modal-action de list-modal.css). Si no entran en una línea, la acción pasa a la
+   siguiente en lugar de ensanchar la tabla. */
+.subject-single {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
 }
 
 /* En ventanas angostas (1024 px) las celdas se acercan un poco, para que las columnas de materias

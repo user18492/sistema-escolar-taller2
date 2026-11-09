@@ -4,7 +4,11 @@
    Lo usan los reportes Materias sin docente por curso y Carga docente por profesor.
    Marcado de la celda: .list-summary > .list-summary-count + button.table-action.list-summary-button.
    Marcado del modal: .modal.list-modal > .list-modal-head > button.list-modal-close, y la lista
-   ul.list-modal-items, un elemento por línea; .list-modal-note, el texto secundario de un elemento. */
+   ul.list-modal-items, un elemento por línea; .list-modal-note, el texto secundario de un elemento.
+   Modal por pasos (list-modal.component.js): la lista va dentro de .list-modal-step y, al lado, el
+   formulario <assignment-form>; .is-form-step marca el paso del formulario. Cada elemento puede
+   llevar su texto en .list-modal-text y su acción a la derecha, button.list-modal-action (también
+   al lado de la materia en una celda de la tabla). */
 
 /* ---------- Celda: cantidad y botón ---------- */
 
@@ -29,10 +33,29 @@
 }
 
 /* ---------- Modal: la lista ---------- */
-/* Solo la lista, un elemento por línea, y la X arriba a la derecha (como la de los toasts). */
+/* Solo la lista, un elemento por línea dentro de un recuadro gris (como .confirm-details de
+   confirm-modal.css), y la X arriba a la derecha (como la de los toasts). */
 
 .list-modal {
+  position: relative;
   max-width: 420px;
+}
+
+/* Paso del formulario: el ancho del modal de Docencia (.modal de base.css; modal-resize.js anima el
+   cambio) y la X fuera del flujo, arriba a la derecha, sin empujar el título del formulario, que
+   deja lugar para ella */
+.list-modal.is-form-step {
+  max-width: 560px;
+}
+
+.list-modal.is-form-step .list-modal-head {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.list-modal assignment-form .modal-header {
+  padding-right: 56px;
 }
 
 .list-modal-head {
@@ -69,14 +92,28 @@
 }
 
 .list-modal-items {
-  padding: 0 28px 24px;
+  margin: 4px 24px 24px;
+  padding: 2px 16px;
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font-size: 14px;
   color: var(--color-text-primary);
 }
 
+/* El texto a la izquierda y, si tiene, la acción a la derecha */
 .list-modal-items li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   padding: 10px 0;
   border-bottom: 1px solid var(--color-border);
+}
+
+.list-modal-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .list-modal-items li:last-child {
@@ -86,4 +123,27 @@
 /* Texto secundario de un elemento (el docente suspendido de una materia, la materia de un curso) */
 .list-modal-note {
   color: var(--color-text-secondary);
+}
+
+/* Acción de un elemento (Asignar, Reasignar): botón de texto azul, como "Limpiar filtro" de
+   column-filter.css. El contorno de foco es el de base.css. */
+.list-modal-action {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-blue);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.list-modal-action:hover {
+  text-decoration: underline;
+}
+
+.list-modal-action:focus-visible {
+  outline-offset: 2px;
 }

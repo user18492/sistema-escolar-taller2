@@ -24,8 +24,11 @@
 //       - onCancel(): se pulsó Cancelar (mientras se guarda no responde).
 //       - onStale(code): el proceso principal avisó que la asignación quedó vieja
 //         (staleAssignmentCodes: ya no está vigente, su ciclo lectivo se cerró o tiene evaluaciones
-//         que la vista no mostraba). La vista recarga sus datos y cierra el modal (o vuelve a otro
-//         paso); el toast de error lo muestra el componente.
+//         que la vista no mostraba), o 'SUBJECT_TAKEN': la materia de un alta precargada (preset)
+//         ya tiene docente (otra sesión la asignó en ese curso), porque no llega entre las que se
+//         pueden asignar o porque el proceso principal la rechaza al guardar. La vista recarga sus
+//         datos y cierra el modal (o vuelve a otro paso); el toast de error lo muestra el
+//         componente.
 //     Si onSaved u onStale devuelven una promesa, el formulario sigue guardando (inerte, con
 //     "Creando…" o "Guardando…") hasta que se resuelve.
 //   - open({ assignment = null, preset = null, lockCourseAndSubject = false,
@@ -79,6 +82,11 @@
   // formulario ya no se puede elegir (otra sesión lo suspendió o lo dio de baja): las listas se
   // vuelven a pedir
   const STALE_OPTION_CODES = ['TEACHER_NOT_AVAILABLE', 'COURSE_NOT_AVAILABLE'];
+
+  // La materia de un alta precargada ya tiene docente: el alta quedó vieja (onStale). El mensaje es
+  // el del proceso principal al rechazarla.
+  const SUBJECT_TAKEN_CODE = 'SUBJECT_TAKEN';
+  const SUBJECT_TAKEN_MESSAGE = 'La materia ya tiene un profesor asignado en ese curso.';
 
   const COURSE_LOCKED_PLACEHOLDER = 'Selecciona primero un nivel educativo';
   const COURSE_UNLOCKED_PLACEHOLDER = 'Buscar curso';
@@ -541,13 +549,23 @@
           if (isGone) await onStale?.(error.code);
           return;
         }
+        const isOwnCourse = ownCourse()?.id === courseId;
+        // Un alta precargada cuya materia ya no se ofrece (otra sesión la asignó en ese curso): no
+        // hay nada que guardar. La materia queda a la vista, bloqueada, y la vista recarga sus datos.
+        if (this.#preset && isOwnCourse && !response.subjects.some(({ id }) => id === this.#preset.subject.id)) {
+          lockSubject(this.#preset.subject.name);
+          if (!isShown()) return;
+          await onStale?.(SUBJECT_TAKEN_CODE);
+          showToast({ type: 'error', title: MODAL_TEXTS.create.errorTitle, description: SUBJECT_TAKEN_MESSAGE });
+          return;
+        }
         if (!response.subjects.length) {
           lockSubject(NO_SUBJECTS_LEFT);
           return;
         }
         subjectMenu.replaceChildren(...response.subjects.map((subject) => this.createSubjectOption(subject)));
         unlockDropdown(subjectDropdown, SUBJECT_UNLOCKED_PLACEHOLDER);
-        if (ownCourse()?.id !== courseId) return;
+        if (!isOwnCourse) return;
         const ownOption = subjectMenu.querySelector(`.dropdown-option[data-value="${ownSubject()?.id}"]`);
         if (!ownOption) return;
         selectSubject(ownOption);
@@ -800,9 +818,12 @@
           });
           return;
         }
-        if (isStaleAssignment) await onStale?.(error.code);
+        // En un alta precargada la materia no se puede cambiar: si el proceso principal la rechaza
+        // (ya tiene docente), el alta quedó vieja
+        const isTakenPreset = Boolean(this.#preset && error?.fieldErrors?.subject);
+        if (isStaleAssignment || isTakenPreset) await onStale?.(isTakenPreset ? SUBJECT_TAKEN_CODE : error.code);
         setSaving(false);
-        if (error?.fieldErrors?.subject) {
+        if (error?.fieldErrors?.subject && !isTakenPreset) {
           rejectSubject(error.fieldErrors.subject);
           if (mode === 'create') return;
         }
