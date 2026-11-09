@@ -14,6 +14,113 @@ const { loginViaUi, logoutViaUi, openFromSidebar, typeInColumnFilter, chooseColu
 
 const REPORTS_VIEW = 'admin/reports/index.html';
 
+// ---------- Diseño estable mientras carga (pedido del 2026-11-09) ----------
+// Un cambio de filtro o de página no tiene que pasar por un estado intermedio: la tabla (o el
+// gráfico), sus encabezados y lo que la rodea quedan donde estaban hasta que llegan los datos, y
+// entonces cambian de una vez. recordLayout registra, desde antes de `action` hasta que la vista
+// queda quieta, cada estado distinto de la página: en cada mutación del contenido (antes de que
+// vuelva la respuesta del proceso principal, por rápida que sea), en cada desplazamiento y en cada
+// cuadro. Cada estado es el desplazamiento del área principal, la caja en la ventana (izquierda,
+// arriba, ancho y alto) de los elementos de `boxes` y el texto de los de `texts` (vacío si están
+// ocultos).
+async function recordLayout(t, { boxes, texts }, action) {
+  await t.ui.js(`(() => {
+    const main = document.querySelector('.main');
+    const boxes = ${JSON.stringify(boxes)};
+    const texts = ${JSON.stringify(texts)};
+    const box = (el) => {
+      if (!el.getClientRects().length) return '-';
+      const r = el.getBoundingClientRect();
+      return [r.left, r.top, r.width, r.height].map(Math.round).join(',');
+    };
+    const text = (el) => (el.closest('[hidden]') ? '' : el.textContent.replace(/\\s+/g, ' ').trim());
+    const snapshot = () => JSON.stringify({
+      scrollTop: Math.round(main.scrollTop),
+      maxScroll: main.scrollHeight - main.clientHeight,
+      boxes: Object.fromEntries(Object.entries(boxes).map(([name, selector]) => [name, Array.from(document.querySelectorAll(selector), box).join(' ')])),
+      texts: Object.fromEntries(Object.entries(texts).map(([name, selector]) => [name, Array.from(document.querySelectorAll(selector), text).join(' | ')])),
+    });
+    const samples = [snapshot()];
+    const push = () => {
+      const sample = snapshot();
+      if (sample !== samples.at(-1)) samples.push(sample);
+    };
+    const observer = new MutationObserver(push);
+    observer.observe(document.querySelector('.main > .content'), { subtree: true, childList: true, attributes: true, characterData: true });
+    main.addEventListener('scroll', push);
+    let frame = requestAnimationFrame(function tick() {
+      push();
+      frame = requestAnimationFrame(tick);
+    });
+    window.__layoutRecording = {
+      stop() {
+        push();
+        observer.disconnect();
+        main.removeEventListener('scroll', push);
+        cancelAnimationFrame(frame);
+        return samples.map((sample) => JSON.parse(sample));
+      },
+    };
+    return true;
+  })()`);
+  await action();
+  await t.ui.idle({ quietMs: 400 });
+  return t.ui.js('window.__layoutRecording.stop()');
+}
+
+// La página pasa del estado de antes al de después sin ninguno en el medio. `fixed`: las cajas que
+// tampoco cambian entre el antes y el después (lo que está arriba de la tabla y sus encabezados).
+// La página no se desplaza, salvo que el resultado la acorte por debajo de donde estaba: entonces
+// queda en su nuevo final, y todo sube con ella.
+function checkNoIntermediateState(t, samples, { label, fixed = [] }) {
+  const before = samples[0];
+  const after = samples.at(-1);
+  const intermediate = samples.filter((sample) => ![before, after].some((end) => JSON.stringify(end) === JSON.stringify(sample)));
+  t.check(!intermediate.length, `${label}: la página pasa al resultado sin un estado intermedio`, { before, intermediate, after });
+  const expectedScroll = Math.min(before.scrollTop, Math.max(0, after.maxScroll));
+  t.check(Math.abs(after.scrollTop - expectedScroll) <= 1, `${label}: la página no se desplaza`, { before: before.scrollTop, after: after.scrollTop, maxScroll: after.maxScroll });
+  if (after.scrollTop !== before.scrollTop) return;
+  for (const name of fixed) {
+    t.equal(after.boxes[name], before.boxes[name], `${label}: ${name} queda en su lugar`);
+  }
+}
+
+// Pasos de los filtros de la barra sin mover la página (los de helpers.js centran cada control):
+// el usuario la desplazó un poco y cambia un filtro que sigue a la vista.
+const barFilter = (filter) => `.report-filters .column-filter[data-filter="${filter}"]`;
+async function openBarFilter(t, filter) {
+  await t.ui.click(`${barFilter(filter)} .column-filter-toggle`, { scroll: false });
+  await t.ui.waitFor(`document.querySelector('${barFilter(filter)} .column-filter-panel').matches(':popover-open')`, { message: `No se abrió el filtro ${filter}` });
+}
+async function chooseInBar(t, filter, value) {
+  await openBarFilter(t, filter);
+  await t.ui.chooseOption(`${barFilter(filter)} .dropdown-option[data-value="${value}"]`);
+  if (await t.ui.js(`document.querySelector('${barFilter(filter)} .column-filter-panel').matches(':popover-open')`)) await t.ui.press('Escape');
+}
+// Un año en dos partes: startYearInBar escribe sobre el anterior todos los dígitos menos el último
+// (un año incompleto no filtra: si había otro, la vista vuelve al ciclo actual, un cambio de filtro
+// en sí mismo) y finishYearInBar escribe el último y cierra el panel.
+async function startYearInBar(t, year) {
+  await openBarFilter(t, 'year');
+  await t.ui.click(`${barFilter('year')} .column-filter-input`, { scroll: false });
+  await t.ui.press('a', { modifiers: ['control'] });
+  await t.ui.type(String(year).slice(0, -1));
+}
+async function finishYearInBar(t, year) {
+  await t.ui.type(String(year).slice(-1));
+  await t.ui.press('Escape');
+}
+async function clearInBar(t, filter) {
+  await openBarFilter(t, filter);
+  await t.ui.click(`${barFilter(filter)} .column-filter-clear`, { scroll: false });
+}
+// Desplaza el área principal `top` píxeles (o hasta el final, con 'end'), sin pasar del máximo
+const scrollMainTo = (t, top) => t.ui.js(`(() => {
+  const main = document.querySelector('.main');
+  main.scrollTop = ${top === 'end' ? 'main.scrollHeight' : top};
+  return main.scrollTop;
+})()`);
+
 // Cada reporte: su vista y los filtros de su barra (data-filter), en orden
 const REPORTS = [
   { view: 'admin/subject-coverage-report/index.html', filters: ['year', 'level', 'shift'] },
@@ -268,6 +375,49 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
     }
     await logoutViaUi(t);
   });
+
+  test('stable-layout', 'Cada filtro y cada página reemplazan las filas sin vaciar la tabla en el medio: la tabla, sus encabezados y la paginación no saltan y la página no se desplaza, también con un filtro sin resultados', {
+    history: [{ plan: 'Pedido del 2026-11-09: la tabla de los reportes salta al aplicar un filtro (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const LAYOUT = {
+      boxes: { filters: '.report-filters', card: '.coverage-card', headers: '.coverage-card thead th', footer: '.coverage-card .table-footer' },
+      texts: { rows: '.coverage-card tbody tr', results: '.coverage-card .results-count' },
+    };
+    const FIXED = ['filters', 'headers'];
+    await openReport(t);
+    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year), label: 'Ciclo actual' });
+
+    // Cada cambio, con la página desplazada un poco (los filtros siguen a la vista) o hasta el final
+    // (para llegar a la paginación)
+    const steps = [
+      { label: 'Nivel Secundaria', scroll: 80, action: () => chooseInBar(t, 'level', 'SECONDARY') },
+      { label: 'Página 2', scroll: 'end', action: () => t.ui.click('.coverage-card .pagination .page-btn[data-page="2"]:not(.page-nav)', { scroll: false }) },
+      { label: 'Página 1', scroll: 'end', action: () => t.ui.click('.coverage-card .pagination .page-btn[data-page="1"]:not(.page-nav)', { scroll: false }) },
+      { label: 'Turno Tarde', scroll: 80, action: () => chooseInBar(t, 'shift', 'AFTERNOON') },
+      { label: 'Turno Mañana', scroll: 80, action: () => chooseInBar(t, 'shift', 'MORNING') },
+      { label: `Ciclo ${t.year - 1}`, scroll: 80, prepare: () => startYearInBar(t, t.year - 1), action: () => finishYearInBar(t, t.year - 1) },
+      { label: `Ciclo ${t.year - 2}`, scroll: 80, prepare: () => startYearInBar(t, t.year - 2), action: () => finishYearInBar(t, t.year - 2) },
+      // Primaria a la mañana de dos ciclos atrás: sin cursos incompletos
+      { label: 'Nivel Primaria, sin resultados', scroll: 80, action: () => chooseInBar(t, 'level', 'PRIMARY'), empty: true },
+      { label: 'Limpiar Nivel', scroll: 0, action: () => clearInBar(t, 'level') },
+      { label: 'Limpiar Ciclo lectivo', scroll: 80, action: () => clearInBar(t, 'year') },
+    ];
+    for (const step of steps) {
+      await t.step(step.label, async () => {
+        await scrollMainTo(t, step.scroll);
+        if (step.prepare) {
+          await step.prepare();
+          await t.ui.idle({ quietMs: 400 });
+        }
+        const samples = await recordLayout(t, LAYOUT, step.action);
+        checkNoIntermediateState(t, samples, { label: step.label, fixed: FIXED });
+        if (step.empty) {
+          t.equal(samples.at(-1).texts.rows, 'Todos los cursos tienen docente asignado en todas sus materias.', 'El mensaje sin resultados');
+        }
+      });
+    }
+    await logoutViaUi(t);
+  });
 });
 
 // Reporte Carga docente por profesor (parte 02 y pedido del 2026-11-09: tabla paginada con el
@@ -482,6 +632,51 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
     t.equal(primary.find((teacher) => teacher.id === t.data.busiestTeacher.id)?.count, 0, 'Sin asignaciones de primaria, el profesor ocupado tiene 0');
     await logoutViaUi(t);
   });
+
+  test('stable-layout', 'Cada filtro y cada página reemplazan las filas y el resumen sin vaciarlos en el medio: el resumen, la tabla, sus encabezados y la paginación no saltan y la página no se desplaza, también en un ciclo sin asignaciones', {
+    history: [{ plan: 'Pedido del 2026-11-09: la tabla de los reportes salta al aplicar un filtro (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const LAYOUT = {
+      boxes: {
+        filters: '.report-filters', summary: '.workload-summary-card', card: '.workload-card',
+        headers: '.workload-card thead th', footer: '.workload-card .table-footer',
+      },
+      texts: { summary: '.workload-summary-text', rows: '.workload-card tbody tr', results: '.workload-card .results-count' },
+    };
+    const FIXED = ['filters', 'summary', 'headers'];
+    // Un ciclo sin cursos: todos los profesores con 0 (el reporte los lista igual)
+    const emptyYear = t.year - 20;
+    t.require((await t.sql(`SELECT 1 FROM curso WHERE anio_ciclo_lectivo = $1`, [emptyYear])).length === 0, `El ciclo ${emptyYear} no tiene que tener cursos`);
+    await openReport(t);
+    await expectPage(t, await expectedTeachers(t), { page: 1, label: 'Ciclo actual' });
+
+    const steps = [
+      { label: 'Nivel Primaria', scroll: 80, action: () => chooseInBar(t, 'level', 'PRIMARY') },
+      { label: 'Página 2', scroll: 'end', action: () => t.ui.click('.workload-card .pagination .page-btn[data-page="2"]:not(.page-nav)', { scroll: false }) },
+      { label: 'Siguiente', scroll: 'end', action: () => t.ui.click('.workload-card .pagination .page-nav:last-child', { scroll: false }) },
+      { label: 'Turno Mañana', scroll: 80, action: () => chooseInBar(t, 'shift', 'MORNING') },
+      { label: 'Nivel Secundaria', scroll: 80, action: () => chooseInBar(t, 'level', 'SECONDARY') },
+      { label: `Ciclo ${t.year - 1}`, scroll: 80, prepare: () => startYearInBar(t, t.year - 1), action: () => finishYearInBar(t, t.year - 1) },
+      { label: `Ciclo ${emptyYear}, sin asignaciones`, scroll: 80, prepare: () => startYearInBar(t, emptyYear), action: () => finishYearInBar(t, emptyYear), empty: true },
+      { label: 'Limpiar Ciclo lectivo', scroll: 80, action: () => clearInBar(t, 'year') },
+      { label: 'Limpiar Turno', scroll: 0, action: () => clearInBar(t, 'shift') },
+    ];
+    for (const step of steps) {
+      await t.step(step.label, async () => {
+        await scrollMainTo(t, step.scroll);
+        if (step.prepare) {
+          await step.prepare();
+          await t.ui.idle({ quietMs: 400 });
+        }
+        const samples = await recordLayout(t, LAYOUT, step.action);
+        checkNoIntermediateState(t, samples, { label: step.label, fixed: FIXED });
+        if (step.empty) {
+          t.check(samples.at(-1).texts.summary.startsWith('0 asignaciones por profesor:'), 'El resumen de un ciclo sin asignaciones', samples.at(-1).texts.summary);
+        }
+      });
+    }
+    await logoutViaUi(t);
+  });
 });
 
 // Reporte Regularidad de los backups (parte 03). Los datos propios: dos backups del ciclo actual
@@ -571,6 +766,43 @@ group('ui.reports.backup-regularity', 'Reportes: Regularidad de los backups', {
 
     await clearColumnFilter(t, 'year');
     await expectColumns(t, { year: t.year, counts: await expectedCounts(t, t.year), label: 'Después de "Limpiar filtro"' });
+    await logoutViaUi(t);
+  });
+
+  test('stable-layout', 'Un cambio de año reemplaza el gráfico sin ocultarlo en el medio: el indicador, el gráfico, su leyenda y las limitaciones no saltan y la página no se desplaza, también en un ciclo sin backups', {
+    history: [{ plan: 'Pedido del 2026-11-09: la tabla de los reportes salta al aplicar un filtro (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    // La caja del gráfico y no la de cada columna: las columnas crecen desde la base en cada carga
+    // (chart.css), con una transformación que también cambia su caja
+    const LAYOUT = {
+      boxes: {
+        filters: '.report-filters', lastBackup: '.last-backup-card', card: '.backup-chart-card', chart: '.backup-chart',
+        legend: '.chart-legend', limitations: '.backup-limitations',
+      },
+      texts: { message: '.backup-chart-message', axis: '.chart-y-axis', values: '.backup-value', lastBackup: '.last-backup-text' },
+    };
+    const FIXED = ['filters', 'lastBackup', 'card', 'chart', 'legend', 'limitations'];
+    const emptyYear = t.year - 20;
+    t.require((await expectedCounts(t, emptyYear)).every((count) => count === 0), `El ciclo ${emptyYear} no tiene que tener backups`);
+    await openReport(t);
+    await expectColumns(t, { year: t.year, counts: await expectedCounts(t, t.year), label: 'Ciclo actual' });
+
+    const steps = [
+      { label: `Ciclo ${t.year - 1}`, scroll: 80, prepare: () => startYearInBar(t, t.year - 1), action: () => finishYearInBar(t, t.year - 1) },
+      { label: `Ciclo ${emptyYear}, sin backups`, scroll: 80, prepare: () => startYearInBar(t, emptyYear), action: () => finishYearInBar(t, emptyYear) },
+      { label: 'Limpiar Ciclo lectivo', scroll: 80, action: () => clearInBar(t, 'year') },
+    ];
+    for (const step of steps) {
+      await t.step(step.label, async () => {
+        await scrollMainTo(t, step.scroll);
+        if (step.prepare) {
+          await step.prepare();
+          await t.ui.idle({ quietMs: 400 });
+        }
+        const samples = await recordLayout(t, LAYOUT, step.action);
+        checkNoIntermediateState(t, samples, { label: step.label, fixed: FIXED });
+      });
+    }
     await logoutViaUi(t);
   });
 });
