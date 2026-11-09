@@ -1,9 +1,10 @@
 // Reporte Materias sin docente por curso (Administrador), abierto desde Reportes. Por cada curso
-// vigente de un ciclo lectivo, las materias del plan de estudios de su grado, cuántas tienen
-// docente y cuáles no lo tienen o lo tienen suspendido (window.api.reports.getSubjectCoverage).
+// incompleto de un ciclo lectivo (alguna materia del plan de estudios de su grado sin docente o con
+// el profesor suspendido), las materias del plan, cuántas tienen docente y cuáles no lo tienen o lo
+// tienen suspendido (window.api.reports.getSubjectCoverage). Los cursos completos no aparecen.
 // Los filtros se aplican en el proceso principal: con cada cambio de la barra (Ciclo lectivo,
-// Nivel y Turno, column-filter.js) o del interruptor "Solo cursos incompletos", la vista vuelve a
-// pedir el reporte y vuelve a la página 1. El ciclo lectivo es el actual por defecto, con el campo
+// Nivel y Turno, column-filter.js), la vista vuelve a pedir el reporte y vuelve a la página 1.
+// El ciclo lectivo es el actual por defecto, con el campo
 // AAAA vacío, o el año completo que se escriba (shownSchoolYear, school-year.js); la vista manda
 // siempre el año resuelto. Las filas se paginan en memoria, 10 por página, con <table-pagination>.
 // Las listas largas se recortan con "…" y muestran su texto completo como tooltip
@@ -11,7 +12,6 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   const filterBar = document.querySelector('.report-filters');
-  const onlyIncompleteSwitch = document.getElementById('onlyIncompleteSwitch');
   const table = document.querySelector('.coverage-card .data-table');
   const tbody = table.tBodies[0];
   const rowTemplate = document.getElementById('coverageRowTemplate');
@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const pagination = document.querySelector('.coverage-card table-pagination');
 
   const GENERIC_LOAD_ERROR = 'No se pudo cargar el reporte. Intentá nuevamente.';
+  // Sin filas: con los filtros elegidos no hay cursos incompletos
+  const EMPTY_MESSAGE = 'Todos los cursos tienen docente asignado en todas sus materias.';
   const EMPTY_VALUE = '—';
   const ALL_LABEL = 'Todos';
 
@@ -72,11 +74,6 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.replaceChildren(row);
   };
 
-  // Sin filas: con el interruptor encendido, el ciclo no tiene cursos incompletos
-  const emptyMessage = () => (onlyIncompleteSwitch.checked
-    ? 'Todos los cursos del ciclo tienen docente en todas sus materias.'
-    : 'No hay cursos en este ciclo lectivo.');
-
   // "1° A · Mañana", como en Docencia
   const courseName = (course) => `${course.gradeName} ${course.division} · ${shiftLabels[course.shift] ?? course.shift}`;
 
@@ -104,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderRows = ({ page } = {}) => {
     const pageCourses = pagination.slice(courses, { page });
     if (pageCourses.length) tbody.replaceChildren(...pageCourses.map(createRow));
-    else showMessage(emptyMessage());
+    else showMessage(EMPTY_MESSAGE);
   };
 
   // Pide el reporte con los filtros vigentes y lo muestra desde la página 1. Si en el medio llega
@@ -119,7 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
         schoolYear: shownSchoolYear(activeFilters.year, currentSchoolYear),
         educationLevel: activeFilters.level,
         shift: activeFilters.shift,
-        onlyIncomplete: onlyIncompleteSwitch.checked,
       });
     } catch (error) {
       console.error('Error al cargar el reporte:', error);
@@ -145,10 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentSchoolYear) return;
     renderFilterValues();
     loadReport();
-  });
-
-  onlyIncompleteSwitch.addEventListener('change', () => {
-    if (currentSchoolYear) loadReport();
   });
 
   // Previo, Siguiente o un número: el componente ya marcó la página nueva

@@ -579,18 +579,18 @@ contextBridge.exposeInMainWorld('api', {
   },
   reports: {
     // Solo ADMIN. Reporte Materias sin docente por curso de su institución. `filters` es
-    // { schoolYear, educationLevel, shift, onlyIncomplete }: schoolYear, el año del ciclo lectivo
-    // (un entero de 2000 a 2100); educationLevel, 'PRIMARY' o 'SECONDARY', y shift, 'MORNING' o
-    // 'AFTERNOON' (null para todos), y onlyIncomplete, true para dejar solo los cursos incompletos.
-    // Resuelve { ok: true, report } con { schoolYear, courses }: por cada curso vigente de ese
-    // ciclo, por nivel educativo, grado, división y turno, { id, gradeName, educationLevel,
+    // { schoolYear, educationLevel, shift }: schoolYear, el año del ciclo lectivo (un entero de
+    // 2000 a 2100); educationLevel, 'PRIMARY' o 'SECONDARY', y shift, 'MORNING' o 'AFTERNOON' (null
+    // para todos). Resuelve { ok: true, report } con { schoolYear, courses }: por cada curso
+    // incompleto de ese ciclo (vigente, con alguna de las dos listas de abajo no vacía), por nivel
+    // educativo, grado, división y turno, { id, gradeName, educationLevel,
     // division, shift, subjectCount, assignedCount, unassignedSubjects, suspendedSubjects }, con los
     // mismos valores que en courses.list. subjectCount son las materias del plan de estudios de su
     // grado; unassignedSubjects, los nombres de las que no tienen docente (sin asignación vigente o
     // con un profesor dado de baja, posible en un ciclo cerrado); suspendedSubjects,
     // { subjectName, teacherName } de las que tienen la asignación vigente de un profesor
     // suspendido (teacherName, "Nombre Apellido"), y assignedCount, subjectCount menos las que no
-    // tienen docente. Un curso es incompleto si alguna de las dos listas no está vacía. O
+    // tienen docente; courses vacío si no hay cursos incompletos. O
     // { ok: false, error: { code, message } }: INVALID_INPUT indica filtros inválidos.
     getSubjectCoverage: (filters) => ipcRenderer.invoke('reports:get-subject-coverage', filters),
     // Solo ADMIN. Reporte Carga docente por profesor de su institución. `filters` es
