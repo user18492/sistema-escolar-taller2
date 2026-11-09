@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     {
       selector: '.unassigned-subjects',
       description: 'sin docente',
-      items: (course) => course.unassignedSubjects.map((subjectName) => ({ subjectName })),
+      items: (course) => course.unassignedSubjects.map(({ subjectName }) => ({ subjectName })),
     },
     {
       selector: '.suspended-subjects',

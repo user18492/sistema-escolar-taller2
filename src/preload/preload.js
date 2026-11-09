@@ -586,11 +586,13 @@ contextBridge.exposeInMainWorld('api', {
     // educativo, grado, división y turno, { id, gradeName, educationLevel,
     // division, shift, subjectCount, assignedCount, unassignedSubjects, suspendedSubjects }, con los
     // mismos valores que en courses.list. subjectCount son las materias del plan de estudios de su
-    // grado; unassignedSubjects, los nombres de las que no tienen docente (sin asignación vigente o
-    // con un profesor dado de baja, posible en un ciclo cerrado); suspendedSubjects,
-    // { subjectName, teacherName } de las que tienen la asignación vigente de un profesor
-    // suspendido (teacherName, "Nombre Apellido"), y assignedCount, subjectCount menos las que no
-    // tienen docente; courses vacío si no hay cursos incompletos. O
+    // grado; unassignedSubjects, { subjectId, subjectName } de las que no tienen docente (sin
+    // asignación vigente o con un profesor dado de baja, posible en un ciclo cerrado);
+    // suspendedSubjects, { teacherAssignmentId, subjectId, subjectName, teacher: { id, firstName,
+    // lastName }, teacherName } de las que tienen la asignación vigente de un profesor suspendido
+    // (teacherAssignmentId, el id de esa asignación; teacherName, "Nombre Apellido"), y
+    // assignedCount, subjectCount menos las que no tienen docente; courses vacío si no hay cursos
+    // incompletos. O
     // { ok: false, error: { code, message } }: INVALID_INPUT indica filtros inválidos.
     getSubjectCoverage: (filters) => ipcRenderer.invoke('reports:get-subject-coverage', filters),
     // Solo ADMIN. Reporte Carga docente por profesor de su institución. `filters` es
@@ -599,7 +601,9 @@ contextBridge.exposeInMainWorld('api', {
     // de baja (activo o suspendido, también sin asignaciones), de más a menos asignaciones y por
     // apellido y nombre, { id, firstName, lastName, suspended, assignmentCount, assignments }, con
     // assignmentCount sus asignaciones vigentes de cursos vigentes de ese ciclo (con ese nivel y
-    // ese turno) y assignments { gradeName, division, shift, subjectName } de cada una. summary es
+    // ese turno) y assignments { id, courseId, educationLevel, gradeName, division, shift,
+    // subjectId, subjectName } de cada una (id, el de la asignación; educationLevel, como en
+    // courses.list). summary es
     // { average, aboveCount, belowCount, withoutAssignmentsCount }: el promedio de assignmentCount
     // de todos ellos redondeado al entero (null si no hay ninguno), los que tienen más y los que
     // tienen menos que ese entero (sin contar los que no tienen ninguna) y los que no tienen

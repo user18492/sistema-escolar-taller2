@@ -62,10 +62,11 @@ function parseFilters(filters) {
 // profesor suspendido. Un curso con todas sus materias a cargo de profesores activos, o sin plan,
 // no aparece. Por cada uno, las materias del plan y su cobertura:
 //   - subjectCount: las materias del plan (0 si el grado no tiene plan).
-//   - unassignedSubjects: los nombres de las que no tienen docente, sin asignación vigente o con
-//     un profesor dado de baja (posible en un ciclo cerrado).
-//   - suspendedSubjects: { subjectName, teacherName } de las que tienen la asignación vigente de un
-//     profesor suspendido, con teacherName "Nombre Apellido".
+//   - unassignedSubjects: { subjectId, subjectName } de las que no tienen docente, sin asignación
+//     vigente o con un profesor dado de baja (posible en un ciclo cerrado).
+//   - suspendedSubjects: { teacherAssignmentId, subjectId, subjectName, teacher: { id, firstName,
+//     lastName }, teacherName } de las que tienen la asignación vigente de un profesor suspendido,
+//     con teacherAssignmentId el id de esa asignación y teacherName "Nombre Apellido".
 //   - assignedCount: subjectCount menos las que no tienen docente (cuenta las de un profesor
 //     suspendido).
 // Resuelve { schoolYear, hasCourses, courses }, en el orden de los cursos (nivel educativo, grado,
@@ -89,9 +90,12 @@ async function getSubjectCoverage(currentUser, filters) {
     subjectCount: row.subjectCount,
     assignedCount: row.subjectCount - row.unassignedSubjects.length,
     unassignedSubjects: row.unassignedSubjects,
-    suspendedSubjects: row.suspendedSubjects.map(({ subjectName, teacherFirstName, teacherLastName }) => ({
-      subjectName,
-      teacherName: `${teacherFirstName} ${teacherLastName}`,
+    suspendedSubjects: row.suspendedSubjects.map((subject) => ({
+      teacherAssignmentId: subject.teacherAssignmentId,
+      subjectId: subject.subjectId,
+      subjectName: subject.subjectName,
+      teacher: { id: subject.teacherId, firstName: subject.teacherFirstName, lastName: subject.teacherLastName },
+      teacherName: `${subject.teacherFirstName} ${subject.teacherLastName}`,
     })),
   }));
   const isIncomplete = (course) => course.unassignedSubjects.length > 0 || course.suspendedSubjects.length > 0;
@@ -103,8 +107,9 @@ async function getSubjectCoverage(currentUser, filters) {
 // Por cada profesor de la institución que no está dado de baja (activo o suspendido, también sin
 // asignaciones), sus asignaciones vigentes de cursos vigentes del ciclo lectivo `filters.schoolYear`
 // (con su Nivel y su Turno, si llegan): { id, firstName, lastName, suspended, assignmentCount,
-// assignments }, con assignments { gradeName, division, shift, subjectName } de cada asignación, de
-// más a menos asignaciones (y por apellido y nombre). En un ciclo pasado lista a los profesores no
+// assignments }, con assignments { id, courseId, educationLevel, gradeName, division, shift,
+// subjectId, subjectName } de cada asignación (id, el de la asignación), de más a menos
+// asignaciones (y por apellido y nombre). En un ciclo pasado lista a los profesores no
 // dados de baja hoy (ver countByTeacher). Resuelve { schoolYear, hasCourses, summary, teachers },
 // con summary el resumen de workloadSummary.
 async function getTeacherWorkload(currentUser, filters) {
