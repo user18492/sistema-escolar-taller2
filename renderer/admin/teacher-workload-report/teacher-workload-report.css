@@ -1,6 +1,7 @@
 /* Reporte Carga docente por profesor (Administrador). La ruta de navegación la aporta
-   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css, y la celda con
-   la cantidad de asignaciones y el modal de la lista, list-modal.css. Aquí, la card del resumen
+   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css; la celda con
+   la cantidad de asignaciones, el modal de la lista y la acción Reasignar, list-modal.css, y el
+   formulario del modal, assignment-form.css. Aquí, la card del resumen
    (como la del último backup de Regularidad de los backups) y la card de la tabla (como la de
    Materias sin docente por curso). */
 
