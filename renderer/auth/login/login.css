@@ -74,7 +74,6 @@ body {
 }
 
 .field input:focus {
-  outline: none;
   border-color: var(--color-accent-blue);
   background: var(--color-bg);
 }
@@ -108,8 +107,6 @@ body {
 }
 
 .password-toggle:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
   border-radius: 6px;
 }
 
@@ -188,9 +185,10 @@ body {
   display: block;
 }
 
+/* El input real es invisible: el contorno de foco lo lleva la casilla dibujada. */
 .login-remember input:focus-visible + .login-checkbox {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -251,11 +249,6 @@ body {
   border-color: var(--color-accent-blue);
 }
 
-.institution-option:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
-}
-
 /* Nombre de la institución y, debajo, el rol del usuario en ella: cada línea se recorta por separado. */
 .institution-option-text {
   display: flex;
@@ -300,8 +293,6 @@ body {
 }
 
 .login-back:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
   border-radius: 4px;
 }
 
@@ -330,11 +321,6 @@ body {
   height: 42px;
   margin-top: 6px;
   font-size: 15px;
-}
-
-.login-submit:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
 }
 
 /* Mientras se verifica la cuenta el botón queda deshabilitado, pero sin el aspecto

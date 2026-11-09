@@ -35,11 +35,26 @@
 
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
   --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.06);
+
+  /* Contorno de foco único de la aplicación (regla :focus-visible de abajo). */
+  --focus-ring: 2px solid var(--color-accent-blue);
+  --focus-ring-offset: 2px;
 }
 
 * {
   box-sizing: border-box;
   user-select: none;
+}
+
+/* Foco: todo elemento interactivo muestra el mismo contorno azul al recibir el foco, en lugar
+   del contorno por defecto del navegador (que en Windows toma el color de acento del sistema,
+   p. ej. naranja). Los componentes no redefinen color ni grosor ni lo quitan con
+   outline: none; a lo sumo ajustan outline-offset (negativo donde un contenedor con
+   overflow recortaría el contorno). Si el foco cae en un input sin borde dentro de un control
+   compuesto, el control lleva el contorno con :has(:focus-visible). */
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* Permite seleccionar texto en inputs, textareas y contenido editable. */
@@ -406,12 +421,6 @@ row-actions {
   color: var(--color-accent-blue);
 }
 
-.user-action:focus-visible,
-.table-action:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
-}
-
 /* Acción que no está disponible para esa fila (atributos "disabled" y "read-only-title" de
    <row-actions>): atenuada, como .btn-primary:disabled. */
 .user-action:disabled,
@@ -447,8 +456,6 @@ manage-link {
 }
 
 .manage-link:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
   border-radius: 4px;
 }
 

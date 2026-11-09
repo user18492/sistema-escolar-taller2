@@ -71,7 +71,6 @@ body > .app-shell {
 }
 
 .window-titlebar-button:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
   outline-offset: -2px;
 }
 

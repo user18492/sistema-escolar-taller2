@@ -150,8 +150,14 @@ td.col-student {
   color: var(--color-text-primary);
 }
 
-.numeric-stepper-input:focus {
+/* El input no tiene borde propio: el contorno de foco (base.css) lo lleva el control entero. */
+.numeric-stepper-input:focus-visible {
   outline: none;
+}
+
+.numeric-stepper:has(.numeric-stepper-input:focus-visible) {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .numeric-stepper-btn {

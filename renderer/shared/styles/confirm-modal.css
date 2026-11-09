@@ -114,11 +114,6 @@ confirm-modal {
   font-size: 15px;
 }
 
-.modal-confirm :focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
-}
-
 .btn-neutral {
   background: #f3f4f6;
   color: var(--color-text-primary);

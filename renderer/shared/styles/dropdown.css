@@ -28,7 +28,6 @@
 }
 
 .dropdown-toggle:focus-visible {
-  outline: none;
   border-color: var(--color-accent-blue);
 }
 
@@ -110,6 +109,11 @@
 
 .dropdown-option:hover {
   background: #f3f4f6;
+}
+
+/* Las listas se desplazan (overflow): el contorno de foco va hacia adentro para que no se recorte. */
+.dropdown-menu .dropdown-option:focus-visible {
+  outline-offset: -2px;
 }
 
 .dropdown-option.selected {

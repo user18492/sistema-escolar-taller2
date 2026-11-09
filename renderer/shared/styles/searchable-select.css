@@ -50,6 +50,16 @@ search-bar {
   color: var(--color-text-tertiary);
 }
 
+/* El input no tiene borde propio: el contorno de foco (base.css) lo lleva la barra entera. */
+.searchable-bar .searchable-input:focus-visible {
+  outline: none;
+}
+
+.searchable-bar:has(.searchable-input:focus-visible) {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
 /* ---------- Campo con búsqueda integrada de los modales ---------- */
 
 .dropdown-searchable .searchable-bar {
@@ -63,7 +73,6 @@ search-bar {
   padding: 0;
   border: none;
   border-radius: 0;
-  outline: none;
   box-shadow: none;
   background: transparent;
   font-size: 14px;

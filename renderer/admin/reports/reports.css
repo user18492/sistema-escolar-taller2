@@ -22,11 +22,6 @@
   color: var(--color-accent-blue);
 }
 
-.report-link:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
-}
-
 .report-link-text {
   display: flex;
   flex-direction: column;

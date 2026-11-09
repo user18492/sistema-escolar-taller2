@@ -81,9 +81,3 @@
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
-
-.settings-card :focus-visible,
-.delete-account-card :focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
-}

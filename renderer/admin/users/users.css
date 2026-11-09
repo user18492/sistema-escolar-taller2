@@ -129,11 +129,6 @@
   padding: 24px 32px 28px;
 }
 
-.modal :focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
-}
-
 /* Los modales "Eliminar usuario" y "Restaurar usuario" usan el componente compartido
    confirm-modal.css. */
 

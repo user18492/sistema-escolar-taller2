@@ -136,11 +136,6 @@
   padding: 24px 32px 28px;
 }
 
-.modal :focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
-}
-
 @media (max-width: 600px) {
   .modal-overlay { padding: calc(16px + var(--window-titlebar-height)) 16px 16px; }
   .modal-header { padding: 24px 20px 20px; }

@@ -40,7 +40,6 @@ column-filter-toggle {
 
 .column-filter-toggle:focus-visible,
 .column-filter-panel :focus-visible {
-  outline: 2px solid var(--color-accent-blue);
   outline-offset: 3px;
 }
 
@@ -127,10 +126,6 @@ column-filter-toggle {
 
 .column-filter-panel .searchable-input {
   width: 100%;
-}
-
-.column-filter-panel .searchable-input:focus-visible {
-  outline: none;
 }
 
 /* Varios campos en una fila (día, mes y año de una fecha): el del año, más ancho por sus 4

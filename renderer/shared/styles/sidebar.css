@@ -139,7 +139,6 @@ app-sidebar {
 }
 
 .nav-item:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
   outline-offset: -2px;
 }
 
@@ -283,7 +282,6 @@ app-sidebar {
 
 .profile-button:focus-visible,
 .profile-option:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
   outline-offset: -2px;
 }
 
