@@ -1,5 +1,6 @@
 /* Reporte Materias sin docente por curso (Administrador). La ruta de navegación la aporta
-   breadcrumb.css; la barra de filtros, report-filters.css, y la tabla, data-table.css. */
+   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css, y la celda con la
+   cantidad de materias y el modal de la lista, list-modal.css. */
 
 /* ---------- Tabla ---------- */
 
@@ -37,85 +38,4 @@
     padding-left: 12px;
     padding-right: 12px;
   }
-}
-
-/* Dos o más materias: la cantidad y el botón que abre la lista (.table-action de base.css). El
-   botón tiene 24 px de alto, con el margen negativo la fila queda con el alto de una línea de
-   texto, igual que las demás. Si la columna es angosta, el botón pasa debajo de la cantidad en
-   lugar de ensanchar la tabla, con espacio para que su contorno de foco no tape el texto. */
-.subject-summary {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 4px;
-}
-
-.subject-count {
-  white-space: nowrap;
-}
-
-.subject-list-button {
-  height: 24px;
-  margin: -3px 0;
-}
-
-/* ---------- Modal: lista de materias ---------- */
-/* Solo la lista, una materia por línea, y la X arriba a la derecha (como la de los toasts). */
-
-.subject-list-modal {
-  max-width: 420px;
-}
-
-.subject-list-head {
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 12px 0;
-}
-
-.subject-list-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-text-secondary);
-}
-
-.subject-list-close svg {
-  width: 18px;
-  height: 18px;
-}
-
-.subject-list-close:hover {
-  background: rgba(17, 24, 39, 0.08);
-  color: var(--color-text-primary);
-}
-
-.subject-list-close:focus-visible {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 1px;
-}
-
-.subject-list {
-  padding: 0 28px 24px;
-  font-size: 14px;
-  color: var(--color-text-primary);
-}
-
-.subject-list li {
-  padding: 10px 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.subject-list li:last-child {
-  border-bottom: none;
-}
-
-/* El docente suspendido, al lado de la materia */
-.subject-list .subject-teacher {
-  color: var(--color-text-secondary);
 }

@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     item.textContent = subjectName;
     if (teacherName) {
       const teacher = document.createElement('span');
-      teacher.className = 'subject-teacher';
+      teacher.className = 'list-modal-note';
       teacher.textContent = ` (${teacherName})`;
       item.append(teacher);
     }
@@ -152,8 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const summary = summaryTemplate.content.firstElementChild.cloneNode(true);
-    summary.querySelector('.subject-count').textContent = `${items.length} materias`;
-    const button = summary.querySelector('.subject-list-button');
+    summary.querySelector('.list-summary-count').textContent = `${items.length} materias`;
+    const button = summary.querySelector('.list-summary-button');
     const title = `Ver las ${items.length} materias ${column.description}`;
     const label = `Materias ${column.description} de ${courseName(course)}`;
     button.title = title;

@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   // Cantidad máxima de tramos del eje: con más backups, las marcas saltan de a 2, 5, 10… y el eje
-  // se extiende hasta la marca siguiente (como en Carga docente por profesor)
+  // se extiende hasta la marca siguiente
   const MAX_TICKS = 5;
   const TICK_STEPS = [1, 2, 5];
 

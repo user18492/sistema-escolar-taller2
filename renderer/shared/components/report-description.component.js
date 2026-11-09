@@ -7,7 +7,7 @@
 (() => {
   const DESCRIPTIONS = {
     'subject-coverage': 'Consulta las materias de cada curso que no tienen docente asignado o que tienen un docente suspendido.',
-    'teacher-workload': 'Consulta cuántas asignaciones y cursos tiene cada profesor en el ciclo lectivo, activo o suspendido, incluidos los que no tienen ninguna, y el promedio general.',
+    'teacher-workload': 'Consulta cuántas asignaciones tiene cada profesor en el ciclo lectivo, con el curso y la materia de cada una.',
     'backup-regularity': 'Consulta cuántos backups se hicieron en cada mes del ciclo lectivo y cuántos días pasaron desde el último.',
   };
 

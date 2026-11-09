@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="../../shared/styles/list-modal.css" />
     <link rel="stylesheet" href="./subject-coverage-report.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -119,11 +120,11 @@
             </template>
 
             <!-- Plantilla: celda con dos o más materias, la cantidad y el botón que abre la lista
-                 (ícono resources/Eye.svg) -->
+                 (ícono resources/Eye.svg, list-modal.css) -->
             <template id="subjectSummaryTemplate">
-              <span class="subject-summary">
-                <span class="subject-count"></span>
-                <button type="button" class="table-action subject-list-button" aria-label="" title="">
+              <span class="list-summary">
+                <span class="list-summary-count"></span>
+                <button type="button" class="table-action list-summary-button" aria-label="" title="">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                     <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -139,15 +140,15 @@
     <!-- Modal: lista completa de las materias de una celda. Sin título visible: su nombre accesible
          (aria-label) lo pone subject-coverage-report.js al abrirlo, con la columna y el curso. -->
     <div class="modal-overlay" id="subjectListOverlay">
-      <div class="modal subject-list-modal" role="dialog" aria-modal="true" aria-label="">
-        <div class="subject-list-head">
-          <button type="button" class="subject-list-close" id="closeSubjectListBtn" aria-label="Cerrar" title="Cerrar">
+      <div class="modal list-modal" role="dialog" aria-modal="true" aria-label="">
+        <div class="list-modal-head">
+          <button type="button" class="list-modal-close" id="closeSubjectListBtn" aria-label="Cerrar" title="Cerrar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
         </div>
-        <ul class="subject-list" id="subjectList"></ul>
+        <ul class="list-modal-items" id="subjectList"></ul>
       </div>
     </div>
   </body>

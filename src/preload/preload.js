@@ -595,13 +595,16 @@ contextBridge.exposeInMainWorld('api', {
     getSubjectCoverage: (filters) => ipcRenderer.invoke('reports:get-subject-coverage', filters),
     // Solo ADMIN. Reporte Carga docente por profesor de su institución. `filters` es
     // { schoolYear, educationLevel, shift }, como en getSubjectCoverage. Resuelve
-    // { ok: true, report } con { schoolYear, average, teachers }: por cada profesor que no está dado
+    // { ok: true, report } con { schoolYear, summary, teachers }: por cada profesor que no está dado
     // de baja (activo o suspendido, también sin asignaciones), de más a menos asignaciones y por
-    // apellido y nombre, { id, firstName, lastName, suspended, assignmentCount, courseCount }, con
+    // apellido y nombre, { id, firstName, lastName, suspended, assignmentCount, assignments }, con
     // assignmentCount sus asignaciones vigentes de cursos vigentes de ese ciclo (con ese nivel y
-    // ese turno) y courseCount los cursos distintos. average es la media de assignmentCount de
-    // todos ellos, o null si no hay ninguno. En un ciclo pasado lista a los profesores no dados de
-    // baja hoy. O { ok: false, error: { code, message } }: INVALID_INPUT indica filtros inválidos.
+    // ese turno) y assignments { gradeName, division, shift, subjectName } de cada una. summary es
+    // { average, aboveCount, belowCount, withoutAssignmentsCount }: el promedio de assignmentCount
+    // de todos ellos redondeado al entero (null si no hay ninguno), los que tienen más y los que
+    // tienen menos que ese entero (sin contar los que no tienen ninguna) y los que no tienen
+    // ninguna. En un ciclo pasado lista a los profesores no dados de baja hoy. O
+    // { ok: false, error: { code, message } }: INVALID_INPUT indica filtros inválidos.
     getTeacherWorkload: (filters) => ipcRenderer.invoke('reports:get-teacher-workload', filters),
     // Solo ADMIN. Reporte Regularidad de los backups de su institución. `filters` es
     // { schoolYear }, como en getSubjectCoverage. Resuelve { ok: true, report } con

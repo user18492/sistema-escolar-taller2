@@ -12,7 +12,9 @@
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
-    <link rel="stylesheet" href="../../shared/styles/chart.css" />
+    <link rel="stylesheet" href="../../shared/styles/data-table.css" />
+    <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="../../shared/styles/list-modal.css" />
     <link rel="stylesheet" href="./teacher-workload-report.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -22,7 +24,8 @@
     <script src="../../shared/components/report-description.component.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
-    <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
     <script src="../../shared/components/school-year.js"></script>
     <script src="./teacher-workload-report.js" defer></script>
   </head>
@@ -85,41 +88,75 @@
             </div>
           </div>
 
-          <!-- Gráfico de barras horizontales (chart.css): una fila por profesor -->
-          <!-- Sin encabezado propio: el título y la descripción de la vista ya lo presentan -->
-          <section class="card chart-card workload-card" aria-label="Asignaciones por profesor">
-            <p class="workload-message" role="status">Cargando reporte…</p>
+          <!-- Resumen de todos los profesores del reporte, fuera de la paginación: no cambia de página
+               a página. teacher-workload-report.js completa el texto. -->
+          <section class="card workload-summary-card" aria-labelledby="workloadSummaryTitle">
+            <h2 id="workloadSummaryTitle" class="workload-summary-title">Promedio general</h2>
+            <p class="workload-summary-text" role="status">
+              <span class="workload-summary-average">—</span>
+              <span class="workload-summary-groups" hidden>
+                <span class="workload-summary-above"></span>
+                <span class="workload-summary-below"></span>
+                <span class="workload-summary-without"></span>
+              </span>
+            </p>
+          </section>
 
-            <!-- teacher-workload-report.js completa la escala, la línea del promedio y las filas -->
-            <div class="workload-chart" hidden>
-              <div class="workload-average-row" aria-hidden="true">
-                <span class="workload-average-label"></span>
-              </div>
-              <div class="workload-plot">
-                <div class="workload-gridlines" aria-hidden="true"></div>
-                <ol class="workload-rows chart-hbars" aria-label="Asignaciones por profesor"></ol>
-                <div class="workload-average" aria-hidden="true">
-                  <span class="workload-average-line"></span>
-                </div>
-              </div>
-              <div class="workload-ticks" aria-hidden="true"></div>
+          <section class="card workload-card">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Profesor</th>
+                    <th scope="col" class="col-status">Estado</th>
+                    <th scope="col" class="col-count">Asignaciones</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
             </div>
 
-            <div class="chart-legend" hidden>
-              <span class="legend-item"><span class="legend-dot legend-dot-active"></span>Activo</span>
-              <span class="legend-item"><span class="legend-dot legend-dot-suspended"></span>Suspendido</span>
-            </div>
+            <table-pagination results="" label="Paginación de profesores" pages="1"></table-pagination>
 
             <!-- Plantilla: teacher-workload-report.js la completa con una fila por profesor del reporte -->
             <template id="workloadRowTemplate">
-              <li class="workload-row">
-                <span class="workload-name text-truncate"></span>
-                <span class="workload-track" aria-hidden="true"><span class="workload-bar chart-hbar"></span></span>
-                <span class="workload-count"></span>
-              </li>
+              <tr>
+                <td class="workload-name"></td>
+                <td class="col-status workload-status"></td>
+                <td class="col-count workload-count"></td>
+              </tr>
+            </template>
+
+            <!-- Plantilla: la cantidad de asignaciones (una o más) y el botón que abre la lista
+                 (ícono resources/Eye.svg, list-modal.css) -->
+            <template id="assignmentSummaryTemplate">
+              <span class="list-summary">
+                <span class="list-summary-count"></span>
+                <button type="button" class="table-action list-summary-button" aria-label="" title="">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                    <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  </svg>
+                </button>
+              </span>
             </template>
           </section>
         </main>
+      </div>
+    </div>
+
+    <!-- Modal: el curso y la materia de cada asignación de un profesor. Sin título visible: su nombre
+         accesible (aria-label) lo pone teacher-workload-report.js al abrirlo, con el profesor. -->
+    <div class="modal-overlay" id="assignmentListOverlay">
+      <div class="modal list-modal" role="dialog" aria-modal="true" aria-label="">
+        <div class="list-modal-head">
+          <button type="button" class="list-modal-close" id="closeAssignmentListBtn" aria-label="Cerrar" title="Cerrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        <ul class="list-modal-items" id="assignmentList"></ul>
       </div>
     </div>
   </body>

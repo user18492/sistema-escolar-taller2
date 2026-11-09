@@ -154,8 +154,10 @@ const FIND_SUBJECT_COVERAGE_SQL = `
 // WHERE, para conservar a los profesores que no tienen ninguna (cuentan 0). No hace falta mirar la
 // institución del curso: las asignaciones vigentes de un usuario son de cursos de su institución
 // (trg_asignacion_docente_coherencia, db/schema.sql).
-//   - assignment_count: las asignaciones; course_count: los cursos distintos (dos materias del
-//     mismo curso son 2 asignaciones en 1 curso).
+//   - assignment_count: las asignaciones.
+//   - assignments: el curso (grado, división y turno) y la materia de cada una, en el orden del
+//     listado de cursos (nivel educativo, grado, división y turno) y por materia; '[]' si no tiene
+//     ninguna (json_agg con FILTER da NULL).
 // Limitación en un ciclo pasado: lista a los profesores no dados de baja hoy. usuario no guarda la
 // fecha de alta, así que puede aparecer con 0 uno que entró después de ese ciclo, y no aparece uno
 // dado de baja después, aunque haya tenido asignaciones en él.
@@ -167,12 +169,20 @@ const COUNT_BY_TEACHER_SQL = `
          u.apellido,
          u.estado,
          COUNT(a.asignacion_docente_id)::INT AS assignment_count,
-         COUNT(DISTINCT a.curso_id)::INT AS course_count
+         COALESCE(json_agg(json_build_object('grade_name', g.nombre,
+                                             'division', c.division,
+                                             'shift', c.turno,
+                                             'subject_name', m.nombre)
+                           ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, m.nombre)
+                    FILTER (WHERE a.asignacion_docente_id IS NOT NULL),
+                  '[]'::JSON) AS assignments
     FROM usuario u
     JOIN usuario_rol r ON r.usuario_rol_id = u.usuario_rol_id
     LEFT JOIN (asignacion_docente a
                JOIN curso c ON c.curso_id = a.curso_id
-               JOIN grado g ON g.grado_id = c.grado_id)
+               JOIN grado g ON g.grado_id = c.grado_id
+               JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
+               JOIN materia m ON m.materia_id = gm.materia_id)
            ON a.usuario_id = u.usuario_id
           AND a.fecha_eliminacion IS NULL
           AND c.fecha_eliminacion IS NULL
@@ -387,8 +397,9 @@ async function findSubjectCoverage(institutionId, { schoolYear, educationLevel, 
 // sin asignaciones) en el ciclo lectivo `schoolYear` (un año), con `educationLevel` (uno de
 // EDUCATION_LEVELS de grade.repository.js) y `shift` (uno de SHIFTS de course.repository.js) o null
 // para todos. Por profesor, de más a menos asignaciones: { teacherId, firstName, lastName,
-// suspended, assignmentCount, courseCount } (ver COUNT_BY_TEACHER_SQL, también su limitación en
-// los ciclos pasados).
+// suspended, assignmentCount, assignments }, con assignments { gradeName, division, shift,
+// subjectName } de cada asignación (ver COUNT_BY_TEACHER_SQL, también su limitación en los ciclos
+// pasados).
 async function countByTeacher(institutionId, { schoolYear, educationLevel, shift }) {
   const { rows } = await query(COUNT_BY_TEACHER_SQL, [
     institutionId,
@@ -402,7 +413,12 @@ async function countByTeacher(institutionId, { schoolYear, educationLevel, shift
     lastName: row.apellido,
     suspended: !row.estado,
     assignmentCount: row.assignment_count,
-    courseCount: row.course_count,
+    assignments: row.assignments.map((assignment) => ({
+      gradeName: assignment.grade_name,
+      division: assignment.division,
+      shift: SHIFT_BY_COLUMN_VALUE[assignment.shift],
+      subjectName: assignment.subject_name,
+    })),
   }));
 }
 

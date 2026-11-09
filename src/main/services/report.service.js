@@ -93,10 +93,10 @@ async function getSubjectCoverage(currentUser, filters) {
 // Por cada profesor de la institución que no está dado de baja (activo o suspendido, también sin
 // asignaciones), sus asignaciones vigentes de cursos vigentes del ciclo lectivo `filters.schoolYear`
 // (con su Nivel y su Turno, si llegan): { id, firstName, lastName, suspended, assignmentCount,
-// courseCount }, con courseCount los cursos distintos, de más a menos asignaciones (y por apellido
-// y nombre). En un ciclo pasado lista a los profesores no dados de baja hoy (ver countByTeacher).
-// `average` es la media de assignmentCount de todos los profesores listados, incluidos los que
-// tienen 0, o null si no hay ninguno. Resuelve { schoolYear, average, teachers }.
+// assignments }, con assignments { gradeName, division, shift, subjectName } de cada asignación, de
+// más a menos asignaciones (y por apellido y nombre). En un ciclo pasado lista a los profesores no
+// dados de baja hoy (ver countByTeacher). Resuelve { schoolYear, summary, teachers }, con summary
+// el resumen de workloadSummary.
 async function getTeacherWorkload(currentUser, filters) {
   const { schoolYear, educationLevel, shift } = parseFilters(filters);
   const rows = await teacherAssignmentRepository.countByTeacher(currentUser.institutionId, {
@@ -110,12 +110,30 @@ async function getTeacherWorkload(currentUser, filters) {
     lastName: row.lastName,
     suspended: row.suspended,
     assignmentCount: row.assignmentCount,
-    courseCount: row.courseCount,
+    assignments: row.assignments,
   }));
-  const average = teachers.length
-    ? teachers.reduce((sum, teacher) => sum + teacher.assignmentCount, 0) / teachers.length
+  return { schoolYear, summary: workloadSummary(teachers), teachers };
+}
+
+// El resumen del reporte de carga docente, sobre todos los profesores listados (activos y
+// suspendidos, incluidos los que tienen 0):
+//   - average: el promedio de asignaciones por profesor redondeado al entero más cercano (con .5,
+//     hacia arriba), o null si no hay ninguno.
+//   - aboveCount y belowCount: los que tienen más o menos asignaciones que ese entero, para que
+//     coincidan con lo que se lee; los que tienen exactamente el promedio no entran en ninguno.
+//   - withoutAssignmentsCount: los que no tienen asignaciones, que no cuentan en belowCount.
+function workloadSummary(teachers) {
+  const counts = teachers.map((teacher) => teacher.assignmentCount);
+  const average = counts.length
+    ? Math.round(counts.reduce((sum, count) => sum + count, 0) / counts.length)
     : null;
-  return { schoolYear, average, teachers };
+  const countWhere = (condition) => counts.filter(condition).length;
+  return {
+    average,
+    aboveCount: countWhere((count) => count > average),
+    belowCount: countWhere((count) => count > 0 && count < average),
+    withoutAssignmentsCount: countWhere((count) => count === 0),
+  };
 }
 
 // ---------- Reporte 3: Regularidad de los backups ----------

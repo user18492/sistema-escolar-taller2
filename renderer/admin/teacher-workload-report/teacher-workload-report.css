@@ -1,166 +1,71 @@
 /* Reporte Carga docente por profesor (Administrador). La ruta de navegación la aporta
-   breadcrumb.css; la barra de filtros, report-filters.css, y la card (sin encabezado: lo presenta la vista), la leyenda y
-   la animación de entrada de las barras horizontales (.chart-hbars, .chart-hbar), chart.css. Aquí, la disposición del gráfico:
-   una fila por profesor (nombre | pista con la barra | cantidad), la escala debajo, la grilla
-   vertical y la línea del promedio sobre las pistas, y los colores de activos y suspendidos. */
+   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css, y la celda con
+   la cantidad de asignaciones y el modal de la lista, list-modal.css. Aquí, la card del resumen
+   (como la del último backup de Regularidad de los backups) y la card de la tabla (como la de
+   Materias sin docente por curso). */
 
-/* ---------- Gráfico ---------- */
+/* ---------- Resumen ---------- */
 
-/* Las filas, la etiqueta del promedio, la grilla y la escala comparten las mismas columnas: el
-   nombre a la izquierda, la cantidad a la derecha y las pistas en el medio. Los porcentajes de
-   --workload-name-width se resuelven siempre contra el ancho del gráfico. */
-.workload-chart {
-  --workload-name-width: clamp(120px, 26%, 220px);
-  --workload-count-width: 32px;
-  --workload-gap: 16px;
-  --workload-track-start: calc(var(--workload-name-width) + var(--workload-gap));
-  --workload-track-end: calc(var(--workload-count-width) + var(--workload-gap));
+.workload-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 24px;
 }
 
-.workload-chart[hidden] {
-  display: none;
-}
-
-/* Fila de la etiqueta del promedio, sobre las pistas */
-.workload-average-row {
-  position: relative;
-  height: 20px;
-  margin: 0 var(--workload-track-end) 0 var(--workload-track-start);
-}
-
-.workload-average-label {
-  position: absolute;
-  bottom: 4px;
-  padding-left: 6px;
-  font-size: 12px;
+.workload-summary-title {
+  font-size: 13px;
   font-weight: 500;
   color: var(--color-text-secondary);
-  white-space: nowrap;
 }
 
-/* En la mitad derecha de la escala, la etiqueta va a la izquierda de la línea */
-.workload-average-label.is-end {
-  padding: 0 6px 0 0;
-  transform: translateX(-100%);
+/* El promedio, destacado; los grupos, en el tono secundario, separados entre sí */
+.workload-summary-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  font-variant-numeric: tabular-nums;
 }
 
-.workload-plot {
-  position: relative;
-}
-
-/* Capas sobre el área de las pistas: la grilla, debajo de las barras, y la línea del promedio,
-   encima. No reciben el cursor, así el tooltip es el de la fila. */
-.workload-gridlines,
-.workload-average {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--workload-track-start);
-  right: var(--workload-track-end);
-  pointer-events: none;
-}
-
-.workload-gridlines span {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-left: 1px dashed var(--color-border);
-}
-
-.workload-average {
-  z-index: 2;
-}
-
-/* Se prolonga hacia arriba hasta su etiqueta */
-.workload-average-line {
-  position: absolute;
-  top: -20px;
-  bottom: 0;
-  border-left: 2px dotted var(--color-text-primary);
-  transform: translateX(-1px);
-}
-
-.workload-rows {
-  position: relative;
-  z-index: 1;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.workload-row {
-  display: grid;
-  grid-template-columns: var(--workload-name-width) minmax(0, 1fr) var(--workload-count-width);
-  column-gap: var(--workload-gap);
-  align-items: center;
-  height: 36px;
-  font-size: 13px;
-}
-
-.workload-name {
-  color: var(--color-text-primary);
-}
-
-.workload-track {
-  display: block;
-  height: 14px;
-}
-
-/* Ancho = cantidad / máximo de la escala (lo define la vista). Activos con el azul de acento;
-   suspendidos con el rojo de los estados de error (--color-accent-red). Los dos contrastan más de
-   3:1 con el fondo blanco. */
-.workload-bar {
-  display: block;
-  background: var(--color-accent-blue);
-}
-
-.workload-row.is-suspended .workload-bar {
-  background: var(--color-accent-red);
-}
-
-.workload-count {
+.workload-summary-average {
+  font-size: 15px;
   font-weight: 600;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
 }
 
-/* Escala: marcas enteras debajo de las pistas, centradas sobre su línea de la grilla */
-.workload-ticks {
-  position: relative;
-  height: 20px;
-  margin: 4px var(--workload-track-end) 0 var(--workload-track-start);
+.workload-summary-groups {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
 }
 
-.workload-tick {
-  position: absolute;
-  top: 2px;
-  transform: translateX(-50%);
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---------- Leyenda ---------- */
-
-.legend-dot-active {
-  background: var(--color-accent-blue);
-}
-
-.legend-dot-suspended {
-  background: var(--color-accent-red);
-}
-
-/* ---------- Mensajes ---------- */
-
-/* Cargando, error o sin profesores, en lugar del gráfico; como .table-message (data-table.css) */
-.workload-message {
-  padding: 24px 0;
-  text-align: center;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-}
-
-.workload-message[hidden] {
+.workload-summary-groups[hidden] {
   display: none;
+}
+
+/* ---------- Tabla ---------- */
+
+.workload-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Estado y Asignaciones con ancho fijo (el nombre toma el resto): sin él, las columnas se
+   corren de página a página según el contenido */
+.data-table .col-status {
+  width: 25%;
+}
+
+.data-table .col-count {
+  width: 20%;
+}
+
+/* La cantidad, con cifras de ancho fijo, para que se alineen de fila a fila */
+.data-table td.workload-count {
+  font-variant-numeric: tabular-nums;
 }
