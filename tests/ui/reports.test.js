@@ -379,6 +379,27 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
     await logoutViaUi(t);
   });
 
+  test('switch-off', 'Desactivar el interruptor muestra también los cursos completos', {
+    retired: {
+      plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)',
+      reason: 'Cubre el interruptor "Solo cursos incompletos", que se eliminó: el reporte muestra siempre solo los cursos incompletos (lo comprueban default-school-year y year-filter). La prueba quedó obsoleta y, borrada sin retirarla, era la única razón por la que la corrida terminaba con código 1 y no se podía guardar la línea base.',
+    },
+  }, async (t) => {
+    await openReport(t);
+    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year, true), label: 'Con el interruptor activado' });
+    await t.ui.click('#onlyIncompleteSwitch');
+    const all = await expectedIds(t, t.year, false);
+    await expectRows(t, { year: t.year, ids: all, label: 'Con el interruptor desactivado' });
+    // El curso completo, en la página que le toque
+    const found = await t.ui.waitFor(`(() => {
+      if (document.querySelector('tr[data-course-id="${t.data.completeCourse.id}"]')) return true;
+      document.querySelectorAll('table-pagination .page-nav')[1]?.click();
+      return false;
+    })()`, { timeoutMs: 6000 });
+    t.check(found, 'El curso completo aparece con el interruptor desactivado', await viewState(t));
+    await logoutViaUi(t);
+  });
+
   test('pagination', 'Con más de 10 cursos, la segunda página muestra los siguientes y un cambio de filtro vuelve a la página 1', {
     history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'El cambio que vuelve a la página 1 es el de Nivel (Secundaria), no el del interruptor' }],
   }, async (t) => {

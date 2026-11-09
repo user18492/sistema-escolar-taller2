@@ -1,20 +1,11 @@
 {
   "version": 1,
-  "takenAt": "2026-11-08T22:11:24.505Z",
-  "commit": "ed71d98b4a1d10c70bb74ac58594893bf0d41c6c",
+  "takenAt": "2026-11-09T18:52:40.154Z",
+  "commit": "3e7aea14e7c14590b416bcea2315e6b9be0edc81",
   "branch": "main",
-  "dirty": true,
-  "changedFiles": [
-    "renderer/admin/backup-regularity-report/backup-regularity-report.css",
-    "renderer/admin/backup-regularity-report/backup-regularity-report.js",
-    "renderer/admin/backup-regularity-report/index.html",
-    "renderer/shared/styles/chart.css",
-    "src/main/ipc/report.controller.js",
-    "src/main/repositories/backup.repository.js",
-    "src/main/services/report.service.js",
-    "src/preload/preload.js"
-  ],
-  "today": "2026-11-08",
+  "dirty": false,
+  "changedFiles": [],
+  "today": "2026-11-09",
   "year": 2026,
   "environment": {
     "node": "24.19.0",
@@ -1098,37 +1089,46 @@
     "main.admin.reports.subject-coverage.counts": {
       "layer": "main",
       "status": "pass",
-      "hash": "6163a03ee25d",
+      "hash": "b4127f7e2fa3",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 2,
       "knownFailure": null
     },
     "main.admin.reports.subject-coverage.only-incomplete": {
       "layer": "main",
       "status": "pass",
-      "hash": "7b0b85071c8a",
+      "hash": "232563b81419",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.reports.subject-coverage.closed-school-year-deleted-teacher": {
       "layer": "main",
       "status": "pass",
-      "hash": "84eea5168671",
+      "hash": "76579a127bdb",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 2,
       "knownFailure": null
     },
     "main.admin.reports.subject-coverage.scope-and-filters": {
       "layer": "main",
       "status": "pass",
-      "hash": "b3a026852f1c",
+      "hash": "bc127ef6f740",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 2,
+      "knownFailure": null
+    },
+    "main.admin.reports.subject-coverage.has-courses": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "1b4ccc84232e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.reports.subject-coverage.invariants": {
@@ -1143,28 +1143,37 @@
     "main.admin.reports.teacher-workload.counts": {
       "layer": "main",
       "status": "pass",
-      "hash": "cf1c098ecb4f",
+      "hash": "936f2111d2cb",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 2,
       "knownFailure": null
     },
     "main.admin.reports.teacher-workload.filters": {
       "layer": "main",
       "status": "pass",
-      "hash": "11f387b8896f",
+      "hash": "0bf8a93caba4",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 2,
       "knownFailure": null
     },
     "main.admin.reports.teacher-workload.institution-scope": {
       "layer": "main",
       "status": "pass",
-      "hash": "41fec65c3310",
+      "hash": "0b4da1721802",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 2,
+      "knownFailure": null
+    },
+    "main.admin.reports.teacher-workload.has-courses": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "d7f11b6178bd",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.reports.teacher-workload.invariants": {
@@ -1210,6 +1219,15 @@
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
+      "knownFailure": null
+    },
+    "main.admin.reports.backup-regularity.has-backups": {
+      "layer": "main",
+      "status": "pass",
+      "hash": "fa911bb0ea6e",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "main.admin.reports.backup-regularity.invariants": {
@@ -2460,25 +2478,43 @@
     "ui.reports.subject-coverage.default-school-year": {
       "layer": "ui",
       "status": "pass",
-      "hash": "6448fa19abaf",
+      "hash": "aa6d5ee76633",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.subject-coverage.no-results": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "a7dbc336603d",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
       "knownFailure": null
     },
-    "ui.reports.subject-coverage.switch-off": {
+    "ui.reports.subject-coverage.no-data": {
       "layer": "ui",
       "status": "pass",
-      "hash": "49c7175264bd",
+      "hash": "3a8352c67a58",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
       "knownFailure": null
     },
     "ui.reports.subject-coverage.year-filter": {
       "layer": "ui",
       "status": "pass",
-      "hash": "8c56a385781e",
+      "hash": "b7e602d27eed",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.subject-coverage.switch-off": {
+      "layer": "ui",
+      "status": "retired",
+      "hash": "2793dc3ca6e9",
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
@@ -2487,10 +2523,73 @@
     "ui.reports.subject-coverage.pagination": {
       "layer": "ui",
       "status": "pass",
-      "hash": "d88735ba2a05",
+      "hash": "2ac9eeb8a091",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.subject-coverage.subject-cells": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "d67964392a72",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.subject-coverage.stable-layout": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "60990c48112f",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.subject-coverage.assign-from-list": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "5985a1e3fd25",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.subject-coverage.assign-single": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "751de2de4cad",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.subject-coverage.reassign-suspended": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "249df1619e48",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.subject-coverage.past-year-no-actions": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "222fceeaa854",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.subject-coverage.close-any-step": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "5a9f8f5e30ab",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "ui.reports.subject-coverage.invariants": {
@@ -2505,19 +2604,46 @@
     "ui.reports.teacher-workload.rows": {
       "layer": "ui",
       "status": "pass",
-      "hash": "0f17cb6a9987",
+      "hash": "f4fcebbb852e",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.teacher-workload.assignment-list": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "f63bd92c6e19",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "ui.reports.teacher-workload.level-filter": {
       "layer": "ui",
       "status": "pass",
-      "hash": "d2b2cc62ecfa",
+      "hash": "ac5ec1a54340",
       "kind": "stable",
       "affectedBy": [],
-      "historyCount": 0,
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.teacher-workload.stable-layout": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "29f9aec70842",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 2,
+      "knownFailure": null
+    },
+    "ui.reports.teacher-workload.no-data": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "547492ae1e7a",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "ui.reports.teacher-workload.invariants": {
@@ -2545,6 +2671,33 @@
       "kind": "stable",
       "affectedBy": [],
       "historyCount": 0,
+      "knownFailure": null
+    },
+    "ui.reports.backup-regularity.chart-card": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "f67db05a3b03",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
+      "knownFailure": null
+    },
+    "ui.reports.backup-regularity.stable-layout": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "92ae5956a621",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 3,
+      "knownFailure": null
+    },
+    "ui.reports.backup-regularity.no-data": {
+      "layer": "ui",
+      "status": "pass",
+      "hash": "ec4831c5143b",
+      "kind": "stable",
+      "affectedBy": [],
+      "historyCount": 1,
       "knownFailure": null
     },
     "ui.reports.backup-regularity.invariants": {
@@ -2838,24 +2991,24 @@
       "tests": 2
     },
     "auth:get-current-user": {
-      "calls": 211,
-      "ok": 211,
-      "tests": 62
+      "calls": 253,
+      "ok": 253,
+      "tests": 76
     },
     "auth:get-remembered-email": {
-      "calls": 135,
-      "ok": 135,
-      "tests": 87
+      "calls": 149,
+      "ok": 149,
+      "tests": 101
     },
     "auth:login": {
-      "calls": 185,
-      "ok": 177,
-      "tests": 149
+      "calls": 204,
+      "ok": 196,
+      "tests": 166
     },
     "auth:logout": {
-      "calls": 240,
-      "ok": 240,
-      "tests": 174
+      "calls": 259,
+      "ok": 259,
+      "tests": 191
     },
     "auth:select-institution": {
       "calls": 5,
@@ -2903,9 +3056,9 @@
       "tests": 4
     },
     "dashboard:get-admin-summary": {
-      "calls": 25,
-      "ok": 25,
-      "tests": 23
+      "calls": 39,
+      "ok": 39,
+      "tests": 37
     },
     "dashboard:get-secretary-summary": {
       "calls": 15,
@@ -3008,24 +3161,24 @@
       "tests": 2
     },
     "reports:get-backup-regularity": {
-      "calls": 32,
-      "ok": 27,
-      "tests": 8
+      "calls": 50,
+      "ok": 45,
+      "tests": 12
     },
     "reports:get-subject-coverage": {
-      "calls": 29,
-      "ok": 20,
-      "tests": 10
+      "calls": 63,
+      "ok": 55,
+      "tests": 19
     },
     "reports:get-teacher-workload": {
-      "calls": 22,
-      "ok": 15,
-      "tests": 7
+      "calls": 43,
+      "ok": 36,
+      "tests": 11
     },
     "school-years:get-current": {
-      "calls": 101,
-      "ok": 101,
-      "tests": 42
+      "calls": 115,
+      "ok": 115,
+      "tests": 56
     },
     "scores:delete": {
       "calls": 5,
@@ -3078,9 +3231,9 @@
       "tests": 3
     },
     "teacher-assignments:create": {
-      "calls": 6,
-      "ok": 3,
-      "tests": 5
+      "calls": 8,
+      "ok": 5,
+      "tests": 7
     },
     "teacher-assignments:delete": {
       "calls": 4,
@@ -3098,19 +3251,19 @@
       "tests": 8
     },
     "teacher-assignments:list-assignable-courses": {
-      "calls": 8,
-      "ok": 8,
-      "tests": 8
+      "calls": 22,
+      "ok": 22,
+      "tests": 21
     },
     "teacher-assignments:list-assignable-subjects": {
-      "calls": 10,
-      "ok": 10,
-      "tests": 9
+      "calls": 18,
+      "ok": 18,
+      "tests": 13
     },
     "teacher-assignments:list-assignable-teachers": {
-      "calls": 8,
-      "ok": 8,
-      "tests": 8
+      "calls": 22,
+      "ok": 22,
+      "tests": 21
     },
     "teacher-assignments:list-own": {
       "calls": 21,
@@ -3118,9 +3271,9 @@
       "tests": 20
     },
     "teacher-assignments:update": {
-      "calls": 10,
-      "ok": 5,
-      "tests": 6
+      "calls": 11,
+      "ok": 6,
+      "tests": 7
     },
     "users:create": {
       "calls": 4,
@@ -3153,9 +3306,9 @@
       "tests": 1
     },
     "window:is-maximized": {
-      "calls": 280,
-      "ok": 280,
-      "tests": 95
+      "calls": 322,
+      "ok": 322,
+      "tests": 109
     },
     "window:minimize": {
       "calls": 1,
