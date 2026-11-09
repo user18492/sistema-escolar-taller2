@@ -16,10 +16,17 @@
 // botón que abre un modal con el curso y la materia de cada una, una por línea, como las celdas de
 // materias de Materias sin docente por curso (list-modal.css): se cierra con su X o con Escape y el
 // foco vuelve al botón que lo abrió.
+// Un ciclo lectivo en el que la institución no tiene cursos (hasCourses, del proceso principal, sin
+// mirar Nivel ni Turno) muestra solo "No existen registros…", sin el resumen, la tabla ni la
+// paginación, en lugar de todos los profesores con 0. Un ciclo con cursos y profesores sin
+// asignaciones se muestra igual que cualquier otro.
 
 document.addEventListener('DOMContentLoaded', () => {
   const filterBar = document.querySelector('.report-filters');
-  const table = document.querySelector('.workload-card .data-table');
+  const card = document.querySelector('.workload-card');
+  const table = card.querySelector('.data-table');
+  const noDataMessage = card.querySelector('.report-message');
+  const summaryCard = document.querySelector('.workload-summary-card');
   const tbody = table.tBodies[0];
   const rowTemplate = document.getElementById('workloadRowTemplate');
   const summaryTemplate = document.getElementById('assignmentSummaryTemplate');
@@ -96,8 +103,17 @@ document.addEventListener('DOMContentLoaded', () => {
     summaryWithout.textContent = `(${summary.withoutAssignmentsCount} sin asignaciones)`;
   };
 
+  // Con `hasNoData`, la vista muestra solo el mensaje de ciclo sin datos; si no, el resumen y la
+  // tabla
+  const setNoData = (hasNoData) => {
+    card.classList.toggle('has-no-data', hasNoData);
+    noDataMessage.hidden = !hasNoData;
+    summaryCard.hidden = hasNoData;
+  };
+
   // Cargando, error o sin resultados, en una única fila de todo el ancho, y el resumen vacío
   const showMessage = (message) => {
+    setNoData(false);
     const row = document.createElement('tr');
     const cell = row.insertCell();
     cell.colSpan = table.tHead.rows[0].cells.length;
@@ -215,8 +231,14 @@ document.addEventListener('DOMContentLoaded', () => {
       showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
       return;
     }
-    teachers = response.report.teachers;
-    isLoaded = true;
+    const { hasCourses } = response.report;
+    teachers = hasCourses ? response.report.teachers : [];
+    isLoaded = hasCourses;
+    if (!hasCourses) {
+      setNoData(true);
+      return;
+    }
+    setNoData(false);
     renderRows({ page: 1 });
     if (teachers.length) renderSummary(response.report.summary);
   }

@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/list-modal.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-message.css" />
     <link rel="stylesheet" href="./subject-coverage-report.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -89,6 +90,9 @@
           </div>
 
           <section class="card coverage-card">
+            <!-- Ciclo lectivo sin cursos: la card muestra solo este mensaje (.has-no-data, report-message.css) -->
+            <p class="report-message" role="status" hidden>No existen registros pertenecientes al ciclo lectivo seleccionado.</p>
+
             <div class="table-wrap">
               <table class="data-table">
                 <thead>

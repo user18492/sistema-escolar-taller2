@@ -1,6 +1,6 @@
 /* Reporte Regularidad de los backups (Administrador). La ruta de navegación la aporta
    breadcrumb.css; la barra de filtros, report-filters.css, y la card, las columnas, sus etiquetas,
-   la leyenda y la animación de entrada, chart.css. Aquí, la card del último backup, la línea base,
+   la leyenda y la animación de entrada, chart.css, y el mensaje en lugar del gráfico, report-message.css. Aquí, la card del último backup, la línea base,
    la cantidad sobre cada columna, los meses futuros atenuados y los marcadores cuadrados de la
    leyenda. El gráfico no lleva encabezado, eje vertical ni grilla: cada columna muestra su
    cantidad. */
@@ -141,19 +141,5 @@
 }
 
 .legend-item[hidden] {
-  display: none;
-}
-
-/* ---------- Mensajes ---------- */
-
-/* Cargando o error, en lugar del gráfico; como .table-message (data-table.css) */
-.backup-chart-message {
-  padding: 24px 0;
-  text-align: center;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-}
-
-.backup-chart-message[hidden] {
   display: none;
 }

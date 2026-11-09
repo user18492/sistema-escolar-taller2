@@ -1,0 +1,22 @@
+/* Estilos reutilizables: mensaje de un reporte del Administrador en lugar de sus datos (cargando,
+   error o un ciclo lectivo sin datos), centrado en su card; mismo tamaño y color que .table-message
+   (data-table.css). */
+
+.report-message {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.report-message[hidden] {
+  display: none;
+}
+
+/* Ciclo lectivo sin datos (.has-no-data, que pone la vista en la card de la tabla): la card muestra
+   solo el mensaje, sin la tabla, sus encabezados ni la paginación. <table-pagination> usa
+   display: contents (pagination.css), que anularía el atributo hidden. */
+.has-no-data > .table-wrap,
+.has-no-data > table-pagination {
+  display: none;
+}

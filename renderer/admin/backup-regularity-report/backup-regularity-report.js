@@ -10,6 +10,8 @@
 // Cada columna muestra su detalle como tooltip ("Marzo 2026: 2 backups" o "Mes futuro"). El gráfico
 // no tiene eje vertical ni grilla: cada columna muestra su cantidad encima, y la más alta ocupa todo
 // el alto.
+// Un año sin ningún backup muestra solo "No existen registros…" en lugar del gráfico y su leyenda,
+// no 12 meses en cero (hasBackups, del proceso principal). El último backup se muestra igual.
 
 document.addEventListener('DOMContentLoaded', () => {
   const filterBar = document.querySelector('.report-filters');
@@ -27,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const GENERIC_LOAD_ERROR = 'No se pudo cargar el reporte. Intentá nuevamente.';
   const LAST_BACKUP_ERROR = 'No se pudo cargar el último backup.';
   const NO_BACKUPS = 'Todavía no se registró ningún backup';
+  const NO_DATA_MESSAGE = 'No existen registros pertenecientes al ciclo lectivo seleccionado.';
   const EMPTY_VALUE = '—';
   const FUTURE_TITLE = 'Mes futuro';
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
@@ -100,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Gráfico ----------
 
-  // Cargando o error, en lugar del gráfico y su leyenda
+  // Cargando, error o un ciclo sin backups, en lugar del gráfico y su leyenda
   const showMessage = (text) => {
     message.textContent = text;
     message.hidden = false;
@@ -190,7 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     renderLastBackup(response.report.lastBackup);
-    renderChart(response.report);
+    if (response.report.hasBackups) renderChart(response.report);
+    else showMessage(NO_DATA_MESSAGE);
   }
 
   // El filtro avisa cada tecla (column-filter.js), aunque el año incompleto todavía no filtre: si

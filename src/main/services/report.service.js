@@ -2,11 +2,18 @@ const teacherAssignmentRepository = require('../repositories/teacher-assignment.
 const backupRepository = require('../repositories/backup.repository');
 const schoolYearService = require('./school-year.service');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
-const { SHIFTS } = require('../repositories/course.repository');
+const courseRepository = require('../repositories/course.repository');
+
+const { SHIFTS } = courseRepository;
 
 // Reportes de solo lectura de la vista Reportes del Administrador (plans/reportes-administrador/).
 // Cada uno es de la institución de `currentUser` (el de la sesión), nunca de una que mande la
 // vista.
+// Cada reporte dice además si el ciclo lectivo pedido tiene datos, para que la vista muestre "No
+// existen registros…" en lugar de valores en cero: en los de cursos y docentes (hasCourses), si la
+// institución tiene algún curso vigente del ciclo, sin mirar Nivel ni Turno; en el de backups
+// (hasBackups), si hay algún backup de ese año. Un ciclo con cursos y valores en cero (profesores
+// sin asignaciones, cursos completos) sí tiene datos.
 
 // Error previsto, con un mensaje apto para la UI (como CourseError en course.service.js).
 class ReportError extends Error {
@@ -61,15 +68,18 @@ function parseFilters(filters) {
 //     profesor suspendido, con teacherName "Nombre Apellido".
 //   - assignedCount: subjectCount menos las que no tienen docente (cuenta las de un profesor
 //     suspendido).
-// Resuelve { schoolYear, courses }, en el orden de los cursos (nivel educativo, grado, división y
-// turno); courses vacío si el ciclo no tiene cursos incompletos con esos filtros.
+// Resuelve { schoolYear, hasCourses, courses }, en el orden de los cursos (nivel educativo, grado,
+// división y turno); courses vacío si el ciclo no tiene cursos incompletos con esos filtros.
 async function getSubjectCoverage(currentUser, filters) {
   const { schoolYear, educationLevel, shift } = parseFilters(filters);
-  const rows = await teacherAssignmentRepository.findSubjectCoverage(currentUser.institutionId, {
-    schoolYear,
-    educationLevel,
-    shift,
-  });
+  const [rows, hasCourses] = await Promise.all([
+    teacherAssignmentRepository.findSubjectCoverage(currentUser.institutionId, {
+      schoolYear,
+      educationLevel,
+      shift,
+    }),
+    courseRepository.existsInSchoolYear(currentUser.institutionId, schoolYear),
+  ]);
   const courses = rows.map((row) => ({
     id: row.courseId,
     gradeName: row.gradeName,
@@ -85,7 +95,7 @@ async function getSubjectCoverage(currentUser, filters) {
     })),
   }));
   const isIncomplete = (course) => course.unassignedSubjects.length > 0 || course.suspendedSubjects.length > 0;
-  return { schoolYear, courses: courses.filter(isIncomplete) };
+  return { schoolYear, hasCourses, courses: courses.filter(isIncomplete) };
 }
 
 // ---------- Reporte 2: Carga docente por profesor ----------
@@ -95,15 +105,18 @@ async function getSubjectCoverage(currentUser, filters) {
 // (con su Nivel y su Turno, si llegan): { id, firstName, lastName, suspended, assignmentCount,
 // assignments }, con assignments { gradeName, division, shift, subjectName } de cada asignación, de
 // más a menos asignaciones (y por apellido y nombre). En un ciclo pasado lista a los profesores no
-// dados de baja hoy (ver countByTeacher). Resuelve { schoolYear, summary, teachers }, con summary
-// el resumen de workloadSummary.
+// dados de baja hoy (ver countByTeacher). Resuelve { schoolYear, hasCourses, summary, teachers },
+// con summary el resumen de workloadSummary.
 async function getTeacherWorkload(currentUser, filters) {
   const { schoolYear, educationLevel, shift } = parseFilters(filters);
-  const rows = await teacherAssignmentRepository.countByTeacher(currentUser.institutionId, {
-    schoolYear,
-    educationLevel,
-    shift,
-  });
+  const [rows, hasCourses] = await Promise.all([
+    teacherAssignmentRepository.countByTeacher(currentUser.institutionId, {
+      schoolYear,
+      educationLevel,
+      shift,
+    }),
+    courseRepository.existsInSchoolYear(currentUser.institutionId, schoolYear),
+  ]);
   const teachers = rows.map((row) => ({
     id: row.teacherId,
     firstName: row.firstName,
@@ -112,7 +125,7 @@ async function getTeacherWorkload(currentUser, filters) {
     assignmentCount: row.assignmentCount,
     assignments: row.assignments,
   }));
-  return { schoolYear, summary: workloadSummary(teachers), teachers };
+  return { schoolYear, hasCourses, summary: workloadSummary(teachers), teachers };
 }
 
 // El resumen del reporte de carga docente, sobre todos los profesores listados (activos y
@@ -142,7 +155,9 @@ const MONTHS_IN_YEAR = 12;
 
 // Cuántos backups de la institución hay en cada mes del ciclo lectivo `filters.schoolYear` (el año
 // calendario: el ciclo lectivo va de enero a diciembre) y el último backup de la institución, que no
-// depende del ciclo elegido (decisión del usuario). Resuelve { schoolYear, lastBackup, months }:
+// depende del ciclo elegido (decisión del usuario). Resuelve { schoolYear, hasBackups, lastBackup,
+// months }:
+//   - hasBackups: si hay algún backup de la institución en ese año.
 //   - lastBackup: { createdAt (texto ISO 8601), daysAgo } del último backup, con daysAgo los días
 //     desde su fecha hasta la del día de la base (0 si es de hoy), o null si no hay ninguno.
 //   - months: los 12 meses, { month (1 a 12), count, future }, con count 0 si no tiene backups.
@@ -166,6 +181,7 @@ async function getBackupRegularity(currentUser, filters) {
   });
   return {
     schoolYear,
+    hasBackups: counts.length > 0,
     lastBackup: lastBackup && { createdAt: lastBackup.createdAt.toISOString(), daysAgo: lastBackup.daysAgo },
     months,
   };

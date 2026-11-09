@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
     <link rel="stylesheet" href="../../shared/styles/chart.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-message.css" />
     <link rel="stylesheet" href="./backup-regularity-report.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -79,7 +80,8 @@
                eje vertical ni grilla (el título y la descripción son los de la vista, y cada columna
                muestra su cantidad encima) -->
           <section class="card chart-card backup-chart-card" aria-label="Backups por mes">
-            <p class="backup-chart-message" role="status">Cargando reporte…</p>
+            <!-- Cargando, error o un ciclo sin backups (report-message.css), en lugar del gráfico -->
+            <p class="report-message backup-chart-message" role="status">Cargando reporte…</p>
 
             <!-- backup-regularity-report.js completa las columnas y sus etiquetas -->
             <div class="chart backup-chart" hidden>

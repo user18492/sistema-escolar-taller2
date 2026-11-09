@@ -66,6 +66,15 @@ const COUNT_BY_INSTITUTION_SQL = `
      AND fecha_eliminacion IS NULL
 `;
 
+// Si la institución $1 tiene algún curso vigente (sin los dados de baja) del ciclo lectivo $2.
+const EXISTS_IN_SCHOOL_YEAR_SQL = `
+  SELECT EXISTS (SELECT 1
+                   FROM curso
+                  WHERE institucion_id = $1
+                    AND anio_ciclo_lectivo = $2
+                    AND fecha_eliminacion IS NULL) AS has_courses
+`;
+
 // El curso vigente $1 de la institución $2 (uno dado de baja no se encuentra), con el nombre y el
 // nivel educativo de su grado.
 const FIND_ACTIVE_BY_ID_SQL = `
@@ -232,6 +241,12 @@ async function countByInstitution(institutionId) {
   return rows[0].total;
 }
 
+// true si la institución tiene algún curso vigente del ciclo lectivo `schoolYear` (un año).
+async function existsInSchoolYear(institutionId, schoolYear) {
+  const { rows } = await query(EXISTS_IN_SCHOOL_YEAR_SQL, [institutionId, schoolYear]);
+  return rows[0].has_courses;
+}
+
 // El curso vigente con ese id en la institución; null si no existe en ella o fue dado de baja (ver
 // existsInInstitution).
 async function findActiveById(courseId, institutionId) {
@@ -320,6 +335,7 @@ module.exports = {
   findByInstitution,
   findInCurrentSchoolYearByInstitution,
   countByInstitution,
+  existsInSchoolYear,
   findActiveById,
   create,
   update,

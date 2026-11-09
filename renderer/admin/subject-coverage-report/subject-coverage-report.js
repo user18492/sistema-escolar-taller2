@@ -11,10 +11,15 @@
 // ninguna, "—"; una, la materia (con el docente suspendido entre paréntesis); dos o más, la
 // cantidad ("5 materias") y un botón que abre un modal con la lista completa, una por línea. El
 // modal se cierra con su X o con Escape y el foco vuelve al botón que lo abrió.
+// Un ciclo lectivo en el que la institución no tiene cursos (hasCourses, del proceso principal, sin
+// mirar Nivel ni Turno) muestra solo "No existen registros…", sin la tabla ni la paginación. Un
+// ciclo con cursos y ninguno incompleto sigue mostrando la tabla con su mensaje.
 
 document.addEventListener('DOMContentLoaded', () => {
   const filterBar = document.querySelector('.report-filters');
-  const table = document.querySelector('.coverage-card .data-table');
+  const card = document.querySelector('.coverage-card');
+  const table = card.querySelector('.data-table');
+  const noDataMessage = card.querySelector('.report-message');
   const tbody = table.tBodies[0];
   const rowTemplate = document.getElementById('coverageRowTemplate');
   const summaryTemplate = document.getElementById('subjectSummaryTemplate');
@@ -67,8 +72,15 @@ document.addEventListener('DOMContentLoaded', () => {
     filterValue('shift').textContent = shiftLabels[activeFilters.shift] ?? ALL_LABEL;
   };
 
+  // Con `hasNoData`, la card muestra solo el mensaje de ciclo sin datos; si no, la tabla
+  const setNoData = (hasNoData) => {
+    card.classList.toggle('has-no-data', hasNoData);
+    noDataMessage.hidden = !hasNoData;
+  };
+
   // Cargando, error o sin resultados, en una única fila de todo el ancho
   const showMessage = (message) => {
+    setNoData(false);
     const row = document.createElement('tr');
     const cell = row.insertCell();
     cell.colSpan = table.tHead.rows[0].cells.length;
@@ -208,8 +220,14 @@ document.addEventListener('DOMContentLoaded', () => {
       showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
       return;
     }
-    courses = response.report.courses;
-    isLoaded = true;
+    const { hasCourses } = response.report;
+    courses = hasCourses ? response.report.courses : [];
+    isLoaded = hasCourses;
+    if (!hasCourses) {
+      setNoData(true);
+      return;
+    }
+    setNoData(false);
     renderRows({ page: 1 });
   }
 

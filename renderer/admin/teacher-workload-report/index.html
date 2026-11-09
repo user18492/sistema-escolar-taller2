@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/list-modal.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-message.css" />
     <link rel="stylesheet" href="./teacher-workload-report.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -89,7 +90,8 @@
           </div>
 
           <!-- Resumen de todos los profesores del reporte, fuera de la paginación: no cambia de página
-               a página. teacher-workload-report.js completa el texto. -->
+               a página. teacher-workload-report.js completa el texto, y lo oculta en un ciclo sin
+               cursos. -->
           <section class="card workload-summary-card" aria-labelledby="workloadSummaryTitle">
             <h2 id="workloadSummaryTitle" class="workload-summary-title">Promedio general</h2>
             <p class="workload-summary-text" role="status">
@@ -103,6 +105,9 @@
           </section>
 
           <section class="card workload-card">
+            <!-- Ciclo lectivo sin cursos: la card muestra solo este mensaje (.has-no-data, report-message.css) -->
+            <p class="report-message" role="status" hidden>No existen registros pertenecientes al ciclo lectivo seleccionado.</p>
+
             <div class="table-wrap">
               <table class="data-table">
                 <thead>

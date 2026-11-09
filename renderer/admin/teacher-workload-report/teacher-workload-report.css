@@ -42,7 +42,8 @@
   color: var(--color-text-secondary);
 }
 
-.workload-summary-groups[hidden] {
+.workload-summary-groups[hidden],
+.workload-summary-card[hidden] {
   display: none;
 }
 
