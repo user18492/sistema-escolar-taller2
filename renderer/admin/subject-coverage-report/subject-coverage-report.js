@@ -7,14 +7,17 @@
 // El ciclo lectivo es el actual por defecto, con el campo
 // AAAA vacío, o el año completo que se escriba (shownSchoolYear, school-year.js); la vista manda
 // siempre el año resuelto. Las filas se paginan en memoria, 10 por página, con <table-pagination>.
-// Las listas largas se recortan con "…" y muestran su texto completo como tooltip
-// (text-truncate.component.js).
+// Cada celda de "Sin docente" y "Con docente suspendido" se muestra según cuántas materias tenga:
+// ninguna, "—"; una, la materia (con el docente suspendido entre paréntesis); dos o más, la
+// cantidad ("5 materias") y un botón que abre un modal con la lista completa, una por línea. El
+// modal se cierra con su X o con Escape y el foco vuelve al botón que lo abrió.
 
 document.addEventListener('DOMContentLoaded', () => {
   const filterBar = document.querySelector('.report-filters');
   const table = document.querySelector('.coverage-card .data-table');
   const tbody = table.tBodies[0];
   const rowTemplate = document.getElementById('coverageRowTemplate');
+  const summaryTemplate = document.getElementById('subjectSummaryTemplate');
   // El script del componente se carga sin defer en <head>: acá ya está definido y conectado
   const pagination = document.querySelector('.coverage-card table-pagination');
 
@@ -77,8 +80,87 @@ document.addEventListener('DOMContentLoaded', () => {
   // "1° A · Mañana", como en Docencia
   const courseName = (course) => `${course.gradeName} ${course.division} · ${shiftLabels[course.shift] ?? course.shift}`;
 
-  // Lista separada por comas, o "—" si está vacía
-  const listText = (items) => (items.length ? items.join(', ') : EMPTY_VALUE);
+  // ---------- Modal: lista de materias ----------
+
+  const listOverlay = document.getElementById('subjectListOverlay');
+  const listModal = listOverlay.querySelector('.modal');
+  const subjectList = document.getElementById('subjectList');
+  const closeListBtn = document.getElementById('closeSubjectListBtn');
+  // El botón de la celda que abrió el modal, al que vuelve el foco al cerrarlo
+  let listTrigger = null;
+
+  // Una materia de la lista: su nombre y, si tiene el docente suspendido, el de él al lado
+  const createListItem = ({ subjectName, teacherName }) => {
+    const item = document.createElement('li');
+    item.textContent = subjectName;
+    if (teacherName) {
+      const teacher = document.createElement('span');
+      teacher.className = 'subject-teacher';
+      teacher.textContent = ` (${teacherName})`;
+      item.append(teacher);
+    }
+    return item;
+  };
+
+  const openSubjectList = (trigger, { label, items }) => {
+    listTrigger = trigger;
+    listModal.setAttribute('aria-label', label);
+    subjectList.replaceChildren(...items.map(createListItem));
+    listModal.scrollTop = 0;
+    listOverlay.classList.add('is-open');
+    closeListBtn.focus();
+  };
+
+  const closeSubjectList = () => {
+    listOverlay.classList.remove('is-open');
+    listTrigger?.focus();
+    listTrigger = null;
+  };
+
+  closeListBtn.addEventListener('click', closeSubjectList);
+
+  // Escape se escucha en el documento para que funcione aunque el foco haya quedado fuera de un
+  // control (clic en el texto de la lista). El overlay no cierra el modal al hacer clic fuera.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && listOverlay.classList.contains('is-open')) closeSubjectList();
+  });
+
+  // ---------- Filas ----------
+
+  // Lo que muestra cada columna de materias: la etiqueta del botón y del modal ("las 5 materias
+  // sin docente de 1° A · Mañana") y las materias de la fila, como { subjectName, teacherName }
+  const SUBJECT_COLUMNS = [
+    {
+      selector: '.unassigned-subjects',
+      description: 'sin docente',
+      items: (course) => course.unassignedSubjects.map((subjectName) => ({ subjectName })),
+    },
+    {
+      selector: '.suspended-subjects',
+      description: 'con docente suspendido',
+      items: (course) => course.suspendedSubjects,
+    },
+  ];
+
+  const subjectText = ({ subjectName, teacherName }) => (teacherName ? `${subjectName} (${teacherName})` : subjectName);
+
+  // Ninguna materia: "—". Una: la materia. Dos o más: la cantidad y el botón que abre el modal.
+  const fillSubjectCell = (cell, course, column) => {
+    const items = column.items(course);
+    if (items.length < 2) {
+      cell.textContent = items.length ? subjectText(items[0]) : EMPTY_VALUE;
+      return;
+    }
+    const summary = summaryTemplate.content.firstElementChild.cloneNode(true);
+    summary.querySelector('.subject-count').textContent = `${items.length} materias`;
+    const button = summary.querySelector('.subject-list-button');
+    const title = `Ver las ${items.length} materias ${column.description}`;
+    const label = `Materias ${column.description} de ${courseName(course)}`;
+    button.title = title;
+    button.setAttribute('aria-label', `${title} de ${courseName(course)}`);
+    button.addEventListener('click', () => openSubjectList(button, { label, items }));
+    cell.replaceChildren(summary);
+  };
 
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
   // curso_id en data-course-id.
@@ -89,10 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
     row.cells[1].textContent = levelLabels[course.educationLevel] ?? course.educationLevel;
     row.cells[2].textContent = String(course.subjectCount);
     row.cells[3].textContent = String(course.assignedCount);
-    row.querySelector('.unassigned-subjects').textContent = listText(course.unassignedSubjects);
-    row.querySelector('.suspended-subjects').textContent = listText(
-      course.suspendedSubjects.map(({ subjectName, teacherName }) => `${subjectName} (${teacherName})`)
-    );
+    SUBJECT_COLUMNS.forEach((column) => fillSubjectCell(row.querySelector(column.selector), course, column));
     return row;
   };
 
