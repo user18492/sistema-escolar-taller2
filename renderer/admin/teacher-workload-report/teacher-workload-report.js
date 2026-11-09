@@ -190,11 +190,14 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Pide el reporte con los filtros vigentes y lo muestra desde la página 1, con su resumen. Si en
-  // el medio llega otro cambio, la respuesta de este pedido se descarta.
+  // el medio llega otro cambio, la respuesta de este pedido se descarta. Mientras se espera, la
+  // tabla y el resumen conservan lo que muestran (las filas anteriores se pueden seguir paginando)
+  // y los datos nuevos los reemplazan de una vez al llegar: vaciarlos en el medio achicaba la tabla
+  // y, con la página desplazada, la hacía saltar. El "Cargando reporte…" queda solo para la primera
+  // carga.
   async function loadReport() {
     const number = ++requestNumber;
-    isLoaded = false;
-    showMessage('Cargando reporte…');
+    table.setAttribute('aria-busy', 'true');
     let response;
     try {
       response = await window.api?.reports?.getTeacherWorkload({
@@ -206,7 +209,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error al cargar el reporte:', error);
     }
     if (number !== requestNumber) return;
+    table.setAttribute('aria-busy', 'false');
     if (!response?.ok) {
+      isLoaded = false;
       showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
       return;
     }

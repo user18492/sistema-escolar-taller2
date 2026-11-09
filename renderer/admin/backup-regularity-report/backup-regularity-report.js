@@ -199,10 +199,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Pide el reporte del ciclo vigente y lo muestra. Si en el medio llega otro cambio, la respuesta
-  // de este pedido se descarta.
+  // de este pedido se descarta. Mientras se espera, la card conserva lo que muestra (el gráfico
+  // anterior o su mensaje) y el gráfico nuevo lo reemplaza de una vez al llegar: ocultarlo en el
+  // medio achicaba la card y, con la página desplazada, la hacía saltar. El "Cargando reporte…"
+  // queda solo para la primera carga.
   async function loadReport() {
     const number = ++requestNumber;
-    showMessage('Cargando reporte…');
+    card.setAttribute('aria-busy', 'true');
     let response;
     try {
       response = await window.api?.reports?.getBackupRegularity({
@@ -212,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error al cargar el reporte:', error);
     }
     if (number !== requestNumber) return;
+    card.setAttribute('aria-busy', 'false');
     if (!response?.ok) {
       showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
       showLastBackupError();

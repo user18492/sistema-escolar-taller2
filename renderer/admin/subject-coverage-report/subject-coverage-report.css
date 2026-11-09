@@ -24,6 +24,22 @@
   width: 25%;
 }
 
+/* Las demás columnas también tienen su parte de la tabla (entre todas, el 100 %): sin ella, su
+   ancho salía del contenido y los encabezados se corrían, y cambiaban de alto al pasar a una o dos
+   líneas, de página a página, con cada filtro y con el mensaje sin resultados, que mueve la tabla
+   hacia abajo o hacia arriba. */
+.data-table .col-course {
+  width: 15%;
+}
+
+.data-table .col-level {
+  width: 13%;
+}
+
+.data-table .col-count {
+  width: 11%;
+}
+
 .data-table td.col-subjects {
   min-width: 100px;
   white-space: normal;
