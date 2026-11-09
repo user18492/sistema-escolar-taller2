@@ -7,7 +7,9 @@
 // estado en texto, el modal de las asignaciones de cada profesor y el resumen del promedio arriba,
 // igual en todas las páginas, y el filtro Nivel actualiza las filas y el resumen (parte 02 y pedido
 // del 2026-11-09). Regularidad de los backups muestra 12 columnas con los backups de cada mes, los
-// meses futuros atenuados y el último backup, que no cambia con el ciclo elegido (parte 03).
+// meses futuros atenuados y el último backup, que no cambia con el ciclo elegido (parte 03). En un
+// ciclo sin datos (sin cursos, o sin backups), cada reporte muestra solo el mensaje "No existen
+// registros…" (pedido del 2026-11-09, pruebas no-data).
 const { group, test } = require('../lib/framework');
 const { SEED_USERS } = require('../lib/fixtures');
 const { loginViaUi, logoutViaUi, openFromSidebar, typeInColumnFilter, chooseColumnFilterOption, clearColumnFilter } = require('./helpers');
@@ -120,6 +122,29 @@ const scrollMainTo = (t, top) => t.ui.js(`(() => {
   main.scrollTop = ${top === 'end' ? 'main.scrollHeight' : top};
   return main.scrollTop;
 })()`);
+
+// ---------- Ciclo lectivo sin datos (pedido del 2026-11-09) ----------
+// En un ciclo sin datos (sin cursos, o sin backups en Regularidad de los backups), el área de datos
+// muestra solo NO_DATA_MESSAGE. noDataState devuelve, para cada nombre de `selectors`, si se ve
+// (algún elemento con caja) y el texto del mensaje (null si no se ve).
+const NO_DATA_MESSAGE = 'No existen registros pertenecientes al ciclo lectivo seleccionado.';
+const noDataState = (t, { message, ...selectors }) => t.ui.js(`(() => {
+  const isShown = (selector) => Array.from(document.querySelectorAll(selector)).some((el) => el.getClientRects().length > 0);
+  const messageEl = document.querySelector(${JSON.stringify(message)});
+  const selectors = ${JSON.stringify(selectors)};
+  return {
+    message: messageEl && messageEl.getClientRects().length ? messageEl.textContent.trim() : null,
+    ...Object.fromEntries(Object.entries(selectors).map(([name, selector]) => [name, isShown(selector)])),
+  };
+})()`);
+// Espera que la vista muestre (o deje de mostrar, con `shown` false) el mensaje de ciclo sin datos
+// para el ciclo `year` del botón del filtro
+const waitNoData = (t, { message, year, shown }) => t.ui.waitFor(`(() => {
+  const el = document.querySelector(${JSON.stringify(message)});
+  const isShown = Boolean(el && el.getClientRects().length && el.textContent.trim() === ${JSON.stringify(NO_DATA_MESSAGE)});
+  return isShown === ${shown}
+    && document.querySelector('.report-filters [data-filter="year"] .report-filter-value').textContent.trim() === '${year}';
+})()`, { timeoutMs: 6000 });
 
 // Cada reporte: su vista y los filtros de su barra (data-filter), en orden
 const REPORTS = [
@@ -281,6 +306,37 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
     await logoutViaUi(t);
   });
 
+  test('no-data', 'Un ciclo sin cursos muestra solo "No existen registros…", sin la tabla ni la paginación, también con Nivel y Turno; un ciclo con cursos y ninguno incompleto sigue mostrando la tabla, y "Limpiar filtro" vuelve al actual', {
+    history: [{ plan: 'Pedido del 2026-11-09: mensaje de ciclo lectivo sin datos en los reportes (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const emptyYear = t.year - 20;
+    t.require((await t.sql(`SELECT 1 FROM curso WHERE institucion_id = $1 AND anio_ciclo_lectivo = $2`, [t.data.institutionId, emptyYear])).length === 0,
+      `El ciclo ${emptyYear} no tiene que tener cursos`);
+    const PARTS = { message: '.coverage-card .report-message', table: '.coverage-card .data-table', pagination: '.coverage-card .pagination' };
+    await openReport(t);
+    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year), label: 'Ciclo actual' });
+    t.equal(await noDataState(t, PARTS), { message: null, table: true, pagination: true }, 'Ciclo actual: la tabla y la paginación, sin el mensaje');
+
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(emptyYear));
+    t.check(await waitNoData(t, { message: PARTS.message, year: emptyYear, shown: true }), `Ciclo ${emptyYear}: aparece el mensaje`, await noDataState(t, PARTS));
+    t.equal(await noDataState(t, PARTS), { message: NO_DATA_MESSAGE, table: false, pagination: false }, `Ciclo ${emptyYear}: solo el mensaje`);
+    await chooseColumnFilterOption(t, 'level', 'PRIMARY');
+    await t.ui.idle({ quietMs: 400 });
+    t.equal(await noDataState(t, PARTS), { message: NO_DATA_MESSAGE, table: false, pagination: false }, 'Con Nivel Primaria, también');
+
+    // Dos ciclos atrás, primaria: un solo curso, completo. El ciclo tiene datos, sin filas.
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(t.year - 2));
+    t.check(await waitNoData(t, { message: PARTS.message, year: t.year - 2, shown: false }), `Ciclo ${t.year - 2}: el mensaje desaparece`, await noDataState(t, PARTS));
+    t.equal(await noDataState(t, PARTS), { message: null, table: true, pagination: true }, `Ciclo ${t.year - 2}: la tabla vuelve`);
+    t.equal((await viewState(t)).message, 'Todos los cursos tienen docente asignado en todas sus materias.', 'con el mensaje sin resultados de la tabla');
+
+    await clearColumnFilter(t, 'level');
+    await clearColumnFilter(t, 'year');
+    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year), label: 'Después de "Limpiar filtro"' });
+    t.equal(await noDataState(t, PARTS), { message: null, table: true, pagination: true }, 'Ciclo actual otra vez: la tabla y la paginación');
+    await logoutViaUi(t);
+  });
+
   test('year-filter', 'Un año en el filtro muestra los cursos incompletos de ese ciclo y "Limpiar filtro" vuelve al actual', {
     history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'La consulta propia ya no recibe onlyIncomplete: siempre los incompletos' }],
   }, async (t) => {
@@ -426,6 +482,9 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
 group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
   async setup({ fixtures }) {
     const institutionId = await fixtures.institutionId();
+    // Un ciclo con un curso y sin asignaciones: tiene datos, con todos los profesores en 0
+    const zeroYear = fixtures.year - 10;
+    await fixtures.inSchoolYear(zeroYear, () => fixtures.createCourse());
     const busiestTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Ocupado' });
     const { rows: [{ max }] } = await fixtures.db.query(`
       SELECT COALESCE(MAX(n), 0)::INT AS max FROM (
@@ -446,7 +505,7 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
     await fixtures.assign({ teacherId: suspendedTeacher.id, courseId: (await fixtures.createCourse({ level: 'PRIMARIA', grade: '1°', shift: 'MAÑANA' })).id });
     await fixtures.db.query(`UPDATE usuario SET estado = FALSE WHERE usuario_id = $1`, [suspendedTeacher.id]);
     const idleTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Libre' });
-    return { institutionId, busiestTeacher, suspendedTeacher, idleTeacher };
+    return { institutionId, busiestTeacher, suspendedTeacher, idleTeacher, zeroYear };
   },
 }, () => {
   const VIEW = 'admin/teacher-workload-report/index.html';
@@ -634,7 +693,10 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
   });
 
   test('stable-layout', 'Cada filtro y cada página reemplazan las filas y el resumen sin vaciarlos en el medio: el resumen, la tabla, sus encabezados y la paginación no saltan y la página no se desplaza, también en un ciclo sin asignaciones', {
-    history: [{ plan: 'Pedido del 2026-11-09: la tabla de los reportes salta al aplicar un filtro (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+    history: [
+      { plan: 'Pedido del 2026-11-09: la tabla de los reportes salta al aplicar un filtro (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' },
+      { plan: 'Pedido del 2026-11-09: mensaje de ciclo lectivo sin datos en los reportes (sin plan en plans/)', date: '2026-11-09', change: 'El ciclo sin asignaciones es uno con un curso (zeroYear): uno sin cursos ya no muestra la tabla, sino el mensaje de ciclo sin datos (prueba no-data)' },
+    ],
   }, async (t) => {
     const LAYOUT = {
       boxes: {
@@ -644,9 +706,11 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
       texts: { summary: '.workload-summary-text', rows: '.workload-card tbody tr', results: '.workload-card .results-count' },
     };
     const FIXED = ['filters', 'summary', 'headers'];
-    // Un ciclo sin cursos: todos los profesores con 0 (el reporte los lista igual)
-    const emptyYear = t.year - 20;
-    t.require((await t.sql(`SELECT 1 FROM curso WHERE anio_ciclo_lectivo = $1`, [emptyYear])).length === 0, `El ciclo ${emptyYear} no tiene que tener cursos`);
+    // Un ciclo con un curso y sin asignaciones: todos los profesores con 0
+    const emptyYear = t.data.zeroYear;
+    t.require(Number.isInteger(emptyYear), 'Falta zeroYear en los datos del grupo');
+    t.require((await t.sql(`SELECT 1 FROM asignacion_docente a JOIN curso c USING (curso_id) WHERE c.institucion_id = $1 AND c.anio_ciclo_lectivo = $2`,
+      [t.data.institutionId, emptyYear])).length === 0, `El ciclo ${emptyYear} no tiene que tener asignaciones`);
     await openReport(t);
     await expectPage(t, await expectedTeachers(t), { page: 1, label: 'Ciclo actual' });
 
@@ -675,6 +739,39 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
         }
       });
     }
+    await logoutViaUi(t);
+  });
+
+  test('no-data', 'Un ciclo sin cursos muestra solo "No existen registros…", sin el resumen, la tabla ni la paginación; un ciclo con cursos y sin asignaciones muestra a todos con 0 y el resumen, y "Limpiar filtro" vuelve al actual', {
+    history: [{ plan: 'Pedido del 2026-11-09: mensaje de ciclo lectivo sin datos en los reportes (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const { zeroYear } = t.data;
+    t.require(Number.isInteger(zeroYear), 'Falta zeroYear en los datos del grupo');
+    const emptyYear = t.year - 20;
+    t.require((await t.sql(`SELECT 1 FROM curso WHERE institucion_id = $1 AND anio_ciclo_lectivo = $2`, [t.data.institutionId, emptyYear])).length === 0,
+      `El ciclo ${emptyYear} no tiene que tener cursos`);
+    const PARTS = {
+      message: '.workload-card .report-message', summary: '.workload-summary-card', table: '.workload-card .data-table', pagination: '.workload-card .pagination',
+    };
+    const WITH_DATA = { message: null, summary: true, table: true, pagination: true };
+    await openReport(t);
+    await expectPage(t, await expectedTeachers(t), { page: 1, label: 'Ciclo actual' });
+    t.equal(await noDataState(t, PARTS), WITH_DATA, 'Ciclo actual: el resumen, la tabla y la paginación, sin el mensaje');
+
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(emptyYear));
+    t.check(await waitNoData(t, { message: PARTS.message, year: emptyYear, shown: true }), `Ciclo ${emptyYear}: aparece el mensaje`, await noDataState(t, PARTS));
+    t.equal(await noDataState(t, PARTS), { message: NO_DATA_MESSAGE, summary: false, table: false, pagination: false }, `Ciclo ${emptyYear}: solo el mensaje`);
+
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(zeroYear));
+    t.check(await waitNoData(t, { message: PARTS.message, year: zeroYear, shown: false }), `Ciclo ${zeroYear}: el mensaje desaparece`, await noDataState(t, PARTS));
+    t.equal(await noDataState(t, PARTS), WITH_DATA, `Ciclo ${zeroYear}, con cursos y sin asignaciones: el resumen, la tabla y la paginación`);
+    const zero = await viewState(t);
+    t.check(zero.rows.length > 0 && zero.rows.every((row) => row.count === 0 && !row.button), 'Todos los profesores con 0', zero.rows);
+    t.check(zero.summary.startsWith('0 asignaciones por profesor:'), 'El resumen en 0', zero.summary);
+
+    await clearColumnFilter(t, 'year');
+    await expectPage(t, await expectedTeachers(t), { page: 1, label: 'Después de "Limpiar filtro"' });
+    t.equal(await noDataState(t, PARTS), WITH_DATA, 'Ciclo actual otra vez: el resumen, la tabla y la paginación');
     await logoutViaUi(t);
   });
 });
@@ -807,10 +904,11 @@ group('ui.reports.backup-regularity', 'Reportes: Regularidad de los backups', {
     await logoutViaUi(t);
   });
 
-  test('stable-layout', 'Un cambio de año reemplaza el gráfico sin ocultarlo en el medio: el indicador, el gráfico y su leyenda no saltan y la página no se desplaza, también en un ciclo sin backups', {
+  test('stable-layout', 'Un cambio de año reemplaza el gráfico sin ocultarlo en el medio: el indicador, el gráfico y su leyenda no saltan y la página no se desplaza; un ciclo sin backups pasa al mensaje de una vez, sin mover el indicador', {
     history: [
       { plan: 'Pedido del 2026-11-09: la tabla de los reportes salta al aplicar un filtro (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' },
       { plan: 'Pedido del 2026-11-09: simplificar la tarjeta del gráfico de Regularidad de los backups (sin plan en plans/)', date: '2026-11-09', change: 'Sin el eje vertical ni las limitaciones, que se quitaron de la tarjeta' },
+      { plan: 'Pedido del 2026-11-09: mensaje de ciclo lectivo sin datos en los reportes (sin plan en plans/)', date: '2026-11-09', change: 'En el ciclo sin backups y en la vuelta desde él, el gráfico se reemplaza por el mensaje (y al revés): solo quedan fijos la barra y el indicador' },
     ],
   }, async (t) => {
     // La caja del gráfico y no la de cada columna: las columnas crecen desde la base en cada carga
@@ -830,8 +928,8 @@ group('ui.reports.backup-regularity', 'Reportes: Regularidad de los backups', {
 
     const steps = [
       { label: `Ciclo ${t.year - 1}`, scroll: 80, prepare: () => startYearInBar(t, t.year - 1), action: () => finishYearInBar(t, t.year - 1) },
-      { label: `Ciclo ${emptyYear}, sin backups`, scroll: 80, prepare: () => startYearInBar(t, emptyYear), action: () => finishYearInBar(t, emptyYear) },
-      { label: 'Limpiar Ciclo lectivo', scroll: 80, action: () => clearInBar(t, 'year') },
+      { label: `Ciclo ${emptyYear}, sin backups`, scroll: 80, prepare: () => startYearInBar(t, emptyYear), action: () => finishYearInBar(t, emptyYear), noData: true },
+      { label: 'Limpiar Ciclo lectivo', scroll: 80, action: () => clearInBar(t, 'year'), fromNoData: true },
     ];
     for (const step of steps) {
       await t.step(step.label, async () => {
@@ -841,9 +939,40 @@ group('ui.reports.backup-regularity', 'Reportes: Regularidad de los backups', {
           await t.ui.idle({ quietMs: 400 });
         }
         const samples = await recordLayout(t, LAYOUT, step.action);
-        checkNoIntermediateState(t, samples, { label: step.label, fixed: FIXED });
+        const changesCard = step.noData || step.fromNoData;
+        checkNoIntermediateState(t, samples, { label: step.label, fixed: changesCard ? ['filters', 'lastBackup'] : FIXED });
+        if (step.noData) t.equal(samples.at(-1).texts.message, NO_DATA_MESSAGE, 'El mensaje de ciclo sin datos');
       });
     }
+    await logoutViaUi(t);
+  });
+
+  test('no-data', 'Un año sin backups muestra solo "No existen registros…", sin el gráfico ni su leyenda, con el indicador del último backup igual; "Limpiar filtro" vuelve al gráfico del actual', {
+    history: [{ plan: 'Pedido del 2026-11-09: mensaje de ciclo lectivo sin datos en los reportes (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const emptyYear = t.year - 20;
+    t.require((await expectedCounts(t, emptyYear)).every((count) => count === 0), `El ciclo ${emptyYear} no tiene que tener backups`);
+    const PARTS = { message: '.backup-chart-message', chart: '.backup-chart', legend: '.chart-legend', lastBackup: '.last-backup-card' };
+    const WITH_DATA = { message: null, chart: true, legend: true, lastBackup: true };
+    await openReport(t);
+    await expectColumns(t, { year: t.year, counts: await expectedCounts(t, t.year), label: 'Ciclo actual' });
+    t.equal(await noDataState(t, PARTS), WITH_DATA, 'Ciclo actual: el gráfico y su leyenda, sin el mensaje');
+    const before = await viewState(t);
+
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(emptyYear));
+    t.check(await waitNoData(t, { message: PARTS.message, year: emptyYear, shown: true }), `Ciclo ${emptyYear}: aparece el mensaje`, await noDataState(t, PARTS));
+    t.equal(await noDataState(t, PARTS), { message: NO_DATA_MESSAGE, chart: false, legend: false, lastBackup: true }, `Ciclo ${emptyYear}: solo el mensaje y el indicador`);
+    const after = await viewState(t);
+    t.equal({ summary: after.summary, date: after.date }, { summary: before.summary, date: before.date }, 'El indicador del último backup no cambia');
+
+    // El ciclo anterior tiene backups (los de la preparación del grupo): vuelve el gráfico
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(t.year - 1));
+    await expectColumns(t, { year: t.year - 1, counts: await expectedCounts(t, t.year - 1), label: 'Ciclo anterior' });
+    t.equal(await noDataState(t, PARTS), WITH_DATA, 'Ciclo anterior: el gráfico otra vez');
+
+    await clearColumnFilter(t, 'year');
+    await expectColumns(t, { year: t.year, counts: await expectedCounts(t, t.year), label: 'Después de "Limpiar filtro"' });
+    t.equal(await noDataState(t, PARTS), WITH_DATA, 'Ciclo actual otra vez: el gráfico y su leyenda');
     await logoutViaUi(t);
   });
 });

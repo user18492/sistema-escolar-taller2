@@ -464,9 +464,20 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     const deletedCourse = await fixtures.createCourse({ deleted: true });
     const otherInstitution = await fixtures.createInstitution();
     const foreignCourse = await fixtures.createCourse({ institutionId: otherInstitution.id });
+    // Para hasCourses: un ciclo con un solo curso, completo (con datos y sin cursos incompletos), y
+    // otro con un solo curso, dado de baja (sin datos)
+    const completeOnlyYear = fixtures.year - 5;
+    await fixtures.inSchoolYear(completeOnlyYear, async () => {
+      const course = await fixtures.createCourse({ level: 'PRIMARIA', grade: '1°', shift: 'MAÑANA' });
+      for (const subject of await fixtures.subjectsOfGrade(course.gradeId)) {
+        await fixtures.assign({ teacherId: activeTeacher.id, courseId: course.id, subjectName: subject.name });
+      }
+    });
+    const deletedOnlyYear = fixtures.year - 6;
+    await fixtures.inSchoolYear(deletedOnlyYear, () => fixtures.createCourse({ deleted: true }));
     return {
       institutionId, suspendedTeacher, partialCourse, activeAssignment, suspendedAssignment, completeCourse,
-      closed, deletedCourse, foreignCourse,
+      closed, deletedCourse, foreignCourse, completeOnlyYear, deletedOnlyYear,
     };
   },
 }, () => {
@@ -602,6 +613,32 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', null);
     await t.logout();
   });
+
+  test('has-courses', 'hasCourses dice si la institución tiene algún curso vigente en el ciclo, sin mirar Nivel ni Turno: un ciclo con cursos completos sí tiene datos; uno sin cursos o solo con uno dado de baja, no', {
+    history: [{ plan: 'Pedido del 2026-11-09: mensaje de ciclo lectivo sin datos en los reportes (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const { completeOnlyYear, deletedOnlyYear } = t.data;
+    const emptyYear = t.year - 20;
+    const coursesOf = async (year) => (await t.sql(`SELECT fecha_eliminacion IS NULL AS active FROM curso WHERE institucion_id = $1 AND anio_ciclo_lectivo = $2`,
+      [t.data.institutionId, year])).map((row) => row.active);
+    t.require((await coursesOf(emptyYear)).length === 0, `El ciclo ${emptyYear} no tiene que tener cursos`);
+    t.require(JSON.stringify(await coursesOf(deletedOnlyYear)) === '[false]', `El ciclo ${deletedOnlyYear} tiene que tener solo un curso dado de baja`);
+    await t.login('admin');
+    const cases = [
+      { filters: { schoolYear: t.year }, hasCourses: true, label: 'Ciclo actual' },
+      { filters: { schoolYear: t.year - 1 }, hasCourses: true, label: 'Ciclo cerrado con cursos' },
+      { filters: { schoolYear: completeOnlyYear }, hasCourses: true, courses: [], label: 'Ciclo con un curso completo: sin filas, pero con datos' },
+      { filters: { schoolYear: completeOnlyYear, educationLevel: 'SECONDARY', shift: 'AFTERNOON' }, hasCourses: true, courses: [], label: 'Nivel y Turno sin cursos de ese ciclo: sigue con datos' },
+      { filters: { schoolYear: emptyYear }, hasCourses: false, courses: [], label: 'Ciclo sin cursos' },
+      { filters: { schoolYear: deletedOnlyYear }, hasCourses: false, courses: [], label: 'Ciclo con un curso dado de baja' },
+    ];
+    for (const { filters, hasCourses, courses, label } of cases) {
+      const { report } = await t.ok('reports.getSubjectCoverage', filtersOf(filters));
+      t.equal(report.hasCourses, hasCourses, `${label}: hasCourses`);
+      if (courses) t.equal(report.courses, courses, `${label}: sin filas`);
+    }
+    await t.logout();
+  });
 });
 
 // Reporte Carga docente por profesor (plans/reportes-administrador/02-carga-docente.md, y el pedido
@@ -631,6 +668,9 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
     const deletedTeacher = await fixtures.createUser({ role: 'PROFESOR', deleted: true });
     await fixtures.inSchoolYear(fixtures.year - 1, async () =>
       fixtures.assign({ teacherId: busyTeacher.id, courseId: (await fixtures.createCourse()).id }));
+    // Un ciclo con un curso y sin asignaciones: tiene datos, con todos los profesores en 0
+    const zeroYear = fixtures.year - 10;
+    await fixtures.inSchoolYear(zeroYear, () => fixtures.createCourse());
     // Otra institución, con un profesor con una asignación y su administrador, y una sin profesores.
     // Otros tres profesores de esa institución, con 0, 2 y 4 asignaciones, dan un promedio de 1,75,
     // que se lee 2: el de 2 no queda por encima ni por debajo, el de 1 queda por debajo y el de 0
@@ -646,7 +686,7 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
     }
     const foreignAdmin = await fixtures.createUser({ role: 'ADMIN', institutionId: otherInstitution.id });
     const emptyAdmin = await fixtures.createUser({ role: 'ADMIN', institutionId: (await fixtures.createInstitution()).id });
-    return { institutionId, idleTeacher, busyTeacher, suspendedTeacher, deletedTeacher, foreignTeacher, foreignAdmin, emptyAdmin };
+    return { institutionId, idleTeacher, busyTeacher, suspendedTeacher, deletedTeacher, foreignTeacher, foreignAdmin, emptyAdmin, zeroYear };
   },
 }, () => {
   const filtersOf = (overrides) => ({ educationLevel: null, shift: null, ...overrides });
@@ -754,7 +794,10 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
   });
 
   test('institution-scope', 'Cada administrador ve solo a los profesores de su institución, con su resumen redondeado; sin profesores, la lista está vacía y el promedio es null', {
-    history: [{ plan: 'Pedido del 2026-11-09: tabla con las asignaciones de cada profesor y resumen del promedio (sin plan en plans/)', date: '2026-11-09', change: 'La otra institución suma profesores con 0, 2 y 4 asignaciones para comprobar el resumen contra el promedio redondeado' }],
+    history: [
+      { plan: 'Pedido del 2026-11-09: tabla con las asignaciones de cada profesor y resumen del promedio (sin plan en plans/)', date: '2026-11-09', change: 'La otra institución suma profesores con 0, 2 y 4 asignaciones para comprobar el resumen contra el promedio redondeado' },
+      { plan: 'Pedido del 2026-11-09: mensaje de ciclo lectivo sin datos en los reportes (sin plan en plans/)', date: '2026-11-09', change: 'El reporte de la institución sin profesores trae además hasCourses: false (tampoco tiene cursos)' },
+    ],
   }, async (t) => {
     const { foreignTeacher, foreignAdmin, emptyAdmin } = t.data;
     await t.login('admin');
@@ -772,8 +815,34 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
 
     await t.login(emptyAdmin);
     t.equal((await t.ok('reports.getTeacherWorkload', filtersOf({ schoolYear: t.year }))).report,
-      { schoolYear: t.year, summary: { average: null, aboveCount: 0, belowCount: 0, withoutAssignmentsCount: 0 }, teachers: [] },
+      { schoolYear: t.year, hasCourses: false, summary: { average: null, aboveCount: 0, belowCount: 0, withoutAssignmentsCount: 0 }, teachers: [] },
       'Sin profesores: lista vacía y promedio null');
+    await t.logout();
+  });
+
+  test('has-courses', 'hasCourses dice si la institución tiene algún curso vigente en el ciclo, sin mirar Nivel ni Turno: un ciclo con cursos y sin asignaciones sí tiene datos, con todos en 0; uno sin cursos, no', {
+    history: [{ plan: 'Pedido del 2026-11-09: mensaje de ciclo lectivo sin datos en los reportes (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const { zeroYear } = t.data;
+    const emptyYear = t.year - 20;
+    t.require((await t.sql(`SELECT 1 FROM curso WHERE institucion_id = $1 AND anio_ciclo_lectivo = $2`, [t.data.institutionId, emptyYear])).length === 0,
+      `El ciclo ${emptyYear} no tiene que tener cursos`);
+    await t.login('admin');
+    const cases = [
+      { filters: { schoolYear: t.year }, hasCourses: true, label: 'Ciclo actual' },
+      { filters: { schoolYear: t.year, educationLevel: 'PRIMARY', shift: 'AFTERNOON' }, hasCourses: true, label: 'Ciclo actual con Nivel y Turno' },
+      { filters: { schoolYear: t.year - 1 }, hasCourses: true, label: 'Ciclo cerrado' },
+      { filters: { schoolYear: zeroYear }, hasCourses: true, label: 'Ciclo con cursos y sin asignaciones' },
+      { filters: { schoolYear: emptyYear }, hasCourses: false, label: 'Ciclo sin cursos' },
+    ];
+    for (const { filters, hasCourses, label } of cases) {
+      const { report } = await t.ok('reports.getTeacherWorkload', filtersOf(filters));
+      t.equal(report.hasCourses, hasCourses, `${label}: hasCourses`);
+    }
+    const zero = (await t.ok('reports.getTeacherWorkload', filtersOf({ schoolYear: zeroYear }))).report;
+    t.check(zero.teachers.length > 0 && zero.teachers.every((teacher) => teacher.assignmentCount === 0),
+      'Con cursos y sin asignaciones, todos los profesores con 0', zero.teachers);
+    t.equal(zero.summary.average, 0, 'y el promedio en 0');
     await t.logout();
   });
 });
@@ -907,6 +976,35 @@ group('main.admin.reports.backup-regularity', 'Administrador: reporte Regularida
       await t.rejects('INVALID_INPUT', 'reports.getBackupRegularity', { schoolYear });
     }
     await t.rejects('INVALID_INPUT', 'reports.getBackupRegularity', null);
+    await t.logout();
+  });
+
+  test('has-backups', 'hasBackups dice si la institución tiene algún backup en el año del ciclo, propio: no cuentan los de otra institución', {
+    history: [{ plan: 'Pedido del 2026-11-09: mensaje de ciclo lectivo sin datos en los reportes (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const { foreignAdmin, emptyAdmin } = t.data;
+    await t.login('admin');
+    await t.fixtures.onDate(midYear(t), async () => {
+      const cases = [
+        { schoolYear: t.year, hasBackups: true, label: 'Ciclo actual' },
+        { schoolYear: t.year - 1, hasBackups: true, label: 'Ciclo anterior' },
+        { schoolYear: t.year + 1, hasBackups: false, label: 'Ciclo futuro' },
+        { schoolYear: t.year - 20, hasBackups: false, label: 'Ciclo sin backups' },
+      ];
+      for (const { schoolYear, hasBackups, label } of cases) {
+        const { report } = await t.ok('reports.getBackupRegularity', { schoolYear });
+        t.equal(report.hasBackups, hasBackups, `${label}: hasBackups`);
+        t.equal(hasBackups, (await expectedCounts(t, schoolYear)).some((month) => month.count > 0), `${label}: según la consulta propia`);
+        t.check(report.lastBackup !== null, `${label}: el último backup sigue llegando`, report.lastBackup);
+      }
+    });
+    await t.logout();
+    // La otra institución tiene backups en abril del ciclo actual; la vacía, ninguno
+    await t.login(foreignAdmin);
+    t.equal((await t.ok('reports.getBackupRegularity', { schoolYear: t.year })).report.hasBackups, true, 'La otra institución, con sus backups');
+    await t.logout();
+    await t.login(emptyAdmin);
+    t.equal((await t.ok('reports.getBackupRegularity', { schoolYear: t.year })).report.hasBackups, false, 'Una institución sin backups');
     await t.logout();
   });
 });
