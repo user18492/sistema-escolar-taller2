@@ -1,5 +1,5 @@
 /* Reporte Carga docente por profesor (Administrador). La ruta de navegación la aporta
-   breadcrumb.css; la barra de filtros, report-filters.css, y la card, el encabezado, la leyenda y
+   breadcrumb.css; la barra de filtros, report-filters.css, y la card (sin encabezado: lo presenta la vista), la leyenda y
    la animación de entrada de las barras horizontales (.chart-hbars, .chart-hbar), chart.css. Aquí, la disposición del gráfico:
    una fila por profesor (nombre | pista con la barra | cantidad), la escala debajo, la grilla
    vertical y la línea del promedio sobre las pistas, y los colores de activos y suspendidos. */

@@ -86,14 +86,8 @@
           </div>
 
           <!-- Gráfico de barras horizontales (chart.css): una fila por profesor -->
-          <section class="card chart-card workload-card" aria-labelledby="workloadTitle">
-            <div class="chart-header">
-              <div>
-                <h2 id="workloadTitle">Asignaciones por profesor</h2>
-                <p>Asignaciones vigentes de cada profesor en los cursos del ciclo lectivo, de mayor a menor.</p>
-              </div>
-            </div>
-
+          <!-- Sin encabezado propio: el título y la descripción de la vista ya lo presentan -->
+          <section class="card chart-card workload-card" aria-label="Asignaciones por profesor">
             <p class="workload-message" role="status">Cargando reporte…</p>
 
             <!-- teacher-workload-report.js completa la escala, la línea del promedio y las filas -->
