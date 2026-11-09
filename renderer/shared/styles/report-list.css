@@ -1,5 +1,6 @@
-/* Vista Reportes del Administrador: la lista de reportes, cada uno un enlace con estilo de .card
-   (base.css) que abre su vista. El chevron es el de manage-link (base.css), con sus mismos tonos. */
+/* Estilos reutilizables: la lista de reportes de las vistas Reportes del Administrador y del
+   Secretario, cada uno un enlace con estilo de .card (base.css) que abre su vista. El chevron es el
+   de manage-link (base.css), con sus mismos tonos. */
 
 .report-list {
   display: flex;

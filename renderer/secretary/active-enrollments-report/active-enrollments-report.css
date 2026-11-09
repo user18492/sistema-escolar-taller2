@@ -1,0 +1,38 @@
+/* Reporte Inscripciones activas por curso (Secretario). La ruta de navegación la aporta
+   breadcrumb.css; la barra de filtros, report-filters.css (Curso, con <course-filter>, también
+   course-filter.css y grade-dropdown.css); la tabla, data-table.css; la acción Inscribir y el modal,
+   list-modal.css, y el formulario del modal, enrollment-form.css. Aquí, la card de la tabla (como
+   la de Materias sin docente por curso). */
+
+/* ---------- Tabla ---------- */
+
+.active-enrollments-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Cada columna tiene su parte de la tabla (entre todas, el 100 %): sin ella, su ancho salía del
+   contenido y los encabezados se corrían de página a página, con cada filtro y al actualizarse una
+   cantidad después de Inscribir. */
+.data-table .col-course {
+  width: 35%;
+}
+
+.data-table .col-level {
+  width: 25%;
+}
+
+.data-table .col-count {
+  width: 20%;
+}
+
+.data-table .col-actions {
+  width: 20%;
+}
+
+/* La cantidad, con cifras de ancho fijo, para que se alineen de fila a fila */
+.data-table td.active-enrollment-count {
+  font-variant-numeric: tabular-nums;
+}

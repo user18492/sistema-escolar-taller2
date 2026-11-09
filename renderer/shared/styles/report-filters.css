@@ -1,11 +1,10 @@
-/* Estilos reutilizables: barra de filtros de los reportes del Administrador.
+/* Estilos reutilizables: barra de filtros de los reportes del Administrador y del Secretario.
    Marcado: un contenedor .report-filters con un .column-filter por filtro, igual que los <th> de
    las tablas (<column-filter-toggle> con su atributo value y su panel .column-filter-panel[popover]),
    fuera de una tabla. El comportamiento lo aporta column-filter.js y los paneles, column-filter.css,
    que se carga antes que esta hoja.
-   Cada botón se ve como un chip con borde, igual que el desplegable del encabezado de los gráficos
-   (secretary/reports/reports.css), con el título, el valor vigente (.report-filter-value, que la
-   vista actualiza) y el embudo. */
+   Cada botón se ve como un chip con borde, con el título, el valor vigente (.report-filter-value,
+   que la vista actualiza) y el embudo. */
 
 .report-filters {
   display: flex;

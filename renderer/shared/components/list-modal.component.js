@@ -1,7 +1,9 @@
 // Componente global: modal por pasos de los reportes (Materias sin docente por curso, Carga docente
-// por profesor). Un único modal muestra el listado completo de una celda de la tabla y, desde una
-// acción de ese listado (o de la celda), el formulario <assignment-form> en el mismo modal:
-// listado → formulario → listado actualizado, sin abrir otro modal encima.
+// por profesor, Inscripciones activas por curso). Un único modal muestra el listado completo de una
+// celda de la tabla y, desde una acción de ese listado (o de la celda), un formulario
+// (<assignment-form> o <enrollment-form>) en el mismo modal: listado → formulario → listado
+// actualizado, sin abrir otro modal encima. Un modal sin listado (sin .list-modal-step) solo se abre
+// en el formulario, con openForm desde la tabla: la X y Escape lo cierran igual.
 // Marcado (estilos en list-modal.css):
 //   <div class="modal-overlay">
 //     <div class="modal list-modal" role="dialog" aria-modal="true" aria-label="">
@@ -11,7 +13,8 @@
 //     </div>
 //   </div>
 // Uso: const listModal = setupListModal(overlay, { form, focusAfterClose }), una vez. `form` es el
-// <assignment-form> del modal (la vista llama a su setup y le pasa onCancel: listModal.cancelForm);
+// formulario del modal (<assignment-form> o <enrollment-form>, con open, focusFirst, closeMenus e
+// isSaving; la vista llama a su setup y le pasa onCancel: listModal.cancelForm);
 // `focusAfterClose(trigger)` devuelve dónde dejar el foco al cerrar si el botón que abrió el modal
 // ya no está en la página (la tabla se volvió a dibujar).
 // API:
@@ -37,8 +40,9 @@
 (() => {
   window.setupListModal = (overlay, { form = null, focusAfterClose = null } = {}) => {
     const modal = overlay.querySelector('.modal');
+    // Sin listado, el modal solo tiene el paso del formulario
     const listStep = modal.querySelector('.list-modal-step');
-    const list = listStep.querySelector('.list-modal-items');
+    const list = listStep?.querySelector('.list-modal-items') ?? null;
     const closeButton = modal.querySelector('.list-modal-close');
     // El nombre accesible del paso del formulario es su título
     const formTitleId = form?.querySelector('h2[id]')?.id ?? null;
@@ -58,7 +62,7 @@
     // listado o el título del formulario
     const showStep = (step) => {
       const isForm = step === 'form';
-      listStep.hidden = isForm;
+      if (listStep) listStep.hidden = isForm;
       if (form) form.hidden = !isForm;
       modal.classList.toggle('is-form-step', isForm);
       if (isForm && formTitleId) {

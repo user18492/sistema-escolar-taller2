@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/badge.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="../../shared/styles/enrollment-form.css" />
     <link rel="stylesheet" href="./enrollments.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -44,6 +45,7 @@
     <script src="../../shared/components/row-actions.component.js"></script>
     <script src="../../shared/components/school-year.js"></script>
     <script src="../../shared/components/status-badge.component.js"></script>
+    <script src="../../shared/components/enrollment-form.component.js"></script>
     <script src="./enrollments.js" defer></script>
   </head>
   <body>
@@ -137,9 +139,8 @@
             <table-pagination results="" label="Paginación de inscripciones" pages="1"></table-pagination>
 
             <!-- Plantillas: enrollments.js las completa con lo que devuelve el proceso principal: una
-                 fila por inscripción de la página; una opción de los filtros Número de inscripción
-                 (por inscripción) y Alumno (por alumno), y del campo Alumno de Nueva inscripción
-                 (por alumno que se puede inscribir), y una opción del campo Curso (por curso) -->
+                 fila por inscripción de la página, y una opción de los filtros Número de inscripción
+                 (por inscripción) y Alumno (por alumno) -->
             <template id="enrollmentRowTemplate">
               <tr>
                 <td class="enrollment-number"></td>
@@ -160,97 +161,15 @@
                 <span class="option-detail text-truncate"></span>
               </li>
             </template>
-            <template id="courseOptionTemplate">
-              <li class="dropdown-option" role="option" aria-selected="false"><span class="option-name text-truncate"></span></li>
-            </template>
           </section>
         </main>
       </div>
     </div>
-    <!-- Modal: Nueva inscripción -->
+    <!-- Modal: Nueva inscripción, el formulario compartido <enrollment-form>
+         (enrollment-form.component.js) -->
     <div class="modal-overlay" id="newEnrollmentOverlay">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newEnrollmentTitle">
-        <div class="modal-header">
-          <h2 id="newEnrollmentTitle">Nueva inscripción</h2>
-          <p>Completa los campos para registrar una nueva inscripción</p>
-        </div>
-
-        <div class="modal-body">
-          <div class="form-field">
-            <label>Alumno</label>
-            <div class="field field-searchable dropdown-searchable" data-role="new-enrollment-student-select">
-              <div class="searchable-bar">
-                <span class="searchable-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="7" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </span>
-                <input type="text" class="searchable-input" placeholder="Buscar alumno" autocomplete="off" />
-                <div class="searchable-value text-truncate"></div>
-                <button type="button" class="searchable-chevron" aria-label="Abrir lista de alumnos" aria-expanded="false">
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-              </div>
-              <!-- El alumno se identifica por "Apellido, Nombre" y, como dato secundario, por su DNI.
-                   enrollments.js carga las opciones: los alumnos vigentes y activos de la institución
-                   sin una inscripción activa. -->
-              <ul class="dropdown-menu dropdown-menu-enrollment" role="listbox" hidden>
-                <li class="dropdown-empty" hidden>Sin resultados</li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="form-field">
-            <label>Nivel educativo</label>
-            <div class="field field-select dropdown" data-filter="new-enrollment-level">
-              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                <span class="dropdown-label text-truncate placeholder">Seleccionar nivel educativo</span>
-                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              <ul class="dropdown-menu" role="listbox" hidden>
-                <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
-                <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Curso depende del nivel educativo: arranca bloqueado y solo lista los cursos de ese nivel.
-               enrollments.js carga las opciones: los cursos vigentes de la institución del ciclo
-               lectivo actual. -->
-          <div class="form-field">
-            <label>Curso</label>
-            <div class="field field-searchable dropdown-searchable is-locked" data-role="new-enrollment-course-select">
-              <div class="searchable-bar">
-                <span class="searchable-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="7" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </span>
-                <input type="text" class="searchable-input" placeholder="Selecciona primero un nivel educativo" autocomplete="off" disabled />
-                <div class="searchable-value text-truncate"></div>
-                <button type="button" class="searchable-chevron" aria-label="Abrir lista de cursos" aria-expanded="false" disabled>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-              </div>
-              <ul class="dropdown-menu dropdown-menu-course" role="listbox" hidden>
-                <li class="dropdown-empty" hidden>Sin resultados</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="cancelNewEnrollmentBtn">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="createEnrollmentBtn" disabled>Crear inscripción</button>
-        </div>
+        <enrollment-form></enrollment-form>
       </div>
     </div>
     <!-- Modal: Editar inscripción -->

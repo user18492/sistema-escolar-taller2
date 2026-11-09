@@ -68,6 +68,45 @@ const COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL = `
      AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
 `;
 
+// Reporte Inscripciones activas por curso (Secretario): los cursos vigentes (sin baja lógica) de la
+// institución $1 del ciclo lectivo del año en curso, con el nombre y el nivel educativo de su grado
+// y cuántas inscripciones vigentes y activas (de estado ACTIVA) tiene cada uno, como cuenta
+// COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL; un curso sin ninguna, con 0. El año en curso lo resuelve
+// la base (fn_anio_ciclo_lectivo_actual), el mismo en el que se inscribe.
+// Filtros, vacíos (o null) si no filtran: el nivel educativo ($2, un valor de grado.nivel_educativo),
+// los grados ($3 los niveles educativos y $4 los nombres, de a pares en la misma posición), las
+// divisiones ($5) y los turnos ($6, valores de curso.turno). Un curso pasa un filtro de arreglo si
+// coincide con alguno de sus valores, y tiene que pasarlos todos.
+// El orden es el de FIND_IN_CURRENT_SCHOOL_YEAR_BY_INSTITUTION_SQL (course.repository.js): nivel
+// educativo, grado, división y turno, así las divisiones de un mismo grado quedan juntas.
+const COUNT_ACTIVE_BY_COURSE_IN_CURRENT_SCHOOL_YEAR_SQL = `
+  SELECT c.curso_id,
+         c.institucion_id,
+         c.grado_id,
+         c.division,
+         c.turno,
+         c.anio_ciclo_lectivo,
+         g.nombre AS grado_nombre,
+         g.nivel_educativo,
+         (SELECT COUNT(*)::INT
+            FROM inscripcion i
+            JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+           WHERE i.curso_id = c.curso_id
+             AND i.fecha_eliminacion IS NULL
+             AND ie.nombre = 'ACTIVA') AS inscripciones_activas
+    FROM curso c
+    JOIN grado g ON g.grado_id = c.grado_id
+   WHERE c.institucion_id = $1
+     AND c.fecha_eliminacion IS NULL
+     AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+     AND ($2::TEXT IS NULL OR g.nivel_educativo = $2::TEXT)
+     AND (CARDINALITY($3::TEXT[]) = 0
+          OR (g.nivel_educativo, g.nombre) IN (SELECT * FROM UNNEST($3::TEXT[], $4::TEXT[])))
+     AND (CARDINALITY($5::TEXT[]) = 0 OR c.division = ANY($5::TEXT[]))
+     AND (CARDINALITY($6::TEXT[]) = 0 OR c.turno = ANY($6::TEXT[]))
+   ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id
+`;
+
 // Inscripciones vigentes (sin baja lógica) de alumnos vigentes de la institución $1 que pasan los
 // filtros $2 a $8, en cualquier estado. La institución es la del curso: la inscripción no la guarda.
 // Las de un alumno dado de baja quedan afuera, todas: su baja no da de baja sus inscripciones (solo
@@ -442,6 +481,20 @@ function toEnrollment(row) {
   });
 }
 
+// El curso de una fila con sus columnas y las de su grado (grado_nombre, nivel_educativo)
+function toCourse(row) {
+  return new Course({
+    id: row.curso_id,
+    institutionId: row.institucion_id,
+    gradeId: row.grado_id,
+    gradeName: row.grado_nombre,
+    educationLevel: EDUCATION_LEVEL_BY_COLUMN_VALUE[row.nivel_educativo],
+    division: row.division,
+    shift: SHIFT_BY_COLUMN_VALUE[row.turno],
+    schoolYear: row.anio_ciclo_lectivo,
+  });
+}
+
 function toInstitutionEnrollment(row) {
   return new Enrollment({
     id: row.inscripcion_id,
@@ -450,16 +503,7 @@ function toInstitutionEnrollment(row) {
       firstName: row.nombre,
       lastName: row.apellido,
     }),
-    course: new Course({
-      id: row.curso_id,
-      institutionId: row.institucion_id,
-      gradeId: row.grado_id,
-      gradeName: row.grado_nombre,
-      educationLevel: EDUCATION_LEVEL_BY_COLUMN_VALUE[row.nivel_educativo],
-      division: row.division,
-      shift: SHIFT_BY_COLUMN_VALUE[row.turno],
-      schoolYear: row.anio_ciclo_lectivo,
-    }),
+    course: toCourse(row),
     courseId: row.curso_id,
     enrollmentDate: row.fecha_inscripcion,
     status: STATUS_BY_COLUMN_VALUE[row.estado],
@@ -567,6 +611,24 @@ async function isDeletedInCourse(enrollmentId, courseId) {
 async function countActiveInCurrentSchoolYear(institutionId) {
   const { rows } = await query(COUNT_ACTIVE_IN_CURRENT_SCHOOL_YEAR_SQL, [institutionId]);
   return rows[0].total;
+}
+
+// Los cursos vigentes de la institución del ciclo lectivo del año en curso que pasan `filters`, con
+// cuántas inscripciones vigentes y activas tiene cada uno: [{ course, activeEnrollmentCount }], por
+// nivel educativo, grado, división y turno. `filters` es { educationLevel, grades, divisions,
+// shifts }, con los códigos del sistema: educationLevel, PRIMARY o SECONDARY (null si no filtra);
+// grades, pares { educationLevel, gradeName }; divisions, letras mayúsculas, y shifts, valores de
+// SHIFTS (course.repository.js), cada arreglo vacío si no filtra.
+async function countActiveByCourseInCurrentSchoolYear(institutionId, { educationLevel, grades, divisions, shifts }) {
+  const { rows } = await query(COUNT_ACTIVE_BY_COURSE_IN_CURRENT_SCHOOL_YEAR_SQL, [
+    institutionId,
+    educationLevel === null ? null : COLUMN_VALUE_BY_EDUCATION_LEVEL[educationLevel],
+    grades.map((grade) => COLUMN_VALUE_BY_EDUCATION_LEVEL[grade.educationLevel]),
+    grades.map(({ gradeName }) => gradeName),
+    divisions,
+    shifts.map((shift) => COLUMN_VALUE_BY_SHIFT[shift]),
+  ]);
+  return rows.map((row) => ({ course: toCourse(row), activeEnrollmentCount: row.inscripciones_activas }));
 }
 
 // Inscribe al alumno `studentId` (un alumno_id) en el curso `courseId` (un curso_id) de la
@@ -680,6 +742,7 @@ module.exports = {
   findActiveOrFinishedByCourseEnrolledBy,
   isDeletedInCourse,
   countActiveInCurrentSchoolYear,
+  countActiveByCourseInCurrentSchoolYear,
   countNotDeletedByInstitution,
   findPageNotDeletedByInstitution,
   findPositionNotDeletedByInstitution,

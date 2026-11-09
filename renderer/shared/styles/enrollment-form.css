@@ -1,0 +1,98 @@
+/* Componente reutilizable: formulario "Nueva inscripción" (enrollment-form.component.js). Sus
+   reglas están acotadas a enrollment-form, así no afectan a otros modales de las vistas que lo
+   cargan; las de las opciones con un dato secundario (.option-enrollment), no, porque las usan
+   también los filtros Número de inscripción y Alumno de Inscripciones. */
+
+/* Encabezado, cuerpo y pie quedan como hijos del .modal */
+enrollment-form {
+  display: contents;
+}
+
+/* Un modal por pasos lo oculta con el atributo hidden, que display: contents anularía */
+enrollment-form[hidden] {
+  display: none;
+}
+
+enrollment-form .modal-header {
+  padding: 28px 32px 20px;
+}
+
+enrollment-form .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 0 32px;
+}
+
+enrollment-form .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px 32px 28px;
+}
+
+/* Campos */
+
+enrollment-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+enrollment-form .form-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Campo con búsqueda integrada (Alumno / Curso): base común en searchable-select.css. Propio del
+   formulario: barra sin relleno vertical ni margen inferior, con min-width: 0, e input a todo su
+   alto, para mantener dimensiones estables entre búsqueda y selección. */
+
+enrollment-form .field-searchable .searchable-bar {
+  min-width: 0;
+  padding: 0 14px;
+}
+
+enrollment-form .field-searchable .searchable-input {
+  height: 100%;
+}
+
+/* Valor elegido, truncado con .text-truncate de base.css. */
+enrollment-form .searchable-value {
+  display: none;
+  flex: 1;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+enrollment-form .searchable-bar.has-value:not(.is-editing) .searchable-value {
+  display: block;
+}
+
+/* Opciones de las listas desplegables con búsqueda: el alumno con su DNI debajo, y los cursos */
+
+.dropdown-menu-enrollment,
+.dropdown-menu-course {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.option-enrollment {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 0;
+}
+
+.dropdown-menu-enrollment .option-enrollment:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+@media (max-width: 600px) {
+  enrollment-form .modal-header { padding: 24px 20px 20px; }
+  enrollment-form .modal-body { padding: 0 20px; }
+  enrollment-form .modal-footer { padding: 24px 20px; }
+}

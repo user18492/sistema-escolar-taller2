@@ -620,6 +620,19 @@ contextBridge.exposeInMainWorld('api', {
     // uno futuro, todos). O { ok: false, error: { code, message } }: INVALID_INPUT indica filtros
     // inválidos.
     getBackupRegularity: (filters) => ipcRenderer.invoke('reports:get-backup-regularity', filters),
+    // Solo SECRETARIO. Reporte Inscripciones activas por curso de su institución, siempre del ciclo
+    // lectivo actual. `filters` es { educationLevel, grades, divisions, shifts }: educationLevel,
+    // 'PRIMARY' o 'SECONDARY' (null para todos), y, del filtro Curso, grades
+    // ({ educationLevel, gradeName }), divisions (letras mayúsculas) y shifts ('MORNING' o
+    // 'AFTERNOON'), cada uno un arreglo, vacío si no filtra, como en enrollments.list. Resuelve
+    // { ok: true, report } con { schoolYear, hasCourses, courses }: schoolYear, el ciclo actual;
+    // hasCourses, si la institución tiene algún curso vigente de ese ciclo (sin mirar los filtros), y
+    // courses, por cada curso vigente del ciclo que pasa los filtros, por nivel educativo, grado,
+    // división y turno, { id, gradeName, educationLevel, division, shift, schoolYear,
+    // activeEnrollmentCount } (como en courses.list), con activeEnrollmentCount sus inscripciones
+    // vigentes y activas (0 si no tiene). O { ok: false, error: { code, message } }: INVALID_INPUT
+    // indica filtros inválidos.
+    getActiveEnrollmentsByCourse: (filters) => ipcRenderer.invoke('reports:get-active-enrollments-by-course', filters),
   },
   backups: {
     // Solo ADMIN. Resuelve { ok: true, backups } con el historial de backups de su institución

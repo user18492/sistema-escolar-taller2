@@ -1,6 +1,6 @@
-/* Estilos reutilizables: mensaje de un reporte del Administrador en lugar de sus datos (cargando,
-   error o un ciclo lectivo sin datos), centrado en su card; mismo tamaño y color que .table-message
-   (data-table.css). */
+/* Estilos reutilizables: mensaje de un reporte (del Administrador o del Secretario) en lugar de sus
+   datos (cargando, error o un ciclo lectivo sin datos), centrado en su card; mismo tamaño y color
+   que .table-message (data-table.css). */
 
 .report-message {
   padding: 24px 0;

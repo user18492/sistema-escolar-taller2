@@ -40,6 +40,8 @@ function registerReportHandlers(browserWindow) {
     reportAction((currentUser, filters) => reportService.getTeacherWorkload(currentUser, filters), 'Carga docente por profesor'));
   handleProtected(browserWindow, 'reports:get-backup-regularity', ['ADMIN'],
     reportAction((currentUser, filters) => reportService.getBackupRegularity(currentUser, filters), 'Regularidad de los backups'));
+  handleProtected(browserWindow, 'reports:get-active-enrollments-by-course', ['SECRETARIO'],
+    reportAction((currentUser, filters) => reportService.getActiveEnrollmentsByCourse(currentUser, filters), 'Inscripciones activas por curso'));
 }
 
 module.exports = { registerReportHandlers };

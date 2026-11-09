@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inscripciones activas por curso - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/grade-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/course-filter.css" />
+    <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
+    <link rel="stylesheet" href="../../shared/styles/data-table.css" />
+    <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="../../shared/styles/searchable-select.css" />
+    <link rel="stylesheet" href="../../shared/styles/modal-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/toast.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
+    <link rel="stylesheet" href="../../shared/styles/enrollment-form.css" />
+    <link rel="stylesheet" href="../../shared/styles/list-modal.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-message.css" />
+    <link rel="stylesheet" href="./active-enrollments-report.css" />
+    <script src="../../shared/components/drag-guard.component.js"></script>
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/session-user-cache.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/report-description.component.js"></script>
+    <script src="../../shared/components/grade-dropdown.js"></script>
+    <script src="../../shared/components/course-filter.js"></script>
+    <script src="../../shared/components/column-filter.js"></script>
+    <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="../../shared/components/modal-resize.js"></script>
+    <script src="../../shared/components/modal-dropdown.js"></script>
+    <script src="../../shared/components/modal-focus-trap.component.js"></script>
+    <script src="../../shared/components/field-validation.component.js"></script>
+    <script src="../../shared/components/dropdown.component.js"></script>
+    <script src="../../shared/components/searchable-select.component.js"></script>
+    <script src="../../shared/components/toast.component.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
+    <script src="../../shared/components/enrollment-form.component.js"></script>
+    <script src="../../shared/components/list-modal.component.js"></script>
+    <script src="./active-enrollments-report.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <!-- Vista abierta desde Reportes: el menú sigue marcando esa sección. -->
+      <app-sidebar nav-role="secretary" active="reports"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a href="../reports/index.html">Reportes</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Inscripciones activas por curso</span>
+            </nav>
+
+            <div class="page-header">
+              <div>
+                <h1>Inscripciones activas por curso</h1>
+                <p><report-description report="active-enrollments-by-course"></report-description></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barra de filtros (report-filters.css): cada botón muestra el valor vigente. Curso
+               incrusta <course-filter>, el mismo filtro compuesto de la tabla de Inscripciones. -->
+          <div class="report-filters" role="group" aria-label="Filtros del reporte">
+            <div class="column-filter" data-filter="course">
+              <column-filter-toggle target="courseFilter" heading="Curso" value="Todos" label="Filtrar por curso"></column-filter-toggle>
+              <div id="courseFilter" class="column-filter-panel column-filter-grade" popover="auto" role="group" aria-label="Filtrar por curso">
+                <course-filter></course-filter>
+                <button type="button" class="column-filter-clear">Limpiar filtro</button>
+              </div>
+            </div>
+            <div class="column-filter" data-filter="level">
+              <column-filter-toggle target="levelFilter" heading="Nivel" value="Todos" label="Filtrar por nivel"></column-filter-toggle>
+              <div id="levelFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por nivel">
+                <ul class="dropdown-menu" role="listbox" aria-label="Nivel">
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
+                  <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
+                </ul>
+                <button type="button" class="column-filter-clear">Limpiar filtro</button>
+              </div>
+            </div>
+          </div>
+
+          <section class="card active-enrollments-card">
+            <!-- Ciclo lectivo actual sin cursos: la card muestra solo este mensaje (.has-no-data,
+                 report-message.css) -->
+            <p class="report-message" role="status" hidden>No existen registros pertenecientes al ciclo lectivo actual.</p>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col" class="col-course">Curso</th>
+                    <th scope="col" class="col-level">Nivel</th>
+                    <th scope="col" class="col-count">Inscripciones activas</th>
+                    <th scope="col" class="col-actions">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <table-pagination results="" label="Paginación de cursos" pages="1"></table-pagination>
+
+            <!-- Plantilla: active-enrollments-report.js la completa con una fila por curso del reporte.
+                 Inscribir es una acción de texto, como Asignar en los reportes del Administrador
+                 (.list-modal-action, list-modal.css). -->
+            <template id="courseRowTemplate">
+              <tr>
+                <td class="col-course"></td>
+                <td class="col-level"></td>
+                <td class="col-count active-enrollment-count"></td>
+                <td class="col-actions">
+                  <button type="button" class="list-modal-action" data-action="enroll">Inscribir</button>
+                </td>
+              </tr>
+            </template>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Modal (list-modal.component.js) solo con el formulario de Inscripciones
+         (<enrollment-form>), que se abre desde Inscribir con el curso de la fila. La X y Cancelar
+         lo cierran; su nombre accesible es el título del formulario. -->
+    <div class="modal-overlay" id="newEnrollmentOverlay">
+      <div class="modal list-modal" role="dialog" aria-modal="true" aria-labelledby="newEnrollmentTitle">
+        <div class="list-modal-head">
+          <button type="button" class="list-modal-close" id="closeNewEnrollmentBtn" aria-label="Cerrar" title="Cerrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        <enrollment-form hidden></enrollment-form>
+      </div>
+    </div>
+  </body>
+</html>

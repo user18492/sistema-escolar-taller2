@@ -1,12 +1,15 @@
 const teacherAssignmentRepository = require('../repositories/teacher-assignment.repository');
 const backupRepository = require('../repositories/backup.repository');
+const enrollmentRepository = require('../repositories/enrollment.repository');
 const schoolYearService = require('./school-year.service');
+const { toListedCourse } = require('./course.service');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const courseRepository = require('../repositories/course.repository');
 
 const { SHIFTS } = courseRepository;
 
-// Reportes de solo lectura de la vista Reportes del Administrador (plans/reportes-administrador/).
+// Reportes de solo lectura de las vistas Reportes del Administrador (plans/reportes-administrador/)
+// y del Secretario (Inscripciones activas por curso).
 // Cada uno es de la institución de `currentUser` (el de la sesión), nunca de una que mande la
 // vista.
 // Cada reporte dice además si el ciclo lectivo pedido tiene datos, para que la vista muestre "No
@@ -192,4 +195,52 @@ async function getBackupRegularity(currentUser, filters) {
   };
 }
 
-module.exports = { getSubjectCoverage, getTeacherWorkload, getBackupRegularity, ReportError };
+// ---------- Reporte del Secretario: Inscripciones activas por curso ----------
+
+// Largo de la columna grado.nombre.
+const GRADE_NAME_MAX_LENGTH = 50;
+
+// `value` es un arreglo de elementos que cumplen `isValid`; sin el campo, vacío (no filtra).
+const parseOptionalList = (value, isValid, message) => {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || !value.every(isValid)) throw invalidFilter(message);
+  return value;
+};
+
+const isGradeFilter = (grade) =>
+  typeof grade === 'object' && grade !== null &&
+  EDUCATION_LEVELS.includes(grade.educationLevel) &&
+  typeof grade.gradeName === 'string' && grade.gradeName.length > 0 && grade.gradeName.length <= GRADE_NAME_MAX_LENGTH;
+
+// Normaliza los filtros del reporte (el controlador ya verificó que sean un objeto): el nivel
+// educativo (PRIMARY o SECONDARY, null para todos) y, del filtro Curso, los grados
+// ({ educationLevel, gradeName }), las divisiones (letras mayúsculas) y los turnos (MORNING o
+// AFTERNOON), cada uno un arreglo, vacío si no filtra. No lleva ciclo lectivo: es siempre el actual.
+// Lanza un ReportError INVALID_INPUT si alguno no vale.
+function parseCourseFilters({ educationLevel, grades, divisions, shifts }) {
+  return {
+    educationLevel: parseOptionalCode(educationLevel, EDUCATION_LEVELS, 'Elegí un nivel educativo válido.'),
+    grades: parseOptionalList(grades, isGradeFilter, 'Elegí grados válidos.'),
+    divisions: parseOptionalList(divisions, (division) => typeof division === 'string' && /^[A-Z]$/.test(division), 'Elegí divisiones válidas.'),
+    shifts: parseOptionalList(shifts, (shift) => SHIFTS.includes(shift), 'Elegí turnos válidos.'),
+  };
+}
+
+// En qué división de un grado conviene inscribir a un alumno nuevo: los cursos vigentes de la
+// institución de `currentUser` del ciclo lectivo actual que pasan `filters`, con los campos de
+// toListedCourse y activeEnrollmentCount, cuántas inscripciones vigentes y activas tiene (0 si no
+// tiene ninguna), por nivel educativo, grado, división y turno. Resuelve { schoolYear, hasCourses,
+// courses }: schoolYear, el ciclo actual, y hasCourses, si la institución tiene algún curso vigente
+// de ese ciclo, sin mirar los filtros.
+async function getActiveEnrollmentsByCourse(currentUser, filters) {
+  const courseFilters = parseCourseFilters(filters);
+  const { year } = await schoolYearService.getCurrentSchoolYear();
+  const [rows, hasCourses] = await Promise.all([
+    enrollmentRepository.countActiveByCourseInCurrentSchoolYear(currentUser.institutionId, courseFilters),
+    courseRepository.existsInSchoolYear(currentUser.institutionId, year),
+  ]);
+  const courses = rows.map(({ course, activeEnrollmentCount }) => ({ ...toListedCourse(course), activeEnrollmentCount }));
+  return { schoolYear: year, hasCourses, courses };
+}
+
+module.exports = { getSubjectCoverage, getTeacherWorkload, getBackupRegularity, getActiveEnrollmentsByCourse, ReportError };

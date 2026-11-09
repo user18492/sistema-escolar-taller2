@@ -1,12 +1,13 @@
 /* Estilos reutilizables: celda de una tabla que resume una lista por su cantidad, con un botón
    (ícono resources/Eye.svg) que abre la lista completa en un modal (.modal-overlay de base.css).
    El modal no tiene título visible: su nombre accesible (aria-label) lo pone la vista al abrirlo.
-   Lo usan los reportes Materias sin docente por curso y Carga docente por profesor.
+   Lo usan los reportes Materias sin docente por curso y Carga docente por profesor; el modal por
+   pasos, también Inscripciones activas por curso (solo con el formulario).
    Marcado de la celda: .list-summary > .list-summary-count + button.table-action.list-summary-button.
    Marcado del modal: .modal.list-modal > .list-modal-head > button.list-modal-close, y la lista
    ul.list-modal-items, un elemento por línea; .list-modal-note, el texto secundario de un elemento.
    Modal por pasos (list-modal.component.js): la lista va dentro de .list-modal-step y, al lado, el
-   formulario <assignment-form>; .is-form-step marca el paso del formulario. Cada elemento puede
+   formulario (<assignment-form> o <enrollment-form>); .is-form-step marca el paso del formulario. Cada elemento puede
    llevar su texto en .list-modal-text y su acción a la derecha, button.list-modal-action (también
    al lado de la materia en una celda de la tabla). */
 
@@ -54,7 +55,7 @@
   right: 0;
 }
 
-.list-modal assignment-form .modal-header {
+.list-modal.is-form-step .modal-header {
   padding-right: 56px;
 }
 
@@ -125,7 +126,7 @@
   color: var(--color-text-secondary);
 }
 
-/* Acción de un elemento (Asignar, Reasignar): botón de texto azul, como "Limpiar filtro" de
+/* Acción de un elemento (Asignar, Reasignar, Inscribir): botón de texto azul, como "Limpiar filtro" de
    column-filter.css. El contorno de foco es el de base.css. */
 .list-modal-action {
   flex-shrink: 0;

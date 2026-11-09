@@ -8,10 +8,10 @@
 // año escrito en ese filtro. Las opciones de los filtros Número de inscripción y Alumno son las
 // inscripciones de ese ciclo y sus alumnos (window.api.enrollments.listFilterOptions), y se vuelven a
 // pedir al cambiarlo.
-// Nueva inscripción la crea (window.api.enrollments.create), siempre activa y con la fecha del día:
-// el formulario ofrece los alumnos vigentes y activos de la institución sin una inscripción activa y
-// sus cursos vigentes del ciclo lectivo actual, los del nivel educativo elegido
-// (listEnrollableStudents, listEnrollableCourses). El resultado se avisa con un toast
+// Nueva inscripción la crea (window.api.enrollments.create), siempre activa y con la fecha del día,
+// con el formulario compartido <enrollment-form> (enrollment-form.component.js), que ofrece los
+// alumnos vigentes y activos de la institución sin una inscripción activa y sus cursos vigentes del
+// ciclo lectivo actual, los del nivel educativo elegido, y avisa el resultado con un toast
 // (toast.component.js): si se creó, la tabla pasa a la página donde quedó, con el total
 // recalculado; si no, el modal sigue abierto con lo elegido.
 // Editar solo cambia el estado: el modal pide la inscripción al abrirse (window.api.enrollments.get)
@@ -313,212 +313,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Nueva inscripción ----------
 
+  // El formulario es el componente compartido enrollment-form.component.js; la vista abre y cierra
+  // el modal, lleva el foco y actualiza la tabla con la inscripción creada
   const enrollmentOverlay = document.getElementById('newEnrollmentOverlay');
-  const enrollmentModal = enrollmentOverlay.querySelector('.modal');
-  const enrollmentModalBody = enrollmentOverlay.querySelector('.modal-body');
+  const form = enrollmentOverlay.querySelector('enrollment-form');
   const openEnrollmentModalBtn = document.getElementById('openNewEnrollmentModalBtn');
-  const cancelEnrollmentBtn = document.getElementById('cancelNewEnrollmentBtn');
-  const createEnrollmentBtn = document.getElementById('createEnrollmentBtn');
-  const courseOptionTemplate = document.getElementById('courseOptionTemplate');
-  let isSaving = false;
-
-  const MODAL_LEVEL_PLACEHOLDER = 'Seleccionar nivel educativo';
-  const MODAL_COURSE_LOCKED_PLACEHOLDER = 'Selecciona primero un nivel educativo';
-  const MODAL_COURSE_UNLOCKED_PLACEHOLDER = 'Buscar curso';
-  // Texto del botón principal, en reposo y mientras se espera la respuesta
-  const CREATE_TEXT = createEnrollmentBtn.textContent;
-  const CREATING_TEXT = 'Creando…';
-
-  // Códigos con los que el proceso principal avisa que el alumno o el curso elegidos ya no se pueden
-  // elegir (otra sesión los dio de baja, pasó al alumno a egresado o lo inscribió, o cambió el año):
-  // las listas del formulario quedaron viejas y se vuelven a pedir la próxima vez que se abra el
-  // modal. Mientras tanto, el formulario conserva lo elegido.
-  const STALE_OPTION_CODES = [
-    'STUDENT_NOT_FOUND',
-    'STUDENT_DELETED',
-    'STUDENT_NOT_ACTIVE',
-    'STUDENT_ALREADY_ENROLLED',
-    'COURSE_NOT_FOUND',
-    'COURSE_DELETED',
-    'COURSE_OUT_OF_SCHOOL_YEAR',
-  ];
 
   // Descripción de los toasts de error: el mensaje del proceso principal. Sin respuesta, o con
   // UNEXPECTED_ERROR (su mensaje repite el título del toast), queda la genérica.
-  const errorDescription = (error) =>
-    (error?.code && error.code !== 'UNEXPECTED_ERROR' ? error.message : 'Intentá nuevamente.');
+  const { errorDescription } = form;
 
-  // Descripción de un toast de éxito del alta o de la edición. `isShown` dice si la inscripción quedó
+  // Aclaración de un toast de éxito del alta o de la edición. `isShown` dice si la inscripción quedó
   // a la vista después de volver a pedir la tabla: si no (false), porque no coincide con los filtros
   // activos, se aclara; si la tabla no llegó (null), no.
-  const withShownNote = (description, isShown) =>
-    (isShown === false ? `${description} No se muestra en la tabla porque no coincide con los filtros aplicados.` : description);
-
-  // Campos con búsqueda integrada (Alumno y Curso): componente compartido
-  // searchable-select.component.js. El valor muestra solo el nombre, reiniciar el campo
-  // conserva el filtro por nivel y cambiar de nivel vuelve a filtrar la lista en el momento.
-  const searchableOptions = {
-    onOpen: closeAllDropdowns,
-    valueContent: 'name',
-    resetClearsGroupFilter: false,
-    filterOnGroupChange: true,
-  };
-  const modalStudentSelect = setupSearchableSelect(
-    enrollmentOverlay.querySelector('[data-role="new-enrollment-student-select"]'),
-    searchableOptions
-  );
-  const modalCourseSelect = setupSearchableSelect(
-    enrollmentOverlay.querySelector('[data-role="new-enrollment-course-select"]'),
-    searchableOptions
-  );
-
-  const modalLevelDropdown = enrollmentOverlay.querySelector('[data-filter="new-enrollment-level"]');
-  const modalLevelLabel = modalLevelDropdown.querySelector('.dropdown-label');
-  const modalLevelOptions = modalLevelDropdown.querySelectorAll('.dropdown-option');
-
-  // PRIMARY o SECONDARY, o '' si todavía no se eligió
-  const selectedLevel = () => modalLevelDropdown.querySelector('.dropdown-option.selected')?.dataset.value ?? '';
-
-  function updateCreateButtonState() {
-    const hasStudent = Boolean(modalStudentSelect.getValue());
-    const hasLevel = Boolean(selectedLevel());
-    const hasCourse = Boolean(modalCourseSelect.getValue());
-    createEnrollmentBtn.disabled = !(hasStudent && hasLevel && hasCourse);
-  }
-
-  // ---------- Modal: alumnos y cursos que se pueden elegir ----------
-
-  // Alumnos y cursos que ofrece el alta, como llegaron del proceso principal; null si no llegaron
-  let enrollableStudents = null;
-  let enrollableCourses = null;
-  let isLoadingFormOptions = false;
-  // Llegaron las dos listas y siguen al día: si no, se vuelven a pedir al abrir el modal
-  let hasFormOptions = false;
-
-  // "Álvarez, Camila", con su DNI debajo (48.123.456)
-  const createStudentOption = (student) => createOption(student.id, fullName(student), formatDni(student.dni));
-
-  // "1° A · Mañana": el nivel educativo ya se eligió en el campo anterior, y data-level filtra la
-  // lista por él. Todos son del ciclo lectivo actual, así que no llevan el año.
-  const createCourseOption = (course) => {
-    const option = courseOptionTemplate.content.firstElementChild.cloneNode(true);
-    option.dataset.value = String(course.id);
-    option.dataset.level = course.educationLevel;
-    option.querySelector('.option-name').textContent =
-      `${course.gradeName} ${course.division} · ${shiftLabels[course.shift] ?? course.shift}`;
-    return option;
-  };
-
-  // Lista `key` de la respuesta de `request`, o null si no llegó
-  const requestOptions = async (request, key) => {
-    let response;
-    try {
-      response = await request();
-    } catch (error) {
-      console.error('Error al cargar las opciones del formulario:', error);
-    }
-    return response?.ok ? response[key] : null;
-  };
-
-  // Alumno queda bloqueado, con el motivo, mientras su lista se carga, si no llegó o si llegó vacía
-  const updateStudentField = () => {
-    if (isLoadingFormOptions) modalStudentSelect.lock('Cargando alumnos…');
-    else if (!enrollableStudents) modalStudentSelect.lock('No se pudieron cargar los alumnos');
-    else if (!enrollableStudents.length) modalStudentSelect.lock('No hay alumnos para inscribir');
-    else modalStudentSelect.unlock();
-  };
-
-  // Curso depende del nivel educativo: sin nivel queda bloqueado a la espera de uno y, con nivel,
-  // muestra sus cursos o, si no hay ninguno para elegir, el motivo. Cada cambio de nivel descarta
-  // el curso elegido.
-  const updateCourseField = () => {
-    const level = selectedLevel();
-    modalCourseSelect.reset();
-    modalCourseSelect.setGroupFilter(level);
-    if (!level) modalCourseSelect.lock(MODAL_COURSE_LOCKED_PLACEHOLDER);
-    else if (isLoadingFormOptions) modalCourseSelect.lock('Cargando cursos…');
-    else if (!enrollableCourses) modalCourseSelect.lock('No se pudieron cargar los cursos');
-    else if (!enrollableCourses.some((course) => course.educationLevel === level)) {
-      modalCourseSelect.lock(`No hay cursos de ${levelLabels[level] ?? level} en el ciclo lectivo actual`);
-    } else modalCourseSelect.unlock(MODAL_COURSE_UNLOCKED_PLACEHOLDER);
-    updateCreateButtonState();
-  };
-
-  // Pide los alumnos que se pueden inscribir y los cursos del ciclo lectivo actual: las opciones de
-  // Alumno y de Curso. Se piden al cargar la vista y se vuelven a pedir al abrir el modal si no
-  // llegaron, si hubo un alta (el alumno inscripto deja de estar en Alumno), una baja (si era activa,
-  // su alumno vuelve a estar) o si el proceso principal avisó que quedaron viejas. Mientras se espera, Alumno y Curso quedan bloqueados; el nivel
-  // educativo elegido se conserva.
-  async function loadFormOptions() {
-    if (isLoadingFormOptions) return;
-    isLoadingFormOptions = true;
-    hasFormOptions = false;
-    updateStudentField();
-    updateCourseField();
-    [enrollableStudents, enrollableCourses] = await Promise.all([
-      requestOptions(() => window.api?.enrollments?.listEnrollableStudents(), 'students'),
-      requestOptions(() => window.api?.enrollments?.listEnrollableCourses(), 'courses'),
-    ]);
-    isLoadingFormOptions = false;
-    hasFormOptions = Boolean(enrollableStudents && enrollableCourses);
-    modalStudentSelect.setOptions((enrollableStudents ?? []).map(createStudentOption));
-    modalCourseSelect.setOptions((enrollableCourses ?? []).map(createCourseOption));
-    updateStudentField();
-    updateCourseField();
-  }
-
-  // ---------- Modal: formulario ----------
-
-  modalStudentSelect.onSelect(updateCreateButtonState);
-  modalCourseSelect.onSelect(updateCreateButtonState);
-
-  // dropdown.component.js ya marcó el nivel elegido
-  modalLevelDropdown.addEventListener('dropdown-change', updateCourseField);
-
-  function resetEnrollmentForm() {
-    modalStudentSelect.reset();
-    updateStudentField();
-
-    modalLevelOptions.forEach((option) => {
-      option.classList.remove('selected');
-      option.setAttribute('aria-selected', 'false');
-    });
-    modalLevelLabel.textContent = MODAL_LEVEL_PLACEHOLDER;
-    modalLevelLabel.classList.add('placeholder');
-
-    updateCourseField();
-  }
-
-  // Mientras se espera la respuesta, el cuerpo del modal queda inerte, así lo enviado coincide con
-  // lo que se ve. Los botones del pie quedan con aria-disabled y no con disabled: conservan el foco,
-  // como en confirm-modal.component.js.
-  const setSaving = (saving) => {
-    isSaving = saving;
-    enrollmentModalBody.inert = saving;
-    enrollmentModal.setAttribute('aria-busy', String(saving));
-    [cancelEnrollmentBtn, createEnrollmentBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
-    createEnrollmentBtn.textContent = saving ? CREATING_TEXT : CREATE_TEXT;
-  };
+  const NOT_SHOWN_NOTE = 'No se muestra en la tabla porque no coincide con los filtros aplicados.';
+  const withShownNote = (description, isShown) => (isShown === false ? `${description} ${NOT_SHOWN_NOTE}` : description);
 
   function openEnrollmentModal() {
-    resetEnrollmentForm();
-    // Las listas no llegaron al cargar la vista, cambiaron con un alta o una baja o quedaron viejas:
-    // se vuelven a pedir
-    if (!hasFormOptions) loadFormOptions();
-    closeAllDropdowns();
-    closeAllSearchableMenus();
+    form.open();
     document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     enrollmentOverlay.classList.add('is-open');
-    enrollmentModal.scrollTop = 0;
-    // El primer campo o, si está bloqueado, Cancelar
-    const studentChevron = modalStudentSelect.root.querySelector('.searchable-chevron');
-    (studentChevron.disabled ? cancelEnrollmentBtn : studentChevron).focus();
+    enrollmentOverlay.querySelector('.modal').scrollTop = 0;
+    form.focusFirst();
   }
 
   function closeEnrollmentModal() {
     enrollmentOverlay.classList.remove('is-open');
-    closeAllDropdowns();
-    closeAllSearchableMenus();
+    form.closeMenus();
     openEnrollmentModalBtn.focus();
   }
 
@@ -533,50 +354,20 @@ document.addEventListener('DOMContentLoaded', () => {
     return shownEnrollments && shownEnrollments.some(({ id }) => id === enrollment.id);
   };
 
-  // "Se registró la inscripción INS-000041 de Camila Álvarez en 1° A, Mañana, Primaria."
-  const createdDescription = ({ number, student, course }, isShown) =>
-    withShownNote(`Se registró la inscripción ${number} de ${student.firstName} ${student.lastName} en ${courseName(course)}.`, isShown);
-
-  // Crea la inscripción con lo elegido; el proceso principal vuelve a validar todo antes de
-  // guardarla. Si la crea, la tabla se actualiza antes de liberar el modal (refreshAfterCreate), así
-  // al cerrarse ya la muestra, y un toast lo avisa. Si no, el toast dice por qué y el modal sigue
-  // abierto con lo elegido.
-  const saveEnrollment = async () => {
-    const data = {
-      studentId: Number(modalStudentSelect.getValue()),
-      educationLevel: selectedLevel(),
-      courseId: Number(modalCourseSelect.getValue()),
-    };
-    setSaving(true);
-    let response;
-    try {
-      response = await window.api?.enrollments?.create(data);
-    } catch (error) {
-      console.error('Error al crear la inscripción:', error);
-    }
-    const isShown = response?.ok ? await refreshAfterCreate(response.enrollment) : null;
-    setSaving(false);
-
-    if (response?.ok) {
-      // El alumno inscripto ya no se puede elegir: las listas se vuelven a pedir al reabrir el modal
-      hasFormOptions = false;
+  // Al crear la inscripción, la tabla se actualiza antes de liberar el modal (refreshAfterCreate),
+  // así al cerrarse ya la muestra; el toast lo muestra el formulario, con la aclaración si la
+  // inscripción no quedó a la vista. Si no se crea, el formulario sigue abierto con lo elegido.
+  form.setup({
+    closeAllDropdowns,
+    onSaved: async (enrollment) => {
+      const isShown = await refreshAfterCreate(enrollment);
       closeEnrollmentModal();
-      showToast({
-        type: 'success',
-        title: 'Inscripción creada',
-        description: createdDescription(response.enrollment, isShown),
-      });
-      return;
-    }
-    const error = response?.error;
-    if (STALE_OPTION_CODES.includes(error?.code)) hasFormOptions = false;
-    showToast({ type: 'error', title: 'No se pudo crear la inscripción', description: errorDescription(error) });
-  };
+      return isShown === false ? NOT_SHOWN_NOTE : '';
+    },
+    onCancel: closeEnrollmentModal,
+  });
 
   openEnrollmentModalBtn.addEventListener('click', openEnrollmentModal);
-  cancelEnrollmentBtn.addEventListener('click', () => {
-    if (!isSaving) closeEnrollmentModal();
-  });
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
@@ -586,15 +377,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // funcione aunque el foco haya quedado fuera de un control. Mientras se guarda, ni Escape ni
   // Cancelar lo cierran.
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && enrollmentOverlay.classList.contains('is-open') && !isSaving) closeEnrollmentModal();
+    if (event.key === 'Escape' && enrollmentOverlay.classList.contains('is-open') && !form.isSaving) closeEnrollmentModal();
   });
 
-  createEnrollmentBtn.addEventListener('click', () => {
-    if (isSaving) return;
-    saveEnrollment();
-  });
-
-  loadFormOptions();
+  // Los alumnos que se pueden inscribir y los cursos del ciclo lectivo actual que ofrece el
+  // formulario
+  form.reloadOptions();
 
   // ---------- Modal: Editar inscripción ----------
 
@@ -858,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (response?.ok) {
       // Si era activa, ya no cuenta para la regla de una sola activa por alumno y su alumno vuelve a
       // poder inscribirse: las listas del alta se vuelven a pedir al reabrir el modal
-      hasFormOptions = false;
+      form.invalidateOptions();
       showToast({ type: 'success', title: 'Inscripción eliminada', description: deletedDescription(response.enrollment) });
       return;
     }
