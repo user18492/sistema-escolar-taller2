@@ -1,4 +1,5 @@
-/* Vista Docencia del Administrador — puramente visual, sin lógica */
+/* Vista Docencia del Administrador — puramente visual, sin lógica. El formulario de alta y
+   edición tiene sus estilos en assignment-form.css (componente compartido). */
 
 /* ---------- Content ---------- */
 
@@ -7,18 +8,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-/* ---------- Fields ---------- */
-
-.field:not(.field-select) {
-  flex: 1;
-  min-width: 150px;
-}
-
-.field-select {
-  flex: 0.8;
-  min-width: 120px;
 }
 
 /* ---------- Table ---------- */
@@ -53,99 +42,4 @@
 .teacher-email {
   font-size: 13px;
   color: var(--color-text-secondary);
-}
-
-/* ---------- Modal: Nueva asignación ---------- */
-
-.modal-header {
-  padding: 28px 28px 4px;
-}
-
-.modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 22px 28px 0;
-}
-
-/* Form fields */
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-field label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-/* Campo con búsqueda integrada (Profesor / Curso): base común en searchable-select.css.
-   Propio de Docencia: relleno vertical, ícono de 16px, input de 26px y un margen inferior
-   de 6px que separa el campo del siguiente. */
-
-.field-searchable .searchable-bar {
-  margin-bottom: 6px;
-  padding: 6px 14px;
-}
-
-.field-searchable .searchable-icon svg {
-  width: 16px;
-  height: 16px;
-}
-
-.field-searchable .searchable-input {
-  height: 26px;
-}
-
-.searchable-value {
-  display: none;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-}
-
-.searchable-bar.has-value:not(.is-editing) .searchable-value {
-  display: flex;
-}
-
-/* Opciones con avatar (Profesor): patrón .avatar-item de base.css */
-
-.dropdown-menu-teacher,
-.dropdown-menu-course {
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.option-teacher {
-  padding: 10px 12px;
-  border-radius: 0;
-}
-
-.dropdown-menu-teacher .option-teacher:not(:last-child) {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.option-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  background: var(--color-accent-blue-bg);
-  color: #2563eb;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 24px 28px 28px;
 }

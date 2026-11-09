@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
     <link rel="stylesheet" href="../../shared/styles/info-box.css" />
+    <link rel="stylesheet" href="../../shared/styles/assignment-form.css" />
     <link rel="stylesheet" href="./assignments.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -43,6 +44,7 @@
     <script src="../../shared/components/table-pagination.component.js"></script>
     <script src="../../shared/components/row-actions.component.js"></script>
     <script src="../../shared/components/school-year.js"></script>
+    <script src="../../shared/components/assignment-form.component.js"></script>
     <script src="./assignments.js" defer></script>
   </head>
   <body>
@@ -114,10 +116,10 @@
 
             <table-pagination results="" label="Paginación de asignaciones docentes" pages="1"></table-pagination>
 
-            <!-- Plantillas: assignments.js las completa con lo que devuelve el proceso principal: una
-                 fila por asignación docente y, en los filtros Profesor y Materia, una opción por cada
-                 profesor y por cada materia que tienen alguna. El formulario de alta usa las mismas
-                 opciones en Profesor y Materia, y la de curso en Curso -->
+            <!-- Plantilla: assignments.js la completa con lo que devuelve el proceso principal, una
+                 fila por asignación docente. Las opciones de los filtros Profesor y Materia, una por
+                 cada profesor y por cada materia que tienen alguna, son las del formulario
+                 (assignment-form.component.js) -->
             <template id="assignmentRowTemplate">
               <tr>
                 <td class="col-teacher col-truncate">
@@ -138,134 +140,16 @@
                 </td>
               </tr>
             </template>
-            <template id="teacherOptionTemplate">
-              <li class="dropdown-option option-teacher avatar-item" role="option" aria-selected="false">
-                <span class="avatar-circle option-avatar"></span>
-                <span class="avatar-item-text">
-                  <span class="option-name text-truncate"></span>
-                  <span class="option-email text-truncate"></span>
-                </span>
-              </li>
-            </template>
-            <template id="subjectOptionTemplate">
-              <li class="dropdown-option" role="option" aria-selected="false"></li>
-            </template>
-            <template id="courseOptionTemplate">
-              <li class="dropdown-option" role="option" aria-selected="false"><span class="option-name text-truncate"></span></li>
-            </template>
           </section>
         </main>
       </div>
     </div>
 
-    <!-- Modal: Nueva asignación -->
+    <!-- Modal: Nueva asignación / Editar asignación. El formulario es el componente compartido
+         assignment-form.component.js -->
     <div class="modal-overlay" id="newAssignmentOverlay">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newAssignmentTitle">
-        <div class="modal-header">
-          <h2 id="newAssignmentTitle">Nueva asignación</h2>
-          <p>Completa los datos para crear una nueva asignación docente</p>
-        </div>
-
-        <div class="modal-body">
-          <div class="form-field">
-            <label>Profesor</label>
-            <div class="field field-searchable dropdown-searchable" data-role="teacher-select">
-              <div class="searchable-bar">
-                <span class="searchable-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="7" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </span>
-                <input type="text" class="searchable-input" placeholder="Buscar profesor" autocomplete="off" aria-describedby="newAssignmentTeacherHint" />
-                <div class="searchable-value"></div>
-                <button type="button" class="searchable-chevron" aria-label="Abrir lista de profesores" aria-expanded="false" aria-describedby="newAssignmentTeacherHint">
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-              </div>
-              <ul class="dropdown-menu dropdown-menu-teacher" role="listbox" hidden>
-                <li class="dropdown-empty" hidden>Sin resultados</li>
-              </ul>
-            </div>
-            <!-- Aclaraciones del formulario: assignments.js les pone el texto al mostrarlas y las
-                 vacía al ocultarlas, así un campo no queda descrito por una oculta -->
-            <p class="field-hint" id="newAssignmentTeacherHint" hidden></p>
-          </div>
-
-          <div class="form-field">
-            <label>Nivel educativo</label>
-            <div class="field field-select dropdown" data-filter="new-assignment-level">
-              <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false">
-                <span class="dropdown-label text-truncate placeholder">Seleccionar nivel educativo</span>
-                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              <ul class="dropdown-menu" role="listbox" hidden>
-                <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
-                <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="form-field">
-            <label>Curso</label>
-            <div class="field field-searchable dropdown-searchable is-locked" data-role="course-select">
-              <div class="searchable-bar">
-                <span class="searchable-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="7" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </span>
-                <input type="text" class="searchable-input" placeholder="Selecciona primero un nivel educativo" autocomplete="off" disabled />
-                <div class="searchable-value"></div>
-                <button type="button" class="searchable-chevron" aria-label="Abrir lista de cursos" aria-expanded="false" disabled>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-              </div>
-              <ul class="dropdown-menu dropdown-menu-course" role="listbox" hidden>
-                <li class="dropdown-empty" hidden>Sin resultados</li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="form-field">
-            <label>Materia</label>
-            <div class="field field-select dropdown is-locked" data-filter="new-assignment-subject">
-              <button type="button" class="dropdown-toggle" id="newAssignmentSubject" aria-haspopup="listbox" aria-expanded="false" aria-describedby="newAssignmentSubjectError newAssignmentLockedHint" disabled>
-                <span class="dropdown-label text-truncate placeholder">Selecciona primero un curso</span>
-                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              <ul class="dropdown-menu" role="listbox" hidden></ul>
-            </div>
-            <p class="field-error" id="newAssignmentSubjectError" hidden></p>
-            <p class="field-hint" id="newAssignmentLockedHint" hidden></p>
-          </div>
-
-          <div class="info-box">
-            <span class="info-box-icon">
-              <!-- resources/CalendarDays.svg -->
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
-              </svg>
-            </span>
-            <div class="info-box-text">
-              <p><span>Se creará para el ciclo lectivo:</span> <strong id="newAssignmentYear">—</strong></p>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="cancelNewAssignmentBtn">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="createAssignmentBtn" disabled>Crear asignación</button>
-        </div>
+        <assignment-form></assignment-form>
       </div>
     </div>
 
