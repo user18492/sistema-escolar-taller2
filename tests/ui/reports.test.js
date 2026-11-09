@@ -3,9 +3,10 @@
 // ruta de navegación vuelve a Reportes (parte 00). Materias sin docente por curso muestra solo los
 // cursos incompletos, del ciclo actual por defecto; el filtro de año, el mensaje sin resultados y la
 // paginación (parte 01), y las celdas de materias ("—", la materia o la cantidad con el modal de la
-// lista completa). Carga docente por profesor muestra una fila por profesor, de mayor a menor, con la
-// línea del promedio, el tono de los suspendidos y el tooltip, y el filtro Nivel actualiza las
-// barras (parte 02). Regularidad de los backups muestra 12 columnas con los backups de cada mes, los
+// lista completa). Carga docente por profesor muestra una tabla paginada, de mayor a menor, con el
+// estado en texto, el modal de las asignaciones de cada profesor y el resumen del promedio arriba,
+// igual en todas las páginas, y el filtro Nivel actualiza las filas y el resumen (parte 02 y pedido
+// del 2026-11-09). Regularidad de los backups muestra 12 columnas con los backups de cada mes, los
 // meses futuros atenuados y el último backup, que no cambia con el ciclo elegido (parte 03).
 const { group, test } = require('../lib/framework');
 const { SEED_USERS } = require('../lib/fixtures');
@@ -227,7 +228,7 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
     // Lo que muestra una celda: su texto y, si tiene, la etiqueta del botón
     const cellState = (id, column) => t.ui.js(`(() => {
       const cell = document.querySelector('tr[data-course-id="${id}"] ${COLUMNS[column]}');
-      return { text: cell.textContent.replace(/\\s+/g, ' ').trim(), button: cell.querySelector('.subject-list-button')?.getAttribute('aria-label') ?? null };
+      return { text: cell.textContent.replace(/\\s+/g, ' ').trim(), button: cell.querySelector('.list-summary-button')?.getAttribute('aria-label') ?? null };
     })()`);
     const modalState = () => t.ui.js(`(() => ({
       label: document.querySelector('${OVERLAY} .modal').getAttribute('aria-label'),
@@ -253,7 +254,7 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
         const buttonLabel = `Ver las ${cell.items.length} materias ${cell.description} de `;
         t.equal(state.text, `${cell.items.length} materias`, 'La cantidad');
         t.check(state.button?.startsWith(buttonLabel), 'El botón dice qué abre', state);
-        await t.ui.click(`tr[data-course-id="${cell.id}"] ${COLUMNS[cell.column]} .subject-list-button`);
+        await t.ui.click(`tr[data-course-id="${cell.id}"] ${COLUMNS[cell.column]} .list-summary-button`);
         t.require(await t.ui.waitModal(OVERLAY, true), 'El modal no se abrió');
         const open = await modalState();
         t.equal(sorted(open.items), sorted(cell.items), 'El modal lista todas las materias', open);
@@ -269,8 +270,9 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
   });
 });
 
-// Reporte Carga docente por profesor (parte 02). Los datos propios agregan un profesor con más
-// asignaciones que cualquiera del seed (el primero de la lista) y uno suspendido con una.
+// Reporte Carga docente por profesor (parte 02 y pedido del 2026-11-09: tabla paginada con el
+// resumen del promedio arriba). Los datos propios agregan un profesor con más asignaciones que
+// cualquiera del seed (el primero de la lista), uno suspendido con una y uno sin asignaciones.
 group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
   async setup({ fixtures }) {
     const institutionId = await fixtures.institutionId();
@@ -293,35 +295,89 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
     const suspendedTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Suspendido' });
     await fixtures.assign({ teacherId: suspendedTeacher.id, courseId: (await fixtures.createCourse({ level: 'PRIMARIA', grade: '1°', shift: 'MAÑANA' })).id });
     await fixtures.db.query(`UPDATE usuario SET estado = FALSE WHERE usuario_id = $1`, [suspendedTeacher.id]);
-    return { institutionId, busiestTeacher, suspendedTeacher };
+    const idleTeacher = await fixtures.createUser({ role: 'PROFESOR', firstName: 'Libre' });
+    return { institutionId, busiestTeacher, suspendedTeacher, idleTeacher };
   },
 }, () => {
   const VIEW = 'admin/teacher-workload-report/index.html';
-  const ROWS = '[data-teacher-id]';
+  const ROWS = '.workload-card tbody tr[data-teacher-id]';
+  const OVERLAY = '#assignmentListOverlay';
+  const PAGE_SIZE = 10;
   const COLUMN_LEVEL = { PRIMARY: 'PRIMARIA', SECONDARY: 'SECUNDARIA' };
+  const SHIFT_LABELS = { 'MAÑANA': 'Mañana', TARDE: 'Tarde' };
 
   // Los profesores no dados de baja de la institución, con sus asignaciones vigentes de cursos
-  // vigentes del ciclo actual (de un nivel, si llega), en el orden del reporte (consulta propia)
-  const expectedTeachers = (t, educationLevel = null) => t.sql(`
-    SELECT u.usuario_id AS id,
-           (SELECT COUNT(*) FROM asignacion_docente a JOIN curso c USING (curso_id) JOIN grado g USING (grado_id)
-             WHERE a.usuario_id = u.usuario_id AND a.fecha_eliminacion IS NULL AND c.fecha_eliminacion IS NULL
-               AND c.anio_ciclo_lectivo = $2 AND ($3::TEXT IS NULL OR g.nivel_educativo = $3))::INT AS count
-      FROM usuario u JOIN usuario_rol r USING (usuario_rol_id)
-     WHERE u.institucion_id = $1 AND r.nombre = 'PROFESOR' AND u.fecha_eliminacion IS NULL
-     ORDER BY count DESC, u.apellido, u.nombre, u.usuario_id`, [t.data.institutionId, t.year, COLUMN_LEVEL[educationLevel] ?? null]);
+  // vigentes del ciclo actual (de un nivel, si llega), en el orden del reporte (consulta propia):
+  // la fila que tiene que mostrar la vista ({ id, name, status, count, button }) y el texto de cada
+  // asignación del modal
+  const expectedTeachers = async (t, educationLevel = null) => {
+    const rows = await t.sql(`
+      SELECT u.usuario_id AS id, u.nombre AS "firstName", u.apellido AS "lastName", u.estado AS active,
+             COALESCE(json_agg(json_build_object('grade', g.nombre, 'division', c.division, 'shift', c.turno, 'subject', m.nombre)
+                               ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, m.nombre)
+                        FILTER (WHERE a.asignacion_docente_id IS NOT NULL), '[]') AS assignments
+        FROM usuario u JOIN usuario_rol r USING (usuario_rol_id)
+        LEFT JOIN asignacion_docente a ON a.usuario_id = u.usuario_id AND a.fecha_eliminacion IS NULL
+             AND EXISTS (SELECT 1 FROM curso c2 JOIN grado g2 USING (grado_id)
+                          WHERE c2.curso_id = a.curso_id AND c2.fecha_eliminacion IS NULL AND c2.anio_ciclo_lectivo = $2
+                            AND ($3::TEXT IS NULL OR g2.nivel_educativo = $3))
+        LEFT JOIN curso c ON c.curso_id = a.curso_id
+        LEFT JOIN grado g ON g.grado_id = c.grado_id
+        LEFT JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
+        LEFT JOIN materia m ON m.materia_id = gm.materia_id
+       WHERE u.institucion_id = $1 AND r.nombre = 'PROFESOR' AND u.fecha_eliminacion IS NULL
+       GROUP BY u.usuario_id
+       ORDER BY COUNT(a.asignacion_docente_id) DESC, u.apellido, u.nombre, u.usuario_id`,
+    [t.data.institutionId, t.year, COLUMN_LEVEL[educationLevel] ?? null]);
+    return rows.map((row) => ({
+      id: row.id,
+      name: `${row.lastName}, ${row.firstName}`,
+      lastName: row.lastName,
+      firstName: row.firstName,
+      status: row.active ? 'Activo' : 'Suspendido',
+      count: row.assignments.length,
+      assignments: row.assignments.map((a) => `${a.grade} ${a.division} · ${SHIFT_LABELS[a.shift]} — ${a.subject}`),
+    }));
+  };
 
-  // Las filas que muestra la vista, en orden: { id, count }
-  const shownRows = (t) => t.ui.js(`Array.from(document.querySelectorAll(${JSON.stringify(ROWS)}), (row) => ({
-    id: Number(row.dataset.teacherId), count: Number(row.querySelector('.workload-count').textContent),
-  }))`);
+  // La fila esperada en la tabla: el botón solo si tiene asignaciones
+  const rowOf = ({ id, name, status, count }) => ({ id, name, status, count, button: count > 0 });
 
-  // Espera que la vista muestre exactamente `expected`, en orden
-  const expectRows = async (t, expected, label) => {
-    const ok = await t.ui.waitFor(`JSON.stringify(Array.from(document.querySelectorAll(${JSON.stringify(ROWS)}), (row) => ({
-      id: Number(row.dataset.teacherId), count: Number(row.querySelector('.workload-count').textContent),
-    }))) === ${JSON.stringify(JSON.stringify(expected))}`, { timeoutMs: 6000 });
-    t.check(ok, `${label}: una fila por profesor, en el orden de la consulta propia`, { expected, shown: await shownRows(t) });
+  // El texto del resumen esperado para una lista de profesores (promedio redondeado y grupos contra
+  // ese entero)
+  const summaryTextOf = (teachers) => {
+    const counts = teachers.map((teacher) => teacher.count);
+    const average = Math.round(counts.reduce((sum, count) => sum + count, 0) / counts.length);
+    const above = counts.filter((count) => count > average).length;
+    const below = counts.filter((count) => count > 0 && count < average).length;
+    const without = counts.filter((count) => count === 0).length;
+    return `${average} ${average === 1 ? 'asignación' : 'asignaciones'} por profesor: (${above} por encima) (${below} por debajo) (${without} sin asignaciones)`;
+  };
+
+  // Lo que muestra la vista: la página, las filas y el resumen (el título y el texto, sin espacios
+  // de más)
+  const VIEW_STATE = `(() => ({
+    page: document.querySelector('.workload-card table-pagination').page,
+    rows: Array.from(document.querySelectorAll(${JSON.stringify(ROWS)}), (row) => ({
+      id: Number(row.dataset.teacherId),
+      name: row.cells[0].textContent.trim(),
+      status: row.cells[1].textContent.trim(),
+      count: Number(row.cells[2].querySelector('.list-summary-count')?.textContent ?? row.cells[2].textContent),
+      button: Boolean(row.cells[2].querySelector('.list-summary-button')),
+    })),
+    title: document.querySelector('.workload-summary-title').textContent.trim(),
+    summary: document.querySelector('.workload-summary-text').textContent.replace(/\\s+/g, ' ').trim(),
+  }))()`;
+  const viewState = (t) => t.ui.js(VIEW_STATE);
+
+  // Espera que la vista muestre la página `page` de `expected`, con su resumen
+  const expectPage = async (t, expected, { page, label }) => {
+    const rows = expected.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(rowOf);
+    const summary = summaryTextOf(expected);
+    const target = JSON.stringify({ page, rows, title: 'Promedio general', summary });
+    const ok = await t.ui.waitFor(`JSON.stringify(${VIEW_STATE}) === ${JSON.stringify(target)}`, { timeoutMs: 6000 });
+    const state = await viewState(t);
+    t.check(ok,`${label}: la página ${page}, en el orden de la consulta propia, con el resumen de todos`, { expected: JSON.parse(target), shown: state });
   };
 
   const openReport = async (t) => {
@@ -330,48 +386,100 @@ group('ui.reports.teacher-workload', 'Reportes: Carga docente por profesor', {
     await t.ui.idle();
   };
 
-  test('rows', 'Una fila por profesor, de mayor a menor, con la línea del promedio, el tono de los suspendidos y los conteos en el tooltip', async (t) => {
-    const { busiestTeacher, suspendedTeacher } = t.data;
+  const goToPage = (t, page) => t.ui.click(`.workload-card .pagination .page-btn[data-page="${page}"]:not(.page-nav)`);
+  const lastPageOf = (expected) => Math.ceil(expected.length / PAGE_SIZE);
+  const pageOf = (expected, id) => Math.floor(expected.findIndex((teacher) => teacher.id === id) / PAGE_SIZE) + 1;
+
+  test('rows', 'Una fila por profesor, de mayor a menor y por apellido, con el estado en texto, paginada de a 10, y el resumen igual en todas las páginas', {
+    history: [{ plan: 'Pedido del 2026-11-09: tabla en lugar del gráfico (sin plan en plans/)', date: '2026-11-09', change: 'Prueba reescrita: filas de la tabla, paginación y resumen en lugar de las barras, la línea del promedio y el tooltip' }],
+  }, async (t) => {
+    const { busiestTeacher, suspendedTeacher, idleTeacher } = t.data;
     await openReport(t);
-    const expected = (await expectedTeachers(t)).map(({ id, count }) => ({ id, count }));
-    await expectRows(t, expected, 'Ciclo actual');
-    t.equal((await shownRows(t))[0]?.id, busiestTeacher.id, 'La primera fila es la del profesor con más asignaciones');
+    const expected = await expectedTeachers(t);
+    t.require(expected.length > PAGE_SIZE, 'La institución tiene que tener más de 10 profesores', expected.length);
+    await expectPage(t, expected, { page: 1, label: 'Ciclo actual' });
+    t.equal((await viewState(t)).rows[0]?.id, busiestTeacher.id, 'La primera fila es la del profesor con más asignaciones');
 
-    const average = expected.reduce((sum, row) => sum + row.count, 0) / expected.length;
-    const averageText = `Promedio: ${new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(average)}`;
-    const line = await t.ui.js(`(() => {
-      const line = document.querySelector('.workload-average-line');
-      const label = document.querySelector('.workload-average-label');
-      return { visible: Boolean(line && line.getBoundingClientRect().height > 0), label: label?.textContent.trim() };
-    })()`);
-    t.equal(line, { visible: true, label: averageText }, 'La línea del promedio se ve, con su etiqueta');
-
-    const suspended = await t.ui.js(`(() => {
-      const row = document.querySelector('[data-teacher-id="${suspendedTeacher.id}"]');
-      return row && { suspended: row.classList.contains('is-suspended'), title: row.title };
-    })()`);
-    t.equal(suspended, { suspended: true, title: '1 asignación en 1 curso · Suspendido' }, 'El suspendido lleva is-suspended y su tooltip');
-    const busiest = await t.ui.js(`(() => {
-      const row = document.querySelector('[data-teacher-id="${busiestTeacher.id}"]');
-      return row && { suspended: row.classList.contains('is-suspended'), title: row.title };
-    })()`);
-    const busiestCount = expected[0].count;
-    const busiestCourses = (await t.sqlOne(`SELECT COUNT(DISTINCT curso_id)::INT AS n FROM asignacion_docente WHERE usuario_id = $1 AND fecha_eliminacion IS NULL`, [busiestTeacher.id])).n;
-    t.equal(busiest, { suspended: false, title: `${busiestCount} asignaciones en ${busiestCourses} ${busiestCourses === 1 ? 'curso' : 'cursos'}` },
-      'Un activo, sin is-suspended y con sus conteos en el tooltip');
+    // Cada página, con el mismo resumen
+    for (let page = 2; page <= lastPageOf(expected); page += 1) {
+      await goToPage(t, page);
+      await expectPage(t, expected, { page, label: `Página ${page}` });
+    }
+    // Los sin asignaciones quedan al final, con 0 y sin botón; el suspendido dice Suspendido
+    const zeros = expected.filter((teacher) => teacher.count === 0);
+    t.equal(expected.slice(-zeros.length).map((teacher) => teacher.id), zeros.map((teacher) => teacher.id), 'Los sin asignaciones son los últimos');
+    await goToPage(t, pageOf(expected, idleTeacher.id));
+    await expectPage(t, expected, { page: pageOf(expected, idleTeacher.id), label: 'Página del profesor sin asignaciones' });
+    const idle = (await viewState(t)).rows.find((row) => row.id === idleTeacher.id);
+    t.equal(idle && { status: idle.status, count: idle.count, button: idle.button }, { status: 'Activo', count: 0, button: false },
+      'El profesor sin asignaciones muestra 0, sin botón');
+    await goToPage(t, pageOf(expected, suspendedTeacher.id));
+    await expectPage(t, expected, { page: pageOf(expected, suspendedTeacher.id), label: 'Página del profesor suspendido' });
+    const suspended = (await viewState(t)).rows.find((row) => row.id === suspendedTeacher.id);
+    t.equal(suspended && { status: suspended.status, count: suspended.count, button: suspended.button }, { status: 'Suspendido', count: 1, button: true },
+      'El suspendido dice Suspendido, con su asignación y el botón');
+    t.equal(await t.ui.js(`getComputedStyle(document.querySelector('[data-teacher-id="${suspendedTeacher.id}"] td:nth-child(2)')).color
+      === getComputedStyle(document.querySelector('[data-teacher-id="${suspendedTeacher.id}"] td:nth-child(1)')).color
+      && !document.querySelector('[data-teacher-id="${suspendedTeacher.id}"] td:nth-child(2) *')`), true, 'El estado es texto plano, sin color propio ni badge');
     await logoutViaUi(t);
   });
 
-  test('level-filter', 'Un cambio de Nivel actualiza las barras', async (t) => {
+  test('assignment-list', 'El botón de la cantidad abre el modal con el curso y la materia de cada asignación, que se cierra con la X y con Escape y devuelve el foco', {
+    history: [{ plan: 'Pedido del 2026-11-09: tabla en lugar del gráfico (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    const { busiestTeacher, suspendedTeacher } = t.data;
     await openReport(t);
-    await expectRows(t, (await expectedTeachers(t)).map(({ id, count }) => ({ id, count })), 'Todos los niveles');
+    const expected = await expectedTeachers(t);
+    await expectPage(t, expected, { page: 1, label: 'Ciclo actual' });
+    const modalState = () => t.ui.js(`(() => ({
+      label: document.querySelector('${OVERLAY} .modal').getAttribute('aria-label'),
+      items: Array.from(document.querySelectorAll('#assignmentList li'), (item) => item.textContent),
+      focus: document.activeElement?.id || document.activeElement?.getAttribute('aria-label') || null,
+    }))()`);
+
+    const cases = [
+      { teacher: busiestTeacher, close: 'x' },
+      { teacher: suspendedTeacher, close: 'Escape' },
+    ];
+    for (const { teacher, close } of cases) {
+      await t.step(`${teacher.firstName} (${close})`, async () => {
+        const row = expected.find((candidate) => candidate.id === teacher.id);
+        const page = pageOf(expected, teacher.id);
+        if ((await viewState(t)).page !== page) await goToPage(t, page);
+        await expectPage(t, expected, { page, label: `Página de ${teacher.firstName}` });
+        const button = `[data-teacher-id="${teacher.id}"] .list-summary-button`;
+        const buttonLabel = await t.ui.js(`document.querySelector('${button}').getAttribute('aria-label')`);
+        t.equal(buttonLabel, `${row.count === 1 ? 'Ver la asignación' : `Ver las ${row.count} asignaciones`} de ${row.firstName} ${row.lastName}`, 'El botón dice qué abre');
+        await t.ui.click(button);
+        t.require(await t.ui.waitModal(OVERLAY, true), 'El modal no se abrió');
+        const open = await modalState();
+        t.equal(open.items, row.assignments, 'El modal lista el curso y la materia de cada asignación, en orden', open);
+        t.equal(open.label, `Asignaciones de ${row.firstName} ${row.lastName}`, 'El modal tiene nombre accesible');
+        t.equal(open.focus, 'closeAssignmentListBtn', 'El foco pasa a la X');
+        if (close === 'x') await t.ui.click('#closeAssignmentListBtn');
+        else await t.ui.press('Escape');
+        t.require(await t.ui.waitModal(OVERLAY, false), `El modal no se cerró con ${close}`);
+        t.equal((await modalState()).focus, buttonLabel, 'El foco vuelve al botón');
+      });
+    }
+    await logoutViaUi(t);
+  });
+
+  test('level-filter', 'Un cambio de Nivel actualiza las filas y el resumen y vuelve a la página 1', {
+    history: [{ plan: 'Pedido del 2026-11-09: tabla en lugar del gráfico (sin plan en plans/)', date: '2026-11-09', change: 'Compara las filas de la tabla y el resumen en lugar de las barras, y la vuelta a la página 1' }],
+  }, async (t) => {
+    await openReport(t);
+    const all = await expectedTeachers(t);
+    await expectPage(t, all, { page: 1, label: 'Todos los niveles' });
+    await goToPage(t, 2);
+    await expectPage(t, all, { page: 2, label: 'Todos los niveles, página 2' });
     await chooseColumnFilterOption(t, 'level', 'PRIMARY');
-    await expectRows(t, (await expectedTeachers(t, 'PRIMARY')).map(({ id, count }) => ({ id, count })), 'Primaria');
+    const primary = await expectedTeachers(t, 'PRIMARY');
+    await expectPage(t, primary, { page: 1, label: 'Primaria' });
     t.equal(await t.ui.js(`document.querySelector('.report-filters [data-filter="level"] .report-filter-value').textContent.trim()`),
       'Primaria', 'El botón muestra el nivel elegido');
-    // La barra del profesor ocupado (todas sus asignaciones son de secundaria) queda vacía
-    t.equal(await t.ui.js(`document.querySelector('[data-teacher-id="${t.data.busiestTeacher.id}"] .workload-bar').getBoundingClientRect().width`),
-      0, 'Sin asignaciones de primaria, la barra del profesor ocupado queda vacía');
+    // Todas las asignaciones del profesor ocupado son de secundaria: en primaria tiene 0
+    t.equal(primary.find((teacher) => teacher.id === t.data.busiestTeacher.id)?.count, 0, 'Sin asignaciones de primaria, el profesor ocupado tiene 0');
     await logoutViaUi(t);
   });
 });

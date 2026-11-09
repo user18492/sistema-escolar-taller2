@@ -604,10 +604,11 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
   });
 });
 
-// Reporte Carga docente por profesor (plans/reportes-administrador/02-carga-docente.md): los
-// profesores no dados de baja de la institución, activos y suspendidos, también sin asignaciones,
-// con sus asignaciones vigentes de cursos vigentes del ciclo (con Nivel y Turno del curso) y el
-// promedio de todos ellos.
+// Reporte Carga docente por profesor (plans/reportes-administrador/02-carga-docente.md, y el pedido
+// del 2026-11-09): los profesores no dados de baja de la institución, activos y suspendidos, también
+// sin asignaciones, con sus asignaciones vigentes de cursos vigentes del ciclo (con Nivel y Turno
+// del curso), el curso y la materia de cada una, y el resumen de todos ellos: el promedio redondeado
+// y cuántos quedan por encima, por debajo y sin asignaciones.
 group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docente por profesor', {
   async setup({ fixtures }) {
     const institutionId = await fixtures.institutionId();
@@ -630,10 +631,19 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
     const deletedTeacher = await fixtures.createUser({ role: 'PROFESOR', deleted: true });
     await fixtures.inSchoolYear(fixtures.year - 1, async () =>
       fixtures.assign({ teacherId: busyTeacher.id, courseId: (await fixtures.createCourse()).id }));
-    // Otra institución, con un profesor con una asignación y su administrador, y una sin profesores
+    // Otra institución, con un profesor con una asignación y su administrador, y una sin profesores.
+    // Otros tres profesores de esa institución, con 0, 2 y 4 asignaciones, dan un promedio de 1,75,
+    // que se lee 2: el de 2 no queda por encima ni por debajo, el de 1 queda por debajo y el de 0
+    // solo sin asignaciones.
     const otherInstitution = await fixtures.createInstitution();
     const foreignTeacher = await fixtures.createUser({ role: 'PROFESOR', institutionId: otherInstitution.id });
-    await fixtures.assign({ teacherId: foreignTeacher.id, courseId: (await fixtures.createCourse({ institutionId: otherInstitution.id })).id });
+    const foreignCourse = await fixtures.createCourse({ institutionId: otherInstitution.id });
+    await fixtures.assign({ teacherId: foreignTeacher.id, courseId: foreignCourse.id });
+    await fixtures.createUser({ role: 'PROFESOR', institutionId: otherInstitution.id });
+    for (const count of [2, 4]) {
+      const teacher = await fixtures.createUser({ role: 'PROFESOR', institutionId: otherInstitution.id });
+      for (let index = 0; index < count; index += 1) await fixtures.assign({ teacherId: teacher.id, courseId: foreignCourse.id });
+    }
     const foreignAdmin = await fixtures.createUser({ role: 'ADMIN', institutionId: otherInstitution.id });
     const emptyAdmin = await fixtures.createUser({ role: 'ADMIN', institutionId: (await fixtures.createInstitution()).id });
     return { institutionId, idleTeacher, busyTeacher, suspendedTeacher, deletedTeacher, foreignTeacher, foreignAdmin, emptyAdmin };
@@ -645,41 +655,57 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
 
   // Lo esperado de cada profesor no dado de baja de la institución, con subconsultas por profesor
   // (distinto del LEFT JOIN agrupado del repositorio), en el orden del reporte: cantidad, apellido,
-  // nombre y usuario_id
+  // nombre y usuario_id. Las asignaciones, por curso (nivel, grado, división y turno) y materia.
   const expectedTeachers = async (t, { institutionId = t.data.institutionId, schoolYear, educationLevel = null, shift = null }) => {
     const assignments = `FROM asignacion_docente a JOIN curso c USING (curso_id) JOIN grado g USING (grado_id)
+                         JOIN grado_materia gm USING (grado_materia_id) JOIN materia m ON m.materia_id = gm.materia_id
                          WHERE a.usuario_id = u.usuario_id AND a.fecha_eliminacion IS NULL AND c.fecha_eliminacion IS NULL
                            AND c.anio_ciclo_lectivo = $2
                            AND ($3::TEXT IS NULL OR g.nivel_educativo = $3) AND ($4::TEXT IS NULL OR c.turno = $4)`;
-    return t.sql(`
+    const rows = await t.sql(`
       SELECT u.usuario_id AS id, u.nombre AS "firstName", u.apellido AS "lastName", NOT u.estado AS suspended,
              (SELECT COUNT(*) ${assignments})::INT AS "assignmentCount",
-             (SELECT COUNT(DISTINCT a.curso_id) ${assignments})::INT AS "courseCount"
+             COALESCE((SELECT json_agg(json_build_object('gradeName', g.nombre, 'division', c.division, 'shift', c.turno, 'subjectName', m.nombre)
+                                       ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, m.nombre) ${assignments}), '[]') AS assignments
         FROM usuario u JOIN usuario_rol r USING (usuario_rol_id)
        WHERE u.institucion_id = $1 AND r.nombre = 'PROFESOR' AND u.fecha_eliminacion IS NULL
        ORDER BY "assignmentCount" DESC, u.apellido, u.nombre, u.usuario_id`,
     [institutionId, schoolYear, COLUMN_LEVEL[educationLevel] ?? null, COLUMN_SHIFT[shift] ?? null]);
+    return rows.map((row) => ({ ...row, assignments: row.assignments.map((assignment) => ({ ...assignment, shift: SHIFT[assignment.shift] })) }));
   };
 
-  const averageOf = (teachers) => (teachers.length
-    ? teachers.reduce((sum, teacher) => sum + teacher.assignmentCount, 0) / teachers.length
-    : null);
+  // El resumen de una lista de profesores: el promedio redondeado y, contra ese entero, los de más,
+  // los de menos (con al menos una) y los que no tienen ninguna
+  const summaryOf = (teachers) => {
+    const counts = teachers.map((teacher) => teacher.assignmentCount);
+    const average = counts.length ? Math.round(counts.reduce((sum, count) => sum + count, 0) / counts.length) : null;
+    return {
+      average,
+      aboveCount: counts.filter((count) => count > average).length,
+      belowCount: counts.filter((count) => count > 0 && count < average).length,
+      withoutAssignmentsCount: counts.filter((count) => count === 0).length,
+    };
+  };
 
   const teacherOf = (report, teacher) => report.teachers.find((row) => row.id === teacher.id);
 
-  test('counts', 'Cada profesor no dado de baja, con sus asignaciones y sus cursos del ciclo actual, en el orden y con el promedio de una consulta propia', async (t) => {
+  test('counts', 'Cada profesor no dado de baja, con sus asignaciones del ciclo actual (curso y materia), en el orden y con el resumen de una consulta propia', {
+    history: [{ plan: 'Pedido del 2026-11-09: tabla con las asignaciones de cada profesor y resumen del promedio (sin plan en plans/)', date: '2026-11-09', change: 'Cada profesor trae el curso y la materia de cada asignación en lugar de los cursos distintos, y el promedio pasa al resumen redondeado' }],
+  }, async (t) => {
     const { idleTeacher, busyTeacher, suspendedTeacher, deletedTeacher } = t.data;
     await t.login('admin');
     const { report } = await t.ok('reports.getTeacherWorkload', filtersOf({ schoolYear: t.year }));
     const expected = await expectedTeachers(t, { schoolYear: t.year });
     t.equal(report.schoolYear, t.year, 'El reporte es del ciclo pedido');
     t.equal(report.teachers, expected, 'Profesores, conteos y orden');
-    t.equal(report.average, averageOf(expected), 'El promedio es el de todos los profesores listados');
+    t.equal(report.summary, summaryOf(expected), 'El resumen es el de todos los profesores listados');
 
-    t.equal(teacherOf(report, busyTeacher) && { assignments: teacherOf(report, busyTeacher).assignmentCount, courses: teacherOf(report, busyTeacher).courseCount },
-      { assignments: 3, courses: 2 }, 'Dos materias del mismo curso y una de otro: 3 asignaciones en 2 cursos (sin la dada de baja)');
-    t.equal(teacherOf(report, idleTeacher), { id: idleTeacher.id, firstName: idleTeacher.firstName, lastName: idleTeacher.lastName, suspended: false, assignmentCount: 0, courseCount: 0 },
-      'El profesor sin asignaciones aparece con 0');
+    const busy = teacherOf(report, busyTeacher);
+    t.equal(busy && { count: busy.assignmentCount, courses: busy.assignments.map((assignment) => `${assignment.gradeName} ${assignment.shift}`) },
+      { count: 3, courses: ['1° MORNING', '4° AFTERNOON', '4° AFTERNOON'] },
+      'Dos materias del mismo curso y una de otro: 3 asignaciones, primaria antes que secundaria (sin la dada de baja)');
+    t.equal(teacherOf(report, idleTeacher), { id: idleTeacher.id, firstName: idleTeacher.firstName, lastName: idleTeacher.lastName, suspended: false, assignmentCount: 0, assignments: [] },
+      'El profesor sin asignaciones aparece con 0 y sin asignaciones');
     t.equal(teacherOf(report, suspendedTeacher) && { suspended: teacherOf(report, suspendedTeacher).suspended, assignments: teacherOf(report, suspendedTeacher).assignmentCount },
       { suspended: true, assignments: 1 }, 'El profesor suspendido aparece con suspended: true y su asignación');
     t.check(!teacherOf(report, deletedTeacher), 'El profesor dado de baja no aparece');
@@ -690,16 +716,18 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
     await t.logout();
   });
 
-  test('filters', 'Nivel, Turno y un ciclo cerrado cuentan solo las asignaciones de esos cursos, y siguen listando a todos los profesores', async (t) => {
+  test('filters', 'Nivel, Turno y un ciclo cerrado cuentan solo las asignaciones de esos cursos, y siguen listando a todos los profesores', {
+    history: [{ plan: 'Pedido del 2026-11-09: tabla con las asignaciones de cada profesor y resumen del promedio (sin plan en plans/)', date: '2026-11-09', change: 'El profesor ocupado se compara por sus asignaciones, no por sus cursos distintos, y el promedio pasa al resumen redondeado' }],
+  }, async (t) => {
     const { busyTeacher } = t.data;
     await t.login('admin');
     const cases = [
-      { filters: { schoolYear: t.year, educationLevel: 'PRIMARY' }, busy: { assignmentCount: 1, courseCount: 1 } },
-      { filters: { schoolYear: t.year, educationLevel: 'SECONDARY' }, busy: { assignmentCount: 2, courseCount: 1 } },
-      { filters: { schoolYear: t.year, shift: 'MORNING' }, busy: { assignmentCount: 1, courseCount: 1 } },
-      { filters: { schoolYear: t.year, shift: 'AFTERNOON' }, busy: { assignmentCount: 2, courseCount: 1 } },
-      { filters: { schoolYear: t.year, educationLevel: 'PRIMARY', shift: 'AFTERNOON' }, busy: { assignmentCount: 0, courseCount: 0 } },
-      { filters: { schoolYear: t.year - 1 }, busy: { assignmentCount: 1, courseCount: 1 } },
+      { filters: { schoolYear: t.year, educationLevel: 'PRIMARY' }, busy: ['1° MORNING'] },
+      { filters: { schoolYear: t.year, educationLevel: 'SECONDARY' }, busy: ['4° AFTERNOON', '4° AFTERNOON'] },
+      { filters: { schoolYear: t.year, shift: 'MORNING' }, busy: ['1° MORNING'] },
+      { filters: { schoolYear: t.year, shift: 'AFTERNOON' }, busy: ['4° AFTERNOON', '4° AFTERNOON'] },
+      { filters: { schoolYear: t.year, educationLevel: 'PRIMARY', shift: 'AFTERNOON' }, busy: [] },
+      { filters: { schoolYear: t.year - 1 }, busy: null },
     ];
     const all = await expectedTeachers(t, { schoolYear: t.year });
     for (const { filters, busy } of cases) {
@@ -707,10 +735,13 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
         const { report } = await t.ok('reports.getTeacherWorkload', filtersOf(filters));
         const expected = await expectedTeachers(t, filters);
         t.equal(report.teachers, expected, 'Profesores, conteos y orden');
-        t.equal(report.average, averageOf(expected), 'Promedio');
+        t.equal(report.summary, summaryOf(expected), 'Resumen');
         t.equal(report.teachers.length, all.length, 'Lista a los mismos profesores que sin filtros');
         const row = teacherOf(report, busyTeacher);
-        t.equal(row && { assignmentCount: row.assignmentCount, courseCount: row.courseCount }, busy, 'Asignaciones y cursos del profesor ocupado');
+        const shown = row && row.assignments.map((assignment) => `${assignment.gradeName} ${assignment.shift}`);
+        // En el ciclo cerrado, la asignación es de un curso cualquiera: basta con que haya una
+        if (busy) t.equal(shown, busy, 'Asignaciones del profesor ocupado (grado y turno)');
+        else t.equal(row?.assignmentCount, 1, 'Una asignación del profesor ocupado en el ciclo cerrado');
       });
     }
     for (const schoolYear of [1999, 2101, String(t.year), null]) {
@@ -722,7 +753,9 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
     await t.logout();
   });
 
-  test('institution-scope', 'Cada administrador ve solo a los profesores de su institución; sin profesores, la lista está vacía y el promedio es null', async (t) => {
+  test('institution-scope', 'Cada administrador ve solo a los profesores de su institución, con su resumen redondeado; sin profesores, la lista está vacía y el promedio es null', {
+    history: [{ plan: 'Pedido del 2026-11-09: tabla con las asignaciones de cada profesor y resumen del promedio (sin plan en plans/)', date: '2026-11-09', change: 'La otra institución suma profesores con 0, 2 y 4 asignaciones para comprobar el resumen contra el promedio redondeado' }],
+  }, async (t) => {
     const { foreignTeacher, foreignAdmin, emptyAdmin } = t.data;
     await t.login('admin');
     const own = (await t.ok('reports.getTeacherWorkload', filtersOf({ schoolYear: t.year }))).report;
@@ -731,14 +764,16 @@ group('main.admin.reports.teacher-workload', 'Administrador: reporte Carga docen
 
     await t.login(foreignAdmin);
     const foreign = (await t.ok('reports.getTeacherWorkload', filtersOf({ schoolYear: t.year }))).report;
-    t.equal(foreign.teachers.map((teacher) => ({ id: teacher.id, assignmentCount: teacher.assignmentCount })),
-      [{ id: foreignTeacher.id, assignmentCount: 1 }], 'El administrador de la otra institución ve solo a su profesor');
-    t.equal(foreign.average, 1, 'Promedio de la otra institución');
+    t.equal(foreign.teachers.map((teacher) => teacher.assignmentCount), [4, 2, 1, 0], 'El administrador de la otra institución ve solo a sus profesores');
+    t.check(foreign.teachers.some((teacher) => teacher.id === foreignTeacher.id), 'Entre ellos, el de una asignación', foreign.teachers);
+    t.equal(foreign.summary, { average: 2, aboveCount: 1, belowCount: 1, withoutAssignmentsCount: 1 },
+      'Promedio 1,75 redondeado a 2: el de 2 no cuenta, el de 1 está por debajo y el de 0 solo sin asignaciones');
     await t.logout();
 
     await t.login(emptyAdmin);
     t.equal((await t.ok('reports.getTeacherWorkload', filtersOf({ schoolYear: t.year }))).report,
-      { schoolYear: t.year, average: null, teachers: [] }, 'Sin profesores: lista vacía y promedio null');
+      { schoolYear: t.year, summary: { average: null, aboveCount: 0, belowCount: 0, withoutAssignmentsCount: 0 }, teachers: [] },
+      'Sin profesores: lista vacía y promedio null');
     await t.logout();
   });
 });
