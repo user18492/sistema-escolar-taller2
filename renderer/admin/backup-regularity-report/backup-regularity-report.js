@@ -7,7 +7,9 @@
 // vuelve a pedir el reporte con el año resuelto. Los meses que todavía no llegaron (en el ciclo
 // actual, los posteriores al de hoy; en uno futuro, todos) se ven atenuados, sin el "0", para no
 // confundirlos con meses sin backup; un mes pasado sin backups deja la columna vacía con el "0".
-// Cada columna muestra su detalle como tooltip ("Marzo 2026: 2 backups" o "Mes futuro").
+// Cada columna muestra su detalle como tooltip ("Marzo 2026: 2 backups" o "Mes futuro"). El gráfico
+// no tiene eje vertical ni grilla: cada columna muestra su cantidad encima, y la más alta ocupa todo
+// el alto.
 
 document.addEventListener('DOMContentLoaded', () => {
   const filterBar = document.querySelector('.report-filters');
@@ -15,8 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const lastBackupDate = document.querySelector('.last-backup-date');
   const card = document.querySelector('.backup-chart-card');
   const chart = card.querySelector('.backup-chart');
-  const yAxis = chart.querySelector('.chart-y-axis');
-  const gridlines = chart.querySelector('.chart-gridlines');
   const columns = chart.querySelector('.chart-bars');
   const labels = chart.querySelector('.chart-labels');
   const legend = card.querySelector('.chart-legend');
@@ -32,10 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
     'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  // Cantidad máxima de tramos del eje: con más backups, las marcas saltan de a 2, 5, 10… y el eje
-  // se extiende hasta la marca siguiente
-  const MAX_TICKS = 5;
-  const TICK_STEPS = [1, 2, 5];
 
   // createdAt llega en ISO 8601 y se muestra en la hora local como DD/MM/AAAA hh:mm, el formato de
   // la vista Backup (admin/backups/backups.js)
@@ -112,37 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
     legend.hidden = true;
   };
 
-  // Paso entre marcas: el menor de 1, 2, 5, 10, 20, 50… que deja a lo sumo MAX_TICKS tramos
-  const tickStep = (max) => {
-    for (let magnitude = 1; ; magnitude *= 10) {
-      const step = TICK_STEPS.map((base) => base * magnitude).find((candidate) => max / candidate <= MAX_TICKS);
-      if (step) return step;
-    }
-  };
-
-  // El eje va de 0 a la mayor cantidad (al menos 1), extendido hasta la siguiente marca entera si
-  // las marcas saltan de a más de 1
-  const scaleOf = (months) => {
-    const top = Math.max(1, ...months.map((month) => month.count));
-    const step = tickStep(top);
-    return { max: Math.ceil(top / step) * step, step };
-  };
+  // El alto completo corresponde a la mayor cantidad (al menos 1, para un ciclo sin backups)
+  const scaleMaxOf = (months) => Math.max(1, ...months.map((month) => month.count));
 
   const percentOf = (value, max) => `${(value / max) * 100}%`;
-
-  // Las marcas del eje, de arriba (el máximo) a abajo (0), y una línea de la grilla por marca
-  const renderScale = ({ max, step }) => {
-    const marks = [];
-    const lines = [];
-    for (let value = max; value >= 0; value -= step) {
-      const mark = document.createElement('span');
-      mark.textContent = String(value);
-      marks.push(mark);
-      lines.push(document.createElement('span'));
-    }
-    yAxis.replaceChildren(...marks);
-    gridlines.replaceChildren(...lines);
-  };
 
   // "Marzo 2026: 2 backups", "Abril 2026: 1 backup"; "Mes futuro"
   const columnTitle = ({ month, count, future }, schoolYear) => {
@@ -187,9 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderChart = ({ schoolYear, months }) => {
-    const scale = scaleOf(months);
-    renderScale(scale);
-    columns.replaceChildren(...months.map((month) => createColumn(month, schoolYear, scale.max)));
+    const scaleMax = scaleMaxOf(months);
+    columns.replaceChildren(...months.map((month) => createColumn(month, schoolYear, scaleMax)));
     labels.replaceChildren(...months.map(createLabel));
     futureLegendItem.hidden = !months.some((month) => month.future);
     message.hidden = true;

@@ -1,8 +1,9 @@
 /* Reporte Regularidad de los backups (Administrador). La ruta de navegación la aporta
-   breadcrumb.css; la barra de filtros, report-filters.css, y la card, el encabezado, el eje, la
-   grilla, las columnas, sus etiquetas, la leyenda y la animación de entrada, chart.css. Aquí, la
-   card del último backup, la cantidad sobre cada columna, los meses futuros atenuados y el texto de
-   las limitaciones. */
+   breadcrumb.css; la barra de filtros, report-filters.css, y la card, las columnas, sus etiquetas,
+   la leyenda y la animación de entrada, chart.css. Aquí, la card del último backup, la línea base,
+   la cantidad sobre cada columna, los meses futuros atenuados y los marcadores cuadrados de la
+   leyenda. El gráfico no lleva encabezado, eje vertical ni grilla: cada columna muestra su
+   cantidad. */
 
 /* ---------- Último backup ---------- */
 
@@ -64,11 +65,14 @@
   display: none;
 }
 
-/* Cada marca del eje, centrada sobre su línea de la grilla: sin alto propio, space-between las
-   deja en las mismas posiciones que las líneas */
-.backup-chart .chart-y-axis span {
-  line-height: 0;
-  font-variant-numeric: tabular-nums;
+/* La línea base, bajo las columnas y sobre las etiquetas de los meses */
+.backup-chart .chart-bars {
+  border-bottom: 1px solid #d1d5db;
+}
+
+/* Los meses, separados de la línea base (dentro de los 24px de chart.css) */
+.backup-chart .chart-labels {
+  padding-top: 6px;
 }
 
 /* 12 columnas: menos separación que la de chart.css, igual en las barras y en sus etiquetas */
@@ -81,7 +85,7 @@
   position: relative;
 }
 
-/* Alto = cantidad / máximo del eje (lo define la vista, también en --backup-bar-height) */
+/* Alto = cantidad / la mayor cantidad del ciclo (lo define la vista, también en --backup-bar-height) */
 .backup-bar {
   background: var(--color-accent-blue);
 }
@@ -122,6 +126,11 @@
 
 /* ---------- Leyenda ---------- */
 
+/* Cuadrados, como las columnas, en lugar de los círculos de chart.css */
+.backup-chart-card .legend-dot {
+  border-radius: 2px;
+}
+
 .legend-dot-backups {
   background: var(--color-accent-blue);
 }
@@ -135,7 +144,7 @@
   display: none;
 }
 
-/* ---------- Mensajes y limitaciones ---------- */
+/* ---------- Mensajes ---------- */
 
 /* Cargando o error, en lugar del gráfico; como .table-message (data-table.css) */
 .backup-chart-message {
@@ -147,13 +156,4 @@
 
 .backup-chart-message[hidden] {
   display: none;
-}
-
-.backup-limitations {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
 }

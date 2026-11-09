@@ -75,22 +75,15 @@
             </div>
           </section>
 
-          <!-- Gráfico de columnas (chart.css): una columna por mes del ciclo lectivo -->
-          <section class="card chart-card backup-chart-card" aria-labelledby="backupChartTitle">
-            <div class="chart-header">
-              <div>
-                <h2 id="backupChartTitle">Backups por mes</h2>
-                <p>Cantidad de backups realizados en cada mes del ciclo lectivo.</p>
-              </div>
-            </div>
-
+          <!-- Gráfico de columnas (chart.css): una columna por mes del ciclo lectivo, sin encabezado,
+               eje vertical ni grilla (el título y la descripción son los de la vista, y cada columna
+               muestra su cantidad encima) -->
+          <section class="card chart-card backup-chart-card" aria-label="Backups por mes">
             <p class="backup-chart-message" role="status">Cargando reporte…</p>
 
-            <!-- backup-regularity-report.js completa el eje, la grilla, las columnas y sus etiquetas -->
+            <!-- backup-regularity-report.js completa las columnas y sus etiquetas -->
             <div class="chart backup-chart" hidden>
-              <div class="chart-y-axis" aria-hidden="true"></div>
               <div class="chart-plot">
-                <div class="chart-gridlines" aria-hidden="true"></div>
                 <div class="chart-bars" role="list" aria-label="Backups por mes"></div>
                 <div class="chart-labels" aria-hidden="true"></div>
               </div>
@@ -100,14 +93,6 @@
               <span class="legend-item"><span class="legend-dot legend-dot-backups"></span>Backups</span>
               <span class="legend-item legend-item-future"><span class="legend-dot legend-dot-future"></span>Mes futuro</span>
             </div>
-
-            <!-- Limitaciones de los datos (plans/reportes-administrador/README.md) -->
-            <p class="backup-limitations">
-              Se registran solo los backups, no los restores. No se guarda la ruta, el tamaño ni el formato
-              de cada archivo, así que no se puede verificar que el archivo siga existiendo. La vista Backup
-              ya lista el historial uno por uno: este reporte aporta solo la cantidad por mes y el último
-              backup. El mes de cada backup se toma en la zona horaria del servidor de la base de datos.
-            </p>
 
             <!-- Plantilla: backup-regularity-report.js la completa con una columna por mes -->
             <template id="backupColumnTemplate">
