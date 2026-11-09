@@ -16,7 +16,7 @@ module.exports = {
   // Reportes y sus tres reportes (plans/reportes-administrador/00-navegacion-y-base.md): sin filas
   // hasta que cada reporte cargue sus datos (partes 01 a 03).
   'admin/reports/index.html': { roles: ['ADMIN'] },
-  // Por defecto, los cursos incompletos del ciclo actual: con alguna materia del plan sin una
+  // Solo los cursos incompletos, del ciclo actual por defecto: con alguna materia del plan sin una
   // asignación vigente de un profesor activo y no dado de baja (parte 01)
   'admin/subject-coverage-report/index.html': {
     roles: ['ADMIN'],

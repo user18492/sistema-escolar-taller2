@@ -435,8 +435,8 @@ group('main.admin.dashboard', 'Administrador: indicadores del inicio', () => {
 });
 
 // Reporte Materias sin docente por curso (plans/reportes-administrador/01-materias-sin-docente.md):
-// por cada curso vigente del ciclo, las materias del plan de su grado sin docente (sin asignación
-// vigente o con el profesor dado de baja) y con un docente suspendido.
+// solo los cursos incompletos del ciclo, con las materias del plan de su grado sin docente (sin
+// asignación vigente o con el profesor dado de baja) y con un docente suspendido.
 group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias sin docente por curso', {
   async setup({ fixtures }) {
     const institutionId = await fixtures.institutionId();
@@ -470,12 +470,15 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     };
   },
 }, () => {
-  const filtersOf = (overrides) => ({ educationLevel: null, shift: null, onlyIncomplete: false, ...overrides });
+  const filtersOf = (overrides) => ({ educationLevel: null, shift: null, ...overrides });
 
-  // Lo esperado de cada curso vigente de la institución en el ciclo `year`, con subconsultas por
+  const isIncomplete = (course) => course.unassigned.length > 0 || course.suspended.length > 0;
+
+  // Lo esperado de cada curso incompleto de la institución en el ciclo `year`, con subconsultas por
   // materia (distinto de la consulta agrupada del repositorio). Sin docente: sin asignación vigente
-  // o con el profesor dado de baja; con docente suspendido: "Materia (Nombre Apellido)".
-  const expectedCourses = async (t, year) => (await t.sql(`
+  // o con el profesor dado de baja; con docente suspendido: "Materia (Nombre Apellido)". Con
+  // `{ all: true }`, también los cursos completos.
+  const expectedCourses = async (t, year, { all = false } = {}) => (await t.sql(`
     SELECT c.curso_id AS id, g.nivel_educativo, c.turno,
            (SELECT COUNT(*) FROM grado_materia gm WHERE gm.grado_id = c.grado_id)::INT AS "subjectCount",
            ARRAY(SELECT m.nombre FROM grado_materia gm JOIN materia m USING (materia_id)
@@ -500,7 +503,7 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     assignedCount: row.subjectCount - row.unassigned.length,
     unassigned: row.unassigned,
     suspended: row.suspended,
-  }));
+  })).filter((course) => all || isIncomplete(course));
 
   // Las filas del reporte con la forma de expectedCourses, por id
   const shownCourses = (courses) => courses
@@ -515,9 +518,9 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     }))
     .sort((a, b) => a.id - b.id);
 
-  const isIncomplete = (course) => course.unassigned.length > 0 || course.suspended.length > 0;
-
-  test('counts', 'Los conteos y las listas de cada curso del ciclo actual coinciden con una consulta propia', async (t) => {
+  test('counts', 'Los conteos y las listas de cada curso incompleto del ciclo actual coinciden con una consulta propia', {
+    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'El reporte trae solo los cursos incompletos: la consulta propia deja afuera los completos' }],
+  }, async (t) => {
     const { partialCourse, activeAssignment, suspendedAssignment, suspendedTeacher } = t.data;
     await t.login('admin');
     const { report } = await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year }));
@@ -536,23 +539,26 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     await t.logout();
   });
 
-  test('only-incomplete', 'Con onlyIncomplete quedan solo los cursos incompletos: el curso completo se excluye y sin él aparece', async (t) => {
+  test('only-incomplete', 'Solo aparecen los cursos incompletos: el curso completo se excluye y el incompleto aparece', {
+    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'Sin onlyIncomplete: un único pedido trae solo los incompletos, sin el curso completo' }],
+  }, async (t) => {
     const { partialCourse, completeCourse } = t.data;
     await t.login('admin');
-    const all = (await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year }))).report.courses;
-    const incomplete = (await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, onlyIncomplete: true }))).report.courses;
-    const complete = all.find((course) => course.id === completeCourse.id);
-    t.require(complete, 'Sin onlyIncomplete, el curso completo no está en el reporte', all);
-    t.equal({ unassigned: complete.unassignedSubjects, suspended: complete.suspendedSubjects, assigned: complete.assignedCount === complete.subjectCount },
-      { unassigned: [], suspended: [], assigned: true }, 'El curso completo tiene todas sus materias asignadas');
-    const expectedIds = (await expectedCourses(t, t.year)).filter(isIncomplete).map((course) => course.id);
-    t.equal(shownCourses(incomplete).map((course) => course.id), expectedIds, 'Con onlyIncomplete, los cursos incompletos de la consulta propia');
-    t.check(!incomplete.some((course) => course.id === completeCourse.id), 'Con onlyIncomplete no aparece el curso completo');
-    t.check(incomplete.some((course) => course.id === partialCourse.id), 'Con onlyIncomplete aparece el curso incompleto');
+    const { courses } = (await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year }))).report;
+    const complete = (await expectedCourses(t, t.year, { all: true })).find((course) => course.id === completeCourse.id);
+    t.require(complete, 'La consulta propia no tiene el curso completo', complete);
+    t.equal({ unassigned: complete.unassigned, suspended: complete.suspended, assigned: complete.assignedCount === complete.subjectCount },
+      { unassigned: [], suspended: [], assigned: true }, 'El curso completo tiene todas sus materias asignadas a profesores activos');
+    t.check(!courses.some((course) => course.id === completeCourse.id), 'No aparece el curso completo');
+    t.check(courses.some((course) => course.id === partialCourse.id), 'Aparece el curso incompleto');
+    t.check(courses.every((course) => course.unassignedSubjects.length > 0 || course.suspendedSubjects.length > 0),
+      'Cada curso del reporte tiene alguna materia sin docente o con un docente suspendido', courses);
     await t.logout();
   });
 
-  test('closed-school-year-deleted-teacher', 'En un ciclo cerrado, la materia de un profesor dado de baja después cuenta como sin docente', async (t) => {
+  test('closed-school-year-deleted-teacher', 'En un ciclo cerrado, la materia de un profesor dado de baja después cuenta como sin docente', {
+    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'El reporte trae solo los cursos incompletos del ciclo cerrado' }],
+  }, async (t) => {
     const { closed } = t.data;
     await t.login('admin');
     const { report } = await t.ok('reports.getSubjectCoverage', filtersOf({ schoolYear: t.year - 1 }));
@@ -566,7 +572,9 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     await t.logout();
   });
 
-  test('scope-and-filters', 'Fuera el curso dado de baja y los de otra institución; Nivel y Turno filtran; un año inválido es INVALID_INPUT', async (t) => {
+  test('scope-and-filters', 'Fuera el curso dado de baja y los de otra institución; Nivel y Turno filtran; un año inválido es INVALID_INPUT', {
+    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'Nivel y Turno filtran los cursos incompletos; onlyIncomplete ya no existe ni se valida' }],
+  }, async (t) => {
     const { deletedCourse, foreignCourse } = t.data;
     await t.login('admin');
     const ids = (courses) => courses.map((course) => course.id);
@@ -591,7 +599,6 @@ group('main.admin.reports.subject-coverage', 'Administrador: reporte Materias si
     }
     await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, educationLevel: 'PRIMARIA' }));
     await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, shift: 'NIGHT' }));
-    await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', filtersOf({ schoolYear: t.year, onlyIncomplete: 'true' }));
     await t.rejects('INVALID_INPUT', 'reports.getSubjectCoverage', null);
     await t.logout();
   });

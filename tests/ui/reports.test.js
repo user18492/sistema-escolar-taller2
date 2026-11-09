@@ -1,8 +1,8 @@
 // Capa ui: Reportes del Administrador (plans/reportes-administrador/). Reportes se abre desde el
 // menú lateral y muestra los tres reportes; cada uno abre su vista, con su barra de filtros, y la
-// ruta de navegación vuelve a Reportes (parte 00). Materias sin docente por curso muestra por
-// defecto los cursos incompletos del ciclo actual; el interruptor, el filtro de año y la paginación
-// (parte 01). Carga docente por profesor muestra una fila por profesor, de mayor a menor, con la
+// ruta de navegación vuelve a Reportes (parte 00). Materias sin docente por curso muestra solo los
+// cursos incompletos, del ciclo actual por defecto; el filtro de año, el mensaje sin resultados y la
+// paginación (parte 01). Carga docente por profesor muestra una fila por profesor, de mayor a menor, con la
 // línea del promedio, el tono de los suspendidos y el tooltip, y el filtro Nivel actualiza las
 // barras (parte 02). Regularidad de los backups muestra 12 columnas con los backups de cada mes, los
 // meses futuros atenuados y el último backup, que no cambia con el ciclo elegido (parte 03).
@@ -48,7 +48,9 @@ group('ui.reports', 'Reportes del Administrador', () => {
 });
 
 // Reporte Materias sin docente por curso (parte 01). Los datos propios aseguran más de 10 cursos
-// incompletos en el ciclo actual (dos páginas), uno completo y uno incompleto del ciclo anterior.
+// incompletos en el ciclo actual (dos páginas), uno completo y uno incompleto del ciclo anterior,
+// y, dos ciclos atrás, un curso de primaria a la mañana con todas sus materias asignadas (sin
+// cursos incompletos con esos filtros).
 group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso', {
   async setup({ fixtures }) {
     const institutionId = await fixtures.institutionId();
@@ -59,33 +61,42 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
     }
     for (let index = 0; index < 11; index += 1) await fixtures.createCourse();
     const closedCourse = await fixtures.inSchoolYear(fixtures.year - 1, () => fixtures.createCourse());
-    return { institutionId, completeCourse, closedCourse };
+    const olderCompleteCourse = await fixtures.inSchoolYear(fixtures.year - 2, async () => {
+      const course = await fixtures.createCourse({ level: 'PRIMARIA', grade: '1°', shift: 'MAÑANA' });
+      for (const subject of await fixtures.subjectsOfGrade(course.gradeId)) {
+        await fixtures.assign({ teacherId: teacher.id, courseId: course.id, subjectName: subject.name });
+      }
+      return course;
+    });
+    return { institutionId, completeCourse, closedCourse, olderCompleteCourse };
   },
 }, () => {
   const VIEW = 'admin/subject-coverage-report/index.html';
   const ROWS = 'tr[data-course-id]';
 
-  // Los cursos vigentes de la institución en el ciclo `year`; con `onlyIncomplete`, solo los que
-  // tienen alguna materia del plan sin docente o con un profesor suspendido (consulta propia)
-  const expectedIds = async (t, year, onlyIncomplete) => (await t.sql(`
-    SELECT c.curso_id FROM curso c
+  // Los cursos incompletos de la institución en el ciclo `year`: los vigentes con alguna materia
+  // del plan sin docente o con un profesor suspendido (consulta propia). `level` y `shift`, con los
+  // valores de la base (PRIMARIA, MAÑANA...), filtran el nivel y el turno; sin ellos, todos.
+  const expectedIds = async (t, year, { level = null, shift = null } = {}) => (await t.sql(`
+    SELECT c.curso_id FROM curso c JOIN grado g USING (grado_id)
      WHERE c.institucion_id = $1 AND c.fecha_eliminacion IS NULL AND c.anio_ciclo_lectivo = $2
-       AND (NOT $3 OR EXISTS (
+       AND ($3::VARCHAR IS NULL OR g.nivel_educativo = $3) AND ($4::VARCHAR IS NULL OR c.turno = $4)
+       AND EXISTS (
          SELECT 1 FROM grado_materia gm
           WHERE gm.grado_id = c.grado_id
             AND NOT EXISTS (SELECT 1 FROM asignacion_docente a JOIN usuario u USING (usuario_id)
                              WHERE a.curso_id = c.curso_id AND a.grado_materia_id = gm.grado_materia_id
-                               AND a.fecha_eliminacion IS NULL AND u.fecha_eliminacion IS NULL AND u.estado)))
-     ORDER BY c.curso_id`, [t.data.institutionId, year, onlyIncomplete])).map((row) => row.curso_id);
+                               AND a.fecha_eliminacion IS NULL AND u.fecha_eliminacion IS NULL AND u.estado))
+     ORDER BY c.curso_id`, [t.data.institutionId, year, level, shift])).map((row) => row.curso_id);
 
-  // Lo que muestra la vista: el ciclo del botón, el interruptor, el total del pie, la página y los
-  // ids de las filas
+  // Lo que muestra la vista: el ciclo del botón, el total del pie, la página, los ids de las filas
+  // y el mensaje de la tabla, si hay
   const viewState = (t) => t.ui.js(`(() => ({
     year: document.querySelector('.report-filters [data-filter="year"] .report-filter-value').textContent.trim(),
-    onlyIncomplete: document.getElementById('onlyIncompleteSwitch').checked,
     total: Number((document.querySelector('table-pagination .results-count').textContent.match(/(\\d+)\\s*$/) || [])[1]),
     page: document.querySelector('table-pagination').page,
     ids: Array.from(document.querySelectorAll(${JSON.stringify(ROWS)}), (row) => Number(row.dataset.courseId)),
+    message: document.querySelector('.coverage-card .table-message')?.textContent.trim() ?? null,
   }))()`);
 
   // Espera que la vista muestre el ciclo `year` con el total de `ids` y la primera página de ellos
@@ -107,47 +118,53 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
     await t.ui.idle();
   };
 
-  test('default-school-year', 'Por defecto muestra los cursos incompletos del ciclo actual, con el interruptor activado', async (t) => {
+  test('default-school-year', 'Por defecto muestra solo los cursos incompletos del ciclo actual, sin interruptor', {
+    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'Sin el interruptor: la barra no lo tiene y la tabla muestra solo los incompletos' }],
+  }, async (t) => {
     await openReport(t);
-    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year, true), label: 'Ciclo actual' });
+    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year), label: 'Ciclo actual' });
     const state = await viewState(t);
-    t.equal(state.onlyIncomplete, true, 'El interruptor arranca activado');
     t.check(!state.ids.includes(t.data.completeCourse.id), 'El curso completo no aparece', state);
+    t.equal(await t.ui.js(`document.querySelectorAll('.report-filters input[type="checkbox"]').length`), 0, 'La barra no tiene un interruptor');
     t.equal(await t.ui.js(`document.querySelector('.report-filters [data-filter="year"] .column-filter-input').value`), '', 'El campo del año queda vacío');
     await logoutViaUi(t);
   });
 
-  test('switch-off', 'Desactivar el interruptor muestra también los cursos completos', async (t) => {
+  test('no-results', 'Sin cursos incompletos con los filtros elegidos, la tabla lo dice', async (t) => {
+    const year = t.year - 2;
+    t.require((await expectedIds(t, year, { level: 'PRIMARIA', shift: 'MAÑANA' })).length === 0,
+      `El ciclo ${year} no tiene que tener cursos incompletos de primaria a la mañana`);
     await openReport(t);
-    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year, true), label: 'Con el interruptor activado' });
-    await t.ui.click('#onlyIncompleteSwitch');
-    const all = await expectedIds(t, t.year, false);
-    await expectRows(t, { year: t.year, ids: all, label: 'Con el interruptor desactivado' });
-    // El curso completo, en la página que le toque
-    const found = await t.ui.waitFor(`(() => {
-      if (document.querySelector('tr[data-course-id="${t.data.completeCourse.id}"]')) return true;
-      document.querySelectorAll('table-pagination .page-nav')[1]?.click();
-      return false;
-    })()`, { timeoutMs: 6000 });
-    t.check(found, 'El curso completo aparece con el interruptor desactivado', await viewState(t));
+    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year), label: 'Ciclo actual' });
+    await typeInColumnFilter(t, 'year', '.column-filter-input', String(year));
+    await chooseColumnFilterOption(t, 'level', 'PRIMARY');
+    await chooseColumnFilterOption(t, 'shift', 'MORNING');
+    await expectRows(t, { year, ids: [], label: 'Primaria a la mañana' });
+    const state = await viewState(t);
+    t.equal(state.message, 'Todos los cursos tienen docente asignado en todas sus materias.', 'El mensaje sin resultados', state);
+    t.check(!state.ids.includes(t.data.olderCompleteCourse.id), 'El curso completo de ese ciclo no aparece', state);
     await logoutViaUi(t);
   });
 
-  test('year-filter', 'Un año en el filtro muestra los cursos de ese ciclo y "Limpiar filtro" vuelve al actual', async (t) => {
+  test('year-filter', 'Un año en el filtro muestra los cursos incompletos de ese ciclo y "Limpiar filtro" vuelve al actual', {
+    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'La consulta propia ya no recibe onlyIncomplete: siempre los incompletos' }],
+  }, async (t) => {
     await openReport(t);
-    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year, true), label: 'Ciclo actual' });
+    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year), label: 'Ciclo actual' });
     await typeInColumnFilter(t, 'year', '.column-filter-input', String(t.year - 1));
-    const closedIds = await expectedIds(t, t.year - 1, true);
+    const closedIds = await expectedIds(t, t.year - 1);
     t.check(closedIds.includes(t.data.closedCourse.id), 'La consulta propia incluye el curso del ciclo anterior', closedIds);
     await expectRows(t, { year: t.year - 1, ids: closedIds, label: 'Ciclo anterior' });
     await clearColumnFilter(t, 'year');
-    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year, true), label: 'Después de "Limpiar filtro"' });
+    await expectRows(t, { year: t.year, ids: await expectedIds(t, t.year), label: 'Después de "Limpiar filtro"' });
     await logoutViaUi(t);
   });
 
-  test('pagination', 'Con más de 10 cursos, la segunda página muestra los siguientes y un cambio de filtro vuelve a la página 1', async (t) => {
+  test('pagination', 'Con más de 10 cursos, la segunda página muestra los siguientes y un cambio de filtro vuelve a la página 1', {
+    history: [{ plan: 'Pedido del 2026-11-09: sin el interruptor "Solo cursos incompletos" (sin plan en plans/)', date: '2026-11-09', change: 'El cambio que vuelve a la página 1 es el de Nivel (Secundaria), no el del interruptor' }],
+  }, async (t) => {
     await openReport(t);
-    const ids = await expectedIds(t, t.year, true);
+    const ids = await expectedIds(t, t.year);
     t.require(ids.length > 10, 'El ciclo actual tiene que tener más de 10 cursos incompletos', ids);
     await expectRows(t, { year: t.year, ids, label: 'Página 1' });
     const firstPage = (await viewState(t)).ids;
@@ -157,10 +174,12 @@ group('ui.reports.subject-coverage', 'Reportes: Materias sin docente por curso',
     const secondPage = (await viewState(t)).ids;
     t.check(ok, 'La página 2 muestra los cursos que siguen', await viewState(t));
     t.check(secondPage.every((id) => ids.includes(id) && !firstPage.includes(id)), 'La página 2 no repite los de la página 1', { firstPage, secondPage });
-    await t.ui.click('#onlyIncompleteSwitch');
+    // Los 11 cursos propios son de secundaria: con Nivel Secundaria sigue habiendo más de una página
+    await chooseColumnFilterOption(t, 'level', 'SECONDARY');
     const back = await t.ui.waitFor(`document.querySelector('table-pagination').page === 1
+      && document.querySelector('.report-filters [data-filter="level"] .report-filter-value').textContent.trim() === 'Secundaria'
       && document.querySelectorAll(${JSON.stringify(ROWS)}).length === 10`, { timeoutMs: 6000 });
-    t.check(back, 'El cambio del interruptor vuelve a la página 1', await viewState(t));
+    t.check(back, 'El cambio de Nivel vuelve a la página 1', await viewState(t));
     await logoutViaUi(t);
   });
 });
