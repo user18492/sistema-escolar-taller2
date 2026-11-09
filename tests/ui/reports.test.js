@@ -769,19 +769,60 @@ group('ui.reports.backup-regularity', 'Reportes: Regularidad de los backups', {
     await logoutViaUi(t);
   });
 
-  test('stable-layout', 'Un cambio de año reemplaza el gráfico sin ocultarlo en el medio: el indicador, el gráfico, su leyenda y las limitaciones no saltan y la página no se desplaza, también en un ciclo sin backups', {
-    history: [{ plan: 'Pedido del 2026-11-09: la tabla de los reportes salta al aplicar un filtro (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  test('chart-card', 'La tarjeta del gráfico tiene solo el gráfico: sin encabezado, eje vertical, grilla ni nota al pie; con los meses, la línea base y la leyenda en cuadrados', {
+    history: [{ plan: 'Pedido del 2026-11-09: simplificar la tarjeta del gráfico de Regularidad de los backups (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' }],
+  }, async (t) => {
+    await openReport(t);
+    for (const year of [t.year, t.year - 1]) {
+      await t.step(`Ciclo ${year}`, async () => {
+        if (year !== t.year) await typeInColumnFilter(t, 'year', '.column-filter-input', String(year));
+        const counts = await expectedCounts(t, year);
+        await expectColumns(t, { year, counts, label: `Ciclo ${year}` });
+        await t.ui.idle({ quietMs: 600 });
+        const card = await t.ui.js(`(() => {
+          const card = document.querySelector('.backup-chart-card');
+          const rect = (el) => el.getBoundingClientRect();
+          const cardRect = rect(card);
+          const bars = card.querySelector('.chart-bars');
+          const values = Array.from(card.querySelectorAll('.backup-value:not([hidden])'), rect);
+          const style = getComputedStyle(card);
+          return {
+            removed: ['.chart-header', 'h2', '.chart-y-axis', '.chart-gridlines', '.backup-limitations'].filter((selector) => card.querySelector(selector)),
+            labels: Array.from(card.querySelectorAll('.chart-col-label'), (label) => label.textContent.trim()),
+            baseline: getComputedStyle(bars).borderBottomStyle + ' ' + getComputedStyle(bars).borderBottomWidth,
+            markers: Array.from(card.querySelectorAll('.legend-item:not([hidden]) .legend-dot'), (dot) => getComputedStyle(dot).borderRadius),
+            valuesInside: values.every((value) => value.top >= cardRect.top + parseFloat(style.paddingTop) - 1),
+            topGap: Math.round(Math.min(...values.map((value) => value.top), rect(bars).top) - cardRect.top),
+            bottomGap: Math.round(cardRect.bottom - rect(card.querySelector('.chart-legend')).bottom),
+          };
+        })()`);
+        t.equal(card.removed, [], 'Sin título, descripción, eje vertical, grilla ni nota al pie');
+        t.equal(card.labels, ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'], 'Los meses en el eje horizontal');
+        t.equal(card.baseline, 'solid 1px', 'La línea base bajo las columnas');
+        t.check(card.markers.length >= 1 && card.markers.every((radius) => radius === '2px'), 'Los marcadores de la leyenda son cuadrados', card.markers);
+        t.check(card.valuesInside, 'Las cantidades quedan dentro del margen de la tarjeta', card);
+        t.check(card.topGap <= 48 && card.bottomGap <= 32, 'Sin huecos arriba ni abajo donde estaban el encabezado y la nota', card);
+      });
+    }
+    await logoutViaUi(t);
+  });
+
+  test('stable-layout', 'Un cambio de año reemplaza el gráfico sin ocultarlo en el medio: el indicador, el gráfico y su leyenda no saltan y la página no se desplaza, también en un ciclo sin backups', {
+    history: [
+      { plan: 'Pedido del 2026-11-09: la tabla de los reportes salta al aplicar un filtro (sin plan en plans/)', date: '2026-11-09', change: 'Prueba nueva' },
+      { plan: 'Pedido del 2026-11-09: simplificar la tarjeta del gráfico de Regularidad de los backups (sin plan en plans/)', date: '2026-11-09', change: 'Sin el eje vertical ni las limitaciones, que se quitaron de la tarjeta' },
+    ],
   }, async (t) => {
     // La caja del gráfico y no la de cada columna: las columnas crecen desde la base en cada carga
     // (chart.css), con una transformación que también cambia su caja
     const LAYOUT = {
       boxes: {
         filters: '.report-filters', lastBackup: '.last-backup-card', card: '.backup-chart-card', chart: '.backup-chart',
-        legend: '.chart-legend', limitations: '.backup-limitations',
+        legend: '.chart-legend',
       },
-      texts: { message: '.backup-chart-message', axis: '.chart-y-axis', values: '.backup-value', lastBackup: '.last-backup-text' },
+      texts: { message: '.backup-chart-message', values: '.backup-value', lastBackup: '.last-backup-text' },
     };
-    const FIXED = ['filters', 'lastBackup', 'card', 'chart', 'legend', 'limitations'];
+    const FIXED = ['filters', 'lastBackup', 'card', 'chart', 'legend'];
     const emptyYear = t.year - 20;
     t.require((await expectedCounts(t, emptyYear)).every((count) => count === 0), `El ciclo ${emptyYear} no tiene que tener backups`);
     await openReport(t);
