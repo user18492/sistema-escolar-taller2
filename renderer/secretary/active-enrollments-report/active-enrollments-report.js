@@ -47,8 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const MAX_NAMED_GRADES = 2;
 
   // Textos de Nivel y de Turno tomados de las opciones del filtro Nivel y de los botones de Turno
-  // del filtro Curso, para que la celda y los botones digan lo mismo que ellos. Llegan como PRIMARY
-  // o SECONDARY y MORNING o AFTERNOON.
+  // del filtro Curso, para que la celda Nivel y los botones digan lo mismo que ellos. Llegan como
+  // PRIMARY o SECONDARY y MORNING o AFTERNOON.
   const labelsOf = (selector) => Object.fromEntries(
     Array.from(document.querySelectorAll(selector), (element) => [element.dataset.value, element.textContent.trim()])
   );
@@ -114,9 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.replaceChildren(row);
   };
 
-  // "1° A · Mañana", como en el formulario y en los reportes del Administrador
-  const courseName = (course) => `${course.gradeName} ${course.division} · ${shiftLabels[course.shift] ?? course.shift}`;
-
   // ---------- Modal: Nueva inscripción ----------
 
   // Si la tabla se volvió a dibujar mientras el modal estaba abierto, el foco pasa a Inscribir en la
@@ -153,12 +150,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const createRow = (course) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.courseId = String(course.id);
-    row.cells[0].textContent = courseName(course);
+    row.cells[0].textContent = courseLabel(course);
     row.cells[1].textContent = levelLabels[course.educationLevel] ?? course.educationLevel;
     row.cells[2].textContent = String(course.activeEnrollmentCount);
-    // "Inscribir en 1° A · Mañana, Primaria": abre el formulario con el curso de la fila
+    // "Inscribir en 1° A, Mañana, Primaria": abre el formulario con el curso de la fila
     const button = row.querySelector('[data-action="enroll"]');
-    button.setAttribute('aria-label', `Inscribir en ${courseName(course)}, ${levelLabels[course.educationLevel] ?? course.educationLevel}`);
+    button.setAttribute('aria-label', `Inscribir en ${courseLabel(course, { level: true })}`);
     button.addEventListener('click', () => {
       enrollmentModal.openForm(button, { preset: { course } });
     });

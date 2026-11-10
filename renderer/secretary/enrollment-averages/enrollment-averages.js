@@ -16,11 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar los promedios. Intentá nuevamente.';
 
-  // Textos de Turno y Nivel educativo, los mismos de Inscripciones. Llegan como MORNING o AFTERNOON
-  // y PRIMARY o SECONDARY.
-  const SHIFT_LABELS = { MORNING: 'Mañana', AFTERNOON: 'Tarde' };
-  const LEVEL_LABELS = { PRIMARY: 'Primaria', SECONDARY: 'Secundaria' };
-
   // Cargando o sin materias, en una única fila de todo el ancho
   const showMessage = (message) => {
     const row = document.createElement('tr');
@@ -35,8 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // es "Apellido, Nombre" y el curso, "1° A, Mañana, Primaria"
   const summaryTexts = ({ student, course }) => ({
     student: `${student.lastName}, ${student.firstName}`,
-    course: `${course.gradeName} ${course.division}, ${SHIFT_LABELS[course.shift] ?? course.shift}, ` +
-      `${LEVEL_LABELS[course.educationLevel] ?? course.educationLevel}`,
+    course: courseLabel(course, { level: true }),
     year: String(course.schoolYear),
   });
 

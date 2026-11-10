@@ -58,8 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const EMPTY_VALUE = '—';
   const ALL_LABEL = 'Todos';
 
-  // Textos de Nivel y Turno tomados de las opciones de sus filtros, para que la celda y el botón
-  // digan lo mismo que ellas. Llegan como PRIMARY o SECONDARY y MORNING o AFTERNOON.
+  // Textos de Nivel y Turno tomados de las opciones de sus filtros, para que la celda Nivel y los
+  // botones digan lo mismo que ellas. Llegan como PRIMARY o SECONDARY y MORNING o AFTERNOON.
   const labelsOf = (selector) => Object.fromEntries(
     Array.from(document.querySelectorAll(`${selector} .dropdown-option[data-value]:not([data-value=""])`),
       (option) => [option.dataset.value, option.textContent.trim()])
@@ -122,9 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.replaceChildren(row);
   };
 
-  // "1° A · Mañana", como en Docencia
-  const courseName = (course) => `${course.gradeName} ${course.division} · ${shiftLabels[course.shift] ?? course.shift}`;
-
   // El curso de una fila como lo recibe el formulario: con el ciclo lectivo del reporte
   const formCourse = (course) => ({
     id: course.id,
@@ -138,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Columnas de materias ----------
 
   // Lo que muestra cada columna de materias: la etiqueta del botón y del modal ("las 5 materias
-  // sin docente de 1° A · Mañana"), las materias de la fila, como { subjectName, teacherName } y
+  // sin docente de 1° A, Mañana"), las materias de la fila, como { subjectName, teacherName } y
   // los ids del reporte, y su acción en el ciclo actual: el texto y lo que abre el formulario
   const SUBJECT_COLUMNS = [
     {
@@ -193,14 +190,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const listModal = setupListModal(listOverlay, { form, focusAfterClose });
 
-  // La acción de una materia ("Asignar Lengua en 1° A · Mañana"): abre el formulario en el modal.
+  // La acción de una materia ("Asignar Lengua en 1° A, Mañana"): abre el formulario en el modal.
   // `fromItem`, si está en la lista del modal; si no, en la celda.
   const createAction = (course, column, item, { fromItem }) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'list-modal-action';
     button.textContent = column.action;
-    button.setAttribute('aria-label', `${column.action} ${item.subjectName} en ${courseName(course)}`);
+    button.setAttribute('aria-label', `${column.action} ${item.subjectName} en ${courseLabel(course)}`);
     button.addEventListener('click', () => {
       if (!fromItem) modalSource = { courseId: course.id, column };
       listModal.openForm(button, column.formOptions(course, item), { fromItem });
@@ -272,9 +269,9 @@ document.addEventListener('DOMContentLoaded', () => {
     summary.querySelector('.list-summary-count').textContent = `${items.length} materias`;
     const button = summary.querySelector('.list-summary-button');
     const title = `Ver las ${items.length} materias ${column.description}`;
-    const label = `Materias ${column.description} de ${courseName(course)}`;
+    const label = `Materias ${column.description} de ${courseLabel(course)}`;
     button.title = title;
-    button.setAttribute('aria-label', `${title} de ${courseName(course)}`);
+    button.setAttribute('aria-label', `${title} de ${courseLabel(course)}`);
     button.addEventListener('click', () => {
       modalSource = { courseId: course.id, column };
       listModal.openList(button, { label, items, renderItem: (item) => createListItem(course, column, item) });
@@ -287,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const createRow = (course) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.courseId = String(course.id);
-    row.cells[0].textContent = courseName(course);
+    row.cells[0].textContent = courseLabel(course);
     row.cells[1].textContent = levelLabels[course.educationLevel] ?? course.educationLevel;
     row.cells[2].textContent = String(course.subjectCount);
     row.cells[3].textContent = String(course.assignedCount);

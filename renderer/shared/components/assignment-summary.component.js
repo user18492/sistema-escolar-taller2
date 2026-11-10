@@ -17,15 +17,14 @@
 (() => {
   const GENERIC_LOAD_ERROR = 'No se pudo cargar la asignación. Intentá nuevamente.';
 
-  // Textos de Turno y Nivel educativo, los mismos del filtro Curso de Asignaciones, que estas
-  // vistas no tienen. Llegan como MORNING o AFTERNOON y PRIMARY o SECONDARY.
-  const SHIFT_LABELS = { MORNING: 'Mañana', AFTERNOON: 'Tarde' };
+  // Textos de Nivel educativo, los mismos del filtro Curso de Asignaciones, que estas vistas no
+  // tienen. Llegan como PRIMARY o SECONDARY.
   const LEVEL_LABELS = { PRIMARY: 'Primaria', SECONDARY: 'Secundaria' };
 
   // Texto de cada dato de la asignación, por su data-field, como en la fila de Asignaciones: el
-  // curso es "1° A · Mañana"
+  // curso es "1° A, Mañana"
   const assignmentTexts = ({ course, subject }) => ({
-    course: `${course.gradeName} ${course.division} · ${SHIFT_LABELS[course.shift] ?? course.shift}`,
+    course: courseLabel(course),
     level: LEVEL_LABELS[course.educationLevel] ?? course.educationLevel,
     subject: subject.name,
     year: String(course.schoolYear),

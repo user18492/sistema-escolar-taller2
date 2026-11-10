@@ -53,15 +53,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const ALL_LABEL = 'Todos';
   const NO_ENROLLMENT_TEXT = '—';
 
-  // Textos de Nivel tomados de las opciones de su filtro, para que la celda y el filtro digan lo
-  // mismo. Llegan como PRIMARY o SECONDARY.
+  // Textos de Nivel tomados de las opciones de su filtro, para el botón del filtro. Llegan como
+  // PRIMARY o SECONDARY.
   const levelLabels = Object.fromEntries(
     Array.from(filterBar.querySelectorAll('#levelFilter .dropdown-option[data-value]:not([data-value=""])'),
       (option) => [option.dataset.value, option.textContent.trim()])
   );
-  // Los mismos textos de Turno y de Estado de una inscripción que Inscripciones
-  const SHIFT_LABELS = { MORNING: 'Mañana', AFTERNOON: 'Tarde' };
+  // Orden de los turnos, que llegan como MORNING o AFTERNOON
   const SHIFT_ORDER = ['MORNING', 'AFTERNOON'];
+  // Los mismos textos de Estado de una inscripción que Inscripciones
   const ENROLLMENT_STATUS_LABELS = { ACTIVE: 'Activa', COMPLETED: 'Finalizada', CANCELLED: 'Cancelada' };
 
   // El valor vigente que muestra el botón de cada filtro (report-filters.css)
@@ -80,12 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // "Álvarez, Camila"
   const fullName = (student) => `${student.lastName ?? ''}, ${student.firstName ?? ''}`;
   const levelLabel = (level) => levelLabels[level] ?? level;
-  // "6° B · Mañana": el grado, la división y el turno de un curso
-  const courseName = (course) => `${course.gradeName} ${course.division} · ${SHIFT_LABELS[course.shift] ?? course.shift}`;
-  // "6° B · Mañana · Secundaria": el curso en Curso, sin el ciclo lectivo
-  const courseWithLevel = (course) => `${courseName(course)} · ${levelLabel(course.educationLevel)}`;
-  // "6° B · Mañana · Secundaria · 2025": la última inscripción
-  const courseWithSchoolYear = (course) => `${courseWithLevel(course)} · ${course.schoolYear}`;
   // Identifica una combinación de nivel, grado, división y turno, de cualquier ciclo lectivo: los
   // cursos con el mismo nombre en Primaria y en Secundaria son distintos
   const courseKey = (course) => [course.educationLevel, course.gradeName, course.division, course.shift].join('|');
@@ -137,7 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
     option.setAttribute('role', 'option');
     option.setAttribute('aria-selected', 'false');
     option.dataset.value = courseKey(course);
-    option.textContent = courseWithLevel(course);
+    // "6° B, Mañana, Secundaria": el curso, sin el ciclo lectivo
+    option.textContent = courseLabel(course, { level: true });
     return option;
   };
 
@@ -150,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activeFilters.course = kept[0] ?? null;
   };
 
-  // "Alumno · gar", "Nivel · Primaria", "Curso · 1° A · Tarde · Primaria"
+  // "Alumno · gar", "Nivel · Primaria", "Curso · 1° A, Tarde, Primaria"
   const renderFilterValues = () => {
     filterValue('student').textContent = activeFilters.text.trim() || ALL_LABEL;
     filterValue('level').textContent = activeFilters.educationLevel ? levelLabel(activeFilters.educationLevel) : ALL_LABEL;
@@ -185,7 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
     row.cells[0].querySelector('.text-truncate').textContent = fullName(student);
     row.cells[1].textContent = formatDni(student.dni ?? '');
     const { lastEnrollment } = student;
-    row.cells[2].textContent = lastEnrollment ? courseWithSchoolYear(lastEnrollment.course) : NO_ENROLLMENT_TEXT;
+    row.cells[2].textContent = lastEnrollment
+      ? courseLabel(lastEnrollment.course, { level: true, schoolYear: true })
+      : NO_ENROLLMENT_TEXT;
     // El estado, como texto plano igual que las demás celdas (sin chip), para que no compita con las
     // acciones de la fila
     row.cells[3].textContent = lastEnrollment

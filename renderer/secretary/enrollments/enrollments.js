@@ -70,16 +70,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // llegaron
   const NO_RESULTS_TEXT = numberHeader.querySelector('.dropdown-empty').textContent;
 
-  // Textos de Estado, Turno y Nivel educativo tomados de las opciones del filtro Estado, de los
-  // botones del filtro Curso y de las opciones de Nueva inscripción, para que la celda diga lo
-  // mismo que ellos. Llegan como ACTIVE, COMPLETED o CANCELLED; MORNING o AFTERNOON, y PRIMARY o
-  // SECONDARY.
+  // Textos de Estado tomados de las opciones del filtro Estado, para que la celda diga lo mismo que
+  // ellas. Llegan como ACTIVE, COMPLETED o CANCELLED.
   const labelsOf = (selector) => Object.fromEntries(
     Array.from(document.querySelectorAll(selector), (element) => [element.dataset.value, element.textContent.trim()])
   );
   const statusLabels = labelsOf('#statusFilter .dropdown-option');
-  const shiftLabels = labelsOf('#courseFilter .course-filter-shift');
-  const levelLabels = labelsOf('[data-filter="new-enrollment-level"] .dropdown-option');
 
   // Lo que filtra cada dato, con los nombres que espera el proceso principal: las inscripciones y
   // los alumnos elegidos (por su id); del curso, los grados marcados, las divisiones escritas y los
@@ -141,8 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // "Apellido, Nombre"
   const fullName = (student) => `${student.lastName ?? ''}, ${student.firstName ?? ''}`;
   // "1° A, Mañana, Primaria"
-  const courseName = (course) =>
-    `${course.gradeName} ${course.division}, ${shiftLabels[course.shift] ?? course.shift}, ${levelLabels[course.educationLevel] ?? course.educationLevel}`;
+  const courseName = (course) => courseLabel(course, { level: true });
   // La fecha llega como 'AAAA-MM-DD' y se muestra como DD/MM/AAAA
   const toDisplayDate = (isoDate) => (isoDate ? isoDate.split('-').reverse().join('/') : '');
 

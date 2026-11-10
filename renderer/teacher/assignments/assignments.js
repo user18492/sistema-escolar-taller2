@@ -24,13 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const GENERIC_LOAD_ERROR = 'No se pudieron cargar las asignaciones. Intentá nuevamente.';
 
-  // Textos de Turno y Nivel educativo tomados de los botones de turno y de las filas de nivel del
-  // filtro Curso, para que la celda diga lo mismo que ellos. Llegan como MORNING o AFTERNOON y
-  // PRIMARY o SECONDARY; `key` es el data-* que guarda ese código.
+  // Textos de Nivel educativo tomados de las filas de nivel del filtro Curso, para que la celda diga
+  // lo mismo que ellas. Llegan como PRIMARY o SECONDARY; `key` es el data-* que guarda ese código.
   const labelsOf = (selector, key) => Object.fromEntries(
     Array.from(document.querySelectorAll(selector), (element) => [element.dataset[key], element.textContent.trim()])
   );
-  const shiftLabels = labelsOf('#courseFilter .course-filter-shift', 'value');
   const levelLabels = labelsOf('#courseFilter [data-level-header]', 'levelHeader');
 
   // En el orden en que llegan del proceso principal
@@ -92,16 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.replaceChildren(row);
   };
 
-  // "1° A · Mañana"
-  const courseName = (course) => `${course.gradeName} ${course.division} · ${shiftLabels[course.shift] ?? course.shift}`;
-
   // Los datos de la base se asignan siempre con textContent, nunca como HTML. La fila lleva el
   // asignacion_docente_id en data-assignment-id.
   const createRow = ({ id, course, subject }) => {
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.assignmentId = String(id);
     const texts = [
-      courseName(course),
+      courseLabel(course),
       levelLabels[course.educationLevel] ?? course.educationLevel,
       subject.name,
       String(course.schoolYear),

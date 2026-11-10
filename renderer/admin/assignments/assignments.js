@@ -126,9 +126,9 @@ document.addEventListener('DOMContentLoaded', () => {
     fillAvatar(row.querySelector('.avatar-circle'), teacher);
     row.querySelector('.teacher-name').textContent = `${teacher.firstName} ${teacher.lastName}`;
     row.querySelector('.teacher-email').textContent = teacher.email;
-    // "1° A · Mañana" y "Primaria", como los dice el formulario
+    // "1° A, Mañana" y "Primaria", como los dice el formulario
     const texts = [
-      form.courseName(course),
+      courseLabel(course),
       form.levelLabel(course.educationLevel),
       subject.name,
       course.schoolYear,

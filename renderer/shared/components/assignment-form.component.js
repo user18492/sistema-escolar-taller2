@@ -49,16 +49,16 @@
 //     loadCurrentSchoolYear, school-year.js) que anuncia el recuadro de un alta y que distingue
 //     los cursos de otro ciclo. La vista lo pasa cuando lo recibe.
 // Ayudas para la vista, con los mismos textos que el formulario: createTeacherOption(teacher) y
-// createSubjectOption(subject) (las opciones de sus filtros Profesor y Materia), courseName(course)
-// ("1° A · Mañana"), levelLabel(level) ("Primaria"), subjectInCourse({ course, subject }) ("Lengua
-// en 1° A de Primaria, turno Mañana"), errorDescription(error) (la descripción de un toast de
-// error), compareCourses(a, b) e insertSorted(items, item, compare) (el orden del listado), y
-// staleAssignmentCodes.
-// Dependencias (scripts sin defer en <head>, antes que este, y sus .css): dropdown.component.js
-// (dropdown.css), searchable-select.component.js (searchable-select.css), field-validation
-// (form-field.css), modal-dropdown.js (modal-dropdown.css), modal-resize.js, modal-focus-trap,
-// user-avatar.component.js, text-truncate.component.js, toast.component.js (toast.css); además
-// buttons.css, info-box.css y assignment-form.css.
+// createSubjectOption(subject) (las opciones de sus filtros Profesor y Materia), levelLabel(level)
+// ("Primaria"), subjectInCourse({ course, subject }) ("Lengua en 1° A de Primaria, turno Mañana"),
+// errorDescription(error) (la descripción de un toast de error), compareCourses(a, b) e
+// insertSorted(items, item, compare) (el orden del listado), y staleAssignmentCodes.
+// Dependencias (scripts sin defer en <head>, antes que este, y sus .css): course-label.component.js
+// (el texto de un curso), dropdown.component.js (dropdown.css), searchable-select.component.js
+// (searchable-select.css), field-validation (form-field.css), modal-dropdown.js
+// (modal-dropdown.css), modal-resize.js, modal-focus-trap, user-avatar.component.js,
+// text-truncate.component.js, toast.component.js (toast.css); además buttons.css, info-box.css y
+// assignment-form.css.
 
 (() => {
   // Etiquetas de Nivel educativo y de Turno, que llegan como PRIMARY o SECONDARY y MORNING o
@@ -97,9 +97,6 @@
 
   const nameCollator = new Intl.Collator('es');
   const compareSubjects = (a, b) => nameCollator.compare(a.name, b.name) || a.id - b.id;
-
-  // "1° A · Mañana"
-  const courseName = (course) => `${course.gradeName} ${course.division} · ${SHIFT_LABELS[course.shift] ?? course.shift}`;
 
   const compareCourses = (a, b) =>
     LEVEL_ORDER.indexOf(a.educationLevel) - LEVEL_ORDER.indexOf(b.educationLevel) ||
@@ -285,7 +282,6 @@
 
     // ---------- Ayudas para la vista ----------
 
-    courseName = courseName;
     subjectInCourse = subjectInCourse;
     errorDescription = errorDescription;
     compareCourses = compareCourses;
@@ -326,8 +322,8 @@
       option.dataset.level = course.educationLevel;
       option.dataset.schoolYear = String(course.schoolYear);
       option.querySelector('.option-name').textContent = course.schoolYear === this.#currentSchoolYear?.year
-        ? courseName(course)
-        : `${courseName(course)} · ${course.schoolYear}`;
+        ? courseLabel(course)
+        : courseLabel(course, { schoolYear: true });
       return option;
     }
 

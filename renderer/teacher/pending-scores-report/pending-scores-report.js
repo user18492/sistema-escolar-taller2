@@ -36,11 +36,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const ALL_LABEL = 'Todos';
   const ALL_SUBJECTS_LABEL = 'Todas';
 
-  // Los mismos textos de Nivel educativo y de Turno que Asignaciones. Llegan como PRIMARY o
-  // SECONDARY y MORNING o AFTERNOON.
+  // Los mismos textos de Nivel educativo que Asignaciones. Llegan como PRIMARY o SECONDARY; el turno,
+  // como MORNING o AFTERNOON.
   const LEVEL_LABELS = { PRIMARY: 'Primaria', SECONDARY: 'Secundaria' };
   const LEVEL_ORDER = ['PRIMARY', 'SECONDARY'];
-  const SHIFT_LABELS = { MORNING: 'Mañana', AFTERNOON: 'Tarde' };
   const SHIFT_ORDER = ['MORNING', 'AFTERNOON'];
 
   // El valor vigente que muestra el botón de cada filtro (report-filters.css)
@@ -59,10 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const activeFilters = { educationLevel: null, course: null, subject: null };
 
   const levelLabel = (level) => LEVEL_LABELS[level] ?? level;
-  // "1° A · Mañana": el grado, la división y el turno de un curso
-  const courseName = (course) => `${course.gradeName} ${course.division} · ${SHIFT_LABELS[course.shift] ?? course.shift}`;
-  // "1° A · Mañana · Primaria": el curso en Curso
-  const courseWithLevel = (course) => `${courseName(course)} · ${levelLabel(course.educationLevel)}`;
   // 'AAAA-MM-DD' → 'DD/MM/AAAA', como en Evaluaciones
   const toDisplayDate = (isoDate) => isoDate.split('-').reverse().join('/');
   // Los días que faltan para el cierre del trimestre
@@ -119,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         || a.gradeName.localeCompare(b.gradeName, 'es', { numeric: true })
         || a.division.localeCompare(b.division)
         || SHIFT_ORDER.indexOf(a.shift) - SHIFT_ORDER.indexOf(b.shift));
-    replaceOptions(courseFilterRoot, 'course', courses.map((course) => createOption(String(course.id), courseWithLevel(course))));
+    replaceOptions(courseFilterRoot, 'course', courses.map((course) => createOption(String(course.id), courseLabel(course, { level: true }))));
   };
 
   // Materia: las materias de las asignaciones que pasan Nivel y Curso, por nombre
@@ -137,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return activeFilters[filterKey] && selected ? selected.textContent.trim() : allLabel;
   };
 
-  // "Curso · 1° A · Mañana · Primaria", "Nivel educativo · Todos", "Materia · Matemática"
+  // "Curso · 1° A, Mañana, Primaria", "Nivel educativo · Todos", "Materia · Matemática"
   const renderFilterValues = () => {
     filterValue('course').textContent = selectedText(courseFilterRoot, 'course', ALL_LABEL);
     filterValue('level').textContent = activeFilters.educationLevel ? levelLabel(activeFilters.educationLevel) : ALL_LABEL;
@@ -176,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { id, title, evaluationDate, term, teacherAssignmentId, course, subject } = evaluation;
     const row = rowTemplate.content.firstElementChild.cloneNode(true);
     row.dataset.evaluationId = String(id);
-    row.querySelector('.course-name').textContent = courseName(course);
+    row.querySelector('.course-name').textContent = courseLabel(course);
     row.querySelector('.course-level').textContent = levelLabel(course.educationLevel);
     row.querySelector('.col-subject .text-truncate').textContent = subject.name;
     row.querySelector('.col-evaluation .text-truncate').textContent = title;

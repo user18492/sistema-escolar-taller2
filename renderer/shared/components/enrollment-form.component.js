@@ -40,20 +40,17 @@
 //     actual; la vista lo llama al cargar. Si no llegan, se vuelven a pedir al abrir el formulario.
 //   - invalidateOptions(): las listas quedaron viejas (p. ej., la vista dio de baja una inscripción
 //     activa y su alumno vuelve a poder inscribirse): se vuelven a pedir al abrir el formulario.
-// Ayudas para la vista, con los mismos textos que el formulario: courseFullName(course) ("1° A,
-// Mañana, Primaria", como lo nombran los toasts) y errorDescription(error) (la descripción de un
-// toast de error).
-// Dependencias (scripts sin defer en <head>, antes que este, y sus .css): dropdown.component.js
-// (dropdown.css), searchable-select.component.js (searchable-select.css), field-validation
-// (form-field.css; formatDni), modal-dropdown.js (modal-dropdown.css), modal-resize.js,
-// modal-focus-trap, text-truncate.component.js, toast.component.js (toast.css); además
-// buttons.css y enrollment-form.css.
+// Ayuda para la vista: errorDescription(error) (la descripción de un toast de error).
+// Dependencias (scripts sin defer en <head>, antes que este, y sus .css): course-label.component.js
+// (el texto de un curso), dropdown.component.js (dropdown.css), searchable-select.component.js
+// (searchable-select.css), field-validation (form-field.css; formatDni), modal-dropdown.js
+// (modal-dropdown.css), modal-resize.js, modal-focus-trap, text-truncate.component.js,
+// toast.component.js (toast.css); además buttons.css y enrollment-form.css.
 
 (() => {
-  // Etiquetas de Nivel educativo y de Turno, que llegan como PRIMARY o SECONDARY y MORNING o
-  // AFTERNOON: las mismas de las opciones del formulario y de los botones del filtro Curso
+  // Etiquetas de Nivel educativo, que llega como PRIMARY o SECONDARY: las mismas de las opciones del
+  // filtro Curso
   const LEVEL_LABELS = { PRIMARY: 'Primaria', SECONDARY: 'Secundaria' };
-  const SHIFT_LABELS = { MORNING: 'Mañana', AFTERNOON: 'Tarde' };
 
   const LEVEL_PLACEHOLDER = 'Seleccionar nivel educativo';
   const COURSE_LOCKED_PLACEHOLDER = 'Selecciona primero un nivel educativo';
@@ -70,11 +67,6 @@
   const COURSE_STALE_CODES = ['COURSE_NOT_FOUND', 'COURSE_DELETED', 'COURSE_OUT_OF_SCHOOL_YEAR'];
   const STALE_OPTION_CODES = [...STUDENT_STALE_CODES, ...COURSE_STALE_CODES];
 
-  // "1° A · Mañana": el nivel educativo ya se eligió en el campo anterior
-  const courseName = (course) => `${course.gradeName} ${course.division} · ${SHIFT_LABELS[course.shift] ?? course.shift}`;
-  // "1° A, Mañana, Primaria"
-  const courseFullName = (course) =>
-    `${course.gradeName} ${course.division}, ${SHIFT_LABELS[course.shift] ?? course.shift}, ${LEVEL_LABELS[course.educationLevel] ?? course.educationLevel}`;
   // "Álvarez, Camila"
   const fullName = (student) => `${student.lastName ?? ''}, ${student.firstName ?? ''}`;
 
@@ -85,7 +77,7 @@
 
   // "Se registró la inscripción INS-000041 de Camila Álvarez en 1° A, Mañana, Primaria."
   const createdDescription = ({ number, student, course }) =>
-    `Se registró la inscripción ${number} de ${student.firstName} ${student.lastName} en ${courseFullName(course)}.`;
+    `Se registró la inscripción ${number} de ${student.firstName} ${student.lastName} en ${courseLabel(course, { level: true })}.`;
 
   const CHEVRON_ICON = `<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 12 15 18 9" />
@@ -186,7 +178,6 @@
 
     // ---------- Ayudas para la vista ----------
 
-    courseFullName = courseFullName;
     errorDescription = errorDescription;
 
     // ---------- Estado ----------
@@ -239,13 +230,13 @@
       return option;
     }
 
-    // "1° A · Mañana": data-level filtra la lista por el nivel educativo elegido. Todos son del
-    // ciclo lectivo actual, así que no llevan el año.
+    // "1° A, Mañana", sin el nivel educativo, que ya se eligió en el campo anterior: data-level
+    // filtra la lista por ese nivel. Todos son del ciclo lectivo actual, así que no llevan el año.
     #createCourseOption(course) {
       const option = this.#cloneTemplate('course-option');
       option.dataset.value = String(course.id);
       option.dataset.level = course.educationLevel;
-      option.querySelector('.option-name').textContent = courseName(course);
+      option.querySelector('.option-name').textContent = courseLabel(course);
       return option;
     }
 

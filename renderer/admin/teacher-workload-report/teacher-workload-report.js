@@ -156,9 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const listName = (teacher) => `${teacher.lastName}, ${teacher.firstName}`;
   const fullName = (teacher) => `${teacher.firstName} ${teacher.lastName}`;
 
-  // "1° A · Mañana — Matemática", con el curso como en Docencia
-  const assignmentText = (assignment) =>
-    `${assignment.gradeName} ${assignment.division} · ${shiftLabels[assignment.shift] ?? assignment.shift} — ${assignment.subjectName}`;
+  // "1° A, Mañana — Matemática", con el curso como en Docencia
+  const assignmentText = (assignment) => `${courseLabel(assignment)} — ${assignment.subjectName}`;
 
   // ---------- Modal: asignaciones de un profesor y formulario ----------
 
@@ -197,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Una asignación de la lista: el curso y la materia y, en el ciclo actual, Reasignar a la derecha
-  // ("Reasignar 1° A · Mañana — Matemática"), que pasa al formulario en el mismo modal
+  // ("Reasignar 1° A, Mañana — Matemática"), que pasa al formulario en el mismo modal
   const createListItem = (teacher, assignment) => {
     const listItem = document.createElement('li');
     const text = document.createElement('span');
