@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Boletines de calificaciones - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/data-table.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-message.css" />
+    <link rel="stylesheet" href="./report-cards.css" />
+    <script src="../../shared/components/drag-guard.component.js"></script>
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/session-user-cache.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/course-label.component.js"></script>
+    <script src="../../shared/components/report-description.component.js"></script>
+    <script src="./report-cards.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <app-sidebar nav-role="secretary" active="reports"></app-sidebar>
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a href="../reports/index.html">Reportes</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Boletines de calificaciones</span>
+            </nav>
+            <div class="page-header">
+              <div>
+                <h1>Boletines de calificaciones</h1>
+                <p><report-description report="report-cards"></report-description></p>
+              </div>
+            </div>
+          </div>
+
+          <section class="card course-picker" aria-labelledby="coursePickerTitle">
+            <div class="section-heading">
+              <span class="section-icon" aria-hidden="true"><img src="../../../resources/School.svg" alt="" /></span>
+              <div>
+                <h2 id="coursePickerTitle">Elegí un curso</h2>
+                <p>Podés consultar el ciclo actual y los anteriores.</p>
+              </div>
+            </div>
+            <fieldset id="courseFilters" disabled aria-labelledby="coursePickerTitle">
+              <div class="filter-grid">
+                <label for="schoolYear">Ciclo lectivo <select id="schoolYear"></select></label>
+                <label for="educationLevel">Nivel
+                  <select id="educationLevel">
+                    <option value="">Todos los niveles</option>
+                    <option value="PRIMARY">Primaria</option>
+                    <option value="SECONDARY">Secundaria</option>
+                  </select>
+                </label>
+                <label for="shift">Turno
+                  <select id="shift">
+                    <option value="">Todos los turnos</option>
+                    <option value="MORNING">Mañana</option>
+                    <option value="AFTERNOON">Tarde</option>
+                  </select>
+                </label>
+                <label for="division">División <select id="division"><option value="">Todas las divisiones</option></select></label>
+              </div>
+              <label class="course-select" for="course">Curso
+                <select id="course"><option value="">Seleccioná un curso</option></select>
+              </label>
+            </fieldset>
+          </section>
+
+          <section class="card roster" aria-labelledby="rosterTitle">
+            <div class="roster-header">
+              <div class="section-heading">
+                <span class="section-icon" aria-hidden="true"><img src="../../../resources/Users.svg" alt="" /></span>
+                <div>
+                  <h2 id="rosterTitle">Alumnos del curso</h2>
+                  <p id="courseSummary">Seleccioná un curso para ver sus boletines.</p>
+                </div>
+              </div>
+              <button id="printCourse" class="btn btn-primary" type="button" disabled>
+                <img src="../../../resources/Printer.svg" alt="" /> Imprimir curso completo
+              </button>
+            </div>
+            <p id="pdfStatus" class="pdf-status" role="status" hidden></p>
+            <p id="reportError" class="form-error" role="alert" hidden></p>
+            <p id="rosterStatus" class="report-message" role="status">Cargando cursos…</p>
+            <div class="table-wrap" id="studentTable" hidden>
+              <table class="data-table" aria-labelledby="rosterTitle">
+                <thead><tr>
+                  <th scope="col">Apellido</th>
+                  <th scope="col">Nombre</th>
+                  <th scope="col">DNI</th>
+                  <th scope="col" class="student-action">Boletín</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+    <template id="studentRow">
+      <tr>
+        <td></td><td></td><td></td>
+        <td class="student-action"><button type="button" class="btn btn-secondary">
+          <img src="../../../resources/Eye.svg" alt="" /> Ver boletín
+        </button></td>
+      </tr>
+    </template>
+  </body>
+</html>

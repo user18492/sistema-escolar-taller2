@@ -92,6 +92,9 @@ module.exports = {
     'reports:get-backup-regularity': { roles: ['ADMIN'], args: [{}] },
     'reports:get-active-enrollments-by-course': { roles: ['SECRETARIO'], args: [{}] },
     'reports:get-students-without-enrollment': { roles: ['SECRETARIO'], args: [] },
+    'reports:get-report-card-courses': { roles: ['SECRETARIO'], args: [{}] },
+    'reports:get-report-card-students': { roles: ['SECRETARIO'], args: [{}] },
+    'reports:open-report-cards': { roles: ['SECRETARIO'], args: [{}] },
     'reports:get-pending-scores': { roles: ['PROFESOR'], args: [] },
     'reports:get-evaluation-failure-rates': { roles: ['PROFESOR'], args: [{}] },
 

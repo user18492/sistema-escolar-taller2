@@ -51,7 +51,8 @@ const COUNT_VISIBLE_BY_TEACHER_ASSIGNMENT_SQL = `
 // Las inscripciones de $1 que no existen, o las de un curso sin asignaciones vigentes, no tienen
 // fila; las canceladas y las dadas de baja tienen fila, con todo NULL (la vista no las incluye).
 // El filtro de la vista va en el CTE, sobre sus columnas de agrupamiento, así PostgreSQL lo aplica
-// antes de agrupar.
+// antes de agrupar. El boletín ($3) muestra los mismos promedios cuando la materia tiene al
+// menos una nota vigente, y deja sin promedio las materias que todavía no tienen ninguna.
 const FIND_AVERAGES_SQL = `
   WITH promedio AS (
     SELECT p.inscripcion_id,
@@ -64,6 +65,7 @@ const FIND_AVERAGES_SQL = `
   )
   SELECT i.inscripcion_id,
          a.asignacion_docente_id,
+         a.grado_materia_id,
          ROUND(MAX(p.promedio) FILTER (WHERE p.trimestre = 1), 2) AS promedio_trimestre_1,
          ROUND(MAX(p.promedio) FILTER (WHERE p.trimestre = 2), 2) AS promedio_trimestre_2,
          ROUND(MAX(p.promedio) FILTER (WHERE p.trimestre = 3), 2) AS promedio_trimestre_3,
@@ -81,6 +83,20 @@ const FIND_AVERAGES_SQL = `
                         AND p.asignacion_docente_id = a.asignacion_docente_id
    WHERE i.inscripcion_id = ANY($1::INT[])
      AND ($2::INT IS NULL OR a.asignacion_docente_id = $2::INT)
+     AND (NOT $3::BOOLEAN OR (
+           i.fecha_eliminacion IS NULL
+           AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
+           AND EXISTS (
+             SELECT 1
+               FROM calificacion ca
+               JOIN evaluacion e ON e.evaluacion_id = ca.evaluacion_id
+              WHERE ca.inscripcion_id = i.inscripcion_id
+                AND ca.fecha_eliminacion IS NULL
+                AND e.asignacion_docente_id = a.asignacion_docente_id
+                AND e.fecha_eliminacion IS NULL
+                AND e.fecha_evaluacion BETWEEN i.fecha_inscripcion AND fn_fecha_actual()
+           )
+         ))
    GROUP BY i.inscripcion_id, a.asignacion_docente_id, c.anio_ciclo_lectivo, ie.nombre
 `;
 
@@ -177,12 +193,13 @@ const toAverageValue = (value) => (value === null ? null : Number(value));
 // dos decimales, o null si el trimestre no tiene evaluaciones tomadas), annualAverage el anual
 // (igual), closedTerms si cada trimestre está cerrado e isAnnualFinal si el anual es definitivo.
 // Que las inscripciones y la asignación se puedan consultar lo comprueba el servicio.
-async function findAverages(enrollmentIds, teacherAssignmentId = null) {
+async function findAverages(enrollmentIds, teacherAssignmentId = null, { requireRecordedGrade = false } = {}) {
   if (enrollmentIds.length === 0) return [];
-  const { rows } = await query(FIND_AVERAGES_SQL, [enrollmentIds, teacherAssignmentId]);
+  const { rows } = await query(FIND_AVERAGES_SQL, [enrollmentIds, teacherAssignmentId, requireRecordedGrade]);
   return rows.map((row) => ({
     enrollmentId: row.inscripcion_id,
     teacherAssignmentId: row.asignacion_docente_id,
+    gradeSubjectId: row.grado_materia_id,
     termAverages: [row.promedio_trimestre_1, row.promedio_trimestre_2, row.promedio_trimestre_3].map(toAverageValue),
     annualAverage: toAverageValue(row.promedio_anual),
     closedTerms: [row.trimestre_1_cerrado, row.trimestre_2_cerrado, row.trimestre_3_cerrado],

@@ -642,6 +642,10 @@ contextBridge.exposeInMainWorld('api', {
     // 'ACTIVE', 'COMPLETED' o 'CANCELLED' y course { id, gradeName, educationLevel, division, shift,
     // schoolYear }, o null si nunca tuvo una. O { ok: false, error: { code, message } }.
     getStudentsWithoutEnrollment: () => ipcRenderer.invoke('reports:get-students-without-enrollment', {}),
+
+    getReportCardCourses: () => ipcRenderer.invoke('reports:get-report-card-courses', {}),
+    getReportCardStudents: (filters) => ipcRenderer.invoke('reports:get-report-card-students', filters),
+    openReportCards: (filters) => ipcRenderer.invoke('reports:open-report-cards', filters),
     // Solo PROFESOR. Reporte Calificaciones pendientes de carga de sus asignaciones, siempre del ciclo
     // lectivo actual. Sin filtros: la vista los aplica sobre la lista completa. Resuelve
     // { ok: true, report } con { schoolYear, assignments, evaluations }: schoolYear, el ciclo actual;

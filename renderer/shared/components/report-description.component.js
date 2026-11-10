@@ -3,7 +3,7 @@
 // encabezado de cada reporte la toman de acá, para que no difieran.
 // Uso: <report-description report="subject-coverage"></report-description>
 //   - "report": subject-coverage | teacher-workload | backup-regularity (Administrador) |
-//     active-enrollments-by-course | students-without-enrollment (Secretario) |
+//     active-enrollments-by-course | students-without-enrollment | report-cards (Secretario) |
 //     pending-scores | evaluation-failure-rates (Profesor).
 
 (() => {
@@ -13,6 +13,7 @@
     'backup-regularity': 'Consulta cuántos backups se hicieron en cada mes del ciclo lectivo y cuántos días pasaron desde el último.',
     'active-enrollments-by-course': 'Consulta la cantidad de inscripciones activas de cada curso en el ciclo lectivo actual.',
     'students-without-enrollment': 'Consulta qué alumnos activos todavía no tienen una inscripción activa en el ciclo lectivo actual.',
+    'report-cards': 'Consulta los boletines de cada alumno o prepara un PDF con todo el curso.',
     'pending-scores': 'Consulta qué evaluaciones ya tomadas tienen alumnos sin nota y cuánto falta para que cierre su trimestre.',
     'evaluation-failure-rates': 'Identifica evaluaciones para revisar según la desaprobación y el avance de la carga de notas.',
   };

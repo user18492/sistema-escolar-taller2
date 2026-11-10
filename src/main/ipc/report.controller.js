@@ -1,6 +1,8 @@
 const { handleProtected } = require('./protected-handler');
 const { failure } = require('./ipc-response');
 const reportService = require('../services/report.service');
+const reportCardService = require('../services/report-card.service');
+const { PdfError } = require('../services/pdf.service');
 
 const { ReportError } = reportService;
 
@@ -14,7 +16,7 @@ function isFilters(value) {
 // reporte de su institución. `errorLabel` completa el mensaje de la consola.
 // Nunca rechaza: los filtros inválidos responden INVALID_INPUT, y si una consulta falla, devuelve
 // un mensaje genérico con el detalle en la consola.
-function reportAction(getReport, errorLabel) {
+function reportAction(getReport, errorLabel, fallbackMessage = 'No se pudo cargar el reporte. Intentá nuevamente.') {
   return async (currentUser, filters) => {
     if (!isFilters(filters)) {
       return failure('INVALID_INPUT', 'Los filtros enviados no son válidos.');
@@ -22,11 +24,11 @@ function reportAction(getReport, errorLabel) {
     try {
       return { ok: true, report: await getReport(currentUser, filters) };
     } catch (error) {
-      if (error instanceof ReportError) {
+      if (error instanceof ReportError || error instanceof PdfError) {
         return failure(error.code, error.message);
       }
-      console.error(`Error al obtener el reporte ${errorLabel}:`, error);
-      return failure('UNEXPECTED_ERROR', 'No se pudo cargar el reporte. Intentá nuevamente.');
+      console.error(`Error en el reporte ${errorLabel}:`, error);
+      return failure('UNEXPECTED_ERROR', fallbackMessage);
     }
   };
 }
@@ -45,6 +47,12 @@ function registerReportHandlers(browserWindow) {
   // Sin filtros: la vista filtra la lista completa (ver getStudentsWithoutEnrollment)
   handleProtected(browserWindow, 'reports:get-students-without-enrollment', ['SECRETARIO'],
     reportAction((currentUser) => reportService.getStudentsWithoutEnrollment(currentUser), 'Alumnos activos sin inscripción'));
+  handleProtected(browserWindow, 'reports:get-report-card-courses', ['SECRETARIO'],
+    reportAction(reportCardService.getReportCardCourses, 'Cursos para boletines'));
+  handleProtected(browserWindow, 'reports:get-report-card-students', ['SECRETARIO'],
+    reportAction(reportCardService.getReportCardStudents, 'Alumnos para boletines'));
+  handleProtected(browserWindow, 'reports:open-report-cards', ['SECRETARIO'],
+    reportAction(reportCardService.openReportCards, 'Boletines de calificaciones', 'No se pudo abrir el PDF de boletines. Intentá nuevamente.'));
   // Sin filtros: la vista filtra la lista completa (ver getPendingScores)
   handleProtected(browserWindow, 'reports:get-pending-scores', ['PROFESOR'],
     reportAction((currentUser) => reportService.getPendingScores(currentUser), 'Calificaciones pendientes de carga'));

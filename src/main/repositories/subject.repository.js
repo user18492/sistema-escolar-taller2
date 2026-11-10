@@ -1,6 +1,14 @@
 const { query } = require('../database/connection');
 const { Subject } = require('../models/subject.model');
 
+const FIND_PLAN_BY_GRADE_SQL = `
+  SELECT gm.grado_materia_id, m.nombre
+    FROM grado_materia gm
+    JOIN materia m ON m.materia_id = gm.materia_id
+   WHERE gm.grado_id = $1
+   ORDER BY m.nombre
+`;
+
 // Materias del plan de estudios del grado de un curso que todavía no tienen un profesor en ese
 // curso: las que no tienen una asignación docente vigente. Una asignación dada de baja no cuenta,
 // igual que para uq_asignacion_docente_curso_grado_materia (db/schema.sql), así que su materia se
@@ -41,4 +49,9 @@ async function findUnassignedByCourse(courseId, excludedTeacherAssignmentId = nu
   return rows.map(toSubject);
 }
 
-module.exports = { findUnassignedByCourse };
+async function findPlanByGrade(gradeId) {
+  const { rows } = await query(FIND_PLAN_BY_GRADE_SQL, [gradeId]);
+  return rows.map((row) => ({ gradeSubjectId: row.grado_materia_id, name: row.nombre }));
+}
+
+module.exports = { findUnassignedByCourse, findPlanByGrade };
