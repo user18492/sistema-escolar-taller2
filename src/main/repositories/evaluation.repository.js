@@ -1,5 +1,9 @@
 const { query } = require('../database/connection');
 const { Evaluation } = require('../models/evaluation.model');
+const { Course } = require('../models/course.model');
+const { Subject } = require('../models/subject.model');
+const { EDUCATION_LEVEL_BY_COLUMN_VALUE } = require('./grade.repository');
+const { SHIFT_BY_COLUMN_VALUE } = require('./course.repository');
 
 // Columnas del trimestre de la evaluación, con su fecha (`dateColumn`): trimestre, su número (1, 2 o
 // 3) con los cortes de fn_trimestre (db/schema.sql), los mismos de los promedios
@@ -75,6 +79,70 @@ const MARK_AS_DELETED_SQL = `
      AND fecha_eliminacion IS NULL
   RETURNING evaluacion_id, asignacion_docente_id, titulo, fecha_evaluacion,
             ${termColumns('fecha_evaluacion')}
+`;
+
+// Calificaciones pendientes de carga del profesor $1 (un usuario_id) en la institución $2: una fila
+// por evaluación vigente de sus asignaciones vigentes de cursos de la institución del ciclo lectivo
+// actual, ya tomada (de hoy o anterior, con la fecha de la base) y de un trimestre abierto, con al
+// menos un alumno pendiente. Solo hace falta mirar la baja de la asignación: su curso está vigente
+// (como en FIND_BY_TEACHER_SQL, teacher-assignment.repository.js).
+// Los alumnos que deben tener nota en la evaluación replican el criterio de vw_promedio_trimestral
+// (db/schema.sql): inscripciones vigentes del curso, con fecha de inscripción no posterior a la de
+// la evaluación, salvo las FINALIZADA, que no se pueden calificar: solo las ACTIVA. El LEFT JOIN
+// trae a lo sumo una calificación vigente por evaluación e inscripción
+// (uq_calificacion_evaluacion_inscripcion), así que COUNT(*) cuenta inscripciones:
+//   - alumnos: las que deben tener nota, con nota o sin ella;
+//   - pendientes: las que no tienen una calificación vigente (sin fila o con la fila dada de baja).
+// fecha_cierre es el último día en que todavía se puede cargar en el trimestre de la evaluación
+// (fn_trimestre_fecha_cierre) y dias_restantes, los días desde hoy hasta esa fecha (0 si es hoy): los
+// calcula la base, con su fecha. El orden es total: el cierre más próximo primero y, después, la
+// fecha de la evaluación, el curso (primaria antes que secundaria, grado, división y turno), la
+// materia, el título y evaluacion_id.
+const FIND_PENDING_SCORES_BY_TEACHER_SQL = `
+  SELECT e.evaluacion_id,
+         e.titulo,
+         to_char(e.fecha_evaluacion, 'YYYY-MM-DD') AS fecha_evaluacion,
+         fn_trimestre(e.fecha_evaluacion) AS trimestre,
+         a.asignacion_docente_id,
+         c.curso_id,
+         g.nombre AS grado_nombre,
+         g.nivel_educativo,
+         c.division,
+         c.turno,
+         c.anio_ciclo_lectivo,
+         m.materia_id,
+         m.nombre AS materia_nombre,
+         COUNT(*) FILTER (WHERE cal.calificacion_id IS NULL)::INT AS pendientes,
+         COUNT(*)::INT AS alumnos,
+         to_char(fn_trimestre_fecha_cierre(c.anio_ciclo_lectivo, fn_trimestre(e.fecha_evaluacion)), 'YYYY-MM-DD') AS fecha_cierre,
+         fn_trimestre_fecha_cierre(c.anio_ciclo_lectivo, fn_trimestre(e.fecha_evaluacion)) - fn_fecha_actual() AS dias_restantes
+    FROM asignacion_docente a
+    JOIN curso c ON c.curso_id = a.curso_id
+    JOIN grado g ON g.grado_id = c.grado_id
+    JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
+    JOIN materia m ON m.materia_id = gm.materia_id
+    JOIN evaluacion e ON e.asignacion_docente_id = a.asignacion_docente_id
+    JOIN inscripcion i ON i.curso_id = c.curso_id
+    JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+    LEFT JOIN calificacion cal ON cal.evaluacion_id = e.evaluacion_id
+                              AND cal.inscripcion_id = i.inscripcion_id
+                              AND cal.fecha_eliminacion IS NULL
+   WHERE a.usuario_id = $1
+     AND c.institucion_id = $2
+     AND a.fecha_eliminacion IS NULL
+     AND e.fecha_eliminacion IS NULL
+     AND i.fecha_eliminacion IS NULL
+     AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual()
+     AND e.fecha_evaluacion <= fn_fecha_actual()
+     AND NOT fn_trimestre_cerrado(c.anio_ciclo_lectivo, fn_trimestre(e.fecha_evaluacion))
+     AND ie.nombre = 'ACTIVA'
+     AND i.fecha_inscripcion <= e.fecha_evaluacion
+   GROUP BY e.evaluacion_id, a.asignacion_docente_id, c.curso_id, g.grado_id, m.materia_id
+  HAVING COUNT(*) FILTER (WHERE cal.calificacion_id IS NULL) > 0
+   ORDER BY fn_trimestre_fecha_cierre(c.anio_ciclo_lectivo, fn_trimestre(e.fecha_evaluacion)),
+            e.fecha_evaluacion,
+            g.nivel_educativo, g.nombre, c.division, c.turno,
+            m.nombre, e.titulo, e.evaluacion_id
 `;
 
 // Índice único y restricciones (con los nombres que les da db/schema.sql) que rechazan un alta, una
@@ -170,6 +238,41 @@ async function markAsDeleted(evaluationId, teacherAssignmentId) {
   return rows.length > 0 ? toEvaluation(rows[0]) : null;
 }
 
+// Calificaciones pendientes de carga del profesor `teacherId` (un usuario_id) en la institución
+// `institutionId`, con el criterio y el orden de FIND_PENDING_SCORES_BY_TEACHER_SQL: una por
+// evaluación ya tomada de un trimestre abierto del ciclo lectivo actual con algún alumno sin nota.
+// Cada una, un objeto plano: { id, title, evaluationDate ('AAAA-MM-DD'), term (1, 2 o 3),
+// teacherAssignmentId, course (un Course), subject (un Subject), pendingCount (los alumnos sin
+// nota), studentCount (los que deben tener nota, con ella o sin ella), closingDate ('AAAA-MM-DD',
+// el último día de carga del trimestre) y daysLeft (los días que faltan hasta closingDate) }.
+// Lista vacía si no tiene ninguna.
+async function findPendingScoresByTeacher(teacherId, institutionId) {
+  const { rows } = await query(FIND_PENDING_SCORES_BY_TEACHER_SQL, [teacherId, institutionId]);
+  return rows.map((row) => ({
+    id: row.evaluacion_id,
+    title: row.titulo,
+    evaluationDate: row.fecha_evaluacion,
+    term: row.trimestre,
+    teacherAssignmentId: row.asignacion_docente_id,
+    course: new Course({
+      id: row.curso_id,
+      gradeName: row.grado_nombre,
+      educationLevel: EDUCATION_LEVEL_BY_COLUMN_VALUE[row.nivel_educativo],
+      division: row.division,
+      shift: SHIFT_BY_COLUMN_VALUE[row.turno],
+      schoolYear: row.anio_ciclo_lectivo,
+    }),
+    subject: new Subject({
+      id: row.materia_id,
+      name: row.materia_nombre,
+    }),
+    pendingCount: row.pendientes,
+    studentCount: row.alumnos,
+    closingDate: row.fecha_cierre,
+    daysLeft: row.dias_restantes,
+  }));
+}
+
 // true si `error` es la violación del índice único de evaluacion: la asignación ya tiene otra
 // evaluación vigente con ese título.
 function isDuplicateError(error) {
@@ -224,6 +327,7 @@ module.exports = {
   create,
   update,
   markAsDeleted,
+  findPendingScoresByTeacher,
   isDuplicateError,
   isDateOutOfSchoolYearError,
   isClosedSchoolYearError,

@@ -61,22 +61,34 @@ LANGUAGE sql IMMUTABLE STRICT AS $$
            END
 $$;
 
+-- Fecha de cierre del trimestre p_trimestre del ciclo lectivo p_anio: el último día en que todavía se
+-- puede cargar o corregir en ese trimestre, que es su último día más el plazo de carga de 7 días,
+-- fijo acá. Así, el 1° cierra el 07/06 y el 2° el 07/09; el 3°, el 31/12, porque el ciclo se cierra
+-- antes de que venza su plazo. Es STRICT: con un año o un trimestre NULL devuelve NULL, y también
+-- con un trimestre que no es 1, 2 ni 3
+CREATE FUNCTION fn_trimestre_fecha_cierre(p_anio INT, p_trimestre INT) RETURNS DATE
+LANGUAGE sql IMMUTABLE STRICT AS $$
+    SELECT LEAST(f.fin + 7, make_date(p_anio, 12, 31))
+      FROM (SELECT CASE p_trimestre
+                       WHEN 1 THEN make_date(p_anio, 5, 31)
+                       WHEN 2 THEN make_date(p_anio, 8, 31)
+                       WHEN 3 THEN make_date(p_anio, 12, 31)
+                   END AS fin) f
+     WHERE f.fin IS NOT NULL
+$$;
+
 -- Si el trimestre p_trimestre del ciclo lectivo p_anio está cerrado: su ciclo está cerrado
--- (fn_ciclo_lectivo_estado), o la fecha actual es posterior al último día del trimestre más el plazo
--- de carga de 7 días, fijo acá. Así, el 1° se cierra el 08/06, el 2° el 08/09 y el 3° con el
--- ciclo (el 01/01 siguiente, antes de que venza su plazo). En un trimestre cerrado no se crea, edita
--- ni da de baja ninguna evaluación, y no se carga, corrige ni da de baja ninguna calificación
+-- (fn_ciclo_lectivo_estado), o la fecha actual es posterior a su fecha de cierre (los cortes y el
+-- plazo de carga están en fn_trimestre_fecha_cierre). Así, el 1° se cierra el 08/06, el 2° el 08/09
+-- y el 3° con el ciclo (el 01/01 siguiente). En un trimestre cerrado no se crea, edita ni da de baja
+-- ninguna evaluación, y no se carga, corrige ni da de baja ninguna calificación
 -- (trg_evaluacion_trimestre_cerrado y trg_calificacion_trimestre_cerrado, más abajo). Es STRICT,
 -- como fn_ciclo_lectivo_estado; con un trimestre que no es 1, 2 ni 3 devuelve NULL, salvo en un
 -- ciclo cerrado
 CREATE FUNCTION fn_trimestre_cerrado(p_anio INT, p_trimestre INT) RETURNS BOOLEAN
 LANGUAGE sql STABLE STRICT AS $$
     SELECT fn_ciclo_lectivo_estado(p_anio) = 'CERRADO'
-           OR fn_fecha_actual() > CASE p_trimestre
-                                      WHEN 1 THEN make_date(p_anio, 5, 31)
-                                      WHEN 2 THEN make_date(p_anio, 8, 31)
-                                      WHEN 3 THEN make_date(p_anio, 12, 31)
-                                  END + 7
+           OR fn_fecha_actual() > fn_trimestre_fecha_cierre(p_anio, p_trimestre)
 $$;
 
 -- Instituciones

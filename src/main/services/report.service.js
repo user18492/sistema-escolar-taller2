@@ -1,7 +1,9 @@
 const teacherAssignmentRepository = require('../repositories/teacher-assignment.repository');
 const backupRepository = require('../repositories/backup.repository');
 const enrollmentRepository = require('../repositories/enrollment.repository');
+const evaluationRepository = require('../repositories/evaluation.repository');
 const schoolYearService = require('./school-year.service');
+const teacherAssignmentService = require('./teacher-assignment.service');
 const { toListedCourse } = require('./course.service');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const courseRepository = require('../repositories/course.repository');
@@ -9,8 +11,9 @@ const { toListedStudent } = require('./student.service');
 
 const { SHIFTS } = courseRepository;
 
-// Reportes de solo lectura de las vistas Reportes del Administrador (plans/reportes-administrador/)
-// y del Secretario (Inscripciones activas por curso y Alumnos activos sin inscripción).
+// Reportes de solo lectura de las vistas Reportes del Administrador (plans/reportes-administrador/),
+// del Secretario (Inscripciones activas por curso y Alumnos activos sin inscripción) y del Profesor
+// (Calificaciones pendientes de carga).
 // Cada uno es de la institución de `currentUser` (el de la sesión), nunca de una que mande la
 // vista.
 // Cada reporte dice además si el ciclo lectivo pedido tiene datos, para que la vista muestre "No
@@ -271,11 +274,50 @@ async function getStudentsWithoutEnrollment(currentUser) {
   return { schoolYear: year, students };
 }
 
+// ---------- Reporte del Profesor: Calificaciones pendientes de carga ----------
+
+// Qué evaluaciones ya tomadas de `currentUser` (el profesor de la sesión) tienen alumnos sin nota y
+// cuánto falta para que cierre su trimestre: las de evaluationRepository.findPendingScoresByTeacher,
+// de sus asignaciones vigentes de cursos de su institución del ciclo lectivo actual, en su orden (el
+// cierre más próximo primero). Cada una { id, title, evaluationDate, term, teacherAssignmentId,
+// course, subject, pendingCount, studentCount, closingDate, daysLeft }, con course los campos de
+// toListedCourse y subject { id, name }. No recibe filtros: Curso, Nivel y Materia los aplica la
+// vista sobre la lista completa, con assignments, las asignaciones vigentes del profesor de ese
+// ciclo (las de listOwnTeacherAssignments), para ofrecer también los cursos y las materias sin
+// pendientes. Resuelve { schoolYear, assignments, evaluations }: schoolYear, el ciclo actual.
+async function getPendingScores(currentUser) {
+  const [rows, ownAssignments, { year }] = await Promise.all([
+    evaluationRepository.findPendingScoresByTeacher(currentUser.id, currentUser.institutionId),
+    // La fila de usuario es de una sola institución: sus asignaciones son todas de la de la sesión
+    teacherAssignmentService.listOwnTeacherAssignments(currentUser),
+    schoolYearService.getCurrentSchoolYear(),
+  ]);
+  const evaluations = rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    evaluationDate: row.evaluationDate,
+    term: row.term,
+    teacherAssignmentId: row.teacherAssignmentId,
+    course: toListedCourse(row.course),
+    subject: { id: row.subject.id, name: row.subject.name },
+    pendingCount: row.pendingCount,
+    studentCount: row.studentCount,
+    closingDate: row.closingDate,
+    daysLeft: row.daysLeft,
+  }));
+  return {
+    schoolYear: year,
+    assignments: ownAssignments.filter((assignment) => assignment.course.schoolYear === year),
+    evaluations,
+  };
+}
+
 module.exports = {
   getSubjectCoverage,
   getTeacherWorkload,
   getBackupRegularity,
   getActiveEnrollmentsByCourse,
   getStudentsWithoutEnrollment,
+  getPendingScores,
   ReportError,
 };

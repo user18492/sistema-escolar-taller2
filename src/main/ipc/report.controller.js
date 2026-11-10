@@ -45,6 +45,9 @@ function registerReportHandlers(browserWindow) {
   // Sin filtros: la vista filtra la lista completa (ver getStudentsWithoutEnrollment)
   handleProtected(browserWindow, 'reports:get-students-without-enrollment', ['SECRETARIO'],
     reportAction((currentUser) => reportService.getStudentsWithoutEnrollment(currentUser), 'Alumnos activos sin inscripción'));
+  // Sin filtros: la vista filtra la lista completa (ver getPendingScores)
+  handleProtected(browserWindow, 'reports:get-pending-scores', ['PROFESOR'],
+    reportAction((currentUser) => reportService.getPendingScores(currentUser), 'Calificaciones pendientes de carga'));
 }
 
 module.exports = { registerReportHandlers };

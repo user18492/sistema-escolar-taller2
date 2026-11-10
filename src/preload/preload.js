@@ -642,6 +642,24 @@ contextBridge.exposeInMainWorld('api', {
     // 'ACTIVE', 'COMPLETED' o 'CANCELLED' y course { id, gradeName, educationLevel, division, shift,
     // schoolYear }, o null si nunca tuvo una. O { ok: false, error: { code, message } }.
     getStudentsWithoutEnrollment: () => ipcRenderer.invoke('reports:get-students-without-enrollment', {}),
+    // Solo PROFESOR. Reporte Calificaciones pendientes de carga de sus asignaciones, siempre del ciclo
+    // lectivo actual. Sin filtros: la vista los aplica sobre la lista completa. Resuelve
+    // { ok: true, report } con { schoolYear, assignments, evaluations }: schoolYear, el ciclo actual;
+    // assignments, sus asignaciones vigentes de ese ciclo ({ id, course, subject }, como en
+    // teacherAssignments.listOwn), de donde salen las opciones de los filtros, y evaluations, sus
+    // evaluaciones vigentes de esas asignaciones ya tomadas (de hoy o anteriores) de un trimestre
+    // abierto con al menos un alumno pendiente: { id, title, evaluationDate ('AAAA-MM-DD'), term
+    // (1, 2 o 3), teacherAssignmentId, course { id, gradeName, educationLevel, division, shift,
+    // schoolYear }, subject { id, name }, pendingCount, studentCount, closingDate ('AAAA-MM-DD'),
+    // daysLeft }. studentCount son los alumnos que deben tener nota en esa evaluación: inscripciones
+    // vigentes y activas del curso con fecha de inscripción no posterior a la de la evaluación (las
+    // finalizadas no se pueden calificar y no cuentan); pendingCount, los de esos sin calificación
+    // vigente. closingDate es el último día en que todavía se puede cargar en su trimestre (07/06,
+    // 07/09 o 31/12) y daysLeft, los días que faltan hasta esa fecha (0 si es hoy), los dos con la
+    // fecha de la base. Ordenadas por el cierre más próximo y, después, la fecha de la evaluación, el
+    // curso (nivel educativo, grado, división y turno), la materia, el título y el id; vacía si no
+    // tiene pendientes. O { ok: false, error: { code, message } }.
+    getPendingScores: () => ipcRenderer.invoke('reports:get-pending-scores', {}),
   },
   backups: {
     // Solo ADMIN. Resuelve { ok: true, backups } con el historial de backups de su institución
