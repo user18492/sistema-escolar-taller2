@@ -13,7 +13,7 @@ const { SHIFTS } = courseRepository;
 
 // Reportes de solo lectura de las vistas Reportes del Administrador (plans/reportes-administrador/),
 // del Secretario (Inscripciones activas por curso y Alumnos activos sin inscripción) y del Profesor
-// (Calificaciones pendientes de carga).
+// (Calificaciones pendientes de carga y Evaluaciones con alta desaprobación).
 // Cada uno es de la institución de `currentUser` (el de la sesión), nunca de una que mande la
 // vista.
 // Cada reporte dice además si el ciclo lectivo pedido tiene datos, para que la vista muestre "No
@@ -39,6 +39,13 @@ const MAX_SCHOOL_YEAR = 2100;
 
 const invalidFilter = (message) => new ReportError('INVALID_INPUT', message);
 
+function parseSchoolYear(schoolYear) {
+  if (!Number.isInteger(schoolYear) || schoolYear < MIN_SCHOOL_YEAR || schoolYear > MAX_SCHOOL_YEAR) {
+    throw invalidFilter('Elegí un ciclo lectivo válido.');
+  }
+  return schoolYear;
+}
+
 // `value` es uno de `codes` o null (todos); sin el campo, también todos.
 const parseOptionalCode = (value, codes, message) => {
   if (value === undefined || value === null) return null;
@@ -52,11 +59,8 @@ const parseOptionalCode = (value, codes, message) => {
 // (MORNING o AFTERNOON), null para todos. Lanza un ReportError INVALID_INPUT si alguno no vale.
 function parseFilters(filters) {
   const { schoolYear, educationLevel, shift } = filters;
-  if (!Number.isInteger(schoolYear) || schoolYear < MIN_SCHOOL_YEAR || schoolYear > MAX_SCHOOL_YEAR) {
-    throw invalidFilter('Elegí un ciclo lectivo válido.');
-  }
   return {
-    schoolYear,
+    schoolYear: parseSchoolYear(schoolYear),
     educationLevel: parseOptionalCode(educationLevel, EDUCATION_LEVELS, 'Elegí un nivel educativo válido.'),
     shift: parseOptionalCode(shift, SHIFTS, 'Elegí un turno válido.'),
   };
@@ -312,6 +316,20 @@ async function getPendingScores(currentUser) {
   };
 }
 
+const PASSING_GRADE = 6;
+
+async function getEvaluationFailureRates(currentUser, filters) {
+  const schoolYear = parseSchoolYear(filters.schoolYear);
+  const rows = await evaluationRepository.findScoreOutcomesByTeacher(
+    currentUser.id, currentUser.institutionId, schoolYear, PASSING_GRADE
+  );
+  const evaluations = rows.map(({ course, ...evaluation }) => ({
+    ...evaluation,
+    course: toListedCourse(course),
+  }));
+  return { schoolYear, passingGrade: PASSING_GRADE, evaluations };
+}
+
 module.exports = {
   getSubjectCoverage,
   getTeacherWorkload,
@@ -319,5 +337,6 @@ module.exports = {
   getActiveEnrollmentsByCourse,
   getStudentsWithoutEnrollment,
   getPendingScores,
+  getEvaluationFailureRates,
   ReportError,
 };

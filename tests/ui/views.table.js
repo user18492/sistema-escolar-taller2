@@ -73,6 +73,8 @@ module.exports = {
 
   'secretary/dashboard/index.html': { roles: ['SECRETARIO'] },
   'secretary/reports/index.html': { roles: ['SECRETARIO'] },
+  'secretary/active-enrollments-report/index.html': { roles: ['SECRETARIO'] },
+  'secretary/students-without-enrollment-report/index.html': { roles: ['SECRETARIO'] },
   'secretary/students/index.html': {
     roles: ['SECRETARIO'],
     rows: { selector: 'tr[data-student-id]', sql: (ctx) => [`SELECT alumno_id FROM alumno WHERE institucion_id = $1 AND fecha_eliminacion IS NULL`, [ctx.institutionId]] },
@@ -96,6 +98,9 @@ module.exports = {
     },
   },
 
+  'teacher/reports/index.html': { roles: ['PROFESOR'] },
+  'teacher/pending-scores-report/index.html': { roles: ['PROFESOR'] },
+  'teacher/evaluation-failure-report/index.html': { roles: ['PROFESOR'] },
   'teacher/assignments/index.html': {
     roles: ['PROFESOR'],
     rows: {

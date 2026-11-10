@@ -48,6 +48,8 @@ function registerReportHandlers(browserWindow) {
   // Sin filtros: la vista filtra la lista completa (ver getPendingScores)
   handleProtected(browserWindow, 'reports:get-pending-scores', ['PROFESOR'],
     reportAction((currentUser) => reportService.getPendingScores(currentUser), 'Calificaciones pendientes de carga'));
+  handleProtected(browserWindow, 'reports:get-evaluation-failure-rates', ['PROFESOR'],
+    reportAction(reportService.getEvaluationFailureRates, 'Evaluaciones con alta desaprobación'));
 }
 
 module.exports = { registerReportHandlers };

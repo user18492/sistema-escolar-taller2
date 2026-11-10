@@ -145,6 +145,53 @@ const FIND_PENDING_SCORES_BY_TEACHER_SQL = `
             m.nombre, e.titulo, e.evaluacion_id
 `;
 
+// Mismo padrón que el detalle de Calificaciones: inscripciones vigentes, activas o finalizadas,
+// al día de la evaluación. El agregado lateral conserva evaluaciones sin alumnos ni notas.
+const FIND_SCORE_OUTCOMES_BY_TEACHER_SQL = `
+  SELECT e.evaluacion_id,
+         e.titulo,
+         to_char(e.fecha_evaluacion, 'YYYY-MM-DD') AS fecha_evaluacion,
+         ${termColumns('e.fecha_evaluacion')},
+         a.asignacion_docente_id,
+         c.curso_id,
+         g.nombre AS grado_nombre,
+         g.nivel_educativo,
+         c.division,
+         c.turno,
+         c.anio_ciclo_lectivo,
+         m.nombre AS materia_nombre,
+         counts.*
+    FROM asignacion_docente a
+    JOIN curso c ON c.curso_id = a.curso_id
+    JOIN grado g ON g.grado_id = c.grado_id
+    JOIN grado_materia gm ON gm.grado_materia_id = a.grado_materia_id
+    JOIN materia m ON m.materia_id = gm.materia_id
+    JOIN evaluacion e ON e.asignacion_docente_id = a.asignacion_docente_id
+   CROSS JOIN LATERAL (
+     SELECT COUNT(*)::INT AS alumnos,
+            COUNT(cal.calificacion_id)::INT AS calificados,
+            COUNT(*) FILTER (WHERE cal.nota < $4::NUMERIC)::INT AS desaprobados,
+            COUNT(*) FILTER (WHERE ie.nombre = 'ACTIVA') > 0 AS tiene_inscripciones_activas
+       FROM inscripcion i
+       JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+       LEFT JOIN calificacion cal ON cal.evaluacion_id = e.evaluacion_id
+                                 AND cal.inscripcion_id = i.inscripcion_id
+                                 AND cal.fecha_eliminacion IS NULL
+      WHERE i.curso_id = c.curso_id
+        AND i.fecha_eliminacion IS NULL
+        AND ie.nombre IN ('ACTIVA', 'FINALIZADA')
+        AND i.fecha_inscripcion <= e.fecha_evaluacion
+   ) counts
+   WHERE a.usuario_id = $1
+     AND c.institucion_id = $2
+     AND c.anio_ciclo_lectivo = $3
+     AND a.fecha_eliminacion IS NULL
+     AND c.fecha_eliminacion IS NULL
+     AND e.fecha_eliminacion IS NULL
+     AND e.fecha_evaluacion <= fn_fecha_actual()
+   ORDER BY e.fecha_evaluacion DESC, e.evaluacion_id DESC
+`;
+
 // Índice único y restricciones (con los nombres que les da db/schema.sql) que rechazan un alta, una
 // edición o una baja de una evaluación por un motivo previsto: la asignación ya tiene otra
 // evaluación vigente con ese título, la fecha no es del ciclo lectivo de su curso (la informa
@@ -238,6 +285,17 @@ async function markAsDeleted(evaluationId, teacherAssignmentId) {
   return rows.length > 0 ? toEvaluation(rows[0]) : null;
 }
 
+function toReportCourse(row) {
+  return new Course({
+    id: row.curso_id,
+    gradeName: row.grado_nombre,
+    educationLevel: EDUCATION_LEVEL_BY_COLUMN_VALUE[row.nivel_educativo],
+    division: row.division,
+    shift: SHIFT_BY_COLUMN_VALUE[row.turno],
+    schoolYear: row.anio_ciclo_lectivo,
+  });
+}
+
 // Calificaciones pendientes de carga del profesor `teacherId` (un usuario_id) en la institución
 // `institutionId`, con el criterio y el orden de FIND_PENDING_SCORES_BY_TEACHER_SQL: una por
 // evaluación ya tomada de un trimestre abierto del ciclo lectivo actual con algún alumno sin nota.
@@ -254,14 +312,7 @@ async function findPendingScoresByTeacher(teacherId, institutionId) {
     evaluationDate: row.fecha_evaluacion,
     term: row.trimestre,
     teacherAssignmentId: row.asignacion_docente_id,
-    course: new Course({
-      id: row.curso_id,
-      gradeName: row.grado_nombre,
-      educationLevel: EDUCATION_LEVEL_BY_COLUMN_VALUE[row.nivel_educativo],
-      division: row.division,
-      shift: SHIFT_BY_COLUMN_VALUE[row.turno],
-      schoolYear: row.anio_ciclo_lectivo,
-    }),
+    course: toReportCourse(row),
     subject: new Subject({
       id: row.materia_id,
       name: row.materia_nombre,
@@ -270,6 +321,25 @@ async function findPendingScoresByTeacher(teacherId, institutionId) {
     studentCount: row.alumnos,
     closingDate: row.fecha_cierre,
     daysLeft: row.dias_restantes,
+  }));
+}
+
+async function findScoreOutcomesByTeacher(teacherId, institutionId, schoolYear, passingGrade) {
+  const { rows } = await query(FIND_SCORE_OUTCOMES_BY_TEACHER_SQL, [teacherId, institutionId, schoolYear, passingGrade]);
+  return rows.map((row) => ({
+    id: row.evaluacion_id,
+    title: row.titulo,
+    evaluationDate: row.fecha_evaluacion,
+    term: row.trimestre,
+    teacherAssignmentId: row.asignacion_docente_id,
+    course: toReportCourse(row),
+    subjectName: row.materia_nombre,
+    studentCount: row.alumnos,
+    gradedCount: row.calificados,
+    passedCount: row.calificados - row.desaprobados,
+    failedCount: row.desaprobados,
+    pendingCount: row.alumnos - row.calificados,
+    isProvisional: !row.trimestre_cerrado && row.tiene_inscripciones_activas,
   }));
 }
 
@@ -328,6 +398,7 @@ module.exports = {
   update,
   markAsDeleted,
   findPendingScoresByTeacher,
+  findScoreOutcomesByTeacher,
   isDuplicateError,
   isDateOutOfSchoolYearError,
   isClosedSchoolYearError,

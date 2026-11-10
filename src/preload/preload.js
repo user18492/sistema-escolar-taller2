@@ -660,6 +660,10 @@ contextBridge.exposeInMainWorld('api', {
     // curso (nivel educativo, grado, división y turno), la materia, el título y el id; vacía si no
     // tiene pendientes. O { ok: false, error: { code, message } }.
     getPendingScores: () => ipcRenderer.invoke('reports:get-pending-scores', {}),
+
+    // PROFESOR. Recibe { schoolYear } y devuelve la nota de aprobación y los conteos por
+    // evaluación tomada de sus asignaciones vigentes. La vista aplica el criterio de revisión.
+    getEvaluationFailureRates: (filters) => ipcRenderer.invoke('reports:get-evaluation-failure-rates', filters),
   },
   backups: {
     // Solo ADMIN. Resuelve { ok: true, backups } con el historial de backups de su institución

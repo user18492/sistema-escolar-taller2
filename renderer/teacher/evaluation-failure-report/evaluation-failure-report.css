@@ -1,0 +1,235 @@
+.failure-controls {
+  display: grid;
+  gap: 14px;
+}
+
+.failure-controls[hidden],
+.failure-summary[hidden],
+.row-detail[hidden],
+.failure-results progress[hidden] {
+  display: none;
+}
+
+.failure-filters,
+.criteria-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px 14px;
+}
+
+.failure-filters label,
+.criteria-fields label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.failure-filters label:last-child {
+  flex: 1 1 230px;
+  max-width: 330px;
+  min-width: 0;
+}
+
+.failure-filters select {
+  appearance: auto;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.failure-criteria {
+  padding: 16px 20px;
+}
+
+.criteria-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.criteria-header h2 {
+  font-size: 15px;
+}
+
+.passing-grade {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--color-accent-blue-bg);
+  color: #1e40af;
+  font-size: 12px;
+}
+
+.criteria-fields {
+  margin-top: 12px;
+}
+
+.criteria-fields .btn {
+  height: 38px;
+}
+
+.failure-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summary-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  color: var(--color-text-primary);
+  text-align: left;
+}
+
+.summary-tile:hover {
+  background: #f9fafb;
+}
+
+.summary-tile[aria-pressed="true"] {
+  border-color: var(--color-accent-blue);
+  background: #eff6ff;
+}
+
+.summary-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-blue-bg);
+}
+
+.summary-tile[data-status="review"] .summary-icon {
+  background: var(--color-accent-red-bg);
+}
+
+.summary-tile[data-status="incomplete"] .summary-icon {
+  background: var(--color-accent-orange-bg);
+}
+
+.summary-icon img {
+  width: 18px;
+  height: 18px;
+}
+
+.summary-label,
+.summary-count {
+  display: block;
+}
+
+.summary-label {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.summary-count {
+  font-size: 23px;
+  font-variant-numeric: tabular-nums;
+}
+
+.failure-results {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+}
+
+.failure-results .data-table {
+  min-width: 640px;
+  font-variant-numeric: tabular-nums;
+}
+
+.failure-results .data-table :is(th, td) {
+  padding-inline: 9px;
+}
+
+.failure-results .data-table tbody th {
+  padding-block: 14px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.failure-results .data-table tbody tr:last-child th {
+  border-bottom: 0;
+}
+
+.failure-results .data-table .evaluation-course,
+.failure-results .data-table th[scope="row"] {
+  max-width: 200px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.row-detail {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.coverage-rate {
+  margin-left: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.failure-results progress {
+  display: block;
+  width: 100%;
+  min-width: 72px;
+  height: 5px;
+  margin: 5px 0;
+  appearance: none;
+  --bar-color: #64748b;
+}
+
+.failure-results progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.failure-results progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--bar-color);
+}
+
+.failure-results .coverage-bar {
+  --bar-color: var(--color-accent-blue);
+}
+
+[data-status="review"] .failure-bar {
+  --bar-color: var(--color-accent-red);
+}
+
+[data-status="incomplete"] .failure-bar {
+  --bar-color: var(--color-accent-orange);
+}
+
+.failure-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+[data-status="review"] .failure-badge {
+  background: var(--color-accent-red-bg);
+  color: #991b1b;
+}
+
+[data-status="incomplete"] .failure-badge {
+  background: var(--color-accent-orange-bg);
+  color: #9a3412;
+}

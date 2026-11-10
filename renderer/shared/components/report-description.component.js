@@ -4,7 +4,7 @@
 // Uso: <report-description report="subject-coverage"></report-description>
 //   - "report": subject-coverage | teacher-workload | backup-regularity (Administrador) |
 //     active-enrollments-by-course | students-without-enrollment (Secretario) |
-//     pending-scores (Profesor).
+//     pending-scores | evaluation-failure-rates (Profesor).
 
 (() => {
   const DESCRIPTIONS = {
@@ -14,6 +14,7 @@
     'active-enrollments-by-course': 'Consulta cuántas inscripciones activas tiene cada curso del ciclo lectivo actual, para elegir en qué división inscribir a un alumno nuevo.',
     'students-without-enrollment': 'Consulta qué alumnos activos todavía no tienen una inscripción activa en el ciclo lectivo actual.',
     'pending-scores': 'Consulta qué evaluaciones ya tomadas tienen alumnos sin nota y cuánto falta para que cierre su trimestre.',
+    'evaluation-failure-rates': 'Identifica evaluaciones para revisar según la desaprobación y el avance de la carga de notas.',
   };
 
   class ReportDescription extends HTMLElement {

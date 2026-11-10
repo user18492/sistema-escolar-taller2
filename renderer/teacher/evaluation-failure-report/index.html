@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evaluaciones con alta desaprobación - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
+    <link rel="stylesheet" href="../../shared/styles/data-table.css" />
+    <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-message.css" />
+    <link rel="stylesheet" href="./evaluation-failure-report.css" />
+    <script src="../../shared/components/drag-guard.component.js"></script>
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/session-user-cache.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/course-label.component.js"></script>
+    <script src="../../shared/components/term-label.component.js"></script>
+    <script src="../../shared/components/report-description.component.js"></script>
+    <script src="../../shared/components/school-year.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
+    <script src="./evaluation-failure-report.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <app-sidebar nav-role="teacher" active="reports"></app-sidebar>
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a href="../reports/index.html">Reportes</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Evaluaciones con alta desaprobación</span>
+            </nav>
+            <div class="page-header">
+              <div>
+                <h1>Evaluaciones con alta desaprobación</h1>
+                <p><report-description report="evaluation-failure-rates"></report-description></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="failure-controls" hidden>
+            <div class="failure-filters" role="group" aria-label="Filtros del reporte">
+              <label>Ciclo lectivo
+                <span class="field"><select id="schoolYear"></select></span>
+              </label>
+              <label>Trimestre
+                <span class="field"><select id="term">
+                  <option value="">Todos</option>
+                  <option value="1">1° trimestre</option>
+                  <option value="2">2° trimestre</option>
+                  <option value="3">3° trimestre</option>
+                </select></span>
+              </label>
+              <label>Curso
+                <span class="field"><select id="course"></select></span>
+              </label>
+            </div>
+
+            <form class="card failure-criteria" aria-labelledby="criteriaTitle" aria-describedby="criteriaHint">
+              <div class="criteria-header">
+                <h2 id="criteriaTitle">Criterios de revisión</h2>
+                <span class="passing-grade">Se aprueba con <strong id="passingGrade"></strong> o más</span>
+              </div>
+              <p class="field-hint" id="criteriaHint">Se marca «Revisar» cuando se cumplen los tres mínimos. La desaprobación se calcula sobre las notas cargadas.</p>
+              <div class="criteria-fields">
+                <label>Desaprobación mínima (%)
+                  <span class="field"><input name="failure" type="number" min="0" max="100" step="1" value="40" required /></span>
+                </label>
+                <label>Mínimo de notas cargadas
+                  <span class="field"><input name="minimum" type="number" min="1" max="2147483647" step="1" value="10" required /></span>
+                </label>
+                <label>Cobertura mínima (%)
+                  <span class="field"><input name="coverage" type="number" min="0" max="100" step="1" value="80" required /></span>
+                </label>
+                <button class="btn btn-secondary" type="submit">Aplicar criterios</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="failure-summary" role="group" aria-label="Filtrar por resultado" hidden>
+            <button class="card summary-tile" type="button" data-status="all" aria-pressed="true" aria-controls="results">
+              <span class="summary-icon"><img src="../../../resources/ChartBar.svg" alt="" /></span>
+              <span><span class="summary-label">Evaluaciones</span><strong class="summary-count"></strong></span>
+            </button>
+            <button class="card summary-tile" type="button" data-status="review" aria-pressed="false" aria-controls="results">
+              <span class="summary-icon"><img src="../../../resources/ExclamationTriangle.svg" alt="" /></span>
+              <span><span class="summary-label">Para revisar</span><strong class="summary-count"></strong></span>
+            </button>
+            <button class="card summary-tile" type="button" data-status="incomplete" aria-pressed="false" aria-controls="results">
+              <span class="summary-icon"><img src="../../../resources/ClipboardDocumentList.svg" alt="" /></span>
+              <span><span class="summary-label">Carga insuficiente</span><strong class="summary-count"></strong></span>
+            </button>
+          </div>
+
+          <section class="card failure-results has-no-data" id="results" aria-label="Resultados por evaluación">
+            <p class="report-message" role="status">Cargando evaluaciones…</p>
+            <div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de resultados">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Evaluación y materia</th>
+                    <th scope="col">Curso</th>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Desaprobación</th>
+                    <th scope="col">Cobertura</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Detalle</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <table-pagination results="" label="Paginación de evaluaciones" pages="1"></table-pagination>
+          </section>
+
+          <template id="evaluationRowTemplate">
+            <tr>
+              <th scope="row"><strong class="evaluation-title"></strong><span class="evaluation-subject row-detail"></span></th>
+              <td class="evaluation-course"></td>
+              <td><time></time><term-label class="row-detail"></term-label></td>
+              <td>
+                <strong class="failure-rate"></strong>
+                <progress class="failure-bar" max="100" aria-hidden="true"></progress>
+                <span class="passed-count row-detail"></span>
+                <span class="failed-count row-detail"></span>
+              </td>
+              <td>
+                <strong class="coverage-count"></strong>
+                <span class="coverage-rate"></span>
+                <progress class="coverage-bar" max="100" aria-hidden="true"></progress>
+                <span class="pending-count row-detail"></span>
+              </td>
+              <td><span class="failure-badge"></span><span class="provisional row-detail" hidden>Provisorio</span></td>
+              <td><a class="manage-link" href="../evaluation-scores/index.html">Ver notas</a></td>
+            </tr>
+          </template>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

@@ -75,6 +75,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const assignmentId = params.get('assignmentId');
   const evaluationId = params.get('evaluationId');
+  if (params.has('failureReport')) {
+    const reportLink = document.getElementById('returnToFailureReport');
+    reportLink.search = new URLSearchParams(params.get('failureReport')).toString();
+    reportLink.parentElement.hidden = false;
+  }
 
   if (assignmentId) {
     const query = new URLSearchParams({ assignmentId }).toString();

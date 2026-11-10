@@ -90,6 +90,10 @@ module.exports = {
     'reports:get-subject-coverage': { roles: ['ADMIN'], args: [{}] },
     'reports:get-teacher-workload': { roles: ['ADMIN'], args: [{}] },
     'reports:get-backup-regularity': { roles: ['ADMIN'], args: [{}] },
+    'reports:get-active-enrollments-by-course': { roles: ['SECRETARIO'], args: [{}] },
+    'reports:get-students-without-enrollment': { roles: ['SECRETARIO'], args: [] },
+    'reports:get-pending-scores': { roles: ['PROFESOR'], args: [] },
+    'reports:get-evaluation-failure-rates': { roles: ['PROFESOR'], args: [{}] },
 
     'backups:list': { roles: ['ADMIN'], args: [] },
     // Un formato inválido: el ADMIN recibe INVALID_INPUT y no se escribe nada
