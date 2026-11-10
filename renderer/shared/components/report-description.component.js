@@ -11,7 +11,7 @@
     'teacher-workload': 'Consulta cuántas asignaciones tiene cada profesor en el ciclo lectivo, con el curso y la materia de cada una.',
     'backup-regularity': 'Consulta cuántos backups se hicieron en cada mes del ciclo lectivo y cuántos días pasaron desde el último.',
     'active-enrollments-by-course': 'Consulta cuántas inscripciones activas tiene cada curso del ciclo lectivo actual, para elegir en qué división inscribir a un alumno nuevo.',
-    'students-without-enrollment': 'Consulta qué alumnos activos todavía no tienen una inscripción activa en el ciclo lectivo actual, con su última inscripción, para inscribirlos, pasarlos a egresados o darlos de baja.',
+    'students-without-enrollment': 'Consulta qué alumnos activos todavía no tienen una inscripción activa en el ciclo lectivo actual.',
   };
 
   class ReportDescription extends HTMLElement {

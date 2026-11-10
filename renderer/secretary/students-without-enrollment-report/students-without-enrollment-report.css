@@ -1,6 +1,6 @@
 /* Reporte Alumnos activos sin inscripción (Secretario). La ruta de navegación la aporta
-   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css; el estado de la
-   inscripción, badge.css; las acciones de texto y el modal, list-modal.css, y los formularios del
+   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css (el estado de la
+   inscripción va como texto plano, sin chip); las acciones de texto y el modal, list-modal.css, y los formularios del
    modal, enrollment-form.css y student-form.css. Aquí, la card de la tabla (como la de
    Inscripciones activas por curso) y los anchos de sus columnas. */
 

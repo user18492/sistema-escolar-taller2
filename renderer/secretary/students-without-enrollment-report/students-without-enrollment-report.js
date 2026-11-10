@@ -186,15 +186,11 @@ document.addEventListener('DOMContentLoaded', () => {
     row.cells[1].textContent = formatDni(student.dni ?? '');
     const { lastEnrollment } = student;
     row.cells[2].textContent = lastEnrollment ? courseWithSchoolYear(lastEnrollment.course) : NO_ENROLLMENT_TEXT;
-    if (lastEnrollment) {
-      // <status-badge> lee sus atributos al conectarse: se fijan antes de insertar la fila
-      const badge = document.createElement('status-badge');
-      badge.setAttribute('status', lastEnrollment.status.toLowerCase());
-      badge.setAttribute('label', ENROLLMENT_STATUS_LABELS[lastEnrollment.status] ?? lastEnrollment.status);
-      row.cells[3].append(badge);
-    } else {
-      row.cells[3].textContent = NO_ENROLLMENT_TEXT;
-    }
+    // El estado, como texto plano igual que las demás celdas (sin chip), para que no compita con las
+    // acciones de la fila
+    row.cells[3].textContent = lastEnrollment
+      ? ENROLLMENT_STATUS_LABELS[lastEnrollment.status] ?? lastEnrollment.status
+      : NO_ENROLLMENT_TEXT;
     // "Inscribir a Álvarez, Camila", "Editar a…", "Dar de baja a…"
     row.querySelectorAll('[data-action]').forEach((button) => {
       button.setAttribute('aria-label', `${button.textContent.trim()} a ${fullName(student)}`);
