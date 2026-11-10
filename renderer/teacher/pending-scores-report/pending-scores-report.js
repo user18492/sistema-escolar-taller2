@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const subjectFilterRoot = filterRoot('subject');
 
   const GENERIC_LOAD_ERROR = 'No se pudo cargar el reporte. Intentá nuevamente.';
-  const EMPTY_MESSAGE = 'Ninguna evaluación coincide con los filtros.';
+  const EMPTY_MESSAGE = 'No existen evaluaciones asociadas a los filtros aplicados.';
   const ALL_LABEL = 'Todos';
   const ALL_SUBJECTS_LABEL = 'Todas';
 

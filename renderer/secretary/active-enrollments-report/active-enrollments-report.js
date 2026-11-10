@@ -4,9 +4,9 @@
 // (window.api.reports.getActiveEnrollmentsByCourse), en una tabla por nivel educativo, grado y
 // división (el orden llega del proceso principal), así las divisiones de un mismo grado quedan
 // juntas.
-// Los filtros se aplican en el proceso principal: con cada cambio de la barra (Curso, con
-// <course-filter>, y Nivel, column-filter.js), la vista vuelve a pedir el reporte y vuelve a la
-// página 1. Las filas se paginan en memoria, 10 por página, con <table-pagination>. Si ningún curso
+// El filtro Curso (<course-filter>, el de Inscripciones: grado y nivel educativo, división y turno)
+// se aplica en el proceso principal: con cada cambio, la vista vuelve a pedir el reporte y vuelve a
+// la página 1. Las filas se paginan en memoria, 10 por página, con <table-pagination>. Si ningún curso
 // coincide con los filtros, la tabla lo dice.
 // Cada fila lleva Inscribir, que abre en un modal el formulario "Nueva inscripción" de Inscripciones
 // (<enrollment-form>, enrollment-form.component.js) con el nivel educativo y el curso de la fila
@@ -42,21 +42,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const GENERIC_LOAD_ERROR = 'No se pudo cargar el reporte. Intentá nuevamente.';
   const EMPTY_MESSAGE = 'Ningún curso coincide con los filtros.';
-  const ALL_LABEL = 'Todos';
-  // Con más grados elegidos, el botón del filtro Curso dice cuántos en lugar de nombrarlos
-  const MAX_NAMED_GRADES = 2;
 
-  // Textos de Nivel y de Turno tomados de las opciones del filtro Nivel y de los botones de Turno
-  // del filtro Curso, para que la celda Nivel y los botones digan lo mismo que ellos. Llegan como
-  // PRIMARY o SECONDARY y MORNING o AFTERNOON.
-  const labelsOf = (selector) => Object.fromEntries(
-    Array.from(document.querySelectorAll(selector), (element) => [element.dataset.value, element.textContent.trim()])
+  // Textos de Nivel tomados de los niveles de Grado del filtro Curso, para que la celda Nivel diga lo
+  // mismo que él. Llegan como PRIMARY o SECONDARY.
+  const levelLabels = Object.fromEntries(
+    Array.from(courseFilter.querySelectorAll('[data-level-header]'),
+      (header) => [header.dataset.levelHeader, header.querySelector('.grade-level-label').textContent.trim()])
   );
-  const levelLabels = labelsOf('#levelFilter .dropdown-option[data-value]:not([data-value=""])');
-  const shiftLabels = labelsOf('#courseFilter .course-filter-shift');
 
-  // El valor vigente que muestra el botón de cada filtro (report-filters.css)
-  const filterValue = (filter) => filterBar.querySelector(`[data-filter="${filter}"] .report-filter-value`);
+  // El valor vigente que muestra el botón del filtro Curso (report-filters.css)
+  const courseFilterValue = filterBar.querySelector('[data-filter="course"] .report-filter-value');
 
   // Los cursos del último reporte recibido, en el orden en que llegan del proceso principal
   let courses = [];
@@ -64,37 +59,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cada pedido lleva un número: si llega la respuesta de uno anterior al último, se descarta
   let requestNumber = 0;
 
-  // Lo que filtra cada dato, con los nombres que espera el proceso principal: el nivel educativo
-  // (null = todos) y, del filtro Curso, los grados, las divisiones y los turnos (vacíos = todos)
-  const activeFilters = { educationLevel: null, grades: [], divisions: [], shifts: [] };
+  // Lo que filtra el filtro Curso, con los nombres que espera el proceso principal: los grados, las
+  // divisiones y los turnos (vacíos = todos)
+  const activeFilters = { grades: [], divisions: [], shifts: [] };
 
-  // Valores de activeFilters que fija cada filtro de la barra, por su data-filter, después de un
-  // cambio: los de Curso los da su componente y el nivel llega en el detalle de column-filter-change
-  const FILTER_VALUES = {
-    course: () => ({
-      grades: courseFilter.selectedGrades.map(({ level, name }) => ({ educationLevel: level, gradeName: name })),
-      divisions: courseFilter.selectedDivisions,
-      shifts: courseFilter.selectedShifts,
-    }),
-    level: ({ values }) => ({ educationLevel: values[0] ?? null }),
-  };
+  // Valores de activeFilters después de un cambio del filtro Curso: los da su componente
+  const courseFilterValues = () => ({
+    grades: courseFilter.selectedGrades.map(({ level, name }) => ({ educationLevel: level, gradeName: name })),
+    divisions: courseFilter.selectedDivisions,
+    shifts: courseFilter.selectedShifts,
+  });
 
-  // Lo elegido en Curso, en pocas palabras: "1° Primaria, División A, Mañana", "3 grados,
-  // Divisiones A, B" o "Todos". Los dos turnos equivalen a no filtrar por turno.
-  const courseFilterText = () => {
-    const { grades, divisions, shifts } = activeFilters;
-    const parts = [];
-    if (grades.length > MAX_NAMED_GRADES) parts.push(`${grades.length} grados`);
-    else grades.forEach(({ educationLevel, gradeName }) => parts.push(`${gradeName} ${levelLabels[educationLevel] ?? educationLevel}`));
-    if (divisions.length) parts.push(`${divisions.length === 1 ? 'División' : 'Divisiones'} ${divisions.join(', ')}`);
-    if (shifts.length === 1) parts.push(shiftLabels[shifts[0]] ?? shifts[0]);
-    return parts.length ? parts.join(', ') : ALL_LABEL;
-  };
-
-  // "Curso · 1° Primaria", "Nivel · Todos"
+  // "Curso · 1° Primaria, División A" (course-filter-text.component.js)
   const renderFilterValues = () => {
-    filterValue('course').textContent = courseFilterText();
-    filterValue('level').textContent = levelLabels[activeFilters.educationLevel] ?? ALL_LABEL;
+    courseFilterValue.textContent = courseFilterText(courseFilter);
   };
 
   // Con `hasNoData`, la card muestra solo el mensaje de ciclo sin cursos; si no, la tabla
@@ -204,10 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRows(keepPage ? {} : { page: 1 });
   }
 
-  // Cada filtro de la barra avisa sus cambios (column-filter.js). Si lo que filtra no cambió (Curso
-  // avisa cada clic y cada tecla dentro de su panel), el reporte queda como está.
-  filterBar.addEventListener('column-filter-change', (event) => {
-    const values = FILTER_VALUES[event.target.dataset.filter](event.detail);
+  // El filtro Curso avisa sus cambios (column-filter.js). Si lo que filtra no cambió (avisa cada clic
+  // y cada tecla dentro de su panel), el reporte queda como está.
+  filterBar.addEventListener('column-filter-change', () => {
+    const values = courseFilterValues();
     const hasChanged = Object.entries(values).some(([filter, value]) => JSON.stringify(value) !== JSON.stringify(activeFilters[filter]));
     if (!hasChanged) return;
     Object.assign(activeFilters, values);

@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
     <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/grade-dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/course-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
     <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
@@ -31,9 +33,11 @@
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="../../shared/components/report-description.component.js"></script>
+    <script src="../../shared/components/grade-dropdown.js"></script>
+    <script src="../../shared/components/course-filter.js"></script>
+    <script src="../../shared/components/course-filter-text.component.js"></script>
     <script src="../../shared/components/column-filter.js"></script>
     <script src="../../shared/components/column-filter-toggle.component.js"></script>
-    <script src="../../shared/components/search-bar.component.js"></script>
     <script src="../../shared/components/modal-resize.js"></script>
     <script src="../../shared/components/modal-dropdown.js"></script>
     <script src="../../shared/components/modal-focus-trap.component.js"></script>
@@ -73,9 +77,9 @@
             </div>
           </div>
 
-          <!-- Barra de filtros (report-filters.css): cada botón muestra el valor vigente. Los tres se
-               aplican sobre la última inscripción del alumno; Curso solo ofrece los del nivel
-               elegido en Nivel. -->
+          <!-- Barra de filtros (report-filters.css): cada botón muestra el valor vigente. Curso
+               incrusta <course-filter>, el mismo filtro compuesto de la tabla de Inscripciones, y
+               se aplica sobre el curso de la última inscripción del alumno. -->
           <div class="report-filters" role="group" aria-label="Filtros del reporte">
             <div class="column-filter" data-filter="student">
               <column-filter-toggle target="studentFilter" heading="Alumno" value="Todos" label="Filtrar por alumno"></column-filter-toggle>
@@ -86,27 +90,10 @@
                 <button type="button" class="column-filter-clear">Limpiar filtro</button>
               </div>
             </div>
-            <div class="column-filter" data-filter="level">
-              <column-filter-toggle target="levelFilter" heading="Nivel" value="Todos" label="Filtrar por nivel"></column-filter-toggle>
-              <div id="levelFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por nivel">
-                <ul class="dropdown-menu" role="listbox" aria-label="Nivel">
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-option" role="option" data-value="PRIMARY" aria-selected="false">Primaria</li>
-                  <li class="dropdown-option" role="option" data-value="SECONDARY" aria-selected="false">Secundaria</li>
-                </ul>
-                <button type="button" class="column-filter-clear">Limpiar filtro</button>
-              </div>
-            </div>
-            <!-- Las opciones (grado, división, turno y nivel, de cualquier ciclo lectivo) las arma
-                 students-without-enrollment-report.js con las últimas inscripciones del reporte -->
             <div class="column-filter" data-filter="course">
               <column-filter-toggle target="courseFilter" heading="Curso" value="Todos" label="Filtrar por curso"></column-filter-toggle>
-              <div id="courseFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por curso">
-                <search-bar placeholder="Buscar curso"></search-bar>
-                <ul class="dropdown-menu" role="listbox" aria-label="Curso">
-                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
-                  <li class="dropdown-empty" hidden>Sin resultados</li>
-                </ul>
+              <div id="courseFilter" class="column-filter-panel column-filter-grade" popover="auto" role="group" aria-label="Filtrar por curso">
+                <course-filter></course-filter>
                 <button type="button" class="column-filter-clear">Limpiar filtro</button>
               </div>
             </div>

@@ -4,12 +4,11 @@
 // apellido y nombre (el orden llega del proceso principal). Cada fila muestra además la última
 // inscripción vigente del alumno, de cualquier ciclo lectivo, y su estado; un alumno que nunca tuvo
 // una muestra un guion.
-// Los filtros se aplican en memoria sobre la lista completa, porque las opciones de Curso salen de
-// las últimas inscripciones de todos los alumnos del reporte: Alumno busca por apellido, nombre o
-// DNI; Nivel y Curso miran la última inscripción, así que mientras alguno filtra no aparecen los
-// alumnos sin inscripciones. Curso ofrece cada combinación de grado, división, turno y nivel (de
-// cualquier ciclo) y, con un nivel elegido, solo las de ese nivel. Con cada cambio, la tabla vuelve a
-// la página 1; se pagina en memoria, 10 por página, con <table-pagination>.
+// Los filtros se aplican en memoria sobre la lista completa: Alumno busca por apellido, nombre o
+// DNI; Curso (<course-filter>, el de Inscripciones: grado y nivel educativo, división y turno) mira
+// el curso de la última inscripción, de cualquier ciclo, así que mientras filtra no aparecen los
+// alumnos sin inscripciones. Con cada cambio, la tabla vuelve a la página 1; se pagina en memoria,
+// 10 por página, con <table-pagination>.
 // Cada fila lleva tres acciones, que abren sobre el reporte los mismos formularios de Inscripciones
 // y de Alumnos:
 //   - Inscribir: "Nueva inscripción" (<enrollment-form>) con el alumno cargado y bloqueado; se eligen
@@ -41,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Los scripts de los componentes se cargan sin defer en <head>: acá ya están definidos y
   // conectados
   const pagination = card.querySelector('table-pagination');
-  const courseFilterRoot = filterBar.querySelector('[data-filter="course"]');
+  const courseFilter = filterBar.querySelector('course-filter');
   const enrollmentOverlay = document.getElementById('newEnrollmentOverlay');
   const enrollmentForm = enrollmentOverlay.querySelector('enrollment-form');
   const studentOverlay = document.getElementById('editStudentOverlay');
@@ -53,14 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const ALL_LABEL = 'Todos';
   const NO_ENROLLMENT_TEXT = '—';
 
-  // Textos de Nivel tomados de las opciones de su filtro, para el botón del filtro. Llegan como
-  // PRIMARY o SECONDARY.
-  const levelLabels = Object.fromEntries(
-    Array.from(filterBar.querySelectorAll('#levelFilter .dropdown-option[data-value]:not([data-value=""])'),
-      (option) => [option.dataset.value, option.textContent.trim()])
-  );
-  // Orden de los turnos, que llegan como MORNING o AFTERNOON
-  const SHIFT_ORDER = ['MORNING', 'AFTERNOON'];
   // Los mismos textos de Estado de una inscripción que Inscripciones
   const ENROLLMENT_STATUS_LABELS = { ACTIVE: 'Activa', COMPLETED: 'Finalizada', CANCELLED: 'Cancelada' };
 
@@ -73,16 +64,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cada pedido lleva un número: si llega la respuesta de uno anterior al último, se descarta
   let requestNumber = 0;
 
-  // Lo que filtra cada filtro de la barra: el texto de Alumno ('' = todos), el nivel educativo
-  // (null = todos) y la clave de un curso (courseKey; null = todos)
-  const activeFilters = { text: '', educationLevel: null, course: null };
+  // Lo que filtra cada filtro de la barra: el texto de Alumno ('' = todos) y, del filtro Curso, los
+  // grados (gradeKey), las divisiones y los turnos (vacíos = todos)
+  const activeFilters = { text: '', grades: [], divisions: [], shifts: [] };
 
   // "Álvarez, Camila"
   const fullName = (student) => `${student.lastName ?? ''}, ${student.firstName ?? ''}`;
-  const levelLabel = (level) => levelLabels[level] ?? level;
-  // Identifica una combinación de nivel, grado, división y turno, de cualquier ciclo lectivo: los
-  // cursos con el mismo nombre en Primaria y en Secundaria son distintos
-  const courseKey = (course) => [course.educationLevel, course.gradeName, course.division, course.shift].join('|');
+  // Un grado se repite entre niveles educativos (hay un 1° de primaria y otro de secundaria): se lo
+  // identifica con los dos datos
+  const gradeKey = (level, name) => `${level}:${name}`;
 
   // ---------- Filtros ----------
 
@@ -100,64 +90,36 @@ document.addEventListener('DOMContentLoaded', () => {
       .some((name) => normalize(name).includes(query));
   };
 
-  // Nivel y Curso miran la última inscripción: sin ella, el alumno no pasa ninguno de los dos
-  const matchesFilters = (student) => {
-    if (!matchesText(student)) return false;
-    const { educationLevel, course } = activeFilters;
-    if (!educationLevel && !course) return true;
+  // Curso mira el curso de la última inscripción: sin ella, el alumno no pasa el filtro. Grado,
+  // división y turno se combinan con Y; uno vacío no descarta nada, y con los dos turnos activos
+  // pasan todos, igual que sin ninguno.
+  const matchesCourse = (student) => {
+    const { grades, divisions, shifts } = activeFilters;
+    if (!grades.length && !divisions.length && !shifts.length) return true;
     const lastCourse = student.lastEnrollment?.course;
     if (!lastCourse) return false;
-    return (!educationLevel || lastCourse.educationLevel === educationLevel)
-      && (!course || courseKey(lastCourse) === course);
+    return (!grades.length || grades.includes(gradeKey(lastCourse.educationLevel, lastCourse.gradeName)))
+      && (!divisions.length || divisions.includes(lastCourse.division))
+      && (!shifts.length || shifts.includes(lastCourse.shift));
   };
 
-  // Los cursos de las últimas inscripciones de todos los alumnos del reporte, sin repetir, por nivel
-  // educativo, grado, división y turno
-  const reportCourses = () => {
-    const byKey = new Map();
-    students.forEach(({ lastEnrollment }) => {
-      if (lastEnrollment) byKey.set(courseKey(lastEnrollment.course), lastEnrollment.course);
-    });
-    return Array.from(byKey.values()).sort((a, b) =>
-      a.educationLevel.localeCompare(b.educationLevel)
-      || a.gradeName.localeCompare(b.gradeName, 'es', { numeric: true })
-      || a.division.localeCompare(b.division)
-      || SHIFT_ORDER.indexOf(a.shift) - SHIFT_ORDER.indexOf(b.shift));
-  };
+  const matchesFilters = (student) => matchesText(student) && matchesCourse(student);
 
-  const createCourseOption = (course) => {
-    const option = document.createElement('li');
-    option.className = 'dropdown-option';
-    option.setAttribute('role', 'option');
-    option.setAttribute('aria-selected', 'false');
-    option.dataset.value = courseKey(course);
-    // "6° B, Mañana, Secundaria": el curso, sin el ciclo lectivo
-    option.textContent = courseLabel(course, { level: true });
-    return option;
-  };
-
-  // Las opciones de Curso: los cursos del reporte del nivel elegido (o de los dos). El curso elegido
-  // sigue elegido si todavía está entre ellas; si no (otro nivel, o ya ningún alumno lo tiene como
-  // última inscripción), deja de filtrar.
-  const fillCourseOptions = () => {
-    const courses = reportCourses().filter((course) => !activeFilters.educationLevel || course.educationLevel === activeFilters.educationLevel);
-    const kept = replaceColumnFilterOptions(courseFilterRoot, courses.map(createCourseOption), activeFilters.course ? [activeFilters.course] : []);
-    activeFilters.course = kept[0] ?? null;
-  };
-
-  // "Alumno · gar", "Nivel · Primaria", "Curso · 1° A, Tarde, Primaria"
+  // "Alumno · gar", "Curso · 1° Primaria, División A" (course-filter-text.component.js)
   const renderFilterValues = () => {
     filterValue('student').textContent = activeFilters.text.trim() || ALL_LABEL;
-    filterValue('level').textContent = activeFilters.educationLevel ? levelLabel(activeFilters.educationLevel) : ALL_LABEL;
-    const selectedCourse = courseFilterRoot.querySelector('.dropdown-option.selected[data-value]:not([data-value=""])');
-    filterValue('course').textContent = activeFilters.course && selectedCourse ? selectedCourse.textContent.trim() : ALL_LABEL;
+    filterValue('course').textContent = courseFilterText(courseFilter);
   };
 
-  // Lo que fija cada filtro de la barra, por su data-filter, con el detalle de column-filter-change
+  // Lo que fija cada filtro de la barra, por su data-filter, después de un cambio: Alumno, con el
+  // detalle de column-filter-change; Curso, con lo que da su componente
   const FILTER_VALUES = {
     student: ({ text }) => ({ text }),
-    level: ({ values }) => ({ educationLevel: values[0] ?? null }),
-    course: ({ values }) => ({ course: values[0] ?? null }),
+    course: () => ({
+      grades: courseFilter.selectedGrades.map(({ level, name }) => gradeKey(level, name)),
+      divisions: courseFilter.selectedDivisions,
+      shifts: courseFilter.selectedShifts,
+    }),
   };
 
   // ---------- Tabla ----------
@@ -228,21 +190,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     students = response.report.students;
     isLoaded = true;
-    fillCourseOptions();
-    renderFilterValues();
     renderRows(keepPage ? {} : { page: 1 });
   }
 
-  // Cada filtro de la barra avisa sus cambios (column-filter.js). Un nivel nuevo cambia también las
-  // opciones de Curso. Mientras carga o si la carga falló, se guardan los valores sin reemplazar el
-  // mensaje de la tabla.
+  // Cada filtro de la barra avisa sus cambios (column-filter.js). Si lo que filtra no cambió (Curso
+  // avisa cada clic y cada tecla dentro de su panel), la tabla queda como está. Mientras carga o si
+  // la carga falló, se guardan los valores sin reemplazar el mensaje de la tabla.
   filterBar.addEventListener('column-filter-change', (event) => {
-    const filter = event.target.dataset.filter;
-    const values = FILTER_VALUES[filter](event.detail);
-    const hasChanged = Object.entries(values).some(([key, value]) => value !== activeFilters[key]);
+    const values = FILTER_VALUES[event.target.dataset.filter](event.detail);
+    const hasChanged = Object.entries(values).some(([key, value]) => JSON.stringify(value) !== JSON.stringify(activeFilters[key]));
     if (!hasChanged) return;
     Object.assign(activeFilters, values);
-    if (filter === 'level') fillCourseOptions();
     renderFilterValues();
     if (isLoaded) renderRows({ page: 1 });
   });
