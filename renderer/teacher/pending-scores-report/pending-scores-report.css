@@ -1,0 +1,79 @@
+/* Reporte Calificaciones pendientes de carga (Profesor). La ruta de navegación la aporta
+   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css; Gestionar,
+   manage-link (base.css), y el mensaje sin pendientes, report-message.css. Aquí, la card de la tabla
+   (como la de Alumnos activos sin inscripción), los anchos de sus columnas y las celdas de dos
+   líneas. */
+
+/* ---------- Tabla ---------- */
+
+.pending-scores-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Cada columna tiene su parte de la tabla (entre todas, el 100 %): sin ella, su ancho saldría del
+   contenido y los encabezados se correrían de página a página y con cada filtro. Materia y
+   Evaluación truncan su texto (.col-truncate de base.css). */
+.data-table .col-course {
+  width: 15%;
+}
+
+.data-table .col-subject {
+  width: 17%;
+}
+
+.data-table .col-evaluation {
+  width: 21%;
+}
+
+.data-table .col-date {
+  width: 13%;
+}
+
+.data-table .col-pending {
+  width: 11%;
+}
+
+.data-table .col-closing {
+  width: 13%;
+}
+
+.data-table .col-actions {
+  width: 10%;
+}
+
+/* La fecha, los pendientes y el cierre, con cifras de ancho fijo, para que se alineen de fila a
+   fila; ninguna celda corta sus líneas (data-table.css ya usa nowrap en las celdas) */
+.data-table td.col-date,
+.data-table td.col-pending,
+.data-table td.col-closing {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Celdas de dos líneas: el curso con su nivel educativo, la fecha con su trimestre y el cierre con
+   los días que faltan. La segunda, más chica y en el gris secundario. */
+.course-name,
+.evaluation-date,
+.closing-date {
+  display: block;
+}
+
+.course-level,
+.evaluation-term,
+.closing-days {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* En ventanas angostas (1024 px) las celdas se acercan, como en Materias sin docente por curso,
+   para que Materia y Evaluación conserven algo de ancho sin que la tabla desborde. */
+@media (max-width: 1100px) {
+  .pending-scores-card .data-table th,
+  .pending-scores-card .data-table td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}

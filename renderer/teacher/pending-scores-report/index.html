@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calificaciones pendientes de carga - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
+    <link rel="stylesheet" href="../../shared/styles/dropdown.css" />
+    <link rel="stylesheet" href="../../shared/styles/column-filter.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-filters.css" />
+    <link rel="stylesheet" href="../../shared/styles/searchable-select.css" />
+    <link rel="stylesheet" href="../../shared/styles/data-table.css" />
+    <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-message.css" />
+    <link rel="stylesheet" href="./pending-scores-report.css" />
+    <script src="../../shared/components/drag-guard.component.js"></script>
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/session-user-cache.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/text-truncate.component.js"></script>
+    <script src="../../shared/components/report-description.component.js"></script>
+    <script src="../../shared/components/column-filter.js"></script>
+    <script src="../../shared/components/column-filter-toggle.component.js"></script>
+    <script src="../../shared/components/search-bar.component.js"></script>
+    <script src="../../shared/components/table-pagination.component.js"></script>
+    <script src="../../shared/components/term-label.component.js"></script>
+    <script src="../../shared/components/manage-link.component.js"></script>
+    <script src="./pending-scores-report.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <!-- Vista abierta desde Reportes: el menú sigue marcando esa sección. -->
+      <app-sidebar nav-role="teacher" active="reports"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a href="../reports/index.html">Reportes</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Calificaciones pendientes de carga</span>
+            </nav>
+
+            <div class="page-header">
+              <div>
+                <h1>Calificaciones pendientes de carga</h1>
+                <p><report-description report="pending-scores"></report-description></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barra de filtros (report-filters.css): cada botón muestra el valor vigente. Las
+               opciones las arma pending-scores-report.js con las asignaciones del profesor en el
+               ciclo actual: Curso ofrece solo los del nivel elegido y Materia, solo las de las
+               asignaciones que pasan Nivel y Curso. -->
+          <div class="report-filters" role="group" aria-label="Filtros del reporte">
+            <div class="column-filter" data-filter="course">
+              <column-filter-toggle target="courseFilter" heading="Curso" value="Todos" label="Filtrar por curso"></column-filter-toggle>
+              <div id="courseFilter" class="column-filter-panel column-filter-searchable" popover="auto" role="group" aria-label="Filtrar por curso">
+                <search-bar placeholder="Buscar curso"></search-bar>
+                <ul class="dropdown-menu" role="listbox" aria-label="Curso">
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                  <li class="dropdown-empty" hidden>Sin resultados</li>
+                </ul>
+                <button type="button" class="column-filter-clear">Limpiar filtro</button>
+              </div>
+            </div>
+            <div class="column-filter" data-filter="level">
+              <column-filter-toggle target="levelFilter" heading="Nivel educativo" value="Todos" label="Filtrar por nivel educativo"></column-filter-toggle>
+              <div id="levelFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por nivel educativo">
+                <ul class="dropdown-menu" role="listbox" aria-label="Nivel educativo">
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todos</li>
+                </ul>
+                <button type="button" class="column-filter-clear">Limpiar filtro</button>
+              </div>
+            </div>
+            <div class="column-filter" data-filter="subject">
+              <column-filter-toggle target="subjectFilter" heading="Materia" value="Todas" label="Filtrar por materia"></column-filter-toggle>
+              <div id="subjectFilter" class="column-filter-panel" popover="auto" role="group" aria-label="Filtrar por materia">
+                <ul class="dropdown-menu" role="listbox" aria-label="Materia">
+                  <li class="dropdown-option" role="option" data-value="" aria-selected="false">Todas</li>
+                </ul>
+                <button type="button" class="column-filter-clear">Limpiar filtro</button>
+              </div>
+            </div>
+          </div>
+
+          <section class="card pending-scores-card">
+            <!-- Sin calificaciones pendientes: la card muestra solo este mensaje (.has-no-data,
+                 report-message.css) -->
+            <p class="report-message" role="status" hidden>No tenés calificaciones pendientes de carga.</p>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col" class="col-course">Curso</th>
+                    <th scope="col" class="col-subject">Materia</th>
+                    <th scope="col" class="col-evaluation">Evaluación</th>
+                    <th scope="col" class="col-date">Fecha</th>
+                    <th scope="col" class="col-pending">Pendientes</th>
+                    <th scope="col" class="col-closing">Cierre</th>
+                    <th scope="col" class="col-actions">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <table-pagination results="" label="Paginación de evaluaciones" pages="1"></table-pagination>
+
+            <!-- Plantilla: pending-scores-report.js la completa con una fila por evaluación. Para que
+                 la tabla entre a 1024 px, tres celdas van en dos líneas: Curso con el nivel educativo
+                 debajo, Fecha con el trimestre y Cierre con cuántos días faltan. Gestionar abre las
+                 calificaciones de la evaluación, como desde Evaluaciones. -->
+            <template id="evaluationRowTemplate">
+              <tr>
+                <td class="col-course">
+                  <span class="course-name"></span>
+                  <span class="course-level"></span>
+                </td>
+                <td class="col-subject col-truncate"><span class="text-truncate"></span></td>
+                <td class="col-evaluation col-truncate"><span class="text-truncate"></span></td>
+                <td class="col-date">
+                  <span class="evaluation-date"></span>
+                  <term-label class="evaluation-term"></term-label>
+                </td>
+                <td class="col-pending"></td>
+                <td class="col-closing">
+                  <span class="closing-date"></span>
+                  <span class="closing-days"></span>
+                </td>
+                <td class="col-actions">
+                  <manage-link href="../evaluation-scores/index.html"></manage-link>
+                </td>
+              </tr>
+            </template>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

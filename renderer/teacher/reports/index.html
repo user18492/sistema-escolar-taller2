@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reportes - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/report-list.css" />
+    <script src="../../shared/components/drag-guard.component.js"></script>
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/session-user-cache.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/report-description.component.js"></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <app-sidebar nav-role="teacher" active="reports"></app-sidebar>
+
+      <!-- Main -->
+      <div class="main">
+        <main class="content">
+          <div class="page-header">
+            <div>
+              <h1>Reportes</h1>
+              <p>Visualiza los reportes de tus asignaciones</p>
+            </div>
+          </div>
+
+          <!-- Cada opción abre la vista de su reporte, con la ruta de navegación de vuelta aquí -->
+          <ul class="report-list" aria-label="Reportes disponibles">
+            <li>
+              <a class="card report-link" href="../pending-scores-report/index.html">
+                <span class="report-link-text">
+                  <span class="report-link-name">Calificaciones pendientes de carga</span>
+                  <span class="report-link-description"><report-description report="pending-scores"></report-description></span>
+                </span>
+                <!-- resources/ChevronRight.svg, el de manage-link -->
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </a>
+            </li>
+          </ul>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
