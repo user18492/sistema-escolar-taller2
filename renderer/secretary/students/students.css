@@ -77,75 +77,8 @@
 
 /* ---------- Modal: Nuevo alumno / Editar alumno ---------- */
 
-/* Mismo ancho que el modal de Usuarios: el formulario usa dos columnas. */
-.modal {
-  max-width: 600px;
-}
-
-.modal-header {
-  padding: 28px 32px 20px;
-}
-
-.modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 0 32px;
-}
-
-/* Form grid */
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px 20px;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* Estado solo se muestra al editar */
-.form-field[hidden] {
-  display: none;
-}
-
-.form-field label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.form-field .field input {
-  padding-left: 14px;
-}
-
-/* Dirección: calle y altura comparten el ancho de un campo del grid. */
-.field-pair {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 12px;
-}
-
-.field-pair .field {
-  min-width: 0;
-}
-
-/* Footer */
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 24px 32px 28px;
-}
+/* El formulario tiene sus estilos en student-form.css. */
 
 @media (max-width: 600px) {
   .modal-overlay { padding: calc(16px + var(--window-titlebar-height)) 16px 16px; }
-  .modal-header { padding: 24px 20px 20px; }
-  .modal-body { padding: 0 20px; }
-  .modal-footer { padding: 24px 20px; }
-  .form-grid { grid-template-columns: 1fr; }
 }

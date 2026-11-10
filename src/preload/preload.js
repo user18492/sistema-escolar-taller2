@@ -633,6 +633,15 @@ contextBridge.exposeInMainWorld('api', {
     // vigentes y activas (0 si no tiene). O { ok: false, error: { code, message } }: INVALID_INPUT
     // indica filtros inválidos.
     getActiveEnrollmentsByCourse: (filters) => ipcRenderer.invoke('reports:get-active-enrollments-by-course', filters),
+    // Solo SECRETARIO. Reporte Alumnos activos sin inscripción de su institución: los alumnos
+    // vigentes y activos sin una inscripción vigente y activa en un curso del ciclo lectivo actual,
+    // por apellido y nombre. Sin filtros: la vista los aplica sobre la lista completa. Resuelve
+    // { ok: true, report } con { schoolYear, students }: schoolYear, el ciclo actual, y students, cada
+    // uno con los campos de students.list y lastEnrollment, su última inscripción vigente de
+    // cualquier ciclo (la de fecha de inscripción más reciente): { id, status, course }, con status
+    // 'ACTIVE', 'COMPLETED' o 'CANCELLED' y course { id, gradeName, educationLevel, division, shift,
+    // schoolYear }, o null si nunca tuvo una. O { ok: false, error: { code, message } }.
+    getStudentsWithoutEnrollment: () => ipcRenderer.invoke('reports:get-students-without-enrollment', {}),
   },
   backups: {
     // Solo ADMIN. Resuelve { ok: true, backups } con el historial de backups de su institución

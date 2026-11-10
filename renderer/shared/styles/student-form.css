@@ -1,0 +1,86 @@
+/* Componente reutilizable: formulario "Nuevo alumno" / "Editar alumno"
+   (student-form.component.js). Sus reglas están acotadas a student-form, así no afectan a otros
+   modales de las vistas que lo cargan. */
+
+/* Encabezado, cuerpo y pie quedan como hijos del .modal */
+student-form {
+  display: contents;
+}
+
+/* Un modal por pasos lo oculta con el atributo hidden, que display: contents anularía */
+student-form[hidden] {
+  display: none;
+}
+
+/* Mismo ancho que el modal de Usuarios: el formulario usa dos columnas. También en el modal por
+   pasos de los reportes (list-modal.css), mientras muestra este formulario. */
+.modal:has(> student-form:not([hidden])) {
+  max-width: 600px;
+}
+
+student-form .modal-header {
+  padding: 28px 32px 20px;
+}
+
+student-form .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 32px;
+}
+
+/* Form grid */
+
+student-form .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 20px;
+}
+
+student-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Estado solo se muestra al editar */
+student-form .form-field[hidden] {
+  display: none;
+}
+
+student-form .form-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+student-form .form-field .field input {
+  padding-left: 14px;
+}
+
+/* Dirección: calle y altura comparten el ancho de un campo del grid. */
+student-form .field-pair {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+}
+
+student-form .field-pair .field {
+  min-width: 0;
+}
+
+/* Footer */
+
+student-form .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 24px 32px 28px;
+}
+
+@media (max-width: 600px) {
+  student-form .modal-header { padding: 24px 20px 20px; }
+  student-form .modal-body { padding: 0 20px; }
+  student-form .modal-footer { padding: 24px 20px; }
+  student-form .form-grid { grid-template-columns: 1fr; }
+}

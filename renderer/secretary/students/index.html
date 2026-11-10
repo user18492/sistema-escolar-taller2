@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="../../shared/styles/data-table.css" />
     <link rel="stylesheet" href="../../shared/styles/badge.css" />
     <link rel="stylesheet" href="../../shared/styles/pagination.css" />
+    <link rel="stylesheet" href="../../shared/styles/student-form.css" />
     <link rel="stylesheet" href="./students.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -40,6 +41,8 @@
     <script src="../../shared/components/table-pagination.component.js"></script>
     <script src="../../shared/components/row-actions.component.js"></script>
     <script src="../../shared/components/status-badge.component.js"></script>
+    <script src="../../shared/components/student-form.component.js"></script>
+    <script src="../../shared/components/student-delete.component.js"></script>
     <script src="./students.js" defer></script>
   </head>
   <body>
@@ -170,97 +173,15 @@
         </main>
       </div>
     </div>
-    <!-- Modal compartido: Nuevo alumno / Editar alumno -->
+    <!-- Modal: Nuevo alumno / Editar alumno, con el formulario compartido <student-form>
+         (student-form.component.js) -->
     <div class="modal-overlay" id="newStudentOverlay">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newStudentTitle">
-        <div class="modal-header">
-          <h2 id="newStudentTitle">Nuevo alumno</h2>
-          <p>Completa los datos para registrar un nuevo alumno.</p>
-        </div>
-
-        <div class="modal-body">
-          <div class="form-grid">
-            <div class="form-field">
-              <label for="newStudentFirstName">Nombre</label>
-              <div class="field">
-                <input type="text" id="newStudentFirstName" placeholder="Camila" data-validate="person-name" required />
-              </div>
-            </div>
-            <div class="form-field">
-              <label for="newStudentLastName">Apellido</label>
-              <div class="field">
-                <input type="text" id="newStudentLastName" placeholder="Álvarez" data-validate="person-name" required />
-              </div>
-            </div>
-            <div class="form-field">
-              <label for="newStudentDni">DNI</label>
-              <div class="field">
-                <input type="text" id="newStudentDni" placeholder="48.123.456" inputmode="numeric" data-validate="dni" required />
-              </div>
-            </div>
-            <div class="form-field">
-              <label for="newStudentBirthdate">Fecha de nacimiento</label>
-              <div class="field field-date">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="5" width="18" height="16" rx="2" />
-                  <line x1="16" y1="3" x2="16" y2="7" />
-                  <line x1="8" y1="3" x2="8" y2="7" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-                <input type="text" id="newStudentBirthdate" placeholder="DD/MM/AAAA" inputmode="numeric" autocomplete="off" data-validate="birth-date" data-min-age="5" data-max-age="25" required />
-              </div>
-            </div>
-            <div class="form-field">
-              <label for="newStudentEmail">Email</label>
-              <div class="field">
-                <input type="email" id="newStudentEmail" placeholder="camila.alvarez@institucion.edu.ar" data-validate="email" required />
-              </div>
-            </div>
-            <div class="form-field">
-              <label for="newStudentPhone">Teléfono</label>
-              <div class="field">
-                <input type="tel" id="newStudentPhone" placeholder="3794123456" inputmode="numeric" data-validate="phone" required />
-              </div>
-            </div>
-            <div class="form-field">
-              <label for="newStudentStreet">Dirección</label>
-              <div class="field-pair">
-                <div class="field">
-                  <input type="text" id="newStudentStreet" placeholder="Av. Belgrano" aria-label="Calle" data-validate="street" required />
-                </div>
-                <div class="field">
-                  <input type="text" id="newStudentStreetNumber" placeholder="1245" inputmode="numeric" aria-label="Altura" data-validate="street-number" required />
-                </div>
-              </div>
-            </div>
-            <div class="form-field" id="editStudentStatusField" hidden>
-              <label>Estado</label>
-              <div class="field field-select dropdown" data-filter="edit-student-status">
-                <button type="button" class="dropdown-toggle" aria-haspopup="listbox" aria-expanded="false" aria-describedby="editStudentStatusHint">
-                  <span class="dropdown-label text-truncate placeholder">Seleccionar estado</span>
-                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <ul class="dropdown-menu" role="listbox" hidden>
-                  <li class="dropdown-option" role="option" data-value="ACTIVE" aria-selected="false">Activo</li>
-                  <li class="dropdown-option" role="option" data-value="GRADUATED" aria-selected="false">Egresado</li>
-                </ul>
-              </div>
-              <!-- students.js la muestra si el alumno tiene una inscripción activa, con Egresado deshabilitado -->
-              <p class="field-hint" id="editStudentStatusHint" hidden></p>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="cancelNewStudentBtn">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="createStudentBtn" disabled>Crear alumno</button>
-        </div>
+        <student-form></student-form>
       </div>
     </div>
 
-    <!-- Modal: Eliminar alumno -->
+    <!-- Modal: Eliminar alumno (la baja la pide student-delete.component.js) -->
     <confirm-modal entity="Student" heading="Eliminar alumno" description="¿Quieres eliminar este alumno?" consequence="Si tiene una inscripción activa, se cancelará."></confirm-modal>
     <!-- Modal: Restaurar alumno -->
     <confirm-modal entity="Student" action="restore" heading="Restaurar alumno" description="¿Quieres restaurar este alumno?" consequence="Si al eliminarlo se canceló su inscripción activa, seguirá cancelada."></confirm-modal>

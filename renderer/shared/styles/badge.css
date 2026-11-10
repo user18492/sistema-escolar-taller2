@@ -33,3 +33,12 @@ status-badge {
 .badge-suspended .badge-icon {
   color: #ef4444;
 }
+
+/* Estados de una inscripción (Inscripciones y el reporte Alumnos activos sin inscripción) */
+.badge-completed .badge-icon {
+  color: var(--color-accent-blue);
+}
+
+.badge-cancelled .badge-icon {
+  color: #ef4444;
+}

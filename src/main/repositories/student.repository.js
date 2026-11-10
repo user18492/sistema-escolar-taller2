@@ -436,4 +436,5 @@ module.exports = {
   isActiveEnrollmentError,
   isNotFoundError,
   isAlreadyDeletedError,
+  toStudent,
 };

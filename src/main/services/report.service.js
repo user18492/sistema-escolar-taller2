@@ -5,11 +5,12 @@ const schoolYearService = require('./school-year.service');
 const { toListedCourse } = require('./course.service');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const courseRepository = require('../repositories/course.repository');
+const { toListedStudent } = require('./student.service');
 
 const { SHIFTS } = courseRepository;
 
 // Reportes de solo lectura de las vistas Reportes del Administrador (plans/reportes-administrador/)
-// y del Secretario (Inscripciones activas por curso).
+// y del Secretario (Inscripciones activas por curso y Alumnos activos sin inscripción).
 // Cada uno es de la institución de `currentUser` (el de la sesión), nunca de una que mande la
 // vista.
 // Cada reporte dice además si el ciclo lectivo pedido tiene datos, para que la vista muestre "No
@@ -243,4 +244,38 @@ async function getActiveEnrollmentsByCourse(currentUser, filters) {
   return { schoolYear: year, hasCourses, courses };
 }
 
-module.exports = { getSubjectCoverage, getTeacherWorkload, getBackupRegularity, getActiveEnrollmentsByCourse, ReportError };
+// ---------- Reporte del Secretario: Alumnos activos sin inscripción ----------
+
+// Qué alumnos vigentes y activos siguen en la institución de `currentUser` y todavía no tienen una
+// inscripción vigente y activa en un curso del ciclo lectivo actual, por apellido y nombre. Cada uno
+// lleva los campos de toListedStudent (student.service.js), los mismos que el listado de Alumnos y
+// que necesita su formulario de edición, y lastEnrollment, su última inscripción vigente de cualquier
+// ciclo lectivo (la de fecha de inscripción más reciente): { id, status, course }, con status
+// ACTIVE, COMPLETED o CANCELLED y course con los campos de toListedCourse, o null si nunca tuvo una.
+// No recibe filtros: Alumno, Nivel y Curso los aplica la vista sobre la lista completa, porque las
+// opciones de Curso salen de las últimas inscripciones de todos los alumnos del reporte. Resuelve
+// { schoolYear, students }: schoolYear, el ciclo actual.
+async function getStudentsWithoutEnrollment(currentUser) {
+  const [rows, { year }] = await Promise.all([
+    enrollmentRepository.findLastOfActiveStudentsWithoutCurrentEnrollment(currentUser.institutionId),
+    schoolYearService.getCurrentSchoolYear(),
+  ]);
+  const students = rows.map(({ student, lastEnrollment }) => ({
+    ...toListedStudent(student),
+    lastEnrollment: lastEnrollment && {
+      id: lastEnrollment.id,
+      status: lastEnrollment.status,
+      course: toListedCourse(lastEnrollment.course),
+    },
+  }));
+  return { schoolYear: year, students };
+}
+
+module.exports = {
+  getSubjectCoverage,
+  getTeacherWorkload,
+  getBackupRegularity,
+  getActiveEnrollmentsByCourse,
+  getStudentsWithoutEnrollment,
+  ReportError,
+};

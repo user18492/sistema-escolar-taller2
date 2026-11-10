@@ -1,5 +1,5 @@
-// Componente global: formulario "Nueva inscripción" (Inscripciones del Secretario y su reporte
-// Inscripciones activas por curso). Genera el encabezado, el cuerpo (Alumno, Nivel educativo y
+// Componente global: formulario "Nueva inscripción" (Inscripciones del Secretario y sus reportes
+// Inscripciones activas por curso y Alumnos activos sin inscripción). Genera el encabezado, el cuerpo (Alumno, Nivel educativo y
 // Curso) y el pie de un modal de formulario, y resuelve todo el formulario: las opciones, el
 // guardado (window.api.enrollments.create) y sus toasts. La vista pone el elemento dentro del .modal
 // de su .modal-overlay y se queda con abrir y cerrar el overlay, el foco al cerrar y Escape.
@@ -20,15 +20,20 @@
 //         éxito. Si resuelve un texto, el toast lo suma a su descripción (p. ej., que la
 //         inscripción no se ve por los filtros).
 //       - onCancel(): se pulsó Cancelar (mientras se guarda no responde).
-//       - onStale(code): en un alta precargada (preset), el proceso principal avisó que el curso ya
-//         no se puede elegir (COURSE_STALE_CODES: otra sesión lo dio de baja o cambió el año). La
-//         vista recarga sus datos y cierra el modal; el toast de error lo muestra el componente.
+//       - onStale(code): en un alta precargada (preset), el proceso principal avisó que lo que llegó
+//         cargado ya no se puede elegir: el curso (COURSE_STALE_CODES: otra sesión lo dio de baja o
+//         cambió el año) o el alumno (STUDENT_STALE_CODES: otra sesión lo dio de baja, lo pasó a
+//         egresado o lo inscribió). La vista recarga sus datos y cierra el modal; el toast de error
+//         lo muestra el componente.
 //     Si onSaved u onStale devuelven una promesa, el formulario sigue guardando (inerte, con
 //     "Creando…") hasta que se resuelve.
 //   - open({ preset = null }): deja el formulario listo para un alta; no abre ningún overlay. Con
 //     `preset` ({ course: { id, educationLevel, gradeName, division, shift } }), el nivel educativo
-//     y el curso llegan cargados y bloqueados: solo se elige el alumno.
-//   - focusFirst(): el foco en Alumno o, si está bloqueado, en Cancelar (al abrir el modal).
+//     y el curso llegan cargados y bloqueados: solo se elige el alumno. Con
+//     `preset` ({ student: { id, firstName, lastName, dni } }), el alumno llega cargado y
+//     bloqueado: se eligen el nivel educativo y el curso.
+//   - focusFirst(): el foco en el primer campo que se puede elegir (Alumno o Nivel educativo) o, si
+//     están bloqueados, en Cancelar (al abrir el modal).
 //   - closeMenus(): cierra los desplegables y los buscadores (al cerrar el modal).
 //   - isSaving: si se está esperando la respuesta (la vista no cierra el modal con Escape).
 //   - reloadOptions(): pide los alumnos que se pueden inscribir y los cursos del ciclo lectivo
@@ -339,14 +344,17 @@
         levelToggle.disabled = false;
       };
 
-      // En un alta precargada, el nivel educativo y el curso del preset quedan elegidos y
-      // bloqueados con su valor, como el curso y la materia de Asignar en assignment-form. El curso
+      // Lo que llegó cargado en un alta precargada (preset); null si no
+      const presetCourse = () => this.#preset?.course ?? null;
+      const presetStudent = () => this.#preset?.student ?? null;
+
+      // En un alta precargada con un curso, el nivel educativo y el curso del preset quedan elegidos
+      // y bloqueados con su valor, como el curso y la materia de Asignar en assignment-form. El curso
       // se elige con un clic en su opción, que marca el valor como searchable-select.component.js;
       // si no está entre los del alta (otra sesión lo dio de baja o cambió el año), igual se ofrece
       // (fillCourseOptions) y el proceso principal lo rechaza al guardar.
-      const fillPreset = () => {
-        const course = this.#preset?.course;
-        if (!course) return;
+      const fillPresetCourse = () => {
+        const course = presetCourse();
         levelOptions.forEach((option) => {
           const isSelected = option.dataset.value === course.educationLevel;
           option.classList.toggle('selected', isSelected);
@@ -368,21 +376,52 @@
         updateSubmitButtonState();
       };
 
+      // En un alta precargada con un alumno, el alumno del preset queda elegido y bloqueado con su
+      // valor, como el curso en fillPresetCourse; el nivel educativo y el curso se eligen. Si no está
+      // entre los que se pueden inscribir (otra sesión lo inscribió, lo pasó a egresado o lo dio de
+      // baja), igual se ofrece (fillStudentOptions) y el proceso principal lo rechaza al guardar.
+      const fillPresetStudent = () => {
+        const student = presetStudent();
+        if (!student) return;
+        if (isLoadingFormOptions) {
+          studentSelect.lock('Cargando alumnos…');
+        } else {
+          studentSelect.root.querySelector(`.dropdown-option[data-value="${student.id}"]`)?.click();
+          // Sin la lista de alumnos no hay opción que elegir
+          studentSelect.lock(studentSelect.getValue() ? undefined : 'No se pudieron cargar los alumnos');
+        }
+        updateSubmitButtonState();
+      };
+
+      // Curso según el preset (o, sin un curso precargado, según el nivel educativo elegido) y el
+      // alumno precargado, si llegó
+      const fillPreset = () => {
+        if (presetCourse()) fillPresetCourse();
+        else updateCourseField();
+        fillPresetStudent();
+      };
+
       const resetForm = () => {
         studentSelect.reset();
         updateStudentField();
         resetLevel();
-        if (this.#preset) fillPreset();
-        else updateCourseField();
+        fillPreset();
       };
+
+      // `options` y, en un alta precargada, también `presetOption` si no estaba entre ellas
+      const withPresetOption = (options, presetOption) =>
+        (options && presetOption && !options.some(({ id }) => id === presetOption.id) ? [...options, presetOption] : options);
 
       // Las opciones de Curso: las del alta y, en uno precargado, también su curso si no estaba
       const fillCourseOptions = () => {
-        const presetCourse = this.#preset?.course;
-        const courses = enrollableCourses && presetCourse && !enrollableCourses.some(({ id }) => id === presetCourse.id)
-          ? [...enrollableCourses, presetCourse]
-          : enrollableCourses;
+        const courses = withPresetOption(enrollableCourses, presetCourse());
         courseSelect.setOptions((courses ?? []).map((course) => this.#createCourseOption(course)));
+      };
+
+      // Las opciones de Alumno: las del alta y, en uno precargado, también su alumno si no estaba
+      const fillStudentOptions = () => {
+        const students = withPresetOption(enrollableStudents, presetStudent());
+        studentSelect.setOptions((students ?? []).map((student) => this.#createStudentOption(student)));
       };
 
       // El formulario está a la vista: su overlay está abierto y no es un paso oculto
@@ -392,24 +431,23 @@
       // de Alumno y de Curso. Se piden al cargar la vista y se vuelven a pedir al abrir el
       // formulario si no llegaron o si quedaron viejas (invalidateOptions, un alta o un código de
       // STALE_OPTION_CODES). Mientras se espera, Alumno y Curso quedan bloqueados; el nivel educativo
-      // elegido se conserva y, en un alta precargada, el curso queda elegido al llegar.
+      // elegido se conserva y, en un alta precargada, el curso o el alumno quedan elegidos al llegar.
       const loadFormOptions = async () => {
         if (isLoadingFormOptions) return;
         isLoadingFormOptions = true;
         hasFormOptions = false;
         updateStudentField();
-        if (this.#preset) fillPreset();
-        else updateCourseField();
+        fillPreset();
         [enrollableStudents, enrollableCourses] = await Promise.all([
           requestOptions(() => window.api?.enrollments?.listEnrollableStudents(), 'students'),
           requestOptions(() => window.api?.enrollments?.listEnrollableCourses(), 'courses'),
         ]);
         isLoadingFormOptions = false;
         hasFormOptions = Boolean(enrollableStudents && enrollableCourses);
-        studentSelect.setOptions((enrollableStudents ?? []).map((student) => this.#createStudentOption(student)));
+        fillStudentOptions();
         fillCourseOptions();
         updateStudentField();
-        if (this.#preset && isShown()) fillPreset();
+        if (isShown()) fillPreset();
         else updateCourseField();
       };
 
@@ -435,8 +473,11 @@
       const open = ({ preset = null } = {}) => {
         const hadPreset = Boolean(this.#preset);
         this.#preset = preset;
-        // Las opciones de Curso dependen del curso precargado
-        if (hasFormOptions && (preset || hadPreset)) fillCourseOptions();
+        // Las opciones de Alumno y de Curso dependen de lo precargado
+        if (hasFormOptions && (preset || hadPreset)) {
+          fillStudentOptions();
+          fillCourseOptions();
+        }
         resetForm();
         closeMenus();
         // Las listas no llegaron al cargar la vista, cambiaron con un alta o una baja o quedaron
@@ -444,17 +485,18 @@
         if (!hasFormOptions) loadFormOptions();
       };
 
-      // El primer campo o, si está bloqueado, Cancelar
+      // El primer campo que se puede elegir (Alumno o Nivel educativo) o, si están bloqueados,
+      // Cancelar
       const focusFirst = () => {
         const studentChevron = studentSelect.root.querySelector('.searchable-chevron');
-        (studentChevron.disabled ? cancelButton : studentChevron).focus();
+        ([studentChevron, levelToggle].find((control) => !control.disabled) ?? cancelButton).focus();
       };
 
       // Crea la inscripción con lo elegido; el proceso principal vuelve a validar todo antes de
       // guardarla. Si la crea, se espera onSaved (la vista actualiza su tabla antes de liberar el
       // modal, así al cerrarse ya la muestra) y un toast lo avisa. Si no, el toast dice por qué y el
-      // formulario sigue abierto con lo elegido; si el curso de un alta precargada ya no se puede
-      // elegir, antes se espera onStale.
+      // formulario sigue abierto con lo elegido; si lo que llegó cargado en un alta precargada (el
+      // curso o el alumno) ya no se puede elegir, antes se espera onStale.
       const saveEnrollment = async () => {
         const data = {
           studentId: Number(studentSelect.getValue()),
@@ -484,7 +526,9 @@
         }
         const error = response?.error;
         if (STALE_OPTION_CODES.includes(error?.code)) hasFormOptions = false;
-        if (this.#preset && COURSE_STALE_CODES.includes(error?.code)) await onStale?.(error.code);
+        const isPresetStale = (presetCourse() && COURSE_STALE_CODES.includes(error?.code))
+          || (presetStudent() && STUDENT_STALE_CODES.includes(error?.code));
+        if (isPresetStale) await onStale?.(error.code);
         setSaving(false);
         showToast({ type: 'error', title: ERROR_TITLE, description: errorDescription(error) });
       };

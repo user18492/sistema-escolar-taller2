@@ -1,0 +1,55 @@
+/* Reporte Alumnos activos sin inscripción (Secretario). La ruta de navegación la aporta
+   breadcrumb.css; la barra de filtros, report-filters.css; la tabla, data-table.css; el estado de la
+   inscripción, badge.css; las acciones de texto y el modal, list-modal.css, y los formularios del
+   modal, enrollment-form.css y student-form.css. Aquí, la card de la tabla (como la de
+   Inscripciones activas por curso) y los anchos de sus columnas. */
+
+/* ---------- Tabla ---------- */
+
+.students-without-enrollment-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Cada columna tiene su parte de la tabla (entre todas, el 100 %): sin ella, su ancho salía del
+   contenido y los encabezados se corrían de página a página y con cada filtro. Alumno trunca su
+   texto (.col-truncate de base.css). */
+.data-table .col-student {
+  width: 22%;
+}
+
+.data-table .col-dni {
+  width: 11%;
+}
+
+.data-table .col-last-enrollment {
+  width: 29%;
+}
+
+.data-table .col-status {
+  width: 13%;
+}
+
+.data-table .col-actions {
+  width: 25%;
+}
+
+.data-table td.col-student {
+  min-width: 160px;
+}
+
+/* El DNI, con cifras de ancho fijo, para que se alineen de fila a fila */
+.data-table td.col-dni {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Inscribir, Editar y Dar de baja en una línea; si la columna es angosta, pasan a la siguiente en
+   lugar de ensanchar la tabla. */
+.report-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}

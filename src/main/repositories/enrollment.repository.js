@@ -4,6 +4,7 @@ const { Student } = require('../models/student.model');
 const { Course } = require('../models/course.model');
 const { EDUCATION_LEVEL_BY_COLUMN_VALUE, COLUMN_VALUE_BY_EDUCATION_LEVEL } = require('./grade.repository');
 const { SHIFT_BY_COLUMN_VALUE, COLUMN_VALUE_BY_SHIFT } = require('./course.repository');
+const studentRepository = require('./student.repository');
 
 // Listado de las inscripciones vigentes (sin baja lógica) de un curso, con su alumno: las activas y
 // las finalizadas (valores de inscripcion_estado.nombre), que son las que cuentan para el promedio.
@@ -105,6 +106,82 @@ const COUNT_ACTIVE_BY_COURSE_IN_CURRENT_SCHOOL_YEAR_SQL = `
      AND (CARDINALITY($5::TEXT[]) = 0 OR c.division = ANY($5::TEXT[]))
      AND (CARDINALITY($6::TEXT[]) = 0 OR c.turno = ANY($6::TEXT[]))
    ORDER BY g.nivel_educativo, g.nombre, c.division, c.turno, c.curso_id
+`;
+
+// Reporte Alumnos activos sin inscripción (Secretario): los alumnos vigentes (sin baja lógica) y
+// activos (de estado ACTIVO) de la institución $1 que no tienen ninguna inscripción vigente y activa
+// (de estado ACTIVA) en un curso del ciclo lectivo del año en curso (fn_anio_ciclo_lectivo_actual),
+// con todos sus datos, como FIND_BY_INSTITUTION_SQL (student.repository.js), y su última inscripción
+// vigente, de cualquier ciclo lectivo y en cualquier estado: la de fecha de inscripción más reciente
+// (con la misma fecha, la última registrada, por inscripcion_id), con su curso y el nombre y el nivel
+// educativo de su grado. Un alumno sin inscripciones vigentes también aparece, con las columnas de la
+// inscripción en NULL. El curso de una inscripción vigente nunca está dado de baja
+// (trg_curso_coherencia, db/schema.sql).
+// tiene_inscripcion_activa mira cualquier ciclo, como la mira trg_alumno_coherencia para rechazar el
+// egreso: una activa de un ciclo anterior no saca al alumno del reporte, pero sí le impide egresar
+// (el cierre de los ciclos las finaliza, así que no debería haber ninguna).
+// El orden es el de FIND_BY_INSTITUTION_SQL: apellido, nombre y alumno_id.
+const FIND_ACTIVE_STUDENTS_WITHOUT_CURRENT_ENROLLMENT_SQL = `
+  SELECT a.alumno_id,
+         a.institucion_id,
+         a.nombre,
+         a.apellido,
+         a.email,
+         a.telefono,
+         a.direccion_calle,
+         a.direccion_altura,
+         a.dni,
+         a.fecha_nacimiento,
+         a.fecha_eliminacion,
+         ae.nombre AS estado,
+         EXISTS (SELECT 1
+                   FROM inscripcion i
+                   JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+                  WHERE i.alumno_id = a.alumno_id
+                    AND i.fecha_eliminacion IS NULL
+                    AND ie.nombre = 'ACTIVA') AS tiene_inscripcion_activa,
+         u.inscripcion_id,
+         u.fecha_inscripcion,
+         u.estado_inscripcion,
+         u.curso_id,
+         u.grado_id,
+         u.division,
+         u.turno,
+         u.anio_ciclo_lectivo,
+         u.grado_nombre,
+         u.nivel_educativo
+    FROM alumno a
+    JOIN alumno_estado ae ON ae.alumno_estado_id = a.alumno_estado_id
+    LEFT JOIN LATERAL (SELECT i.inscripcion_id,
+                              i.fecha_inscripcion,
+                              ie.nombre AS estado_inscripcion,
+                              c.curso_id,
+                              c.grado_id,
+                              c.division,
+                              c.turno,
+                              c.anio_ciclo_lectivo,
+                              g.nombre AS grado_nombre,
+                              g.nivel_educativo
+                         FROM inscripcion i
+                         JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+                         JOIN curso c ON c.curso_id = i.curso_id
+                         JOIN grado g ON g.grado_id = c.grado_id
+                        WHERE i.alumno_id = a.alumno_id
+                          AND i.fecha_eliminacion IS NULL
+                        ORDER BY i.fecha_inscripcion DESC, i.inscripcion_id DESC
+                        LIMIT 1) u ON TRUE
+   WHERE a.institucion_id = $1
+     AND a.fecha_eliminacion IS NULL
+     AND ae.nombre = 'ACTIVO'
+     AND NOT EXISTS (SELECT 1
+                       FROM inscripcion i
+                       JOIN inscripcion_estado ie ON ie.inscripcion_estado_id = i.inscripcion_estado_id
+                       JOIN curso c ON c.curso_id = i.curso_id
+                      WHERE i.alumno_id = a.alumno_id
+                        AND i.fecha_eliminacion IS NULL
+                        AND ie.nombre = 'ACTIVA'
+                        AND c.anio_ciclo_lectivo = fn_anio_ciclo_lectivo_actual())
+   ORDER BY a.apellido, a.nombre, a.alumno_id
 `;
 
 // Inscripciones vigentes (sin baja lógica) de alumnos vigentes de la institución $1 que pasan los
@@ -631,6 +708,26 @@ async function countActiveByCourseInCurrentSchoolYear(institutionId, { education
   return rows.map((row) => ({ course: toCourse(row), activeEnrollmentCount: row.inscripciones_activas }));
 }
 
+// Los alumnos vigentes y activos de la institución sin una inscripción vigente y activa en un curso
+// del ciclo lectivo del año en curso, por apellido y nombre: [{ student, lastEnrollment }], con
+// student un Student con todos sus datos y hasActiveEnrollment, como findByInstitution
+// (student.repository.js), y lastEnrollment su última inscripción vigente, de cualquier ciclo, con
+// su estado y su curso (un Course con el nombre y el nivel educativo de su grado), o null si no
+// tiene ninguna.
+async function findLastOfActiveStudentsWithoutCurrentEnrollment(institutionId) {
+  const { rows } = await query(FIND_ACTIVE_STUDENTS_WITHOUT_CURRENT_ENROLLMENT_SQL, [institutionId]);
+  return rows.map((row) => ({
+    student: studentRepository.toStudent(row),
+    lastEnrollment: row.inscripcion_id === null ? null : new Enrollment({
+      id: row.inscripcion_id,
+      course: toCourse(row),
+      courseId: row.curso_id,
+      enrollmentDate: row.fecha_inscripcion,
+      status: STATUS_BY_COLUMN_VALUE[row.estado_inscripcion],
+    }),
+  }));
+}
+
 // Inscribe al alumno `studentId` (un alumno_id) en el curso `courseId` (un curso_id) de la
 // institución: la inscripción nace vigente, ACTIVA y con la fecha del día. `educationLevel` es el
 // nivel educativo elegido (PRIMARY o SECONDARY), que tiene que ser el del grado del curso. Devuelve
@@ -743,6 +840,7 @@ module.exports = {
   isDeletedInCourse,
   countActiveInCurrentSchoolYear,
   countActiveByCourseInCurrentSchoolYear,
+  findLastOfActiveStudentsWithoutCurrentEnrollment,
   countNotDeletedByInstitution,
   findPageNotDeletedByInstitution,
   findPositionNotDeletedByInstitution,

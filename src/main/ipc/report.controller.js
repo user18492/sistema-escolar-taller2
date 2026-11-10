@@ -42,6 +42,9 @@ function registerReportHandlers(browserWindow) {
     reportAction((currentUser, filters) => reportService.getBackupRegularity(currentUser, filters), 'Regularidad de los backups'));
   handleProtected(browserWindow, 'reports:get-active-enrollments-by-course', ['SECRETARIO'],
     reportAction((currentUser, filters) => reportService.getActiveEnrollmentsByCourse(currentUser, filters), 'Inscripciones activas por curso'));
+  // Sin filtros: la vista filtra la lista completa (ver getStudentsWithoutEnrollment)
+  handleProtected(browserWindow, 'reports:get-students-without-enrollment', ['SECRETARIO'],
+    reportAction((currentUser) => reportService.getStudentsWithoutEnrollment(currentUser), 'Alumnos activos sin inscripción'));
 }
 
 module.exports = { registerReportHandlers };

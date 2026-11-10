@@ -9,7 +9,9 @@
 // lógica, window.api.students.delete) y lo pasa a Eliminados (su inscripción activa pasa a
 // cancelada, sin darse de baja), y Restaurar alumno lo devuelve a Vigentes con el estado que tenía
 // (window.api.students.restore), sin reactivar sus inscripciones. Las dos últimas se confirman antes
-// en un modal (confirm-modal.component.js). El resultado de las cuatro se avisa con un toast
+// en un modal (confirm-modal.component.js). El alta y la edición las resuelve el formulario
+// compartido <student-form> (student-form.component.js), y la baja, student-delete.component.js;
+// los dos los usa también el reporte Alumnos activos sin inscripción. El resultado de las cuatro se avisa con un toast
 // (toast.component.js), salvo los errores de un campo, que se marcan en el formulario. Un alta con
 // el DNI o el email de un alumno dado de baja no se hace: el toast manda a restaurarlo. Editar
 // completa el formulario con los datos del alumno cargado; si tiene una inscripción activa
@@ -71,8 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const address = (student) => [student.street, student.streetNumber].filter(Boolean).join(' ');
   // La fecha llega como 'AAAA-MM-DD' (o null) y se muestra como DD/MM/AAAA
   const toDisplayDate = (isoDate) => (isoDate ? isoDate.split('-').reverse().join('/') : '');
-  // El campo ya validado (DD/MM/AAAA) se envía como 'AAAA-MM-DD'
-  const toIsoDate = (displayDate) => displayDate.split('/').reverse().join('-');
 
   // Lo que compara cada filtro: Nombre, Email, Teléfono y DNI eligen un alumno por su id
   const FILTER_KEYS = {
@@ -338,132 +338,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Modal: Nuevo alumno / Editar alumno ----------
 
+  // El formulario (<student-form>, student-form.component.js) guarda y avisa el resultado con sus
+  // toasts; la vista abre y cierra el overlay y actualiza la tabla sin recargar la lista.
   const overlay = document.getElementById('newStudentOverlay');
-  const modalBody = overlay.querySelector('.modal-body');
+  const form = overlay.querySelector('student-form');
   const openModalBtn = document.getElementById('openNewStudentModalBtn');
-  const cancelBtn = document.getElementById('cancelNewStudentBtn');
-  const createBtn = document.getElementById('createStudentBtn');
-  const modalTitle = document.getElementById('newStudentTitle');
-  const modalDescription = overlay.querySelector('.modal-header p');
-
-  const textInputs = overlay.querySelectorAll(
-    '.modal-body input[type="text"], .modal-body input[type="email"], .modal-body input[type="tel"]'
-  );
-  // Estado: el campo solo se muestra al editar; un alta registra siempre un alumno activo.
-  const statusField = document.getElementById('editStudentStatusField');
-  const statusDropdown = statusField.querySelector('.dropdown');
-  const statusLabel = statusDropdown.querySelector('.dropdown-label');
-  const statusOptions = statusDropdown.querySelectorAll('.dropdown-option');
-  const graduatedOption = statusDropdown.querySelector('.dropdown-option[data-value="GRADUATED"]');
-  const statusHint = document.getElementById('editStudentStatusHint');
-
-  const GRADUATED_LOCKED_HINT = 'Tiene una inscripción activa: podrá pasar a egresado cuando la inscripción finalice o se cancele.';
-
-  const firstNameInput = document.getElementById('newStudentFirstName');
-  const lastNameInput = document.getElementById('newStudentLastName');
-  const dniInput = document.getElementById('newStudentDni');
-  const birthdateInput = document.getElementById('newStudentBirthdate');
-  const emailInput = document.getElementById('newStudentEmail');
-  const phoneInput = document.getElementById('newStudentPhone');
-  const streetInput = document.getElementById('newStudentStreet');
-  const streetNumberInput = document.getElementById('newStudentStreetNumber');
-
-  // Campos que el proceso principal puede marcar (error.fieldErrors), en el orden del formulario
-  const FIELD_INPUTS = {
-    firstName: firstNameInput,
-    lastName: lastNameInput,
-    dni: dniInput,
-    birthDate: birthdateInput,
-    email: emailInput,
-    phone: phoneInput,
-    street: streetInput,
-    streetNumber: streetNumberInput,
-  };
-
-  // Texto del botón principal, en reposo y mientras se espera la respuesta, y de los toasts de
-  // éxito y de error, según el modo del modal
-  const MODAL_TEXTS = {
-    create: {
-      submit: 'Crear alumno',
-      saving: 'Creando…',
-      successTitle: 'Alumno creado',
-      successDescription: (student) => `Se registró a ${displayName(student)}.`,
-      errorTitle: 'No se pudo crear el alumno',
-    },
-    edit: {
-      submit: 'Guardar cambios',
-      saving: 'Guardando…',
-      successTitle: 'Alumno actualizado',
-      successDescription: (student) => `Se guardaron los cambios de ${displayName(student)}.`,
-      errorTitle: 'No se pudieron guardar los cambios',
-    },
-  };
 
   let modalTrigger = openModalBtn;
-  let isEditing = false;
-  // alumno_id del alumno que se edita, fijado al abrir el modal desde su fila: es el único que se
-  // envía al guardar
-  let editingStudentId = null;
-  let isSaving = false;
-
-  const modalTexts = () => MODAL_TEXTS[isEditing ? 'edit' : 'create'];
-
-  // Máscaras, formato y errores de los campos de texto: componente compartido
-  // field-validation.component.js, según el data-validate de cada campo.
-
-  function updateCreateButtonState() {
-    const hasAllTextInputs = Array.from(textInputs).every((input) => input.value.trim().length > 0);
-    // Al editar llega elegido el estado actual del alumno; en el alta no se elige
-    const hasStatus = !isEditing || Boolean(statusDropdown.querySelector('.dropdown-option.selected'));
-    createBtn.disabled = !(hasAllTextInputs && hasStatus);
-  }
-
-  // Mientras se espera la respuesta, el cuerpo del modal queda inerte, así lo enviado coincide con
-  // lo que se ve. Los botones del pie quedan con aria-disabled y no con disabled: conservan el foco,
-  // como en confirm-modal.component.js.
-  const setSaving = (saving) => {
-    isSaving = saving;
-    modalBody.inert = saving;
-    overlay.querySelector('.modal').setAttribute('aria-busy', String(saving));
-    [cancelBtn, createBtn].forEach((button) => button.setAttribute('aria-disabled', String(saving)));
-    createBtn.textContent = saving ? modalTexts().saving : modalTexts().submit;
-  };
-
-  // Marca la opción de estado con ese data-value (ACTIVE o GRADUATED, los mismos que el filtro de la
-  // columna), replicando lo que hace el listener del dropdown al elegirla con el ratón.
-  function selectStatus(status) {
-    statusOptions.forEach((option) => {
-      const selected = option.dataset.value === status;
-      option.classList.toggle('selected', selected);
-      option.setAttribute('aria-selected', String(selected));
-      if (selected) statusLabel.textContent = option.textContent.trim();
-    });
-    statusLabel.classList.remove('placeholder');
-  }
-
-  // Con una inscripción activa, el alumno no pasa a egresado (la base también lo rechaza): Egresado
-  // lleva aria-disabled, que dropdown.component.js no deja elegir, y la aclaración debajo del campo
-  // dice por qué. Oculta, la aclaración se vacía: así aria-describedby no anuncia una que no se ve.
-  function lockGraduated(locked) {
-    if (locked) graduatedOption.setAttribute('aria-disabled', 'true');
-    else graduatedOption.removeAttribute('aria-disabled');
-    statusHint.textContent = locked ? GRADUATED_LOCKED_HINT : '';
-    statusHint.hidden = !locked;
-  }
-
-  // También desbloquea Egresado: el alta y la edición de otro alumno no heredan el bloqueo
-  function resetForm() {
-    textInputs.forEach((input) => (input.value = ''));
-    clearFieldErrors(overlay);
-    statusOptions.forEach((option) => {
-      option.classList.remove('selected');
-      option.setAttribute('aria-selected', 'false');
-    });
-    statusLabel.textContent = 'Seleccionar estado';
-    statusLabel.classList.add('placeholder');
-    lockGraduated(false);
-    updateCreateButtonState();
-  }
 
   function openModal(row = null, trigger = openModalBtn) {
     // La fila identifica al alumno solo por su data-student-id (el alumno_id). Los datos del
@@ -471,38 +352,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Egresado se puede elegir (hasActiveEnrollment).
     const student = row ? students.find((candidate) => String(candidate.id) === row.dataset.studentId) : null;
     if (row && !student) return;
-    isEditing = Boolean(student);
-    editingStudentId = student?.id ?? null;
     modalTrigger = trigger;
     triggerRowIndex = row ? Math.max(0, Array.from(tbody.rows).indexOf(row)) : 0;
-    resetForm();
-
-    modalTitle.textContent = isEditing ? 'Editar alumno' : 'Nuevo alumno';
-    modalDescription.textContent = isEditing
-      ? 'Modifica los datos del alumno.'
-      : 'Completa los datos para registrar un nuevo alumno.';
-    createBtn.textContent = modalTexts().submit;
-    statusField.hidden = !isEditing;
-
-    if (student) {
-      firstNameInput.value = student.firstName ?? '';
-      lastNameInput.value = student.lastName ?? '';
-      emailInput.value = student.email ?? '';
-      phoneInput.value = student.phone ?? '';
-      streetInput.value = student.street ?? '';
-      streetNumberInput.value = student.streetNumber ?? '';
-      dniInput.value = formatDni(student.dni ?? '');
-      birthdateInput.value = toDisplayDate(student.birthDate);
-      selectStatus(student.status);
-      lockGraduated(Boolean(student.hasActiveEnrollment));
-    }
-
-    updateCreateButtonState();
-    closeAllDropdowns();
+    form.open({ student });
     document.querySelectorAll('.column-filter-panel:popover-open').forEach((panel) => panel.hidePopover());
     overlay.classList.add('is-open');
-    overlay.querySelector('.modal').scrollTop = 0;
-    firstNameInput.focus();
+    form.focusFirst();
   }
 
   function closeModal() {
@@ -512,92 +367,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // en la que quedó en su lugar
     const focusTarget = modalTrigger.isConnected
       ? modalTrigger
-      : tbody.querySelector(`tr[data-student-id="${editingStudentId}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
+      : tbody.querySelector(`tr[data-student-id="${form.editingStudentId}"] [data-action="edit"]`) ?? focusAfterRemoval('edit');
     focusTarget.focus();
-    closeAllDropdowns();
+    form.closeMenus();
   }
 
-  // Solo los datos del formulario: el id va aparte, tomado al abrir el modal. El estado va solo al
-  // editar: un alta no lo envía. El DNI se envía solo con dígitos, como se guarda.
-  const readFormData = () => ({
-    firstName: firstNameInput.value,
-    lastName: lastNameInput.value,
-    dni: dniInput.value.replace(/\D/g, ''),
-    email: emailInput.value,
-    phone: phoneInput.value,
-    street: streetInput.value,
-    streetNumber: streetNumberInput.value,
-    birthDate: toIsoDate(birthdateInput.value),
-    ...(isEditing ? { status: statusDropdown.querySelector('.dropdown-option.selected')?.dataset.value ?? '' } : {}),
-  });
-
-  // Marca los campos que rechazó el proceso principal (DNI o email de otro alumno, datos inválidos)
-  // y enfoca el primero. Devuelve false si no había ninguno para marcar.
-  const showFieldErrors = (fieldErrors = {}) => {
-    const invalidFields = Object.entries(FIELD_INPUTS).filter(([field]) => fieldErrors[field]);
-    invalidFields.forEach(([field, input]) => setFieldError(input, fieldErrors[field]));
-    invalidFields[0]?.[1].focus();
-    return invalidFields.length > 0;
-  };
-
-  // Al editar, la lista en memoria quedó vieja: el alumno ya no está vigente (STUDENT_NOT_FOUND) u
-  // otra sesión lo inscribió después de la carga y no puede pasar a egresado
-  // (STUDENT_HAS_ACTIVE_ENROLLMENT)
-  const STALE_EDIT_CODES = ['STUDENT_NOT_FOUND', 'STUDENT_HAS_ACTIVE_ENROLLMENT'];
-
-  // Registra o guarda según el modo; al terminar cierra el modal y lo avisa con un toast. Los errores
-  // de un campo se marcan en el formulario y los demás salen en un toast: en ambos casos el modal
-  // sigue abierto con lo que se escribió. Solo se cierra si, al editar, la lista había quedado vieja
-  // (STALE_EDIT_CODES): al volver a abrir Editar, el formulario sale de la lista nueva, con Egresado
-  // ya deshabilitado si lo inscribieron.
-  // Un alta con el DNI o el email de un alumno dado de baja (DELETED_STUDENT_EXISTS) no lo registra:
-  // el toast lo nombra y manda a restaurarlo desde Eliminados.
-  const saveStudent = async () => {
-    const studentId = editingStudentId;
-    setSaving(true);
-    let response;
-    try {
-      const data = readFormData();
-      response = await (isEditing
-        ? window.api?.students?.update(studentId, data)
-        : window.api?.students?.create(data));
-    } catch (error) {
-      console.error('Error al guardar el alumno:', error);
-    }
-    // La lista que había quedado vieja al editar se vuelve a pedir antes de liberar el modal, que se
-    // cierra más abajo. Con un dado de baja en el alta, también, con el modal abierto: si otra sesión
-    // lo dio de baja después de la carga, Eliminados todavía no lo tiene
-    const isStale = isEditing && STALE_EDIT_CODES.includes(response?.error?.code);
-    const isDeletedMatch = response?.error?.code === 'DELETED_STUDENT_EXISTS';
-    if (isStale || isDeletedMatch) await loadStudents();
-    setSaving(false);
-
-    if (response?.ok) {
-      if (isEditing) replaceStudent(response.student);
-      else insertStudent(response.student);
+  // Al guardar, el alumno entra en la tabla o la actualiza y el modal se cierra. Si al editar la
+  // lista había quedado vieja, se vuelve a pedir antes de cerrarlo; con un alta de un alumno dado de
+  // baja, también, con el modal abierto: si otra sesión lo dio de baja después de la carga,
+  // Eliminados todavía no lo tiene.
+  form.setup({
+    closeAllDropdowns,
+    onSaved: (student, { isEditing }) => {
+      if (isEditing) replaceStudent(student);
+      else insertStudent(student);
       closeModal();
-      showToast({
-        type: 'success',
-        title: modalTexts().successTitle,
-        description: modalTexts().successDescription(response.student),
-      });
-      return;
-    }
-    const error = response?.error;
-    if (showFieldErrors(error?.fieldErrors)) return;
-    if (isStale) closeModal();
-    showToast({ type: 'error', title: modalTexts().errorTitle, description: errorDescription(error) });
-  };
-
-  textInputs.forEach((input) => {
-    input.addEventListener('input', updateCreateButtonState);
-  });
-
-  statusOptions.forEach((option) => {
-    option.addEventListener('click', () => {
-      statusLabel.classList.remove('placeholder');
-      updateCreateButtonState();
-    });
+    },
+    onCancel: closeModal,
+    onStale: async () => {
+      await loadStudents();
+      closeModal();
+    },
+    onDeletedMatch: () => loadStudents(),
   });
 
   openModalBtn.addEventListener('click', () => openModal());
@@ -612,65 +403,43 @@ document.addEventListener('DOMContentLoaded', () => {
   // antes esa pulsación). Se escucha en el documento para que funcione aunque el foco haya
   // quedado fuera de un control. Mientras se guarda el alumno, ni Escape ni Cancelar lo cierran.
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && overlay.classList.contains('is-open') && !isSaving) closeModal();
-  });
-
-  cancelBtn.addEventListener('click', () => {
-    if (!isSaving) closeModal();
+    if (event.key === 'Escape' && overlay.classList.contains('is-open') && !form.isSaving) closeModal();
   });
 
   // El overlay no cierra el modal al hacer clic fuera de él: sin listener de cierre en overlay/backdrop.
 
-  createBtn.addEventListener('click', () => {
-    if (isSaving) return;
-    // Con algún campo inválido, el modal sigue abierto con el foco en el primero.
-    if (validateFields(overlay)) return;
-    // El proceso principal vuelve a validar todo.
-    saveStudent();
-  });
-
   // ---------- Modal: Eliminar alumno ----------
 
-  // El alumno ya no está vigente: la lista en memoria quedó vieja y se vuelve a pedir
-  const NO_LONGER_ACTIVE_CODES = ['STUDENT_NOT_FOUND', 'STUDENT_ALREADY_DELETED'];
-
   // El id sale del data-student-id de la fila del botón (el alumno_id, fijado al crearla), no de su
-  // posición en la tabla, y el nombre del toast, del alumno cargado. Avisa el resultado con un toast
-  // y no resuelve ningún mensaje, así el modal se cierra siempre.
-  const deleteStudent = async (trigger) => {
+  // posición en la tabla, y el nombre del toast, del alumno cargado. La baja y sus toasts los
+  // resuelve student-delete.component.js, que no resuelve ningún mensaje: el modal se cierra siempre.
+  const confirmDelete = (trigger) => {
     const row = trigger.closest('tr');
     const student = students.find((candidate) => String(candidate.id) === row?.dataset.studentId);
-    let response;
-    try {
-      response = await window.api?.students?.delete(Number(row?.dataset.studentId));
-    } catch (error) {
-      console.error('Error al eliminar el alumno:', error);
-    }
-    const isGone = NO_LONGER_ACTIVE_CODES.includes(response?.error?.code);
     // La fila va a dejar de mostrarse: su posición se toma antes de volver a dibujar la tabla
-    if (response?.ok || isGone) triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
-    if (response?.ok) {
+    const keepRowIndex = () => {
+      triggerRowIndex = Math.max(0, Array.from(tbody.rows).indexOf(row));
+    };
+    return deleteStudent(student, {
       // La respuesta no trae al alumno: su deletedAt es el instante actual (la tabla no lo muestra;
       // el de la base llega en la próxima carga)
-      moveToOtherTab({ ...student, deletedAt: new Date().toISOString() });
-      // La base admite una sola inscripción activa por alumno
-      const cancelledText = response.cancelledEnrollmentCount > 0 ? ' y se canceló su inscripción activa' : '';
-      showToast({
-        type: 'success',
-        title: 'Alumno eliminado',
-        description: `Se eliminó a ${displayName(student)}${cancelledText}.`,
-      });
-      return;
-    }
-    if (isGone) await loadStudents();
-    showToast({ type: 'error', title: 'No se pudo eliminar el alumno', description: errorDescription(response?.error) });
+      onDeleted: () => {
+        keepRowIndex();
+        moveToOtherTab({ ...student, deletedAt: new Date().toISOString() });
+      },
+      // Ya no estaba vigente: la lista en memoria quedó vieja y se vuelve a pedir
+      onGone: () => {
+        keepRowIndex();
+        return loadStudents();
+      },
+    });
   };
 
   // Componente compartido confirm-modal.component.js: espera la respuesta abierto y después se
   // cierra. Si la fila ya no está, el foco pasa a Eliminar en la que quedó en su lugar.
   setupConfirmModal(document.getElementById('deleteStudentOverlay'), {
     beforeOpen: closeAllDropdowns,
-    onConfirm: deleteStudent,
+    onConfirm: confirmDelete,
     fallbackFocus: () => focusAfterRemoval('delete'),
   });
 

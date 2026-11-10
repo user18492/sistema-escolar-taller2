@@ -38,13 +38,7 @@
   min-width: 160px;
 }
 
-.badge-completed .badge-icon {
-  color: var(--color-accent-blue);
-}
-
-.badge-cancelled .badge-icon {
-  color: #ef4444;
-}
+/* Los colores de Finalizada y Cancelada están en badge.css */
 
 /* Acciones de fila en tono discreto, igual que en Administrador; el azul queda reservado al hover. */
 .enrollments-card .table-action {

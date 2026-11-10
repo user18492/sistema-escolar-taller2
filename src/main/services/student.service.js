@@ -308,4 +308,4 @@ async function restoreStudent(currentUser, studentId) {
   return toListedStudent(restoredStudent);
 }
 
-module.exports = { listStudents, createStudent, updateStudent, deleteStudent, restoreStudent, StudentError };
+module.exports = { listStudents, createStudent, updateStudent, deleteStudent, restoreStudent, toListedStudent, StudentError };
