@@ -15,3 +15,7 @@
 .course-name {
   font-weight: 500;
 }
+
+.assignment-follow-up-link {
+  margin-inline-start: 8px;
+}

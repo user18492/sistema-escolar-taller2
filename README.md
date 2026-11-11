@@ -15,7 +15,9 @@ Desde la raíz del proyecto:
 4. `npm start`: inicia la aplicación. Si no puede conectarse a la base, muestra el motivo y se cierra.
 
 ## Reinicialización de la base
-`npm run db:setup` no modifica una base que ya existe. Si cambian `db/schema.sql` o `db/seed.sql`, borrar la base y volver a crearla:
+Al iniciar la aplicación se incorpora el seguimiento de alumnos a las bases existentes y se calculan las alertas a partir de las notas del ciclo actual.
+
+`npm run db:setup` no modifica una base que ya existe. Para volver a crear una base de desarrollo desde cero con `db/schema.sql` y `db/seed.sql`:
 
 ```powershell
 dropdb -U postgres sistema-escolar-taller2-db

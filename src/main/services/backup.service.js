@@ -17,7 +17,7 @@ const { FORMATS } = backupFileRepository;
 
 // Versión del contenido de backup.json: cambia si cambia su forma, para que el restore rechace los
 // archivos que no sabe leer.
-const FORMAT_VERSION = 1;
+const FORMAT_VERSION = 2;
 
 // ---------- Una operación a la vez ----------
 
@@ -184,6 +184,8 @@ const REFERENCES = [
   { table: 'evaluacion', column: 'asignacion_docente_id', target: 'asignacion_docente' },
   { table: 'calificacion', column: 'evaluacion_id', target: 'evaluacion' },
   { table: 'calificacion', column: 'inscripcion_id', target: 'inscripcion' },
+  { table: 'seguimiento_alumno', column: 'asignacion_docente_id', target: 'asignacion_docente' },
+  { table: 'seguimiento_alumno', column: 'inscripcion_id', target: 'inscripcion' },
 ];
 
 const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -192,20 +194,23 @@ const isText = (value) => typeof value === 'string' && value.length > 0;
 const hasAll = (object, names, isValid) => isPlainObject(object) && names.every((name) => isValid(object[name]));
 const isColumnList = (value) => Array.isArray(value) && value.every(isText);
 const idColumnOf = (table) => `${table}_id`;
+const includedTables = ({ formatVersion }) => formatVersion === 1
+  ? INSTITUTION_TABLE_NAMES.filter((name) => name !== 'seguimiento_alumno')
+  : INSTITUTION_TABLE_NAMES;
 
 // Regla 1: el formato es el que escribe create, con todas sus claves.
 function hasBackupShape(content) {
   return (
     isPlainObject(content)
-    && content.formatVersion === FORMAT_VERSION
+    && [1, FORMAT_VERSION].includes(content.formatVersion)
     && isText(content.createdAt) && !Number.isNaN(Date.parse(content.createdAt))
     && isPlainObject(content.institution) && Number.isInteger(content.institution.id) && isText(content.institution.cuit)
     && isText(content.institution.name)
     && isPlainObject(content.createdBy) && Number.isInteger(content.createdBy.id) && typeof content.createdBy.firstName === 'string'
     && typeof content.createdBy.lastName === 'string'
-    && hasAll(content.columns, INSTITUTION_TABLE_NAMES, isColumnList)
+    && hasAll(content.columns, includedTables(content), isColumnList)
     && hasAll(content.catalogs, CATALOG_TABLE_NAMES, isRowList)
-    && hasAll(content.tables, INSTITUTION_TABLE_NAMES, isRowList)
+    && hasAll(content.tables, includedTables(content), isRowList)
   );
 }
 
@@ -213,11 +218,13 @@ function hasBackupShape(content) {
 // (parte de la regla 1).
 function hasConsistentRows(content) {
   const { tables } = content;
-  const idsOf = new Map(INSTITUTION_TABLE_NAMES.map((table) => [table, new Set(tables[table].map((row) => row[idColumnOf(table)]))]));
+  const tableNames = includedTables(content);
+  const idsOf = new Map(tableNames.map((table) => [table, new Set(tables[table].map((row) => row[idColumnOf(table)]))]));
   return (
-    INSTITUTION_TABLE_NAMES.every((table) => tables[table].every((row) => Number.isInteger(row[idColumnOf(table)])))
+    tableNames.every((table) => tables[table].every((row) => Number.isInteger(row[idColumnOf(table)])))
     && TABLES_WITH_INSTITUTION.every((table) => tables[table].every((row) => row.institucion_id === content.institution.id))
-    && REFERENCES.every(({ table, column, target }) => tables[table].every((row) => idsOf.get(target).has(row[column])))
+    && REFERENCES.every(({ table, column, target }) =>
+      !idsOf.has(table) || tables[table].every((row) => idsOf.get(target).has(row[column])))
   );
 }
 
@@ -228,10 +235,10 @@ function isSameRow(a, b) {
     && keys.every((key) => Object.hasOwn(b, key) && JSON.stringify(a[key]) === JSON.stringify(b[key]));
 }
 
-// Regla 3: las columnas de las 7 tablas son las de la base, tabla por tabla y en orden, y cada fila
+// Regla 3: las columnas de las tablas incluidas son las de la base, tabla por tabla y en orden, y cada fila
 // de los catálogos del archivo está igual en la base (la base puede tener filas de más).
 function isCompatible(content, reference) {
-  const sameColumns = INSTITUTION_TABLE_NAMES.every((table) => {
+  const sameColumns = includedTables(content).every((table) => {
     const current = reference.columns[table];
     const fromFile = content.columns[table];
     return current.length === fromFile.length && current.every((column, index) => column === fromFile[index]);

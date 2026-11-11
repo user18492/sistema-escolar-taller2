@@ -668,6 +668,8 @@ contextBridge.exposeInMainWorld('api', {
     // PROFESOR. Recibe { schoolYear } y devuelve la nota de aprobación y los conteos por
     // evaluación tomada de sus asignaciones vigentes. La vista aplica el criterio de revisión.
     getEvaluationFailureRates: (filters) => ipcRenderer.invoke('reports:get-evaluation-failure-rates', filters),
+    getStudentFollowUp: (filters = {}) => ipcRenderer.invoke('reports:get-student-follow-up', filters),
+    setStudentFollowUpAttended: (change) => ipcRenderer.invoke('reports:set-student-follow-up-attended', change),
   },
   backups: {
     // Solo ADMIN. Resuelve { ok: true, backups } con el historial de backups de su institución

@@ -134,6 +134,14 @@ const INSTITUTION_TABLES = [
                                  JOIN curso c ON c.curso_id = a.curso_id
                                 WHERE c.institucion_id = $1)`,
   },
+  {
+    name: 'seguimiento_alumno',
+    idColumn: 'seguimiento_alumno_id',
+    where: `t.asignacion_docente_id IN (SELECT a.asignacion_docente_id
+                                         FROM asignacion_docente a
+                                         JOIN curso c ON c.curso_id = a.curso_id
+                                        WHERE c.institucion_id = $1)`,
+  },
 ];
 
 // Los catálogos globales, que no se respaldan: el archivo lleva una copia para que el restore
@@ -287,7 +295,7 @@ const RESET_SEQUENCE_SQL = Object.fromEntries(INSTITUTION_TABLES.map(({ name, id
     LEFT JOIN pg_sequences s ON format('%I.%I', s.schemaname, s.sequencename)::REGCLASS = seq.name
 `]));
 
-// Reemplaza los datos de la institución $1 en las 7 tablas de INSTITUTION_TABLES por los de `data`
+// Reemplaza los datos de la institución $1 en las tablas de INSTITUTION_TABLES por los de `data`
 // (el contenido de un backup: data.tables, en la forma de readInstitutionSnapshot), todo en una sola
 // transacción: cualquier error la deshace por completo, incluido el DISABLE TRIGGER. `validate`
 // recibe lo que devuelve readRestoreReference, leído dentro de la transacción, y lanza un error si
@@ -301,7 +309,7 @@ async function replaceInstitutionData(institutionId, data, validate) {
     await transactionQuery(LOCK_TIMEOUT_SQL);
     validate(await readRestoreReference(institutionId, transactionQuery));
 
-    // Los triggers de usuario de las 7 tablas se deshabilitan mientras dura la carga: los del ciclo
+    // Los triggers de usuario de las tablas se deshabilitan mientras dura la carga: los del ciclo
     // lectivo y los de coherencia rechazarían el historial (cursos de ciclos cerrados, inscripciones
     // finalizadas, asignaciones de profesores suspendidos o dados de baja, filas dadas de baja), que
     // ya los cumplía cuando se hizo el backup. DISABLE TRIGGER USER no toca los triggers internos de
@@ -314,7 +322,11 @@ async function replaceInstitutionData(institutionId, data, validate) {
 
     // Las que referencian a otras primero, y la carga en el orden inverso
     for (const name of [...INSTITUTION_TABLE_NAMES].reverse()) await transactionQuery(DELETE_SQL[name], [institutionId]);
-    for (const name of INSTITUTION_TABLE_NAMES) await transactionQuery(INSERT_SQL[name], [JSON.stringify(data.tables[name])]);
+    const hasFollowUp = data.formatVersion >= 2;
+    for (const name of INSTITUTION_TABLE_NAMES) {
+      if (name === 'seguimiento_alumno' && !hasFollowUp) continue;
+      await transactionQuery(INSERT_SQL[name], [JSON.stringify(data.tables[name])]);
+    }
 
     // Los ids del backup se conservan: las secuencias nunca retroceden y las filas no cambian de
     // institución, así que la otra institución no puede tener esos ids, salvo que la base se haya
@@ -322,6 +334,7 @@ async function replaceInstitutionData(institutionId, data, validate) {
     for (const name of INSTITUTION_TABLE_NAMES) await transactionQuery(RESET_SEQUENCE_SQL[name]);
 
     for (const name of INSTITUTION_TABLE_NAMES) await transactionQuery(ENABLE_TRIGGERS_SQL[name]);
+    if (!hasFollowUp) await transactionQuery('SELECT fn_iniciar_seguimientos($1)', [institutionId]);
 
     // Un backup de un ciclo que ya cerró deja inscripciones activas en ese ciclo
     await finalizeActiveInClosedSchoolYears(transactionQuery);

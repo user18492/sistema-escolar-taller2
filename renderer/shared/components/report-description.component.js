@@ -16,6 +16,7 @@
     'report-cards': 'Consulta los boletines de cada alumno o prepara un PDF con todo el curso.',
     'pending-scores': 'Consulta qué evaluaciones ya tomadas tienen alumnos sin nota y cuánto falta para que cierre su trimestre.',
     'evaluation-failure-rates': 'Identifica evaluaciones para revisar según la desaprobación y el avance de la carga de notas.',
+    'student-follow-up': 'Consulta las alertas por desempeño bajo o por una caída en las calificaciones.',
   };
 
   class ReportDescription extends HTMLElement {

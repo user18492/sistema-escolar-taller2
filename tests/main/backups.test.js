@@ -30,6 +30,8 @@ const TABLES = [
                                             WHERE a.asignacion_docente_id = t.asignacion_docente_id AND u.institucion_id = $1)`],
   ['calificacion', 'calificacion_id', `t.inscripcion_id IN (SELECT i.inscripcion_id FROM inscripcion i JOIN alumno al ON al.alumno_id = i.alumno_id
                                                              WHERE al.institucion_id = $1)`],
+  ['seguimiento_alumno', 'seguimiento_alumno_id', `t.inscripcion_id IN (SELECT i.inscripcion_id FROM inscripcion i JOIN alumno al ON al.alumno_id = i.alumno_id
+                                                                     WHERE al.institucion_id = $1)`],
 ];
 const CATALOGS = [
   ['usuario_rol', 'usuario_rol_id'], ['grado', 'grado_id'], ['materia', 'materia_id'],
@@ -133,7 +135,7 @@ group('main.admin.backups', 'Administrador: backups', {
       t.require(content, 'backup.json no se pudo leer');
 
       // Encabezado
-      t.equal(content.formatVersion, 1, 'formatVersion');
+      t.equal(content.formatVersion, 2, 'formatVersion');
       t.equal(content.institution, { id: institution.institucion_id, cuit: institution.cuit, name: institution.nombre }, 'La institución del backup es la de la sesión');
       const admin = await t.sqlOne(`SELECT nombre, apellido FROM usuario WHERE usuario_id = $1`, [t.data.adminId]);
       t.equal(content.createdBy, { id: t.data.adminId, firstName: admin.nombre, lastName: admin.apellido }, 'createdBy es el administrador de la sesión');
@@ -486,7 +488,7 @@ group('main.admin.restore', 'Administrador: restore de un backup', {
       ['otra extensión', writeRaw(t, 'backup.json', JSON.stringify(content)), 'BACKUP_INVALID_FILE'],
       ['un ZIP sin backup.json', writeZip(t, 'sin-json.zip', { 'otro.json': content }), 'BACKUP_INVALID_FILE'],
       ['un backup.json que no es JSON', writeZip(t, 'no-json.zip', { 'backup.json': Buffer.from('{ "formatVersion": 1, ') }), 'BACKUP_INVALID_FILE'],
-      ['otra versión del formato', writeZip(t, 'version.zip', { 'backup.json': { ...deepCopy(content), formatVersion: 2 } }), 'BACKUP_INVALID_FILE'],
+      ['otra versión del formato', writeZip(t, 'version.zip', { 'backup.json': { ...deepCopy(content), formatVersion: 3 } }), 'BACKUP_INVALID_FILE'],
       ['una tabla de menos', writeZip(t, 'sin-tabla.zip', { 'backup.json': missingTable }), 'BACKUP_INVALID_FILE'],
       ['sin administradores activos', writeZip(t, 'sin-admin.zip', { 'backup.json': withoutAdmins }), 'BACKUP_INVALID_FILE'],
       ['de la otra institución', foreignFile, 'BACKUP_OTHER_INSTITUTION'],

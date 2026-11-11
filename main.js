@@ -5,6 +5,7 @@ const { app, dialog } = require('electron');
 const { createMainWindow } = require('./src/main/main-window');
 const { createSystemTray } = require('./src/main/system-tray');
 const { checkConnection, closeConnection } = require('./src/main/database/connection');
+const { installStudentFollowUp } = require('./src/main/database/student-follow-up-migration');
 const schoolYearService = require('./src/main/services/school-year.service');
 const { registerProfileImageScheme, handleProfileImageRequests } = require('./src/main/profile-image-protocol');
 const { blockQuitIfUnsaved } = require('./src/main/quit-guard');
@@ -64,6 +65,7 @@ app.whenReady().then(async () => {
     // Antes de abrir la ventana, las inscripciones activas de los ciclos lectivos ya cerrados pasan
     // a finalizadas. Es idempotente: en los arranques siguientes ya no encuentra ninguna.
     await schoolYearService.closePastSchoolYears();
+    await installStudentFollowUp();
   } catch (error) {
     console.error('No se pudo conectar a la base de datos:', error);
     dialog.showErrorBox('Error de conexión con la base de datos', describeConnectionError(error));

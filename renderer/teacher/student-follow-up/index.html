@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alumnos que requieren seguimiento - Gestión Escolar</title>
+    <link rel="stylesheet" href="../../shared/styles/base.css" />
+    <link rel="stylesheet" href="../../shared/styles/titlebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/sidebar.css" />
+    <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
+    <link rel="stylesheet" href="../../shared/styles/buttons.css" />
+    <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/follow-up-badge.css" />
+    <link rel="stylesheet" href="./student-follow-up.css" />
+    <script src="../../shared/components/drag-guard.component.js"></script>
+    <script src="../../shared/components/titlebar.component.js"></script>
+    <script src="../../shared/components/user-avatar.component.js"></script>
+    <script src="../../shared/components/session-user-cache.component.js"></script>
+    <script src="../../shared/components/sidebar.js"></script>
+    <script src="../../shared/components/course-label.component.js"></script>
+    <script src="../../shared/components/follow-up-badge.component.js"></script>
+    <script src="./student-follow-up.js" defer></script>
+  </head>
+  <body>
+    <app-titlebar></app-titlebar>
+    <div class="app-shell">
+      <app-sidebar nav-role="teacher" active="reports"></app-sidebar>
+      <div class="main">
+        <main class="content">
+          <div class="page-head">
+            <nav class="breadcrumb" aria-label="Ruta de navegación">
+              <a id="backLink" href="../reports/index.html">Reportes</a>
+              <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+              <span class="breadcrumb-current" aria-current="page">Seguimiento</span>
+            </nav>
+            <div class="page-header">
+              <div>
+                <h1>Alumnos que requieren seguimiento</h1>
+                <p id="assignmentContext">Consulta las alertas por desempeño bajo o por una caída en las calificaciones.</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="reportControls" hidden>
+            <div class="follow-up-controls">
+              <label id="assignmentFilter">Curso y materia
+                <select id="assignmentSelect">
+                  <option value="">Todas mis asignaciones</option>
+                </select>
+              </label>
+              <div class="status-filters" role="group" aria-label="Estado del seguimiento">
+                <button class="btn btn-secondary" type="button" data-status="PENDING" aria-pressed="true">
+                  Pendientes <follow-up-badge hidden></follow-up-badge>
+                </button>
+                <button class="btn btn-secondary" type="button" data-status="ATTENDED" aria-pressed="false">Atendidos</button>
+                <button class="btn btn-secondary" type="button" data-status="RESOLVED" aria-pressed="false">Resueltos</button>
+              </div>
+            </div>
+            <details class="follow-up-rules">
+              <summary>Cómo se detectan las alertas</summary>
+              <p><strong>Desempeño bajo.</strong> El promedio de las últimas dos notas es menor a <span id="passingGrade"></span>.</p>
+              <p><strong>Caída de desempeño.</strong> El promedio de las últimas dos notas bajó al menos 1,5 puntos frente al promedio de las dos anteriores.</p>
+              <p>Se usan las calificaciones vigentes. Las evaluaciones pendientes de calificar quedan fuera del cálculo.</p>
+            </details>
+          </div>
+
+          <p class="form-error" id="followUpError" role="alert" hidden></p>
+          <p id="followUpStatus" class="follow-up-message" role="status">Cargando seguimientos…</p>
+          <ul id="followUpList" class="follow-up-list" aria-label="Alumnos por estado del seguimiento"></ul>
+        </main>
+      </div>
+    </div>
+
+    <template id="followUpRow">
+      <li class="card follow-up-row">
+        <div class="follow-up-row-header">
+          <div>
+            <h2 data-field="name"></h2>
+            <p data-field="assignment"></p>
+          </div>
+          <button class="btn btn-secondary follow-up-action" type="button"></button>
+        </div>
+        <p class="follow-up-reasons" data-field="reasons"></p>
+        <p data-field="dates" hidden></p>
+        <details>
+          <summary data-field="averages"></summary>
+          <ol class="follow-up-scores"></ol>
+        </details>
+      </li>
+    </template>
+  </body>
+</html>

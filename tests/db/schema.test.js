@@ -137,8 +137,8 @@ group('db.schema', 'Esquema y seed', () => {
     const tables = (await t.sql(`SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY 1`)).map((row) => row.tablename);
     // El seed solo califica las evaluaciones ya tomadas (con fecha de hoy o anterior)
     const takenEvaluations = (await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM evaluacion WHERE fecha_evaluacion <= fn_fecha_actual()`)).count;
-    // El historial de backups empieza vacío: el seed no realiza ninguno
-    const emptyAfterSeed = ['respaldo'];
+    // Los seguimientos dependen de si las notas vigentes del seed activan alguna alerta.
+    const emptyAfterSeed = ['respaldo', 'seguimiento_alumno'];
     for (const table of tables) {
       const { count } = await t.sqlOne(`SELECT COUNT(*)::INT AS count FROM ${table}`);
       const mayBeEmpty = (table === 'calificacion' && takenEvaluations === 0) || emptyAfterSeed.includes(table);

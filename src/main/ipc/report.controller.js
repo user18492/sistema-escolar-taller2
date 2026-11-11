@@ -58,6 +58,11 @@ function registerReportHandlers(browserWindow) {
     reportAction((currentUser) => reportService.getPendingScores(currentUser), 'Calificaciones pendientes de carga'));
   handleProtected(browserWindow, 'reports:get-evaluation-failure-rates', ['PROFESOR'],
     reportAction(reportService.getEvaluationFailureRates, 'Evaluaciones con alta desaprobación'));
+  handleProtected(browserWindow, 'reports:get-student-follow-up', ['PROFESOR'],
+    reportAction(reportService.getStudentFollowUp, 'Alumnos que requieren seguimiento'));
+  handleProtected(browserWindow, 'reports:set-student-follow-up-attended', ['PROFESOR'],
+    reportAction(reportService.setStudentFollowUpAttended, 'Alumnos que requieren seguimiento',
+      'No se pudo actualizar el seguimiento. Intentá nuevamente.'));
 }
 
 module.exports = { registerReportHandlers };

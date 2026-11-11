@@ -97,6 +97,8 @@ module.exports = {
     'reports:open-report-cards': { roles: ['SECRETARIO'], args: [{}] },
     'reports:get-pending-scores': { roles: ['PROFESOR'], args: [] },
     'reports:get-evaluation-failure-rates': { roles: ['PROFESOR'], args: [{}] },
+    'reports:get-student-follow-up': { roles: ['PROFESOR'], args: [{}] },
+    'reports:set-student-follow-up-attended': { roles: ['PROFESOR'], args: [{}] },
 
     'backups:list': { roles: ['ADMIN'], args: [] },
     // Un formato inválido: el ADMIN recibe INVALID_INPUT y no se escribe nada

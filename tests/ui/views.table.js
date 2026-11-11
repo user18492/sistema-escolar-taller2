@@ -102,6 +102,7 @@ module.exports = {
   'teacher/reports/index.html': { roles: ['PROFESOR'] },
   'teacher/pending-scores-report/index.html': { roles: ['PROFESOR'] },
   'teacher/evaluation-failure-report/index.html': { roles: ['PROFESOR'] },
+  'teacher/student-follow-up/index.html': { roles: ['PROFESOR'] },
   'teacher/assignments/index.html': {
     roles: ['PROFESOR'],
     rows: {

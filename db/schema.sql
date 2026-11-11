@@ -2154,6 +2154,8 @@ SELECT i.inscripcion_id,
    AND e.fecha_evaluacion >= i.fecha_inscripcion
  GROUP BY i.inscripcion_id, a.asignacion_docente_id, fn_trimestre(e.fecha_evaluacion);
 
+\ir student-follow-up.sql
+
 -- Respaldos: el historial de los backups de cada institución, uno por fila, con quién lo realizó y
 -- cuándo. No entra en el backup y el restore no la toca: el historial sigue completo después de
 -- restaurar.

@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // En el orden en que llegan del proceso principal
   let assignments = [];
+  let pendingCounts = new Map();
   let isLoaded = false;
   // El ciclo lectivo actual ({ year, today }), que llega con la lista: null hasta entonces
   let currentSchoolYear = null;
@@ -110,6 +111,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const manageLink = row.querySelector('manage-link');
     const params = new URLSearchParams({ assignmentId: String(id) });
     manageLink.setAttribute('href', `${manageLink.getAttribute('href')}?${params.toString()}`);
+    const pendingCount = pendingCounts.get(id) ?? 0;
+    if (pendingCount) {
+      const followUpLink = row.querySelector('.assignment-follow-up-link');
+      followUpLink.href = `${followUpLink.getAttribute('href')}?${params.toString()}`;
+      followUpLink.hidden = false;
+      followUpLink.querySelector('follow-up-badge').setAttribute('count', pendingCount);
+    }
     return row;
   };
 
@@ -155,6 +163,9 @@ document.addEventListener('DOMContentLoaded', () => {
     showMessage('Cargando asignaciones…');
     let response;
     let schoolYear = null;
+    const followUpCounts = window.api?.reports?.getStudentFollowUp?.({ countsOnly: true }).catch((error) => {
+      console.error('Error al cargar las alertas de seguimiento:', error);
+    });
     try {
       [response, schoolYear] = await Promise.all([window.api?.teacherAssignments?.listOwn(), loadCurrentSchoolYear()]);
     } catch (error) {
@@ -164,6 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showMessage(response?.error?.message || GENERIC_LOAD_ERROR);
       return;
     }
+    const followUp = await followUpCounts;
+    pendingCounts = new Map((followUp?.report?.counts ?? []).map(({ assignmentId, count }) => [assignmentId, count]));
     assignments = response.teacherAssignments;
     currentSchoolYear = schoolYear;
     isLoaded = true;

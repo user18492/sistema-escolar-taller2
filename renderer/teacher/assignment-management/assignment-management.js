@@ -28,6 +28,15 @@ document.addEventListener('DOMContentLoaded', () => {
       option.href = `${option.getAttribute('href')}?${query}`;
     });
     optionsCard.inert = false;
+
+    try {
+      const response = await window.api.reports.getStudentFollowUp({ assignmentId: assignment.id, countsOnly: true });
+      if (response.ok) {
+        optionsCard.querySelector('follow-up-badge').setAttribute('count', response.report.counts[0]?.count ?? 0);
+      }
+    } catch (error) {
+      console.error('Error al cargar las alertas de seguimiento:', error);
+    }
   }
 
   loadAssignment();

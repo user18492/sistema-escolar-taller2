@@ -7,6 +7,7 @@ const teacherAssignmentService = require('./teacher-assignment.service');
 const { toListedCourse } = require('./course.service');
 const { EDUCATION_LEVELS } = require('../repositories/grade.repository');
 const courseRepository = require('../repositories/course.repository');
+const studentFollowUpRepository = require('../repositories/student-follow-up.repository');
 const { toListedStudent } = require('./student.service');
 
 const { SHIFTS } = courseRepository;
@@ -316,18 +317,57 @@ async function getPendingScores(currentUser) {
   };
 }
 
-const PASSING_GRADE = 6;
-
 async function getEvaluationFailureRates(currentUser, filters) {
   const schoolYear = parseSchoolYear(filters.schoolYear);
+  const passingGrade = await studentFollowUpRepository.getPassingGrade();
   const rows = await evaluationRepository.findScoreOutcomesByTeacher(
-    currentUser.id, currentUser.institutionId, schoolYear, PASSING_GRADE
+    currentUser.id, currentUser.institutionId, schoolYear, passingGrade
   );
   const evaluations = rows.map(({ course, ...evaluation }) => ({
     ...evaluation,
     course: toListedCourse(course),
   }));
-  return { schoolYear, passingGrade: PASSING_GRADE, evaluations };
+  return { schoolYear, passingGrade, evaluations };
+}
+
+const isId = (value) => Number.isInteger(value) && value > 0 && value <= 2147483647;
+
+async function getStudentFollowUp(currentUser, { assignmentId = null, countsOnly = false }) {
+  if ((assignmentId !== null && !isId(assignmentId)) || typeof countsOnly !== 'boolean') {
+    throw invalidFilter('Elegí una asignación válida.');
+  }
+  const scope = [currentUser.id, currentUser.institutionId, assignmentId];
+  if (countsOnly) {
+    return { counts: await studentFollowUpRepository.findPendingCounts(...scope) };
+  }
+
+  const [ownAssignments, cases, { year }, passingGrade] = await Promise.all([
+    teacherAssignmentService.listOwnTeacherAssignments(currentUser),
+    studentFollowUpRepository.findCases(...scope),
+    schoolYearService.getCurrentSchoolYear(),
+    studentFollowUpRepository.getPassingGrade(),
+  ]);
+  const assignmentIdsWithCases = new Set(cases.map((entry) => entry.assignmentId));
+  const assignments = ownAssignments.filter(({ id, course }) => assignmentId === null
+    ? course.schoolYear === year || assignmentIdsWithCases.has(id)
+    : id === assignmentId);
+  if (assignmentId !== null && assignments.length === 0) {
+    throw new ReportError('TEACHER_ASSIGNMENT_NOT_FOUND', 'La asignación no existe o no está a tu cargo.');
+  }
+  return { assignments, cases, passingGrade };
+}
+
+async function setStudentFollowUpAttended(currentUser, { assignmentId, caseId, version, attended }) {
+  if (![assignmentId, caseId, version].every(isId) || typeof attended !== 'boolean') {
+    throw invalidFilter('El seguimiento seleccionado no es válido.');
+  }
+  const updated = await studentFollowUpRepository.updateAttendance(
+    currentUser.id, currentUser.institutionId, assignmentId, caseId, version, attended
+  );
+  if (!updated) {
+    throw new ReportError('FOLLOW_UP_CHANGED', 'El seguimiento cambió o ya no está disponible. Revisá la lista actualizada.');
+  }
+  return { id: caseId };
 }
 
 module.exports = {
@@ -338,5 +378,7 @@ module.exports = {
   getStudentsWithoutEnrollment,
   getPendingScores,
   getEvaluationFailureRates,
+  getStudentFollowUp,
+  setStudentFollowUpAttended,
   ReportError,
 };

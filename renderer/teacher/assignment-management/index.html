@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="../../shared/styles/assignment-summary.css" />
     <link rel="stylesheet" href="../../shared/styles/breadcrumb.css" />
     <link rel="stylesheet" href="../../shared/styles/form-field.css" />
+    <link rel="stylesheet" href="../../shared/styles/follow-up-badge.css" />
     <link rel="stylesheet" href="./assignment-management.css" />
     <script src="../../shared/components/drag-guard.component.js"></script>
     <script src="../../shared/components/titlebar.component.js"></script>
@@ -19,6 +20,7 @@
     <script src="../../shared/components/sidebar.js"></script>
     <script src="../../shared/components/text-truncate.component.js"></script>
     <script src="../../shared/components/assignment-summary.component.js"></script>
+    <script src="../../shared/components/follow-up-badge.component.js"></script>
     <script src="./assignment-management.js" defer></script>
   </head>
   <body>
@@ -89,6 +91,22 @@
                 <span class="option-title">Evaluaciones</span>
                 <span class="option-description text-truncate">Gestiona las evaluaciones correspondientes a esta asignación</span>
               </span>
+              <span class="option-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </span>
+            </a>
+
+            <a class="option-item" href="../student-follow-up/index.html">
+              <span class="option-icon" aria-hidden="true">
+                <img src="../../../resources/ExclamationTriangle.svg" width="20" height="20" alt="" />
+              </span>
+              <span class="option-body">
+                <span class="option-title">Seguimiento</span>
+                <span class="option-description text-truncate">Consulta las alertas de desempeño de esta asignación</span>
+              </span>
+              <follow-up-badge hidden></follow-up-badge>
               <span class="option-chevron" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="9 18 15 12 9 6" />
